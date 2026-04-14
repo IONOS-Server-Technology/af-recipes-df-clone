@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Build catalogue.json from all recipes/*/metadata.yaml files."""
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import yaml
+
+
+def main():
+    repo_root = Path(__file__).resolve().parent.parent
+    recipes_dir = repo_root / "recipes"
+    output_file = repo_root / "catalogue.json"
+
+    if not recipes_dir.is_dir():
+        print(f"Error: {recipes_dir} not found", file=sys.stderr)
+        sys.exit(1)
+
+    recipes = []
+    errors = []
+
+    for metadata_path in sorted(recipes_dir.glob("*/metadata.yaml")):
+        recipe_name = metadata_path.parent.name
+        try:
+            with open(metadata_path) as f:
+                meta = yaml.safe_load(f)
+
+            # Validate required fields
+            required = [
+                "name", "display_name", "description", "category",
+                "app_version", "recipe_version", "recipe_type",
+                "min_ram_mb", "min_cpu_cores", "min_disk_gb",
+            ]
+            missing = [field for field in required if field not in meta]
+            if missing:
+                errors.append(f"{recipe_name}: missing fields: {', '.join(missing)}")
+                continue
+
+            if meta["name"] != recipe_name:
+                errors.append(
+                    f"{recipe_name}: name '{meta['name']}' does not match directory"
+                )
+                continue
+
+            # Build catalogue entry
+            entry = {
+                "name": meta["name"],
+                "display_name": meta["display_name"],
+                "description": meta["description"],
+                "category": meta["category"],
+                "app_version": str(meta["app_version"]),
+                "recipe_version": str(meta["recipe_version"]),
+                "recipe_type": meta["recipe_type"],
+                "min_ram_mb": meta["min_ram_mb"],
+                "min_cpu_cores": meta["min_cpu_cores"],
+                "min_disk_gb": meta["min_disk_gb"],
+                "ports": meta.get("ports", []),
+                "parameters": [
+                    p["name"] for p in meta.get("parameters", [])
+                ],
+            }
+            recipes.append(entry)
+            print(f"  OK: {recipe_name}")
+
+        except Exception as e:
+            errors.append(f"{recipe_name}: {e}")
+
+    if errors:
+        print("\nErrors:", file=sys.stderr)
+        for err in errors:
+            print(f"  FAIL: {err}", file=sys.stderr)
+        sys.exit(1)
+
+    catalogue = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "recipe_count": len(recipes),
+        "recipes": recipes,
+    }
+
+    with open(output_file, "w") as f:
+        json.dump(catalogue, f, indent=2)
+        f.write("\n")
+
+    print(f"\nGenerated {output_file} with {len(recipes)} recipes.")
+
+
+if __name__ == "__main__":
+    main()
