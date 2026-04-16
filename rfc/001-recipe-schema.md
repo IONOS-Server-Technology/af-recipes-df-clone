@@ -49,13 +49,12 @@ af-recipes/
 | `name` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
 | `display_name` | string | yes | Human-readable name for UI display. |
 | `description` | string | yes | One-line description of the application. |
-| `category` | enum | yes | Application category (see §4.2). |
+| `categories` | list[enum] | yes | Application categories, one or more (see §4.2). |
 | `app_version` | string | yes | Upstream application version being deployed. |
 | `recipe_version` | string | yes | Recipe format version (semver). |
 | `recipe_type` | enum | yes | `docker-compose` or `bare-metal`. |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
-| `app_min_cpu_cores` | integer | yes | Minimum CPU cores required by the application. |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
 | `supported_os` | list[string] | yes | Supported OS list (e.g., `["ubuntu-26.04"]`). |
 | `ports` | list[port] | no | Network ports (see §4.3). |
