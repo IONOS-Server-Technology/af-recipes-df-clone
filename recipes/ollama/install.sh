@@ -11,8 +11,8 @@ set +a
 command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
 command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
 
-# Create named volumes
-docker volume create ollama-data || true
+# Create host directories for persistent data
+mkdir -p /opt/ollama/ollama
 
 # Deploy application
 docker-compose up -d

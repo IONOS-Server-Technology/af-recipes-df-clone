@@ -139,7 +139,7 @@ Every `supported_os` entry in a recipe must have a corresponding entry in `os-ba
 - **Compose v3 format** (no `version:` key — Compose v2 CLI handles this).
 - **Pinned image versions** — never use `:latest`.
 - **Healthchecks** — every service must declare a Docker healthcheck.
-- **Named volumes** — for all persistent data.
+- **Host bind mounts** — for all persistent data. Use paths like `/opt/<app-name>/<service-name>/` on the host.
 - **Dedicated bridge network** — one per recipe, named `<app>-network`.
 - **Environment variables** — reference `.env` file, not hardcoded values.
 - **No privileged containers** unless absolutely required (document in `notes`).
