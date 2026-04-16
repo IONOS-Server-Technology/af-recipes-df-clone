@@ -60,6 +60,7 @@ af-recipes/
 | `ports` | list[port] | no | Network ports (see §4.3). |
 | `parameters` | list[parameter] | yes | Customer-facing parameters (see §4.4). |
 | `dependencies` | list[dependency] | no | Other services bundled in the recipe (see §4.5). |
+| `incompatible_with` | list[string] | no | App IDs that cannot be co-installed (e.g., GPU conflicts, port clashes). Cloud Panel uses this to prevent invalid combinations during app selection. |
 | `notes` | string | no | Free-text notes (caveats, limitations). |
 
 ### 4.2 Categories
