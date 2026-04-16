@@ -9,7 +9,7 @@ Each recipe lives in `recipes/<app-name>/` and contains:
 | File | docker-compose | bare-metal | Description |
 |---|---|---|---|
 | `metadata.yaml` | required | required | App info, parameters, resource requirements |
-| `docker-compose.yml` | required | — | Compose v3 service definition |
+| `docker-compose.yaml` | required | — | Compose v3 service definition |
 | `.env.template` | required | — | `{{PARAM}}` placeholders resolved at install time |
 | `health-check.sh` | required | required | CI-only health check script |
 

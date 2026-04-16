@@ -13,7 +13,7 @@ This document defines the standard recipe format for the Application Factory (AF
 
 | Type | Description | Required Files |
 |---|---|---|
-| `docker-compose` | Containerized application deployed via Docker Compose | `metadata.yaml`, `docker-compose.yml`, `.env.template`, `health-check.sh` |
+| `docker-compose` | Containerized application deployed via Docker Compose | `metadata.yaml`, `docker-compose.yaml`, `.env.template`, `health-check.sh` |
 | `bare-metal` | Application installed directly on the OS (no Docker) | `metadata.yaml`, `health-check.sh` |
 
 ## 3. Directory Structure
@@ -25,7 +25,7 @@ af-recipes/
 ├── recipes/
 │   ├── n8n/                      # One directory per application
 │   │   ├── metadata.yaml
-│   │   ├── docker-compose.yml
+│   │   ├── docker-compose.yaml
 │   │   ├── .env.template
 │   │   └── health-check.sh
 │   ├── claude-code/              # bare-metal example
@@ -105,7 +105,7 @@ af-recipes/
 | `version` | string | yes | Pinned version. |
 | `bundled` | boolean | yes | Always `true` — each recipe bundles its own dependencies. |
 
-## 5. docker-compose.yml Conventions
+## 5. docker-compose.yaml Conventions
 
 - **Compose v3 format** (no `version:` key — Compose v2 CLI handles this).
 - **Pinned image versions** — never use `:latest`.
