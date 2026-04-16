@@ -46,7 +46,7 @@ jobs:
           ")
             if [ "$type" = "docker-compose" ]; then
               echo "Checking $recipe ..."
-              for f in docker-compose.yaml .env.template health-check.sh; do
+              for f in docker-compose.yaml .env.template install.sh health-check.sh; do
                 if [ ! -f "${dir}${f}" ]; then
                   echo "::error::${recipe}: missing required file ${f}"
                   exit 1
@@ -58,18 +58,20 @@ jobs:
               }
             elif [ "$type" = "bare-metal" ]; then
               echo "Checking $recipe ..."
-              if [ ! -f "${dir}health-check.sh" ]; then
-                echo "::error::${recipe}: missing required file health-check.sh"
-                exit 1
-              fi
+              for f in install.sh health-check.sh; do
+                if [ ! -f "${dir}${f}" ]; then
+                  echo "::error::${recipe}: missing required file ${f}"
+                  exit 1
+                fi
+              done
             fi
           done
           echo "All recipes have required files."
 
-      - name: Check health-check.sh is executable
+      - name: Check shell scripts are executable
         run: |
           fail=0
-          for f in recipes/*/health-check.sh; do
+          for f in recipes/*/install.sh recipes/*/health-check.sh; do
             if [ ! -x "$f" ]; then
               echo "::error::${f} is not executable (chmod +x)"
               fail=1

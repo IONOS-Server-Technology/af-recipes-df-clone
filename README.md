@@ -11,6 +11,7 @@ Each recipe lives in `recipes/<app-name>/` and contains:
 | `metadata.yaml` | required | required | App info, parameters, resource requirements |
 | `docker-compose.yaml` | required | — | Compose v3 service definition |
 | `.env.template` | required | — | `{{PARAM}}` placeholders resolved at install time |
+| `install.sh` | required | required | Installation orchestration script |
 | `health-check.sh` | required | required | CI-only health check script |
 
 See [rfc/001-recipe-schema.md](rfc/001-recipe-schema.md) for the full specification.
