@@ -6,7 +6,7 @@ Application Factory recipes — declarative application definitions consumed by 
 
 Each recipe lives in `recipes/<app-name>/` and contains:
 
-| File | docker-compose | bare-metal | Description |
+| File | docker-compose | native | Description |
 |---|---|---|---|
 | `metadata.yaml` | required | required | App info, parameters, resource requirements |
 | `docker-compose.yaml` | required | — | Compose v3 service definition |
@@ -86,7 +86,7 @@ See [rfc/001-recipe-schema.md](rfc/001-recipe-schema.md) for the full specificat
 <sub><b>AI Coding Assistant</b></sub>
 <br />
 <sub>
-<img src="https://img.shields.io/badge/bare--metal-333?style=flat-square&logo=linux&logoColor=white" />
+<img src="https://img.shields.io/badge/native-333?style=flat-square&logo=linux&logoColor=white" />
 <img src="https://img.shields.io/badge/2GB_RAM-grey?style=flat-square" />
 </sub>
 <br />
@@ -100,7 +100,7 @@ See [rfc/001-recipe-schema.md](rfc/001-recipe-schema.md) for the full specificat
 <sub><b>AI Coding Assistant</b></sub>
 <br />
 <sub>
-<img src="https://img.shields.io/badge/bare--metal-333?style=flat-square&logo=linux&logoColor=white" />
+<img src="https://img.shields.io/badge/native-333?style=flat-square&logo=linux&logoColor=white" />
 <img src="https://img.shields.io/badge/1GB_RAM-grey?style=flat-square" />
 </sub>
 <br />

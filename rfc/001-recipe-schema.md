@@ -14,7 +14,7 @@ This document defines the standard recipe format for the Application Factory (AF
 | Type | Description | Required Files |
 |---|---|---|
 | `docker-compose` | Containerized application deployed via Docker Compose | `metadata.yaml`, `docker-compose.yaml`, `.env.template`, `install.sh`, `health-check.sh` |
-| `bare-metal` | Application installed directly on the OS (no Docker) | `metadata.yaml`, `install.sh`, `health-check.sh` |
+| `native` | Application installed directly on the OS (no Docker) | `metadata.yaml`, `install.sh`, `health-check.sh` |
 
 ## 3. Directory Structure
 
@@ -29,7 +29,7 @@ af-recipes/
 │   │   ├── .env.template
 │   │   ├── install.sh
 │   │   └── health-check.sh
-│   ├── claude-code/              # bare-metal example
+│   ├── claude-code/              # native example
 │   │   ├── metadata.yaml
 │   │   ├── install.sh
 │   │   └── health-check.sh
@@ -52,7 +52,7 @@ af-recipes/
 | `categories` | list[enum] | yes | Application categories, one or more (see §4.2). |
 | `app_version` | string | yes | Upstream application version being deployed. |
 | `recipe_version` | string | yes | Recipe format version (semver). |
-| `recipe_type` | enum | yes | `docker-compose` or `bare-metal`. |
+| `recipe_type` | enum | yes | `docker-compose` or `native`. |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
