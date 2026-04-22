@@ -86,6 +86,29 @@ jobs:
           cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
           echo "cloudinit_file=/tmp/cloudinit.txt" >> $GITHUB_OUTPUT
 
+      - name: Discover IONOS Datacenter
+        id: datacenter
+        run: |
+          dc_id="${{ secrets.IONOS_DATACENTER_ID }}"
+
+          if [ -z "$dc_id" ]; then
+            echo "IONOS_DATACENTER_ID not set, discovering from API..."
+            dc_response=$(curl -s \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+              "https://api.ionos.com/cloudapi/v6/datacenters?pretty=false&depth=1")
+            dc_id=$(echo "$dc_response" | jq -r '.items[0].id // empty')
+            echo "Available datacenters:"
+            echo "$dc_response" | jq -r '.items[] | "\(.id) \(.properties.name) \(.properties.location)"' 2>/dev/null || echo "none"
+          fi
+
+          if [ -z "$dc_id" ]; then
+            echo "ERROR: No datacenter available"
+            exit 1
+          fi
+
+          echo "datacenter_id=$dc_id" >> $GITHUB_OUTPUT
+          echo "Using datacenter: $dc_id"
+
       - name: Get Ubuntu 22.04 image UUID
         id: image
         run: |
@@ -133,7 +156,7 @@ jobs:
           response=$(curl -s -X POST \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
             -H "Content-Type: application/json" \
-            "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers" \
+            "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers" \
             -d "{
               \"properties\": {
                 \"name\": \"${{ env.VM_NAME }}\",
@@ -191,7 +214,7 @@ jobs:
             # Get VM details via curl
             curl -s \
               -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers/${{ steps.provision.outputs.vm_id }}?depth=5" \
+              "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers/${{ steps.provision.outputs.vm_id }}?depth=5" \
               > /tmp/vm_details.json
 
             # Extract primary IP
@@ -244,7 +267,7 @@ jobs:
             echo "Destroying VM: ${{ env.VM_NAME }}"
             curl -s -X DELETE \
               -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers/${{ steps.provision.outputs.vm_id }}?deleteVolumes=true" \
+              "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers/${{ steps.provision.outputs.vm_id }}?deleteVolumes=true" \
               || true
           fi
 
