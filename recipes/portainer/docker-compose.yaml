@@ -1,0 +1,22 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:2.25.1-alpine
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/portainer/data:/data
+    ports:
+      - "9443:9443"
+      - "8000:8000"
+    networks:
+      - portainer-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://localhost:9443/api/status || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+networks:
+  portainer-network:
+    driver: bridge

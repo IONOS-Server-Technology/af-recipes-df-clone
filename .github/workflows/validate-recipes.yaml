@@ -1,0 +1,115 @@
+name: Validate Recipes
+
+on:
+  pull_request:
+    paths:
+      - "recipes/**"
+      - "bin/build-catalogue"
+  push:
+    branches: [main]
+    paths:
+      - "recipes/**"
+      - "bin/build-catalogue"
+
+jobs:
+  validate:
+    name: Validate recipe schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate all recipes
+        run: python3 bin/build-catalogue
+
+      - name: Check catalogue.json is up to date
+        run: |
+          git diff --exit-code catalogue.json || {
+            echo "::error::catalogue.json is out of date. Run 'python3 bin/build-catalogue' and commit the result."
+            exit 1
+          }
+
+      - name: Validate docker-compose files
+        run: |
+          for dir in recipes/*/; do
+            recipe=$(basename "$dir")
+            type=$(python3 -c "
+          import yaml
+          with open('${dir}metadata.yaml') as f:
+              print(yaml.safe_load(f).get('recipe_type', ''))
+          ")
+            if [ "$type" = "docker-compose" ]; then
+              echo "Checking $recipe ..."
+              for f in docker-compose.yaml .env.template install.sh health-check.sh; do
+                if [ ! -f "${dir}${f}" ]; then
+                  echo "::error::${recipe}: missing required file ${f}"
+                  exit 1
+                fi
+              done
+              docker compose -f "${dir}docker-compose.yaml" config --quiet 2>&1 || {
+                echo "::error::${recipe}: invalid docker-compose.yaml"
+                exit 1
+              }
+            elif [ "$type" = "native" ]; then
+              echo "Checking $recipe ..."
+              for f in install.sh health-check.sh; do
+                if [ ! -f "${dir}${f}" ]; then
+                  echo "::error::${recipe}: missing required file ${f}"
+                  exit 1
+                fi
+              done
+            fi
+          done
+          echo "All recipes have required files."
+
+      - name: Check shell scripts are executable
+        run: |
+          fail=0
+          for f in recipes/*/install.sh recipes/*/health-check.sh; do
+            if [ ! -x "$f" ]; then
+              echo "::error::${f} is not executable (chmod +x)"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Verify .env.template placeholders match parameters
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, re, sys
+          from pathlib import Path
+
+          errors = []
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              with open(meta_path) as f:
+                  meta = yaml.safe_load(f)
+
+              if meta.get("recipe_type") != "docker-compose":
+                  continue
+
+              recipe = meta_path.parent.name
+              env_path = meta_path.parent / ".env.template"
+              if not env_path.exists():
+                  continue
+
+              env_text = env_path.read_text()
+              template_params = set(re.findall(r"\{\{(\w+)\}\}", env_text))
+              meta_params = {p["name"] for p in meta.get("parameters", [])}
+
+              missing_in_meta = template_params - meta_params
+              if missing_in_meta:
+                  errors.append(f"{recipe}: .env.template uses {missing_in_meta} not declared in metadata.yaml parameters")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+
+          print("All .env.template placeholders match metadata parameters.")
+          PYEOF

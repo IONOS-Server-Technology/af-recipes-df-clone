@@ -1,0 +1,20 @@
+services:
+  ollama:
+    image: ollama/ollama:0.7.1
+    restart: unless-stopped
+    volumes:
+      - /opt/ollama/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - ollama-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:11434/api/tags > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  ollama-network:
+    driver: bridge
