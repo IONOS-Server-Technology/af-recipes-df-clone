@@ -89,30 +89,27 @@ jobs:
       - name: Get Ubuntu 22.04 image UUID
         id: image
         run: |
-          if ! command -v ionosctl &> /dev/null; then
-            echo "Installing ionosctl..."
-            curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
-            tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/
-            chmod +x /usr/local/bin/ionosctl
-          fi
+          echo "=== Raw IONOS API response (first 500 chars) ==="
+          api_response=$(curl -s \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+            "https://api.ionos.com/cloudapi/v6/images?pretty=false&depth=1")
+          echo "$api_response" | head -c 500
 
-          echo "=== ionosctl version ==="
-          ionosctl version || true
-
-          echo "=== Raw image list (first 20 names) ==="
-          ionosctl compute image list \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json 2>&1 | jq -r '.items[]?.properties.name' 2>/dev/null | head -20 || echo "jq failed or no items"
-
-          echo "=== Trying ubuntu filter ==="
-          image_uuid=$(ionosctl compute image list \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json 2>/dev/null | jq -r '.items[]? | select(.properties.name | ascii_downcase | contains("ubuntu")) | select(.properties.name | contains("22")) | .id' 2>/dev/null | head -1)
+          echo ""
+          echo "=== Filtering for Ubuntu 22.04 ==="
+          image_uuid=$(echo "$api_response" | jq -r '
+            .items[]?
+            | select(.properties.imageType == "HDD")
+            | select(.properties.licenceType == "LINUX")
+            | select(.properties.name | ascii_downcase | contains("ubuntu"))
+            | select(.properties.name | contains("22"))
+            | .id
+          ' 2>/dev/null | head -1)
 
           if [ -z "$image_uuid" ]; then
             echo "ERROR: Could not find Ubuntu 22.04 image"
+            echo "=== All image names ==="
+            echo "$api_response" | jq -r '.items[]?.properties.name' 2>/dev/null | head -30 || echo "no items in response"
             exit 1
           fi
 
