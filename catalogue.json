@@ -6,8 +6,107 @@
       "os_min_disk_mb": 5120
     }
   },
-  "recipe_count": 6,
+  "recipe_count": 22,
   "recipes": [
+    {
+      "name": "adguard-home",
+      "display_name": "AdGuard Home",
+      "description": "Network-wide DNS ad-blocker and privacy protection server.",
+      "categories": [
+        "security"
+      ],
+      "app_version": "v0.107.63",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 2048,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 3000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "AdGuard Home Setup UI"
+        },
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "public": true,
+          "description": "AdGuard Home Web UI (after setup)"
+        },
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "public": false,
+          "description": "DNS (TCP)"
+        },
+        {
+          "port": 53,
+          "protocol": "udp",
+          "public": false,
+          "description": "DNS (UDP)"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN"
+      ],
+      "incompatible_with_apps": [
+        "pihole"
+      ],
+      "notes": null
+    },
+    {
+      "name": "anytype-server",
+      "display_name": "AnyType Server",
+      "description": "Self-hosted sync server for AnyType \u2014 a privacy-focused note-taking and knowledge management app.",
+      "categories": [
+        "productivity"
+      ],
+      "app_version": "0.4.0",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 2048,
+      "app_min_disk_mb": 20480,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 4830,
+          "protocol": "tcp",
+          "public": true,
+          "description": "any-sync-coordinator"
+        },
+        {
+          "port": 4730,
+          "protocol": "tcp",
+          "public": true,
+          "description": "any-sync-filenode"
+        },
+        {
+          "port": 4630,
+          "protocol": "tcp",
+          "public": true,
+          "description": "any-sync-node"
+        },
+        {
+          "port": 9000,
+          "protocol": "tcp",
+          "public": false,
+          "description": "MinIO S3 API"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "MONGO_PASSWORD",
+        "MINIO_ACCESS_KEY",
+        "MINIO_SECRET_KEY"
+      ],
+      "incompatible_with_apps": [],
+      "notes": "After installation, configure your AnyType desktop/mobile app to use\nthe self-hosted server at the coordinator address: ${APP_DOMAIN}:4830.\nAll sync traffic is end-to-end encrypted.\n"
+    },
     {
       "name": "claude-code",
       "display_name": "Claude Code",
@@ -50,6 +149,137 @@
       "ports": [],
       "parameters": [
         "GEMINI_API_KEY"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "gitea",
+      "display_name": "Gitea",
+      "description": "Lightweight self-hosted Git service with web interface.",
+      "categories": [
+        "developer-tools"
+      ],
+      "app_version": "1.22.6",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 512,
+      "app_min_disk_mb": 20480,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 3000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Gitea Web UI"
+        },
+        {
+          "port": 2222,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Gitea SSH"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "POSTGRES_PASSWORD",
+        "GITEA_ADMIN_USER",
+        "GITEA_ADMIN_EMAIL",
+        "GITEA_ADMIN_PASSWORD"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "guacamole",
+      "display_name": "Apache Guacamole",
+      "description": "Clientless remote desktop gateway supporting VNC, RDP, and SSH via browser.",
+      "categories": [
+        "infrastructure"
+      ],
+      "app_version": "1.5.5",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 1024,
+      "app_min_disk_mb": 10240,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 8080,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Apache Guacamole Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "DB_PASSWORD",
+        "GUACADMIN_PASSWORD"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "home-assistant",
+      "display_name": "Home Assistant",
+      "description": "Open source home automation platform for local control and privacy.",
+      "categories": [
+        "automation"
+      ],
+      "app_version": "2025.4.4",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 1024,
+      "app_min_disk_mb": 10240,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 8123,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Home Assistant Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "TZ"
+      ],
+      "incompatible_with_apps": [],
+      "notes": "Home Assistant runs in bridge network mode (port 8123 mapped).\nFor full local device discovery (Bluetooth, USB, mDNS), host network mode\nis recommended but not suitable for cloud server deployments.\n"
+    },
+    {
+      "name": "immich",
+      "display_name": "Immich",
+      "description": "High-performance self-hosted photo and video management solution.",
+      "categories": [
+        "media"
+      ],
+      "app_version": "1.130.2",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 4096,
+      "app_min_disk_mb": 51200,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 2283,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Immich Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "DB_PASSWORD",
+        "REDIS_PASSWORD"
       ],
       "incompatible_with_apps": [],
       "notes": null
@@ -152,6 +382,153 @@
       "notes": null
     },
     {
+      "name": "opengist",
+      "display_name": "OpenGist",
+      "description": "Self-hosted pastebin and Gist service powered by Git.",
+      "categories": [
+        "developer-tools"
+      ],
+      "app_version": "1.8.4",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 5120,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 6157,
+          "protocol": "tcp",
+          "public": true,
+          "description": "OpenGist Web UI"
+        },
+        {
+          "port": 2222,
+          "protocol": "tcp",
+          "public": true,
+          "description": "OpenGist SSH (Git clone)"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "SECRET_KEY"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "paperless-ai",
+      "display_name": "Paperless-AI",
+      "description": "AI-powered document analysis and auto-tagging companion for Paperless-ngx.",
+      "categories": [
+        "productivity",
+        "ai"
+      ],
+      "app_version": "2.6.1",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 512,
+      "app_min_disk_mb": 5120,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 3000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Paperless-AI Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "PAPERLESS_URL",
+        "PAPERLESS_API_TOKEN",
+        "AI_PROVIDER",
+        "OPENAI_API_KEY"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "paperless-ngx",
+      "display_name": "Paperless-ngx",
+      "description": "Document management system that transforms physical documents into a searchable archive.",
+      "categories": [
+        "productivity"
+      ],
+      "app_version": "2.14.7",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 2048,
+      "app_min_disk_mb": 20480,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 8000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Paperless-ngx Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "ADMIN_USER",
+        "ADMIN_PASSWORD",
+        "DB_PASSWORD",
+        "SECRET_KEY"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "pihole",
+      "display_name": "Pi-hole",
+      "description": "Network-wide DNS ad-blocker that acts as a DNS sinkhole.",
+      "categories": [
+        "security"
+      ],
+      "app_version": "2024.07.0",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 2048,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 8080,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Pi-hole Web UI"
+        },
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "public": false,
+          "description": "DNS (TCP)"
+        },
+        {
+          "port": 53,
+          "protocol": "udp",
+          "public": false,
+          "description": "DNS (UDP)"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "WEBPASSWORD"
+      ],
+      "incompatible_with_apps": [
+        "adguard-home"
+      ],
+      "notes": null
+    },
+    {
       "name": "portainer",
       "display_name": "Portainer",
       "description": "GUI for managing Docker environments easily.",
@@ -178,6 +555,212 @@
           "protocol": "tcp",
           "public": false,
           "description": "Edge Agent TCP tunnel"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "runtipi",
+      "display_name": "Runtipi",
+      "description": "Self-hosted app store and homeserver manager for easy application deployment.",
+      "categories": [
+        "infrastructure"
+      ],
+      "app_version": "3.7.0",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 1024,
+      "app_min_disk_mb": 20480,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Runtipi Web UI (HTTP)"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Runtipi Web UI (HTTPS)"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "JWT_SECRET",
+        "POSTGRES_PASSWORD"
+      ],
+      "incompatible_with_apps": [],
+      "notes": "Runtipi manages its own Docker containers and requires access to the Docker socket.\nIt will deploy additional apps directly on the host Docker engine.\n"
+    },
+    {
+      "name": "syncthing",
+      "display_name": "Syncthing",
+      "description": "Continuous peer-to-peer file synchronization between devices.",
+      "categories": [
+        "productivity"
+      ],
+      "app_version": "v1.29.6",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 10240,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 8384,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Syncthing Web UI"
+        },
+        {
+          "port": 22000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Syncthing sync (TCP)"
+        },
+        {
+          "port": 22000,
+          "protocol": "udp",
+          "public": true,
+          "description": "Syncthing sync (QUIC/UDP)"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "PUID",
+        "PGID"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "uptime-kuma",
+      "display_name": "Uptime Kuma",
+      "description": "Self-hosted monitoring tool for tracking uptime of websites and services.",
+      "categories": [
+        "monitoring"
+      ],
+      "app_version": "1.23.16",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 2048,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 3001,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Uptime Kuma Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "vaultwarden",
+      "display_name": "Vaultwarden",
+      "description": "Lightweight Bitwarden-compatible password manager server.",
+      "categories": [
+        "security"
+      ],
+      "app_version": "1.32.7",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 5120,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "public": true,
+          "description": "Vaultwarden Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "ADMIN_TOKEN",
+        "SIGNUPS_ALLOWED"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "wg-easy",
+      "display_name": "WireGuard Easy",
+      "description": "Easiest way to run WireGuard VPN with a web UI for managing peers.",
+      "categories": [
+        "security"
+      ],
+      "app_version": "14",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 2048,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 51820,
+          "protocol": "udp",
+          "public": true,
+          "description": "WireGuard VPN"
+        },
+        {
+          "port": 51821,
+          "protocol": "tcp",
+          "public": true,
+          "description": "WireGuard Easy Web UI"
+        }
+      ],
+      "parameters": [
+        "APP_DOMAIN",
+        "WG_HOST",
+        "ADMIN_PASSWORD"
+      ],
+      "incompatible_with_apps": [],
+      "notes": null
+    },
+    {
+      "name": "wud",
+      "display_name": "What's Up Docker",
+      "description": "Monitor Docker containers and get notified when new image versions are available.",
+      "categories": [
+        "monitoring"
+      ],
+      "app_version": "6.5.0",
+      "recipe_version": "1.0.0",
+      "recipe_type": "docker-compose",
+      "app_min_ram_mb": 256,
+      "app_min_disk_mb": 2048,
+      "supported_os": [
+        "ubuntu-26.04"
+      ],
+      "ports": [
+        {
+          "port": 3000,
+          "protocol": "tcp",
+          "public": true,
+          "description": "WUD Web UI"
         }
       ],
       "parameters": [

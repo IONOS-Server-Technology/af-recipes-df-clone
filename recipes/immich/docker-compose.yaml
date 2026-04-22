@@ -1,0 +1,81 @@
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v1.130.2
+    restart: unless-stopped
+    environment:
+      - DB_HOSTNAME=postgres
+      - DB_PORT=5432
+      - DB_DATABASE_NAME=immich
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOSTNAME=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - IMMICH_SERVER_URL=http://immich-server:2283
+    ports:
+      - "2283:2283"
+    volumes:
+      - /opt/immich/upload:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - immich-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:2283/api/server-info/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v1.130.2
+    restart: unless-stopped
+    volumes:
+      - /opt/immich/model-cache:/cache
+    networks:
+      - immich-network
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:3003/ping')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    networks:
+      - immich-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=immich
+      - POSTGRES_USER=immich
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - /opt/immich/postgres:/var/lib/postgresql/data
+    networks:
+      - immich-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  immich-network:
+    driver: bridge

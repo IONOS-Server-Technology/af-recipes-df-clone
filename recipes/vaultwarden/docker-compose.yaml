@@ -1,0 +1,25 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.32.7
+    restart: unless-stopped
+    environment:
+      - DOMAIN=https://${APP_DOMAIN}
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - SIGNUPS_ALLOWED=${SIGNUPS_ALLOWED:-true}
+      - WEBSOCKET_ENABLED=true
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/vaultwarden/data:/data
+    networks:
+      - vaultwarden-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:80/alive || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  vaultwarden-network:
+    driver: bridge

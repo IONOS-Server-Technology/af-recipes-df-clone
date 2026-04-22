@@ -1,0 +1,23 @@
+services:
+  wud:
+    image: fmartinou/whats-up-docker:6.5.0
+    restart: unless-stopped
+    environment:
+      - WUD_LOG_LEVEL=info
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/wud/store:/store
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - wud-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/registries || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  wud-network:
+    driver: bridge

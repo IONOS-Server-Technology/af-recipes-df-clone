@@ -1,0 +1,53 @@
+services:
+  runtipi:
+    image: ghcr.io/runtipi/runtipi:v3.7.0
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${APP_DOMAIN}
+      - JWT_SECRET=${JWT_SECRET}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USERNAME=tipi
+      - POSTGRES_DBNAME=tipi
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - RUNTIPI_MEDIA_PATH=/opt/runtipi/media
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/runtipi/data:/data
+      - /opt/runtipi/media:/media
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - runtipi-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=tipi
+      - POSTGRES_USER=tipi
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/runtipi/postgres:/var/lib/postgresql/data
+    networks:
+      - runtipi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tipi -d tipi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  runtipi-network:
+    driver: bridge

@@ -1,0 +1,30 @@
+services:
+  pihole:
+    image: pihole/pihole:2024.07.0
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin
+      - WEBPASSWORD=${WEBPASSWORD}
+      - WEB_PORT=8080
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8080:8080/tcp"
+    volumes:
+      - /opt/pihole/etc-pihole:/etc/pihole
+      - /opt/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    networks:
+      - pihole-network
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/admin/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  pihole-network:
+    driver: bridge
