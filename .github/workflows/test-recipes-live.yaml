@@ -97,7 +97,7 @@ jobs:
           fi
 
           # List images and find Ubuntu 22.04
-          image_uuid=$(ionosctl image list \
+          image_uuid=$(ionosctl compute image list \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
             -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
             -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
@@ -116,7 +116,7 @@ jobs:
           # Create VM with cloud-init userData
           echo "Creating VM: ${{ env.VM_NAME }}"
 
-          ionosctl server create \
+          ionosctl compute server create \
             --name "${{ env.VM_NAME }}" \
             --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
             --cores 2 \
@@ -147,7 +147,7 @@ jobs:
             attempt=$((attempt + 1))
 
             # Get VM details via ionosctl
-            ionosctl server get \
+            ionosctl compute server get \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
               -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
@@ -202,7 +202,7 @@ jobs:
         run: |
           if [ -n "${{ steps.provision.outputs.vm_id }}" ]; then
             echo "Destroying VM: ${{ env.VM_NAME }}"
-            ionosctl server delete \
+            ionosctl compute server delete \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
               -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
