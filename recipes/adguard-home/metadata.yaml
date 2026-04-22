@@ -1,10 +1,10 @@
 name: adguard-home
 display_name: AdGuard Home
-description: Network-wide DNS ad-blocker and privacy protection server.
+description: Network-wide DNS ad-blocker, accessible exclusively via WireGuard VPN. Requires wg-easy to be installed and running first.
 categories:
   - security
 app_version: "v0.107.63"
-recipe_version: "1.0.0"
+recipe_version: "2.0.0"
 recipe_type: docker-compose
 upstream_url: https://github.com/AdguardTeam/AdGuardHome
 
@@ -15,29 +15,29 @@ supported_os:
   - ubuntu-26.04
 
 ports:
-  - port: 3000
-    protocol: tcp
-    public: true
-    description: AdGuard Home Setup UI
   - port: 80
     protocol: tcp
-    public: true
-    description: AdGuard Home Web UI (after setup)
+    public: false
+    description: AdGuard Home Web UI (accessible via VPN at http://WG_INTERFACE_IP/admin/)
   - port: 53
     protocol: tcp
     public: false
-    description: DNS (TCP)
+    description: DNS (TCP) — WireGuard interface only
   - port: 53
     protocol: udp
     public: false
-    description: DNS (UDP)
+    description: DNS (UDP) — WireGuard interface only
 
 parameters:
-  - name: APP_DOMAIN
-    display_name: Domain
-    type: domain
-    required: true
-    description: Domain for accessing AdGuard Home (e.g., adguard.example.com).
+  - name: WG_INTERFACE_IP
+    display_name: WireGuard Interface IP
+    type: string
+    required: false
+    default: "10.8.0.1"
+    description: IP address of the WireGuard server interface (wg0). Default matches wg-easy defaults.
+
+notes: |
+  Recommended: install together with wg-easy so DNS is only accessible via VPN.
 
 incompatible_with_apps:
   - pihole

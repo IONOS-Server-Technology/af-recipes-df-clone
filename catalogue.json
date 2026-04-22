@@ -11,12 +11,12 @@
     {
       "name": "adguard-home",
       "display_name": "AdGuard Home",
-      "description": "Network-wide DNS ad-blocker and privacy protection server.",
+      "description": "Network-wide DNS ad-blocker, accessible exclusively via WireGuard VPN. Requires wg-easy to be installed and running first.",
       "categories": [
         "security"
       ],
       "app_version": "v0.107.63",
-      "recipe_version": "1.0.0",
+      "recipe_version": "2.0.0",
       "recipe_type": "docker-compose",
       "app_min_ram_mb": 256,
       "app_min_disk_mb": 2048,
@@ -25,37 +25,31 @@
       ],
       "ports": [
         {
-          "port": 3000,
-          "protocol": "tcp",
-          "public": true,
-          "description": "AdGuard Home Setup UI"
-        },
-        {
           "port": 80,
           "protocol": "tcp",
-          "public": true,
-          "description": "AdGuard Home Web UI (after setup)"
+          "public": false,
+          "description": "AdGuard Home Web UI (accessible via VPN at http://WG_INTERFACE_IP/admin/)"
         },
         {
           "port": 53,
           "protocol": "tcp",
           "public": false,
-          "description": "DNS (TCP)"
+          "description": "DNS (TCP) \u2014 WireGuard interface only"
         },
         {
           "port": 53,
           "protocol": "udp",
           "public": false,
-          "description": "DNS (UDP)"
+          "description": "DNS (UDP) \u2014 WireGuard interface only"
         }
       ],
       "parameters": [
-        "APP_DOMAIN"
+        "WG_INTERFACE_IP"
       ],
       "incompatible_with_apps": [
         "pihole"
       ],
-      "notes": null
+      "notes": "Recommended: install together with wg-easy so DNS is only accessible via VPN.\n"
     },
     {
       "name": "anytype-server",
@@ -189,7 +183,11 @@
         "GITEA_ADMIN_EMAIL",
         "GITEA_ADMIN_PASSWORD"
       ],
-      "incompatible_with_apps": [],
+      "incompatible_with_apps": [
+        "opengist",
+        "paperless-ai",
+        "wud"
+      ],
       "notes": null
     },
     {
@@ -404,7 +402,7 @@
           "description": "OpenGist Web UI"
         },
         {
-          "port": 2222,
+          "port": 2223,
           "protocol": "tcp",
           "public": true,
           "description": "OpenGist SSH (Git clone)"
@@ -414,7 +412,9 @@
         "APP_DOMAIN",
         "SECRET_KEY"
       ],
-      "incompatible_with_apps": [],
+      "incompatible_with_apps": [
+        "gitea"
+      ],
       "notes": null
     },
     {
@@ -435,7 +435,7 @@
       ],
       "ports": [
         {
-          "port": 3000,
+          "port": 3003,
           "protocol": "tcp",
           "public": true,
           "description": "Paperless-AI Web UI"
@@ -448,7 +448,9 @@
         "AI_PROVIDER",
         "OPENAI_API_KEY"
       ],
-      "incompatible_with_apps": [],
+      "incompatible_with_apps": [
+        "gitea"
+      ],
       "notes": null
     },
     {
@@ -479,7 +481,8 @@
         "ADMIN_USER",
         "ADMIN_PASSWORD",
         "DB_PASSWORD",
-        "SECRET_KEY"
+        "SECRET_KEY",
+        "REDIS_PASSWORD"
       ],
       "incompatible_with_apps": [],
       "notes": null
@@ -487,12 +490,12 @@
     {
       "name": "pihole",
       "display_name": "Pi-hole",
-      "description": "Network-wide DNS ad-blocker that acts as a DNS sinkhole.",
+      "description": "Network-wide DNS ad-blocker, accessible exclusively via WireGuard VPN. Requires wg-easy to be installed and running first.",
       "categories": [
         "security"
       ],
       "app_version": "2024.07.0",
-      "recipe_version": "1.0.0",
+      "recipe_version": "2.0.0",
       "recipe_type": "docker-compose",
       "app_min_ram_mb": 256,
       "app_min_disk_mb": 2048,
@@ -503,30 +506,30 @@
         {
           "port": 8080,
           "protocol": "tcp",
-          "public": true,
-          "description": "Pi-hole Web UI"
+          "public": false,
+          "description": "Pi-hole Web UI (accessible via VPN at http://WG_INTERFACE_IP:8080/admin/)"
         },
         {
           "port": 53,
           "protocol": "tcp",
           "public": false,
-          "description": "DNS (TCP)"
+          "description": "DNS (TCP) \u2014 WireGuard interface only"
         },
         {
           "port": 53,
           "protocol": "udp",
           "public": false,
-          "description": "DNS (UDP)"
+          "description": "DNS (UDP) \u2014 WireGuard interface only"
         }
       ],
       "parameters": [
-        "APP_DOMAIN",
-        "WEBPASSWORD"
+        "WEBPASSWORD",
+        "WG_INTERFACE_IP"
       ],
       "incompatible_with_apps": [
         "adguard-home"
       ],
-      "notes": null
+      "notes": "Recommended: install together with wg-easy so DNS is only accessible via VPN.\n"
     },
     {
       "name": "portainer",
@@ -757,7 +760,7 @@
       ],
       "ports": [
         {
-          "port": 3000,
+          "port": 3002,
           "protocol": "tcp",
           "public": true,
           "description": "WUD Web UI"
@@ -766,7 +769,9 @@
       "parameters": [
         "APP_DOMAIN"
       ],
-      "incompatible_with_apps": [],
+      "incompatible_with_apps": [
+        "gitea"
+      ],
       "notes": null
     }
   ]

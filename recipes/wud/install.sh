@@ -16,7 +16,7 @@ docker-compose up -d
 max_attempts=60
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if curl -fsS http://localhost:3000/api/registries > /dev/null 2>&1; then
+  if curl -fsS http://localhost:3002/api/registries > /dev/null 2>&1; then
     echo "WUD is healthy"
     exit 0
   fi

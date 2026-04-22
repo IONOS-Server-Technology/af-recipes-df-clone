@@ -3,17 +3,16 @@ services:
     image: adguard/adguardhome:v0.107.63
     restart: unless-stopped
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "80:80/tcp"
-      - "3000:3000/tcp"
+      - "${WG_INTERFACE_IP:-10.8.0.1}:53:53/tcp"
+      - "${WG_INTERFACE_IP:-10.8.0.1}:53:53/udp"
+      - "${WG_INTERFACE_IP:-10.8.0.1}:80:80/tcp"
     volumes:
       - /opt/adguard-home/work:/opt/adguardhome/work
       - /opt/adguard-home/conf:/opt/adguardhome/conf
     networks:
       - adguard-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

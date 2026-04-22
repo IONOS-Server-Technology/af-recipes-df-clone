@@ -1,10 +1,10 @@
 name: pihole
 display_name: Pi-hole
-description: Network-wide DNS ad-blocker that acts as a DNS sinkhole.
+description: Network-wide DNS ad-blocker, accessible exclusively via WireGuard VPN. Requires wg-easy to be installed and running first.
 categories:
   - security
 app_version: "2024.07.0"
-recipe_version: "1.0.0"
+recipe_version: "2.0.0"
 recipe_type: docker-compose
 upstream_url: https://github.com/pi-hole/pi-hole
 
@@ -17,29 +17,33 @@ supported_os:
 ports:
   - port: 8080
     protocol: tcp
-    public: true
-    description: Pi-hole Web UI
+    public: false
+    description: Pi-hole Web UI (accessible via VPN at http://WG_INTERFACE_IP:8080/admin/)
   - port: 53
     protocol: tcp
     public: false
-    description: DNS (TCP)
+    description: DNS (TCP) — WireGuard interface only
   - port: 53
     protocol: udp
     public: false
-    description: DNS (UDP)
+    description: DNS (UDP) — WireGuard interface only
 
 parameters:
-  - name: APP_DOMAIN
-    display_name: Domain
-    type: domain
-    required: true
-    description: Domain for accessing Pi-hole (e.g., pihole.example.com).
   - name: WEBPASSWORD
     display_name: Web Password
     type: password
     required: false
     auto_generate: true
     description: Password for the Pi-hole web interface (auto-generated if not provided).
+  - name: WG_INTERFACE_IP
+    display_name: WireGuard Interface IP
+    type: string
+    required: false
+    default: "10.8.0.1"
+    description: IP address of the WireGuard server interface (wg0). Default matches wg-easy defaults.
+
+notes: |
+  Recommended: install together with wg-easy so DNS is only accessible via VPN.
 
 incompatible_with_apps:
   - adguard-home
