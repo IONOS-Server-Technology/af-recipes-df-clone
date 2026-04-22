@@ -97,8 +97,8 @@ jobs:
 
           # List images and find Ubuntu 22.04
           image_uuid=$(ionosctl image list \
-            -u "${{ env.DCD_USERNAME }}" \
-            -p "${{ env.DCD_PASSWORD }}" \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
+            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
             -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
 
           if [ -z "$image_uuid" ]; then
@@ -125,8 +125,8 @@ jobs:
             --volume-type SSD \
             --image "${{ steps.image.outputs.image_uuid }}" \
             --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
-            -u "${{ env.DCD_USERNAME }}" \
-            -p "${{ env.DCD_PASSWORD }}" \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
+            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
             -o json > /tmp/vm_response.json
 
           # Extract VM ID
@@ -149,8 +149,8 @@ jobs:
             ionosctl server get \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.DCD_USERNAME }}" \
-              -p "${{ env.DCD_PASSWORD }}" \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
+              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
               -o json > /tmp/vm_details.json
 
             # Extract primary IP
@@ -204,8 +204,8 @@ jobs:
             ionosctl server delete \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.DCD_USERNAME }}" \
-              -p "${{ env.DCD_PASSWORD }}" \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
+              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
               --force || true
           fi
 
