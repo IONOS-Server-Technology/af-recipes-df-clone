@@ -96,11 +96,20 @@ jobs:
             chmod +x /usr/local/bin/ionosctl
           fi
 
-          # List images and find Ubuntu 22.04
+          echo "=== ionosctl version ==="
+          ionosctl version || true
+
+          echo "=== Raw image list (first 20 names) ==="
+          ionosctl compute image list \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
+            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+            -o json 2>&1 | jq -r '.items[]?.properties.name' 2>/dev/null | head -20 || echo "jq failed or no items"
+
+          echo "=== Trying ubuntu filter ==="
           image_uuid=$(ionosctl compute image list \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
             -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
+            -o json 2>/dev/null | jq -r '.items[]? | select(.properties.name | ascii_downcase | contains("ubuntu")) | select(.properties.name | contains("22")) | .id' 2>/dev/null | head -1)
 
           if [ -z "$image_uuid" ]; then
             echo "ERROR: Could not find Ubuntu 22.04 image"
