@@ -329,6 +329,50 @@ See [rfc/001-recipe-schema.md](rfc/001-recipe-schema.md) for the full specificat
 <sub>Open source home automation with local control</sub>
 </td>
 <td align="center" width="33%">
+<a href="recipes/paperless-ai/">
+<img src="https://img.shields.io/badge/Paperless--AI-17A589?style=for-the-badge&logo=openai&logoColor=white" alt="Paperless-AI" />
+</a>
+<br />
+<sub><b>AI Document Analysis</b></sub>
+<br />
+<sub>
+<img src="https://img.shields.io/badge/docker--compose-2496ED?style=flat-square&logo=docker&logoColor=white" />
+<img src="https://img.shields.io/badge/512MB_RAM-grey?style=flat-square" />
+</sub>
+<br />
+<sub>AI-powered auto-tagging companion for Paperless-ngx</sub>
+</td>
+<td align="center" width="33%">
+<a href="recipes/runtipi/">
+<img src="https://img.shields.io/badge/Runtipi-FF6B35?style=for-the-badge&logo=docker&logoColor=white" alt="Runtipi" />
+</a>
+<br />
+<sub><b>App Store</b></sub>
+<br />
+<sub>
+<img src="https://img.shields.io/badge/docker--compose-2496ED?style=flat-square&logo=docker&logoColor=white" />
+<img src="https://img.shields.io/badge/1GB_RAM-grey?style=flat-square" />
+</sub>
+<br />
+<sub>Self-hosted app store for easy application deployment</sub>
+</td>
+</tr>
+<tr>
+<td align="center" width="33%">
+<a href="recipes/anytype-server/">
+<img src="https://img.shields.io/badge/AnyType_Server-1A73E8?style=for-the-badge&logo=notion&logoColor=white" alt="AnyType Server" />
+</a>
+<br />
+<sub><b>Knowledge Management</b></sub>
+<br />
+<sub>
+<img src="https://img.shields.io/badge/docker--compose-2496ED?style=flat-square&logo=docker&logoColor=white" />
+<img src="https://img.shields.io/badge/2GB_RAM-grey?style=flat-square" />
+</sub>
+<br />
+<sub>Self-hosted sync server for AnyType notes &amp; knowledge base</sub>
+</td>
+<td align="center" width="33%">
 </td>
 <td align="center" width="33%">
 </td>
