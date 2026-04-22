@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths:
       - "recipes/**"
+  workflow_dispatch:
+    inputs:
+      recipes:
+        description: "Comma-separated recipe names to test (e.g. n8n,ollama). Leave empty to test all."
+        required: false
+        default: ""
 
 jobs:
   detect-changed-recipes:
@@ -20,14 +26,20 @@ jobs:
       - name: Detect changed recipe directories
         id: detect
         run: |
-          # Get changed files between origin/main and HEAD
-          changed=$(git diff --name-only origin/main...HEAD)
-
-          # Extract unique recipe directory names
-          recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+            # Manual trigger with explicit recipe list
+            recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -R -s 'split("\n") | map(select(length > 0))')
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger with no input — test all recipes
+            recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -R -s 'split("\n") | map(select(length > 0))')
+          else
+            # PR trigger — detect changed recipes
+            changed=$(git diff --name-only origin/main...HEAD)
+            recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+          fi
 
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
-          echo "Changed recipes: $recipes"
+          echo "Recipes to test: $recipes"
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
