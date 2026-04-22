@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changed-recipes
     permissions:
+      id-token: write
       contents: read
     strategy:
       matrix:
@@ -56,12 +57,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
       - name: Checkout af-core
         uses: actions/checkout@v4
         with:
           repository: IONOS-Server-Technology/af-core
           path: af-core-src
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ env.GH_APP_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
@@ -93,8 +97,8 @@ jobs:
 
           # List images and find Ubuntu 22.04
           image_uuid=$(ionosctl image list \
-            -u "${{ secrets.IONOS_USERNAME }}" \
-            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -u "${{ env.DCD_USERNAME }}" \
+            -p "${{ env.DCD_PASSWORD }}" \
             -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
 
           if [ -z "$image_uuid" ]; then
@@ -121,8 +125,8 @@ jobs:
             --volume-type SSD \
             --image "${{ steps.image.outputs.image_uuid }}" \
             --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
-            -u "${{ secrets.IONOS_USERNAME }}" \
-            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -u "${{ env.DCD_USERNAME }}" \
+            -p "${{ env.DCD_PASSWORD }}" \
             -o json > /tmp/vm_response.json
 
           # Extract VM ID
@@ -145,8 +149,8 @@ jobs:
             ionosctl server get \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ secrets.IONOS_USERNAME }}" \
-              -p "${{ secrets.IONOS_PASSWORD }}" \
+              -u "${{ env.DCD_USERNAME }}" \
+              -p "${{ env.DCD_PASSWORD }}" \
               -o json > /tmp/vm_details.json
 
             # Extract primary IP
@@ -200,8 +204,8 @@ jobs:
             ionosctl server delete \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ secrets.IONOS_USERNAME }}" \
-              -p "${{ secrets.IONOS_PASSWORD }}" \
+              -u "${{ env.DCD_USERNAME }}" \
+              -p "${{ env.DCD_PASSWORD }}" \
               --force || true
           fi
 
