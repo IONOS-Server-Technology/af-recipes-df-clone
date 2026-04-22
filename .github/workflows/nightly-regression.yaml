@@ -24,6 +24,9 @@ jobs:
     name: Test Recipe - ${{ matrix.recipe }}
     needs: discover-recipes
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       matrix:
         recipe: ${{ fromJson(needs.discover-recipes.outputs.recipes) }}
@@ -34,13 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get CI secrets from Vault
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: |
-          git config --global url."https://x-access-token:${{ github.token }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://${{ env.GH_REPO_ACCESS }}@github.com/".insteadOf "https://github.com/"
           pip install -q -r scripts/requirements.txt
 
       - name: Render cloud-init
@@ -67,8 +73,8 @@ jobs:
         id: image
         run: |
           image_uuid=$(ionosctl image list \
-            -u "${{ secrets.IONOS_USERNAME }}" \
-            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -u "${{ env.DCD_USERNAME }}" \
+            -p "${{ env.DCD_PASSWORD }}" \
             -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
 
           if [ -z "$image_uuid" ]; then
@@ -94,8 +100,8 @@ jobs:
             --volume-type SSD \
             --image "${{ steps.image.outputs.image_uuid }}" \
             --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
-            -u "${{ secrets.IONOS_USERNAME }}" \
-            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -u "${{ env.DCD_USERNAME }}" \
+            -p "${{ env.DCD_PASSWORD }}" \
             -o json > /tmp/vm_response.json
 
           vm_id=$(jq -r '.id' /tmp/vm_response.json)
@@ -115,8 +121,8 @@ jobs:
             ionosctl server get \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ secrets.IONOS_USERNAME }}" \
-              -p "${{ secrets.IONOS_PASSWORD }}" \
+              -u "${{ env.DCD_USERNAME }}" \
+              -p "${{ env.DCD_PASSWORD }}" \
               -o json > /tmp/vm_details.json
 
             vm_ip=$(jq -r '.entities.nics.items[0].properties.ips[0]' /tmp/vm_details.json 2>/dev/null || echo "")
@@ -165,8 +171,8 @@ jobs:
             ionosctl server delete \
               --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
               --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ secrets.IONOS_USERNAME }}" \
-              -p "${{ secrets.IONOS_PASSWORD }}" \
+              -u "${{ env.DCD_USERNAME }}" \
+              -p "${{ env.DCD_PASSWORD }}" \
               --force || true
           fi
 
