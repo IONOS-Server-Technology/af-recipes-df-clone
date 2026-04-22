@@ -1,0 +1,201 @@
+name: Test Recipes Live
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "recipes/**"
+
+jobs:
+  detect-changed-recipes:
+    name: Detect Changed Recipes
+    runs-on: ubuntu-latest
+    outputs:
+      recipes: ${{ steps.detect.outputs.recipes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed recipe directories
+        id: detect
+        run: |
+          # Get changed files between origin/main and HEAD
+          changed=$(git diff --name-only origin/main...HEAD)
+
+          # Extract unique recipe directory names
+          recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+
+          echo "recipes=$recipes" >> $GITHUB_OUTPUT
+          echo "Changed recipes: $recipes"
+
+  test-recipes:
+    name: Test Recipe - ${{ matrix.recipe }}
+    runs-on: ubuntu-latest
+    needs: detect-changed-recipes
+    strategy:
+      matrix:
+        recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
+      fail-fast: false
+    env:
+      VM_NAME: "af-recipe-${{ matrix.recipe }}-${{ github.run_id }}-${{ strategy.job-index }}"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install af-core
+        run: pip install -r scripts/requirements.txt
+
+      - name: Generate cloud-init
+        id: cloudinit
+        run: |
+          python scripts/render-cloudinit.py recipes/${{ matrix.recipe }} > /tmp/cloudinit.yaml
+          echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
+
+      - name: Save cloud-init to file
+        id: encode
+        run: |
+          cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
+          echo "cloudinit_file=/tmp/cloudinit.txt" >> $GITHUB_OUTPUT
+
+      - name: Get Ubuntu 22.04 image UUID
+        id: image
+        run: |
+          if ! command -v ionosctl &> /dev/null; then
+            echo "Installing ionosctl..."
+            curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.5.0/ionosctl-6.5.0-linux-x86_64 -o /usr/local/bin/ionosctl
+            chmod +x /usr/local/bin/ionosctl
+          fi
+
+          # List images and find Ubuntu 22.04
+          image_uuid=$(ionosctl image list \
+            -u "${{ secrets.IONOS_USERNAME }}" \
+            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
+
+          if [ -z "$image_uuid" ]; then
+            echo "ERROR: Could not find Ubuntu 22.04 image"
+            exit 1
+          fi
+
+          echo "image_uuid=$image_uuid" >> $GITHUB_OUTPUT
+          echo "Found Ubuntu 22.04 image: $image_uuid"
+
+      - name: Provision test VM via ionosctl
+        id: provision
+        run: |
+          # Create VM with cloud-init userData
+          echo "Creating VM: ${{ env.VM_NAME }}"
+
+          ionosctl server create \
+            --name "${{ env.VM_NAME }}" \
+            --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
+            --cores 2 \
+            --cpu-family "INTEL_XEON" \
+            --ram 2048 \
+            --volume-size 50 \
+            --volume-type SSD \
+            --image "${{ steps.image.outputs.image_uuid }}" \
+            --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
+            -u "${{ secrets.IONOS_USERNAME }}" \
+            -p "${{ secrets.IONOS_PASSWORD }}" \
+            -o json > /tmp/vm_response.json
+
+          # Extract VM ID
+          vm_id=$(jq -r '.id' /tmp/vm_response.json)
+          echo "vm_id=$vm_id" >> $GITHUB_OUTPUT
+
+          echo "VM created with ID: $vm_id"
+
+      - name: Wait for VM to boot and SSH ready
+        id: wait
+        run: |
+          max_attempts=60
+          attempt=0
+          vm_ip=""
+
+          while [ $attempt -lt $max_attempts ]; do
+            attempt=$((attempt + 1))
+
+            # Get VM details via ionosctl
+            ionosctl server get \
+              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
+              --server-id "${{ steps.provision.outputs.vm_id }}" \
+              -u "${{ secrets.IONOS_USERNAME }}" \
+              -p "${{ secrets.IONOS_PASSWORD }}" \
+              -o json > /tmp/vm_details.json
+
+            # Extract primary IP
+            vm_ip=$(jq -r '.entities.nics.items[0].properties.ips[0]' /tmp/vm_details.json 2>/dev/null || echo "")
+
+            if [ -n "$vm_ip" ] && [ "$vm_ip" != "null" ]; then
+              echo "VM IP: $vm_ip"
+
+              # Try SSH connection
+              if timeout 5 ssh -o StrictHostKeyChecking=no \
+                   -o UserKnownHostsFile=/dev/null \
+                   -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+                   root@$vm_ip "echo 'SSH ready'" 2>/dev/null; then
+                echo "VM is ready for testing"
+                echo "vm_ip=$vm_ip" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+
+            echo "Waiting for VM to boot... (attempt $attempt/$max_attempts)"
+            sleep 10
+          done
+
+          echo "ERROR: VM failed to boot after $max_attempts attempts"
+          exit 1
+
+      - name: Run health-check script
+        id: health
+        run: |
+          recipe_name="${{ matrix.recipe }}"
+
+          # Copy health-check script to VM
+          scp -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+              "recipes/$recipe_name/health-check.sh" \
+              root@${{ steps.wait.outputs.vm_ip }}:/tmp/health-check.sh
+
+          # Execute health-check on VM
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+              root@${{ steps.wait.outputs.vm_ip }} \
+              "bash -x /tmp/health-check.sh"
+
+      - name: Cleanup VM (always)
+        if: always()
+        run: |
+          if [ -n "${{ steps.provision.outputs.vm_id }}" ]; then
+            echo "Destroying VM: ${{ env.VM_NAME }}"
+            ionosctl server delete \
+              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
+              --server-id "${{ steps.provision.outputs.vm_id }}" \
+              -u "${{ secrets.IONOS_USERNAME }}" \
+              -p "${{ secrets.IONOS_PASSWORD }}" \
+              --force || true
+          fi
+
+  test-results:
+    name: Report Test Results
+    runs-on: ubuntu-latest
+    needs: [test-recipes]
+    if: always()
+    steps:
+      - name: Check test status
+        run: |
+          if [ "${{ needs.test-recipes.result }}" == "success" ]; then
+            echo "All recipe tests passed!"
+            exit 0
+          else
+            echo "Some recipe tests failed"
+            exit 1
+          fi
