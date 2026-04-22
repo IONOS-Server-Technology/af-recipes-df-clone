@@ -123,30 +123,59 @@ jobs:
           chmod +x /usr/local/bin/ionosctl
           ionosctl version
 
-      - name: Provision test VM via ionosctl
+      - name: Provision test VM via IONOS API
         id: provision
         run: |
-          # Create VM with cloud-init userData
           echo "Creating VM: ${{ env.VM_NAME }}"
 
-          ionosctl compute server create \
-            --name "${{ env.VM_NAME }}" \
-            --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-            --cores 2 \
-            --cpu-family "INTEL_XEON" \
-            --ram 2048 \
-            --volume-size 50 \
-            --volume-type SSD \
-            --image "${{ steps.image.outputs.image_uuid }}" \
-            --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json > /tmp/vm_response.json
+          cloudinit_b64=$(base64 -w 0 < /tmp/cloudinit.yaml)
 
-          # Extract VM ID
-          vm_id=$(jq -r '.id' /tmp/vm_response.json)
+          response=$(curl -s -X POST \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+            -H "Content-Type: application/json" \
+            "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers" \
+            -d "{
+              \"properties\": {
+                \"name\": \"${{ env.VM_NAME }}\",
+                \"cores\": 2,
+                \"ram\": 2048,
+                \"cpuFamily\": \"INTEL_XEON\"
+              },
+              \"entities\": {
+                \"volumes\": {
+                  \"items\": [{
+                    \"properties\": {
+                      \"name\": \"vol-${{ env.VM_NAME }}\",
+                      \"size\": 50,
+                      \"type\": \"SSD\",
+                      \"image\": \"${{ steps.image.outputs.image_uuid }}\",
+                      \"licenceType\": \"LINUX\",
+                      \"userData\": \"${cloudinit_b64}\"
+                    }
+                  }]
+                },
+                \"nics\": {
+                  \"items\": [{
+                    \"properties\": {
+                      \"name\": \"nic-${{ env.VM_NAME }}\",
+                      \"lan\": 1,
+                      \"dhcp\": true
+                    }
+                  }]
+                }
+              }
+            }")
+
+          echo "API response: $(echo $response | jq -r '.id // .httpStatus // "unknown"')"
+
+          vm_id=$(echo "$response" | jq -r '.id')
+          if [ -z "$vm_id" ] || [ "$vm_id" = "null" ]; then
+            echo "ERROR: VM creation failed"
+            echo "$response" | jq .
+            exit 1
+          fi
+
           echo "vm_id=$vm_id" >> $GITHUB_OUTPUT
-
           echo "VM created with ID: $vm_id"
 
       - name: Wait for VM to boot and SSH ready
@@ -159,13 +188,11 @@ jobs:
           while [ $attempt -lt $max_attempts ]; do
             attempt=$((attempt + 1))
 
-            # Get VM details via ionosctl
-            ionosctl compute server get \
-              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-              --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              -o json > /tmp/vm_details.json
+            # Get VM details via curl
+            curl -s \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+              "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers/${{ steps.provision.outputs.vm_id }}?depth=5" \
+              > /tmp/vm_details.json
 
             # Extract primary IP
             vm_ip=$(jq -r '.entities.nics.items[0].properties.ips[0]' /tmp/vm_details.json 2>/dev/null || echo "")
@@ -215,12 +242,10 @@ jobs:
         run: |
           if [ -n "${{ steps.provision.outputs.vm_id }}" ]; then
             echo "Destroying VM: ${{ env.VM_NAME }}"
-            ionosctl compute server delete \
-              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-              --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              --force || true
+            curl -s -X DELETE \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+              "https://api.ionos.com/cloudapi/v6/datacenters/${{ secrets.IONOS_DATACENTER_ID }}/servers/${{ steps.provision.outputs.vm_id }}?deleteVolumes=true" \
+              || true
           fi
 
   test-results:
