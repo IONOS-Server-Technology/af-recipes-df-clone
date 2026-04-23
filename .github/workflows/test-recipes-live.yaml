@@ -11,6 +11,10 @@ on:
         description: "Comma-separated recipe names to test (e.g. n8n,ollama). Leave empty to test all."
         required: false
         default: ""
+      ssh_only:
+        description: "If true, use minimal cloud-init (SSH test only, no app install)"
+        required: false
+        default: "false"
 
 jobs:
   detect-changed-recipes:
@@ -77,8 +81,14 @@ jobs:
       - name: Generate cloud-init
         id: cloudinit
         run: |
-          python scripts/render-cloudinit.py recipes/${{ matrix.recipe }} > /tmp/cloudinit.yaml
-          echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
+          if [ "${{ inputs.ssh_only }}" = "true" ]; then
+            echo "#cloud-config" > /tmp/cloudinit.yaml
+            echo "package_update: false" >> /tmp/cloudinit.yaml
+            echo "Generated minimal cloud-init (SSH test only)"
+          else
+            python scripts/render-cloudinit.py recipes/${{ matrix.recipe }} > /tmp/cloudinit.yaml
+            echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
+          fi
 
       - name: Save cloud-init to file
         id: encode
@@ -246,7 +256,7 @@ jobs:
       - name: Wait for VM to boot and SSH ready
         id: wait
         run: |
-          max_attempts=120
+          max_attempts=30
           attempt=0
           vm_ip=""
 
