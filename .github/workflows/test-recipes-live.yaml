@@ -294,6 +294,15 @@ jobs:
           echo "ERROR: VM failed to boot after $max_attempts attempts"
           exit 1
 
+      - name: Debug VM state
+        if: always()
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -i /tmp/vm_key \
+              root@${{ steps.wait.outputs.vm_ip }} \
+              "echo '=== cloud-init log ===' && tail -50 /var/log/cloud-init-output.log 2>/dev/null || echo 'no cloud-init log'; echo '=== Docker status ===' && docker ps -a 2>/dev/null || echo 'docker not available'; echo '=== Files in /opt ===' && ls -la /opt/ 2>/dev/null; echo '=== systemd status ===' && systemctl is-system-running 2>/dev/null || true" || echo "SSH connection failed for debug"
+
       - name: Run health-check script
         id: health
         run: |
