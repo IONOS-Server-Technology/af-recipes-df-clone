@@ -148,6 +148,12 @@ DB_PASSWORD={{DB_PASSWORD}}
 
 The consuming system (AF API / install script) resolves placeholders with customer-provided or auto-generated values and writes the final `.env` file.
 
+### 7.1 Dollar signs in resolved values
+
+If a resolved value contains a literal `$` (for example an APR1/htpasswd hash like `$apr1$salt$digest`), the `$` must be **doubled to `$$` in the written `.env`**. Docker Compose interprets `$VAR` and `${VAR}` in `.env` values as variable references, even when the file is consumed via `env_file:`. Without escaping, compose silently expands unknown `$`-prefixed tokens to empty strings, corrupting the value.
+
+The AF API must escape `$` → `$$` when resolving any parameter whose type permits the character (e.g. `password` parameters fed to downstream hashers). Recipe authors generating `.env` content directly in `install.sh` must do the same.
+
 ## 8. health-check.sh
 
 - **Purpose:** CI testing only. Not deployed to the VM.
