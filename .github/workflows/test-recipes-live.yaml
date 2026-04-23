@@ -83,6 +83,22 @@ jobs:
       - name: Save cloud-init to file
         id: encode
         run: |
+          ssh-keygen -t ed25519 -f /tmp/vm_key -N "" -q
+          pub_key=$(cat /tmp/vm_key.pub)
+          # Inject SSH key into cloud-init
+          python3 - << PYEOF
+import yaml, sys
+with open('/tmp/cloudinit.yaml', 'r') as f:
+    data = yaml.safe_load(f) or {}
+data.setdefault('users', [{'name': 'root', 'ssh_authorized_keys': []}])
+if not any(u.get('name') == 'root' for u in data.get('users', [])):
+    data.setdefault('users', []).append({'name': 'root', 'ssh_authorized_keys': []})
+for u in data.get('users', []):
+    if u.get('name') == 'root':
+        u.setdefault('ssh_authorized_keys', []).append('${pub_key}')
+with open('/tmp/cloudinit.yaml', 'w') as f:
+    yaml.dump(data, f, default_flow_style=False)
+PYEOF
           cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
           echo "cloudinit_file=/tmp/cloudinit.txt" >> $GITHUB_OUTPUT
 
@@ -264,7 +280,7 @@ jobs:
               # Try SSH connection
               if timeout 5 ssh -o StrictHostKeyChecking=no \
                    -o UserKnownHostsFile=/dev/null \
-                   -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+                   -i /tmp/vm_key \
                    root@$vm_ip "echo 'SSH ready'" 2>/dev/null; then
                 echo "VM is ready for testing"
                 echo "vm_ip=$vm_ip" >> $GITHUB_OUTPUT
@@ -287,14 +303,14 @@ jobs:
           # Copy health-check script to VM
           scp -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+              -i /tmp/vm_key \
               "recipes/$recipe_name/health-check.sh" \
               root@${{ steps.wait.outputs.vm_ip }}:/tmp/health-check.sh
 
           # Execute health-check on VM
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+              -i /tmp/vm_key \
               root@${{ steps.wait.outputs.vm_ip }} \
               "bash -x /tmp/health-check.sh"
 
