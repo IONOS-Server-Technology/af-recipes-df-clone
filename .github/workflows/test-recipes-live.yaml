@@ -120,7 +120,7 @@ jobs:
           echo "=== Raw IONOS API response (first 500 chars) ==="
           api_response=$(curl -s \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            "https://api.ionos.com/cloudapi/v6/images?pretty=false&depth=1&properties.location=${{ steps.datacenter.outputs.datacenter_location }}")
+            "https://api.ionos.com/cloudapi/v6/images?pretty=false&depth=1")
           echo "$api_response" | head -c 500
 
           echo ""
@@ -129,6 +129,7 @@ jobs:
             .items[]?
             | select(.properties.imageType == "HDD")
             | select(.properties.licenceType == "LINUX")
+            | select(.properties.location == "${{ steps.datacenter.outputs.datacenter_location }}")
             | select(.properties.name | ascii_downcase | contains("ubuntu"))
             | select(.properties.name | contains("22"))
             | .id
@@ -157,7 +158,7 @@ jobs:
           echo "Creating VM: ${{ env.VM_NAME }}"
 
           cloudinit_b64=$(base64 -w 0 < /tmp/cloudinit.yaml)
-          root_pw="AfTest$(openssl rand -hex 8)!"
+          root_pw="AfTest$(openssl rand -hex 8)"
 
           response=$(curl -s -X POST \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
@@ -167,8 +168,7 @@ jobs:
               \"properties\": {
                 \"name\": \"${{ env.VM_NAME }}\",
                 \"cores\": 2,
-                \"ram\": 2048,
-                \"cpuFamily\": \"AUTO\"
+                \"ram\": 2048
               },
               \"entities\": {
                 \"volumes\": {
