@@ -17,7 +17,7 @@ docker-compose up -d
 max_attempts=120
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if curl -fsS http://localhost:3000/api/healthz > /dev/null 2>&1; then
+  if curl -fsS http://127.0.0.1:3000/api/healthz > /dev/null 2>&1; then
     echo "Gitea is healthy"
     exit 0
   fi

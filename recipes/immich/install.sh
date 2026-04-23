@@ -18,7 +18,7 @@ docker-compose up -d
 max_attempts=120
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if curl -fsS http://localhost:2283/api/server-info/ping > /dev/null 2>&1; then
+  if curl -fsS http://127.0.0.1:2283/api/server-info/ping > /dev/null 2>&1; then
     echo "Immich is healthy"
     exit 0
   fi

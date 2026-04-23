@@ -22,7 +22,7 @@ docker-compose up -d
 max_attempts=60
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if docker-compose exec -T n8n curl -fsS http://localhost:5678 > /dev/null 2>&1; then
+  if docker-compose exec -T n8n curl -fsS http://127.0.0.1:5678 > /dev/null 2>&1; then
     echo "n8n is healthy"
     exit 0
   fi

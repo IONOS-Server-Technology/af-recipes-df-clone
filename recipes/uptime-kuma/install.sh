@@ -16,7 +16,7 @@ docker-compose up -d
 max_attempts=60
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if curl -fsS http://localhost:3001/api/entry-page > /dev/null 2>&1; then
+  if curl -fsS http://127.0.0.1:3001/api/entry-page > /dev/null 2>&1; then
     echo "Uptime Kuma is healthy"
     exit 0
   fi

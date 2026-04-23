@@ -22,7 +22,7 @@ docker-compose up -d
 max_attempts=60
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if docker-compose exec -T openclaw curl -fsS http://localhost:8000 > /dev/null 2>&1; then
+  if docker-compose exec -T openclaw curl -fsS http://127.0.0.1:8000 > /dev/null 2>&1; then
     echo "OpenClaw is healthy"
     exit 0
   fi

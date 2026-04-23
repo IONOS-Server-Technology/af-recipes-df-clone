@@ -20,7 +20,7 @@ docker-compose up -d
 max_attempts=120
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-  if nc -z localhost 4830 > /dev/null 2>&1; then
+  if nc -z 127.0.0.1 4830 > /dev/null 2>&1; then
     echo "AnyType Server (coordinator) is healthy"
     exit 0
   fi
