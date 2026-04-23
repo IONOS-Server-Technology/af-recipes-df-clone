@@ -114,6 +114,40 @@ jobs:
           echo "datacenter_location=$dc_location" >> $GITHUB_OUTPUT
           echo "Using datacenter: $dc_id with location: $dc_location"
 
+      - name: Find or create public LAN
+        id: lan
+        run: |
+          dc_id="${{ steps.datacenter.outputs.datacenter_id }}"
+
+          # List LANs in datacenter and find a public one
+          lans=$(curl -s \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+            "https://api.ionos.com/cloudapi/v6/datacenters/${dc_id}/lans?depth=1")
+
+          echo "=== Available LANs ==="
+          echo "$lans" | jq -r '.items[] | "\(.id) public=\(.properties.public) name=\(.properties.name)"' 2>/dev/null || echo "none"
+
+          lan_id=$(echo "$lans" | jq -r '.items[] | select(.properties.public == true) | .id' 2>/dev/null | head -1)
+
+          if [ -z "$lan_id" ]; then
+            echo "No public LAN found, creating one..."
+            lan_response=$(curl -s -X POST \
+              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+              -H "Content-Type: application/json" \
+              "https://api.ionos.com/cloudapi/v6/datacenters/${dc_id}/lans" \
+              -d '{"properties":{"name":"af-test-public-lan","public":true}}')
+            lan_id=$(echo "$lan_response" | jq -r '.id')
+            echo "Created public LAN: $lan_id"
+          fi
+
+          if [ -z "$lan_id" ] || [ "$lan_id" = "null" ]; then
+            echo "ERROR: Could not find or create public LAN"
+            exit 1
+          fi
+
+          echo "lan_id=$lan_id" >> $GITHUB_OUTPUT
+          echo "Using public LAN: $lan_id"
+
       - name: Get Ubuntu 22.04 image UUID
         id: image
         run: |
@@ -185,7 +219,7 @@ jobs:
                   \"items\": [{
                     \"properties\": {
                       \"name\": \"nic-${{ env.VM_NAME }}\",
-                      \"lan\": 1,
+                      \"lan\": ${{ steps.lan.outputs.lan_id }},
                       \"dhcp\": true
                     }
                   }]
