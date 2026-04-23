@@ -256,7 +256,7 @@ jobs:
       - name: Wait for VM to boot and SSH ready
         id: wait
         run: |
-          max_attempts=30
+          max_attempts=60
           attempt=0
           vm_ip=""
 
@@ -297,6 +297,13 @@ jobs:
         id: health
         run: |
           recipe_name="${{ matrix.recipe }}"
+
+          # Wait for cloud-init to complete
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -i /tmp/vm_key \
+              root@${{ steps.wait.outputs.vm_ip }} \
+              "cloud-init status --wait" || true
 
           # Copy health-check script to VM
           scp -o StrictHostKeyChecking=no \
