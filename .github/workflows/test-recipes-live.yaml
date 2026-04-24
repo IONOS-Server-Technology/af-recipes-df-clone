@@ -301,7 +301,7 @@ jobs:
               -o UserKnownHostsFile=/dev/null \
               -i /tmp/vm_key \
               root@${{ steps.wait.outputs.vm_ip }} \
-              "echo '=== cloud-init log ===' && tail -50 /var/log/cloud-init-output.log 2>/dev/null || echo 'no cloud-init log'; echo '=== Docker status ===' && docker ps -a 2>/dev/null || echo 'docker not available'; echo '=== Files in /opt ===' && ls -la /opt/ 2>/dev/null; echo '=== systemd status ===' && systemctl is-system-running 2>/dev/null || true" || echo "SSH connection failed for debug"
+              "echo '=== FULL cloud-init-output.log ===' && cat /var/log/cloud-init-output.log 2>/dev/null || echo 'no cloud-init-output.log'; echo '=== cloud-init.log errors ===' && grep -i 'error\|fail\|warn' /var/log/cloud-init.log 2>/dev/null | tail -30 || echo 'no cloud-init.log'; echo '=== runcmd script ===' && cat /var/lib/cloud/instance/scripts/runcmd 2>/dev/null || echo 'no runcmd script'; echo '=== Files in /opt ===' && ls -la /opt/ 2>/dev/null; echo '=== Docker status ===' && docker ps -a 2>/dev/null || echo 'docker not available'; echo '=== systemd status ===' && systemctl is-system-running 2>/dev/null || true" || echo "SSH connection failed for debug"
 
       - name: Run health-check script
         id: health
