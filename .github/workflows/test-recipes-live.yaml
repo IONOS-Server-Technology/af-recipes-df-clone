@@ -90,6 +90,12 @@ jobs:
             echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
           fi
 
+      - name: Show generated cloud-init YAML
+        run: |
+          echo "=== Generated cloud-init YAML ==="
+          cat /tmp/cloudinit.yaml
+          echo "=== End cloud-init YAML ==="
+
       - name: Save cloud-init to file
         id: encode
         run: |
@@ -297,11 +303,12 @@ jobs:
       - name: Debug VM state
         if: always()
         run: |
+          echo "=== Direct SSH network debug ==="
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               -i /tmp/vm_key \
               root@${{ steps.wait.outputs.vm_ip }} \
-              "echo '=== FULL cloud-init-output.log ===' && cat /var/log/cloud-init-output.log 2>/dev/null || echo 'no cloud-init-output.log'; echo '=== cloud-init.log errors ===' && grep -i 'error\|fail\|warn' /var/log/cloud-init.log 2>/dev/null | tail -30 || echo 'no cloud-init.log'; echo '=== runcmd script ===' && cat /var/lib/cloud/instance/scripts/runcmd 2>/dev/null || echo 'no runcmd script'; echo '=== Files in /opt ===' && ls -la /opt/ 2>/dev/null; echo '=== Docker status ===' && docker ps -a 2>/dev/null || echo 'docker not available'; echo '=== systemd status ===' && systemctl is-system-running 2>/dev/null || true; echo '=== /etc/cloud/cloud.cfg (final_modules) ===' && grep -A 50 'cloud_final_modules\|final_modules' /etc/cloud/cloud.cfg 2>/dev/null || echo 'no cloud.cfg'; echo '=== cloud-init.log (last 50 lines) ===' && tail -50 /var/log/cloud-init.log 2>/dev/null || echo 'no cloud-init.log'" || echo "SSH connection failed for debug"
+              "echo '--- IP addresses ---' && ip addr show && echo '--- Routes ---' && ip route show && echo '--- DNS resolv.conf ---' && cat /etc/resolv.conf && echo '--- DNS test ---' && (nslookup google.com 2>&1 || echo 'nslookup failed') && echo '--- curl google ---' && (curl -v --max-time 10 https://google.com -o /dev/null 2>&1 || echo 'curl failed') && echo '--- apt-get update ---' && (apt-get update -q 2>&1 | head -10 || echo 'apt-get failed') && echo '--- cloud.cfg final_modules ---' && (grep -A 30 'cloud_final_modules' /etc/cloud/cloud.cfg 2>/dev/null || echo 'no cloud.cfg') && echo '--- /opt ---' && ls -la /opt/ && echo '--- docker ---' && (docker ps 2>/dev/null || echo 'docker not available')" || echo "SSH failed"
 
       - name: Run health-check script
         id: health
