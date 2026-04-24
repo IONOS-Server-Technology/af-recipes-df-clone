@@ -178,33 +178,8 @@ jobs:
       - name: Get Ubuntu 22.04 image UUID
         id: image
         run: |
-          echo "=== Raw IONOS API response (first 500 chars) ==="
-          api_response=$(curl -s \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            "https://api.ionos.com/cloudapi/v6/images?pretty=false&depth=1")
-          echo "$api_response" | head -c 500
-
-          echo ""
-          echo "=== Filtering for Ubuntu 22.04 ==="
-          image_uuid=$(echo "$api_response" | jq -r '
-            .items[]?
-            | select(.properties.imageType == "HDD")
-            | select(.properties.licenceType == "LINUX")
-            | select(.properties.location == "${{ steps.datacenter.outputs.datacenter_location }}")
-            | select(.properties.name | ascii_downcase | contains("ubuntu"))
-            | select(.properties.name | contains("22"))
-            | .id
-          ' 2>/dev/null | head -1)
-
-          if [ -z "$image_uuid" ]; then
-            echo "ERROR: Could not find Ubuntu 22.04 image"
-            echo "=== All image names ==="
-            echo "$api_response" | jq -r '.items[]?.properties.name' 2>/dev/null | head -30 || echo "no items in response"
-            exit 1
-          fi
-
-          echo "image_uuid=$image_uuid" >> $GITHUB_OUTPUT
-          echo "Found Ubuntu 22.04 image: $image_uuid"
+          echo "image_uuid=2420d94e-3f97-11f1-8ea6-b65bac0a9871" >> $GITHUB_OUTPUT
+          echo "Using image: 2420d94e-3f97-11f1-8ea6-b65bac0a9871"
 
       - name: Install ionosctl
         run: |
