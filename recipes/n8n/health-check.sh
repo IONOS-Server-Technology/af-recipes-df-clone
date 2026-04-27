@@ -20,7 +20,11 @@ done
 
 echo "ERROR: n8n did not become healthy within ${MAX_WAIT}s"
 echo "--- docker ps -a ---"
-docker ps -a 2>/dev/null || true
-echo "--- n8n container logs (last 50 lines) ---"
-docker logs --tail 50 n8n-n8n-1 2>/dev/null || true
+docker ps -a 2>&1 || true
+echo "--- n8n container logs (last 100 lines) ---"
+docker logs --tail 100 n8n-n8n-1 2>&1 || true
+echo "--- n8n inspect (state) ---"
+docker inspect n8n-n8n-1 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); s=d[0].get('State',{}); print('Status:', s.get('Status')); print('ExitCode:', s.get('ExitCode')); print('Error:', s.get('Error'))" 2>/dev/null || true
+echo "--- /opt/n8n/.env (masked) ---"
+cat /opt/n8n/.env 2>&1 | sed 's/=.*/=REDACTED/' || true
 exit 1
