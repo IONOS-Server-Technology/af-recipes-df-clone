@@ -178,8 +178,23 @@ jobs:
       - name: Get Ubuntu 22.04 image UUID
         id: image
         run: |
-          echo "image_uuid=2420d94e-3f97-11f1-8ea6-b65bac0a9871" >> $GITHUB_OUTPUT
-          echo "Using image: 2420d94e-3f97-11f1-8ea6-b65bac0a9871"
+          image_response=$(curl -s \
+            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
+            "https://api.ionos.com/cloudapi/v6/images?type=HDD&depth=1")
+
+          image_uuid=$(echo "$image_response" | jq -r \
+            '.items[] | select(.properties.public == true) | select(.properties.location == "de/txl") | select(.properties.name | test("Ubuntu-22.04"; "i")) | .id' \
+            | head -1)
+
+          if [ -z "$image_uuid" ] || [ "$image_uuid" = "null" ]; then
+            echo "Available de/txl images:"
+            echo "$image_response" | jq -r '.items[] | select(.properties.location == "de/txl") | "\(.id) \(.properties.name)"' | head -20
+            echo "ERROR: Could not find Ubuntu 22.04 image for de/txl"
+            exit 1
+          fi
+
+          echo "image_uuid=$image_uuid" >> $GITHUB_OUTPUT
+          echo "Using image: $image_uuid"
 
       - name: Install ionosctl
         run: |
