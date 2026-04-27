@@ -209,6 +209,7 @@ jobs:
           echo "Creating VM: ${{ env.VM_NAME }}"
 
           cloudinit_b64=$(base64 -w 0 < /tmp/cloudinit.yaml)
+          pub_key=$(cat /tmp/vm_key.pub)
 
           response=$(curl -s -X POST \
             -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
@@ -228,7 +229,8 @@ jobs:
                       \"size\": 50,
                       \"type\": \"SSD\",
                       \"image\": \"${{ steps.image.outputs.image_uuid }}\",
-                      \"userData\": \"${cloudinit_b64}\"
+                      \"userData\": \"${cloudinit_b64}\",
+                      \"sshKeys\": [\"${pub_key}\"]
                     }
                   }]
                 },
