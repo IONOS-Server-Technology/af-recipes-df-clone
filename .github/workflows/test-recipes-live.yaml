@@ -90,12 +90,6 @@ jobs:
             echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
           fi
 
-      - name: Show generated cloud-init YAML
-        run: |
-          echo "=== Generated cloud-init YAML ==="
-          cat /tmp/cloudinit.yaml
-          echo "=== End cloud-init YAML ==="
-
       - name: Save cloud-init to file
         id: encode
         run: |
@@ -106,12 +100,6 @@ jobs:
           echo "  - ${pub_key}" >> /tmp/cloudinit.yaml
           cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
           echo "cloudinit_file=/tmp/cloudinit.txt" >> $GITHUB_OUTPUT
-
-      - name: Show final cloud-init with SSH key
-        run: |
-          echo "=== Final cloud-init YAML (with SSH key) ==="
-          cat /tmp/cloudinit.txt 2>/dev/null || cat /tmp/cloudinit.yaml 2>/dev/null || echo "not yet generated"
-          echo "=== End ==="
 
       - name: Discover IONOS Datacenter
         id: datacenter
@@ -297,24 +285,6 @@ jobs:
 
           echo "ERROR: VM failed to boot after $max_attempts attempts"
           exit 1
-
-      - name: Debug VM state
-        if: always()
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i /tmp/vm_key \
-              root@${{ steps.wait.outputs.vm_ip }} \
-              'cloud-init status --wait 2>/dev/null || true
-               echo "--- /tmp/runcmd.log ---"
-               cat /tmp/runcmd.log 2>/dev/null || echo "no runcmd.log"
-               echo "--- docker ps -a ---"
-               docker ps -a 2>/dev/null || echo "docker not available"
-               echo "--- /opt ---"
-               ls -la /opt/
-               echo "--- nocloud user-data ---"
-               cat /var/lib/cloud/seed/nocloud/user-data 2>/dev/null || echo "no user-data"' \
-          || echo "SSH failed"
 
       - name: Run health-check script
         id: health
