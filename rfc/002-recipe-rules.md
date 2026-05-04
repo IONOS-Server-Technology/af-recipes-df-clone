@@ -23,7 +23,7 @@ If a rule cannot be expressed concretely enough to be machine-checked, it does n
 
 Each rule has:
 
-- **ID** — `R-NNN` for per-recipe, `X-NNN` for cross-recipe. Stable; never reused.
+- **ID** — a stable, descriptive slug (`no-public-db-port`, `image-tag-pinned`, …). Stable; never reused. Slugs are chosen to read like assertions, so a finding line in agent output or CI log is intelligible without looking up this RFC.
 - **Level** — `ERROR` (blocks merge) or `WARN` (advisory).
 - **What** — the rule, one sentence.
 - **How to check** — concrete, deterministic procedure to evaluate the rule against a recipe.
@@ -35,21 +35,21 @@ These rules apply to a single `recipes/<slug>/` directory.
 
 ### 3.1 Files present
 
-#### R-001 — required files for `docker-compose` recipes
+#### `files-required-compose`
 
 - **Level:** ERROR
 - **What:** A `docker-compose` recipe directory must contain `metadata.yaml`, `docker-compose.yaml`, `.env.template`, `install.sh`, `health-check.sh`.
 - **How to check:** Read `metadata.yaml`, take `recipe_type` (default `docker-compose`). If `docker-compose`, verify all five files exist in the directory.
 - **Why:** Each file has a distinct role at compose-time, install-time, or test-time. Missing any file makes the recipe non-deployable or non-testable.
 
-#### R-002 — required files for `native` recipes
+#### `files-required-native`
 
 - **Level:** ERROR
 - **What:** A `native` recipe directory must contain `metadata.yaml`, `install.sh`, `health-check.sh`.
-- **How to check:** As R-001 but for `recipe_type: native`. Compose and `.env.template` are not expected.
+- **How to check:** As `files-required-compose` but for `recipe_type: native`. Compose and `.env.template` are not expected.
 - **Why:** Native recipes do not run via Compose; they install directly on the OS via `install.sh`.
 
-#### R-003 — install scripts must be executable
+#### `scripts-executable`
 
 - **Level:** WARN
 - **What:** `install.sh` and `health-check.sh` must have the executable bit set.
@@ -58,42 +58,42 @@ These rules apply to a single `recipes/<slug>/` directory.
 
 ### 3.2 metadata.yaml
 
-#### R-010 — metadata.yaml is valid YAML
+#### `metadata-valid-yaml`
 
 - **Level:** ERROR
 - **What:** `metadata.yaml` must parse as YAML.
 - **How to check:** `yaml.safe_load`. If it raises, fail.
 - **Why:** Everything downstream assumes a parseable document.
 
-#### R-011 — metadata.yaml validates against the JSON Schema
+#### `metadata-schema-valid`
 
 - **Level:** ERROR
-- **What:** The parsed metadata must satisfy [`af_core/schema/metadata.schema.json`](https://github.com/IONOS-Server-Technology/af-core/blob/main/af_core/schema/metadata.schema.json).
+- **What:** The parsed metadata must satisfy [`metadata.schema.json`](https://github.com/IONOS-Server-Technology/af-core/blob/main/af_core/schema/metadata.schema.json).
 - **How to check:** `jsonschema.validate(metadata, schema)`.
 - **Why:** The AF API loads recipes against this schema at startup; a recipe that fails the schema crashes the API.
 
-#### R-012 — `name` matches directory
+#### `name-matches-dir`
 
 - **Level:** ERROR
 - **What:** `metadata.name` must equal the recipe directory name.
 - **How to check:** String comparison.
 - **Why:** The directory name is the slug used everywhere (URLs, `incompatible_with_apps`, install paths). Divergence breaks lookups.
 
-#### R-013 — `app_version` is pinned
+#### `app-version-pinned`
 
 - **Level:** ERROR
 - **What:** `metadata.app_version` must not be `latest` (case-insensitive).
 - **How to check:** `str(app_version).lower() != "latest"`.
 - **Why:** Customer machines need reproducible installs; rollbacks are impossible if `latest` shifts.
 
-#### R-014 — `recipe_version` is semver
+#### `recipe-version-semver`
 
 - **Level:** ERROR
 - **What:** `metadata.recipe_version` matches `^\d+\.\d+\.\d+$`.
 - **How to check:** Regex.
 - **Why:** Allows mechanical bumping when this recipe (not the upstream app) changes.
 
-#### R-015 — `supported_os` entries exist in `os-baselines.yaml`
+#### `supported-os-known`
 
 - **Level:** ERROR
 - **What:** Every entry in `metadata.supported_os` must be a key under `baselines:` in the repo-level `os-baselines.yaml`.
@@ -102,28 +102,28 @@ These rules apply to a single `recipes/<slug>/` directory.
 
 ### 3.3 Parameters
 
-#### R-020 — parameter names are UPPER_SNAKE_CASE
+#### `param-name-upper-snake`
 
 - **Level:** ERROR
 - **What:** Each `metadata.parameters[].name` matches `^[A-Z][A-Z0-9_]*$`.
 - **How to check:** Regex per parameter.
 - **Why:** Convention used in `.env` files and shell scripts; mixed case breaks shell expansion.
 
-#### R-021 — every `.env.template` placeholder has a parameter
+#### `placeholder-has-param`
 
 - **Level:** ERROR
 - **What:** Every `{{KEY}}` token in `.env.template` corresponds to a `metadata.parameters[].name`.
 - **How to check:** Regex `\{\{(\w+)\}\}` over the template, set-difference against parameter names.
 - **Why:** Render-time substitution would leave the placeholder literal in the env file, breaking the container.
 
-#### R-022 — every parameter is referenced
+#### `param-referenced`
 
 - **Level:** WARN
 - **What:** Every `metadata.parameters[].name` appears either in `.env.template` as `{{KEY}}` or in a place the AF API can resolve (compose `${KEY}`, install.sh).
 - **How to check:** For each param name, grep the recipe directory; if no hit, warn.
 - **Why:** Unreferenced parameters are usually typos or dead code; they confuse the customer-facing UI.
 
-#### R-023 — `auto_generate` only on `password` type
+#### `auto-generate-password-only`
 
 - **Level:** ERROR
 - **What:** `auto_generate: true` is only allowed where `type: password`.
@@ -132,28 +132,28 @@ These rules apply to a single `recipes/<slug>/` directory.
 
 ### 3.4 docker-compose.yaml (skipped for `native`)
 
-#### R-030 — compose is valid YAML
+#### `compose-valid-yaml`
 
 - **Level:** ERROR
 - **What:** `docker-compose.yaml` parses as YAML.
 - **How to check:** `yaml.safe_load`.
-- **Why:** Same as R-010.
+- **Why:** Same as `metadata-valid-yaml`.
 
-#### R-031 — no `:latest` image tag, no untagged images
+#### `image-tag-pinned`
 
 - **Level:** ERROR
 - **What:** Every `image:` value has an explicit tag, and the tag is not `latest`.
 - **How to check:** Regex `image:\s*(\S+)` over the file. For each match, fail if it ends with `:latest` or contains no `:` after a `/`.
-- **Why:** Reproducibility (see R-013); also makes WUD diffs meaningful.
+- **Why:** Reproducibility (see `app-version-pinned`); also makes WUD diffs meaningful.
 
-#### R-032 — every compose `${VAR}` has a `.env.template` placeholder
+#### `compose-var-has-placeholder`
 
 - **Level:** ERROR
 - **What:** Every `${VAR}` reference in `docker-compose.yaml` corresponds to a `{{VAR}}` placeholder in `.env.template`.
 - **How to check:** Regex `\$\{(\w+)\}` over compose, set-difference against template placeholders.
 - **Why:** Compose substitutes empty string for undefined variables silently — produces broken containers, no error.
 
-#### R-033 — host bind mounts under `/opt/<slug>/`
+#### `bind-mount-under-opt`
 
 - **Level:** WARN
 - **What:** Every host bind mount path either starts with `/opt/<slug>/` or is on the exemption list.
@@ -161,7 +161,7 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **Exemption list:** `/var/run/docker.sock`, `/etc/localtime`, `/etc/timezone`, `/run/udev`.
 - **Why:** Customer VMs use `/opt/<slug>/` as the per-app data root; backups, support, and migration tooling all assume this convention.
 
-#### R-034 — no public database ports
+#### `no-public-db-port`
 
 - **Level:** ERROR
 - **What:** No service publishes a database port on the host.
@@ -169,14 +169,14 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **Forbidden host ports:** `3306` (MySQL), `5432` (PostgreSQL), `27017` (MongoDB), `6379` (Redis), `5984` (CouchDB), `9200` (Elasticsearch), `9042` (Cassandra), `1433` (MSSQL), `1521` (Oracle).
 - **Why:** Databases on internet-reachable ports are an immediate security incident. They communicate over the internal bridge network only.
 
-#### R-035 — no `privileged: true` without justification
+#### `no-privileged-without-justification`
 
 - **Level:** WARN
 - **What:** No service has `privileged: true` unless `metadata.notes` explicitly justifies it.
 - **How to check:** For each service, if `privileged: true`, require a non-empty `metadata.notes` field.
 - **Why:** Privileged containers expand the blast radius on shared customer VMs; justification forces conscious decision.
 
-#### R-036 — every service has a `healthcheck:`
+#### `service-has-healthcheck`
 
 - **Level:** WARN
 - **What:** Every service defined in `docker-compose.yaml` has a `healthcheck:` key.
@@ -187,7 +187,7 @@ These rules apply to a single `recipes/<slug>/` directory.
 
 These rules apply to the catalogue as a whole — running over all `recipes/*/` directories.
 
-#### X-001 — no duplicate public ports
+#### `no-duplicate-public-port`
 
 - **Level:** ERROR
 - **What:** No two recipes declare the same `(port, protocol)` combination as public, except for ports `80` and `443`.
@@ -195,7 +195,7 @@ These rules apply to the catalogue as a whole — running over all `recipes/*/` 
 - **Why:** Two co-installed recipes on the same VM cannot both bind the same host port. Either change one host port or list the conflict in `incompatible_with_apps`.
 - **80/443 exception:** Traefik (the per-VM reverse proxy) terminates HTTP/HTTPS for everyone; recipes routed through Traefik all "use" 80/443 conceptually but only Traefik binds them.
 
-#### X-002 — `incompatible_with_apps` references real recipes
+#### `incompatibility-ref-valid`
 
 - **Level:** ERROR
 - **What:** Every entry in `metadata.incompatible_with_apps` is a slug that exists in the catalogue.
@@ -210,21 +210,21 @@ When the `af-create-recipe` skill (or any other recipe-authoring tool) finishes 
 Recipe: <slug>
 
 Per-recipe checks
-  R-001 ✓
-  R-010 ✓
-  R-013 ✓
-  R-031 ✗ ERROR — image 'redis:latest' on service 'redis'
-  R-033 ⚠ WARN — bind mount '/var/lib/postgres' should be under /opt/<slug>/
+  files-required-compose          ✓
+  metadata-valid-yaml             ✓
+  app-version-pinned              ✓
+  image-tag-pinned                ✗ ERROR — image 'redis:latest' on service 'redis'
+  bind-mount-under-opt            ⚠ WARN  — bind mount '/var/lib/postgres' should be under /opt/<slug>/
   ...
 
 Cross-recipe checks
-  X-001 ✓
-  X-002 ✓
+  no-duplicate-public-port        ✓
+  incompatibility-ref-valid       ✓
 ```
 
 A recipe is **ready for handoff** when there are zero ERROR-level findings. WARN-level findings are reported but do not block; the developer decides.
 
-When `af-validate` from af-core is later available, its findings should be referenced by the same rule IDs. That gives parity between what the agent self-checks and what CI enforces.
+`af-validate` from af-core emits findings tagged with the same slugs. That gives parity between agent self-check, CI logs, and human review without two divergent rule lists.
 
 ## 6. Maintenance sweep (future)
 
@@ -234,10 +234,10 @@ When a rule in this RFC changes (added, modified, removed), the change should la
 
 - Rules may be **added** in a PR that lands the rule and any catalogue fixes triggered by it together.
 - Rules may be **removed** (or downgraded ERROR → WARN) in a PR that explains why the rule is no longer load-bearing.
-- IDs are **never reused**. A removed rule's ID stays retired.
+- Slugs are **never reused**. A removed rule's slug stays retired — if the same conceptual rule comes back with different semantics, give it a different slug.
+- A rule may be **renamed** if its existing slug becomes misleading. In that case the PR maps the old slug to the new in af-core (so old logs are still grep-able for one release), and updates this RFC.
 
 ## 8. Open items
 
-- [ ] `af-validate` should be updated to emit findings tagged with these rule IDs (currently uses ad-hoc check names).
 - [ ] CI integration: catalogue check runs on every PR to af-recipes, fails on any ERROR.
-- [ ] A few rules are aspirational (R-022 grep heuristic, X-002 phantom refs) — they need precise pseudo-code if a second implementer tries to write them.
+- [ ] A few rules are aspirational (`param-referenced` grep heuristic, `incompatibility-ref-valid` phantom refs) — they need precise pseudo-code if a second implementer tries to write them.

@@ -59,23 +59,24 @@ Wait for developer OK or adjustments before writing files.
 
 Write the files into `recipes/<slug>/`. Then **read [`rfc/002-recipe-rules.md`](../../../rfc/002-recipe-rules.md)** and walk every rule against the new recipe (and, for cross-recipe rules, against the catalogue).
 
-Output one line per rule, with one of:
+Output one line per rule, identified by its slug:
 
 ```
-R-001 ✓
-R-031 ✗ ERROR — image 'redis:latest' on service 'redis' (rule R-031: no :latest tags)
-R-033 ⚠ WARN — bind mount '/var/data' should be under /opt/<slug>/ (rule R-033)
+files-required-compose       ✓
+metadata-valid-yaml          ✓
+image-tag-pinned             ✗ ERROR — image 'redis:latest' on service 'redis'
+bind-mount-under-opt         ⚠ WARN  — bind mount '/var/data' should be under /opt/<slug>/
 ```
 
 For every ERROR-level finding:
 
-1. Identify the rule and the violation
+1. Identify the rule (the slug is descriptive enough to know what's wrong without looking up the RFC) and the violation
 2. Patch the offending file
 3. Re-run only the affected check
 
 Loop until **zero ERROR**-level findings remain. WARN findings are reported but don't block; the developer decides.
 
-When checking cross-recipe rules (X-001, X-002), scan `recipes/` for sibling metadata. Don't assume the new recipe is the only one in the catalogue.
+When checking cross-recipe rules (`no-duplicate-public-port`, `incompatibility-ref-valid`), scan `recipes/` for sibling metadata. Don't assume the new recipe is the only one in the catalogue.
 
 Important: don't invent rules that aren't in RFC-002 and don't suppress findings from rules that are. If a rule seems wrong for a legitimate case, flag it to the developer — the fix belongs in RFC-002, not in a recipe workaround.
 
