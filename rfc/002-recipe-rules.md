@@ -226,9 +226,11 @@ A recipe is **ready for handoff** when there are zero ERROR-level findings. WARN
 
 `af-validate` from af-core emits findings tagged with the same slugs. That gives parity between agent self-check, CI logs, and human review without two divergent rule lists.
 
-## 6. Maintenance sweep (future)
+## 6. Maintenance sweep
 
-When a rule in this RFC changes (added, modified, removed), the change should land alongside a sweep of all existing recipes against the new ruleset. The intent: never let RFC-002 drift away from the catalogue. This is a separate skill (`af-update-recipes`, planned for v1.5) and not in scope for the initial WP4 delivery.
+When a rule in this RFC changes (added, modified, removed), the change should land alongside a sweep of all existing recipes against the new ruleset. The intent: never let RFC-002 drift away from the catalogue.
+
+The `af-update-recipes` skill (in `.claude/skills/`) implements this sweep — pointed at the rule diff (or a single rule, or the full catalogue), it walks the recipes, surfaces findings grouped by recipe, and drafts per-recipe fix patches for ERROR findings. The developer reviews each diff and ships one PR per affected recipe.
 
 ## 7. Rule lifecycle
 
