@@ -8,13 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       recipes:
-        description: "Comma-separated recipe names to test (e.g. n8n,ollama). Leave empty to test all."
+        description: "Comma-separated recipe names (leave empty to test all changed)"
         required: false
         default: ""
-      ssh_only:
-        description: "If true, use minimal cloud-init (SSH test only, no app install)"
-        required: false
-        default: "false"
 
 jobs:
   detect-changed-recipes:
@@ -31,24 +27,64 @@ jobs:
         id: detect
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
-            # Manual trigger with explicit recipe list
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual trigger with no input — test all recipes
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
           else
-            # PR trigger — detect changed recipes
             changed=$(git diff --name-only origin/main...HEAD)
             recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -c -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
           fi
-
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
           echo "Recipes to test: $recipes"
 
+  build-af-api:
+    name: Build af-api image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout af-api
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/af-api
+          path: af-api-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - name: Bake PR recipes into build context
+        working-directory: af-api-src
+        env:
+          AF_RECIPES_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          GH_TOKEN: ${{ env.GH_APP_TOKEN }}
+        run: bash .github/scripts/prepare-recipes.sh
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: push
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/af-api-test:${{ github.run_id }}"
+          docker build -t "$IMAGE" af-api-src/
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
+    needs: [detect-changed-recipes, build-af-api]
     runs-on: ubuntu-latest
-    needs: detect-changed-recipes
     permissions:
       id-token: write
       contents: read
@@ -57,271 +93,162 @@ jobs:
         recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
       fail-fast: false
     env:
-      VM_NAME: "af-recipe-${{ matrix.recipe }}-${{ github.run_id }}-${{ strategy.job-index }}"
+      DEPLOY_NAME: af-api-${{ github.run_id }}-${{ strategy.job-index }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
 
-      - name: Checkout af-core
+      - name: Get kubeconfig from Vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          method: jwt
+          path: jwt
+          role: imagefactory-ci  # TODO: confirm role name
+          secrets: |
+            imagefactory/ci/devel/mk8s af_ci_testing_kubeconfig | KUBECONFIG_CONTENT
+
+      - name: Write kubeconfig
+        run: |
+          echo "$KUBECONFIG_CONTENT" > /tmp/kubeconfig
+          echo "KUBECONFIG=/tmp/kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Checkout python-dwh-image-build-algorithm
         uses: actions/checkout@v4
         with:
-          repository: IONOS-Server-Technology/af-core
-          path: af-core-src
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: feature/ionostestvm-image-id
+          path: image-builder-src
           token: ${{ env.GH_APP_TOKEN }}
+
+      - name: Checkout python-dwh-testsuite
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/python-dwh-testsuite
+          path: testsuite-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - name: Install ionosctl
+        run: |
+          curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
+          sudo tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/ ionosctl
+          sudo chmod +x /usr/local/bin/ionosctl
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install af-core
-        run: pip install ./af-core-src
+      - name: Install Python dependencies
+        run: pip install ./image-builder-src ./testsuite-src pyyaml requests
 
-      - name: Generate cloud-init
-        id: cloudinit
+      - name: Generate SSH keypair
         run: |
-          if [ "${{ inputs.ssh_only }}" = "true" ]; then
-            echo "#cloud-config" > /tmp/cloudinit.yaml
-            echo "package_update: false" >> /tmp/cloudinit.yaml
-            echo "Generated minimal cloud-init (SSH test only)"
-          else
-            python scripts/render-cloudinit.py recipes/${{ matrix.recipe }} > /tmp/cloudinit.yaml
-            echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
-          fi
+          ssh-keygen -t ed25519 -N "" -f /tmp/vm_key -q
+          echo "SSH_KEY_ABSPATH=/tmp/vm_key" >> "$GITHUB_ENV"
 
-      - name: Save cloud-init to file
-        id: encode
+      - name: Create ghcr imagePullSecret
         run: |
-          ssh-keygen -t ed25519 -f /tmp/vm_key -N "" -q
-          pub_key=$(cat /tmp/vm_key.pub)
-          sed -i "1s|.*|#cloud-config|" /tmp/cloudinit.yaml
-          echo "ssh_authorized_keys:" >> /tmp/cloudinit.yaml
-          echo "  - ${pub_key}" >> /tmp/cloudinit.yaml
-          cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
-          echo "cloudinit_file=/tmp/cloudinit.txt" >> $GITHUB_OUTPUT
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --docker-server=ghcr.io \
+            --docker-username="${{ github.actor }}" \
+            --docker-password="${{ secrets.GITHUB_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Discover IONOS Datacenter
-        id: datacenter
+      - name: Deploy af-api
         run: |
-          dc_id="413ebf45-1e68-4ecb-8cc9-b1c9fc589e36"
+          kubectl apply -f - <<EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: $DEPLOY_NAME
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: $DEPLOY_NAME
+            template:
+              metadata:
+                labels:
+                  app: $DEPLOY_NAME
+              spec:
+                imagePullSecrets:
+                  - name: ghcr-pull-secret
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                containers:
+                  - name: af-api
+                    image: ${{ needs.build-af-api.outputs.image }}
+                    env:
+                      - name: DEV_MODE
+                        value: "true"
+                    ports:
+                      - containerPort: 8000
+                    readinessProbe:
+                      httpGet:
+                        path: /api/v1/health
+                        port: 8000
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: $DEPLOY_NAME
+          spec:
+            selector:
+              app: $DEPLOY_NAME
+            ports:
+              - port: 8000
+                targetPort: 8000
+          EOF
 
-          if [ -z "$dc_id" ]; then
-            echo "IONOS_DATACENTER_ID not set, discovering from API..."
-            dc_response=$(curl -s \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              "https://api.ionos.com/cloudapi/v6/datacenters?pretty=false&depth=1")
-            dc_id=$(echo "$dc_response" | jq -r '.items[0].id // empty')
-            echo "Available datacenters:"
-            echo "$dc_response" | jq -r '.items[] | "\(.id) \(.properties.name) \(.properties.location)"' 2>/dev/null || echo "none"
-          fi
+      - name: Wait for af-api ready
+        run: kubectl rollout status deployment/$DEPLOY_NAME --timeout=120s
 
-          if [ -z "$dc_id" ]; then
-            echo "ERROR: No datacenter available"
-            exit 1
-          fi
-
-          dc_location=$(echo "$dc_response" | jq -r --arg id "$dc_id" '.items[] | select(.id == $id) | .properties.location' 2>/dev/null || \
-            curl -s -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            "https://api.ionos.com/cloudapi/v6/datacenters/$dc_id" | jq -r '.properties.location')
-
-          echo "datacenter_id=$dc_id" >> $GITHUB_OUTPUT
-          echo "datacenter_location=$dc_location" >> $GITHUB_OUTPUT
-          echo "Using datacenter: $dc_id with location: $dc_location"
-
-      - name: Find or create public LAN
-        id: lan
+      - name: Port-forward af-api
         run: |
-          dc_id="${{ steps.datacenter.outputs.datacenter_id }}"
+          kubectl port-forward svc/$DEPLOY_NAME 8000:8000 &
+          echo $! > /tmp/pf.pid
+          sleep 3
+          curl -sf http://localhost:8000/api/v1/health
 
-          # List LANs in datacenter and find a public one
-          lans=$(curl -s \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            "https://api.ionos.com/cloudapi/v6/datacenters/${dc_id}/lans?depth=1")
-
-          echo "=== Available LANs ==="
-          echo "$lans" | jq -r '.items[] | "\(.id) public=\(.properties.public) name=\(.properties.name)"' 2>/dev/null || echo "none"
-
-          lan_id=$(echo "$lans" | jq -r '.items[] | select(.properties.public == true) | .id' 2>/dev/null | head -1)
-
-          if [ -z "$lan_id" ]; then
-            echo "No public LAN found, creating one..."
-            lan_response=$(curl -s -X POST \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              -H "Content-Type: application/json" \
-              "https://api.ionos.com/cloudapi/v6/datacenters/${dc_id}/lans" \
-              -d '{"properties":{"name":"af-test-public-lan","public":true}}')
-            lan_id=$(echo "$lan_response" | jq -r '.id')
-            echo "Created public LAN: $lan_id"
-          fi
-
-          if [ -z "$lan_id" ] || [ "$lan_id" = "null" ]; then
-            echo "ERROR: Could not find or create public LAN"
-            exit 1
-          fi
-
-          echo "lan_id=$lan_id" >> $GITHUB_OUTPUT
-          echo "Using public LAN: $lan_id"
-
-      - name: Get Ubuntu 22.04 image UUID
+      - name: Discover Ubuntu image UUID
         id: image
+        env:
+          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
+          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
         run: |
-          image_response=$(curl -s \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            "https://api.ionos.com/cloudapi/v6/images?type=HDD&depth=1")
+          image_uuid=$(ionosctl compute image list --location de/txl -o json | \
+            jq -r '[.items[] | select(.properties.public==true) | select(.properties.name | test("Ubuntu-22.04";"i"))] | sort_by(.properties.createdDate) | last | .id')
+          echo "uuid=$image_uuid" >> "$GITHUB_OUTPUT"
 
-          image_uuid=$(echo "$image_response" | jq -r \
-            '.items[] | select(.properties.public == true) | select(.properties.location == "de/txl") | select(.properties.name | test("Ubuntu-22.04"; "i")) | .id' \
-            | head -1)
-
-          if [ -z "$image_uuid" ] || [ "$image_uuid" = "null" ]; then
-            echo "Available de/txl images:"
-            echo "$image_response" | jq -r '.items[] | select(.properties.location == "de/txl") | "\(.id) \(.properties.name)"' | head -20
-            echo "ERROR: Could not find Ubuntu 22.04 image for de/txl"
-            exit 1
-          fi
-
-          echo "image_uuid=$image_uuid" >> $GITHUB_OUTPUT
-          echo "Using image: $image_uuid"
-
-      - name: Install ionosctl
+      - name: Generate cloud-init via /compose
         run: |
-          curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
-          tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/ ionosctl
-          chmod +x /usr/local/bin/ionosctl
-          ionosctl version
+          python scripts/call-compose.py \
+            --api-url http://localhost:8000 \
+            --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
 
-      - name: Provision test VM via IONOS API
-        id: provision
+      - name: Run ImageTester
+        env:
+          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
+          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
+          IONOS_DATACENTER_ID: ${{ secrets.IONOS_DATACENTER_ID }}
+          RECIPE_NAME: ${{ matrix.recipe }}
         run: |
-          echo "Creating VM: ${{ env.VM_NAME }}"
+          python scripts/run-imagetester.py \
+            --image-id "${{ steps.image.outputs.uuid }}" \
+            --cloudinit /tmp/cloudinit.yaml \
+            --test-config tests/recipe-health-check.conf
 
-          cloudinit_b64=$(base64 -w 0 < /tmp/cloudinit.yaml)
-          pub_key=$(cat /tmp/vm_key.pub)
-
-          response=$(curl -s -X POST \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -H "Content-Type: application/json" \
-            "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers" \
-            -d "{
-              \"properties\": {
-                \"name\": \"${{ env.VM_NAME }}\",
-                \"cores\": 2,
-                \"ram\": 2048
-              },
-              \"entities\": {
-                \"volumes\": {
-                  \"items\": [{
-                    \"properties\": {
-                      \"name\": \"vol-${{ env.VM_NAME }}\",
-                      \"size\": 50,
-                      \"type\": \"SSD\",
-                      \"image\": \"${{ steps.image.outputs.image_uuid }}\",
-                      \"userData\": \"${cloudinit_b64}\",
-                      \"sshKeys\": [\"${pub_key}\"]
-                    }
-                  }]
-                },
-                \"nics\": {
-                  \"items\": [{
-                    \"properties\": {
-                      \"name\": \"nic-${{ env.VM_NAME }}\",
-                      \"lan\": ${{ steps.lan.outputs.lan_id }},
-                      \"dhcp\": true
-                    }
-                  }]
-                }
-              }
-            }")
-
-          echo "API response: $(echo $response | jq -r '.id // .httpStatus // "unknown"')"
-
-          vm_id=$(echo "$response" | jq -r '.id')
-          if [ -z "$vm_id" ] || [ "$vm_id" = "null" ]; then
-            echo "ERROR: VM creation failed"
-            echo "$response" | jq .
-            exit 1
-          fi
-
-          echo "vm_id=$vm_id" >> $GITHUB_OUTPUT
-          echo "VM created with ID: $vm_id"
-
-      - name: Wait for VM to boot and SSH ready
-        id: wait
-        run: |
-          max_attempts=120
-          attempt=0
-          vm_ip=""
-
-          while [ $attempt -lt $max_attempts ]; do
-            attempt=$((attempt + 1))
-
-            # Get VM details via curl
-            curl -s \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers/${{ steps.provision.outputs.vm_id }}?depth=5" \
-              > /tmp/vm_details.json
-
-            # Extract primary IP
-            vm_ip=$(jq -r '.entities.nics.items[0].properties.ips[0]' /tmp/vm_details.json 2>/dev/null || echo "")
-
-            if [ -n "$vm_ip" ] && [ "$vm_ip" != "null" ]; then
-              echo "VM IP: $vm_ip"
-
-              # Try SSH connection
-              if timeout 5 ssh -o StrictHostKeyChecking=no \
-                   -o UserKnownHostsFile=/dev/null \
-                   -i /tmp/vm_key \
-                   root@$vm_ip "echo 'SSH ready'" 2>/dev/null; then
-                echo "VM is ready for testing"
-                echo "vm_ip=$vm_ip" >> $GITHUB_OUTPUT
-                exit 0
-              fi
-            fi
-
-            echo "Waiting for VM to boot... (attempt $attempt/$max_attempts)"
-            sleep 10
-          done
-
-          echo "ERROR: VM failed to boot after $max_attempts attempts"
-          exit 1
-
-      - name: Run health-check script
-        id: health
-        run: |
-          recipe_name="${{ matrix.recipe }}"
-
-          # Wait for cloud-init to complete
-          ssh -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i /tmp/vm_key \
-              root@${{ steps.wait.outputs.vm_ip }} \
-              "cloud-init status --wait" || true
-
-          # Copy health-check script to VM
-          scp -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i /tmp/vm_key \
-              "recipes/$recipe_name/health-check.sh" \
-              root@${{ steps.wait.outputs.vm_ip }}:/tmp/health-check.sh
-
-          # Execute health-check on VM
-          ssh -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i /tmp/vm_key \
-              root@${{ steps.wait.outputs.vm_ip }} \
-              "bash -x /tmp/health-check.sh"
-
-      - name: Cleanup VM (always)
+      - name: Cleanup
         if: always()
         run: |
-          if [ -n "${{ steps.provision.outputs.vm_id }}" ]; then
-            echo "Destroying VM: ${{ env.VM_NAME }}"
-            curl -s -X DELETE \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}:${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              "https://api.ionos.com/cloudapi/v6/datacenters/${{ steps.datacenter.outputs.datacenter_id }}/servers/${{ steps.provision.outputs.vm_id }}?deleteVolumes=true" \
-              || true
-          fi
+          kill "$(cat /tmp/pf.pid)" 2>/dev/null || true
+          kubectl delete deployment/$DEPLOY_NAME svc/$DEPLOY_NAME --ignore-not-found
 
   test-results:
     name: Report Test Results
@@ -333,7 +260,6 @@ jobs:
         run: |
           if [ "${{ needs.test-recipes.result }}" == "success" ]; then
             echo "All recipe tests passed!"
-            exit 0
           else
             echo "Some recipe tests failed"
             exit 1

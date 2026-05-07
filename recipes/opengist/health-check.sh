@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-URL="${1:-http://127.0.0.1:6157}"
+URL="${1:-http://${SERVERIP:-127.0.0.1}:6157}"
 echo "Checking OpenGist at ${URL} ..."
 curl -fsS --max-time 10 "${URL}/" > /dev/null
 echo "OpenGist is healthy."

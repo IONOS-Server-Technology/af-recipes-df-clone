@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-URL="${1:-http://127.0.0.1:5678}"
+URL="${1:-http://${SERVERIP:-127.0.0.1}:5678}"
 MAX_WAIT=300
 INTERVAL=10
 ELAPSED=0
