@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       recipes:
-        description: "Comma-separated recipe names (leave empty to test all changed)"
+        description: "Comma-separated recipe names (leave empty for all changed)"
         required: false
         default: ""
 
@@ -35,55 +35,32 @@ jobs:
             recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -c -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
           fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
-          echo "Recipes to test: $recipes"
 
-  build-af-api:
-    name: Build af-api image
+  trigger-af-api-build:
+    name: Trigger af-api image build
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-      packages: write
-    outputs:
-      image: ${{ steps.push.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
 
-      - name: Checkout af-api
-        uses: actions/checkout@v4
+      - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
         with:
-          repository: IONOS-Server-Technology/af-api
-          path: af-api-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Bake PR recipes into build context
-        working-directory: af-api-src
-        env:
-          AF_RECIPES_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
-          GH_TOKEN: ${{ env.GH_APP_TOKEN }}
-        run: bash .github/scripts/prepare-recipes.sh
-
-      - name: Log in to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        id: push
-        run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/af-api-test:${{ github.run_id }}"
-          docker build -t "$IMAGE" af-api-src/
-          docker push "$IMAGE"
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          owner: IONOS-Server-Technology
+          repo: af-api
+          github_token: ${{ env.GH_APP_TOKEN }}
+          app_id: ${{ env.GH_APP_ID }}
+          app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
+          workflow_file_name: build.yaml  # TODO: confirm in af-api repo
+          ref: main
+          client_payload: >-
+            {"recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
-    needs: [detect-changed-recipes, build-af-api]
+    needs: [detect-changed-recipes, trigger-af-api-build]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -92,28 +69,11 @@ jobs:
       matrix:
         recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
       fail-fast: false
-    env:
-      DEPLOY_NAME: af-api-${{ github.run_id }}-${{ strategy.job-index }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
-
-      - name: Get kubeconfig from Vault
-        uses: hashicorp/vault-action@v3
-        with:
-          url: ${{ env.VAULT_ADDR }}
-          method: jwt
-          path: jwt
-          role: imagefactory-ci  # TODO: confirm role name
-          secrets: |
-            imagefactory/ci/devel/mk8s af_ci_testing_kubeconfig | KUBECONFIG_CONTENT
-
-      - name: Write kubeconfig
-        run: |
-          echo "$KUBECONFIG_CONTENT" > /tmp/kubeconfig
-          echo "KUBECONFIG=/tmp/kubeconfig" >> "$GITHUB_ENV"
 
       - name: Checkout python-dwh-image-build-algorithm
         uses: actions/checkout@v4
@@ -141,79 +101,29 @@ jobs:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        run: pip install ./image-builder-src ./testsuite-src pyyaml requests
+        run: pip install ./image-builder-src ./testsuite-src
+
+      - name: Update af-api deployment to PR image tag and wait for rollout
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}  # TODO: confirm key name from get-secrets
+          RECIPES_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          python scripts/k8s_helper.py set-image af-api-dev af-api \
+            "TODO_INTERNAL_REGISTRY/af-api:$RECIPES_REF"  # TODO: confirm registry + image name
+          python scripts/k8s_helper.py rollout-status af-api-dev
+
+      - name: Port-forward af-api
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py port-forward svc/af-api-dev 8000:8000 --pid-file /tmp/pf.pid
+          sleep 3
+          curl -sf http://localhost:8000/api/v1/health
 
       - name: Generate SSH keypair
         run: |
           ssh-keygen -t ed25519 -N "" -f /tmp/vm_key -q
           echo "SSH_KEY_ABSPATH=/tmp/vm_key" >> "$GITHUB_ENV"
-
-      - name: Create ghcr imagePullSecret
-        run: |
-          kubectl create secret docker-registry ghcr-pull-secret \
-            --docker-server=ghcr.io \
-            --docker-username="${{ github.actor }}" \
-            --docker-password="${{ secrets.GITHUB_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy af-api
-        run: |
-          kubectl apply -f - <<EOF
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: $DEPLOY_NAME
-          spec:
-            replicas: 1
-            selector:
-              matchLabels:
-                app: $DEPLOY_NAME
-            template:
-              metadata:
-                labels:
-                  app: $DEPLOY_NAME
-              spec:
-                imagePullSecrets:
-                  - name: ghcr-pull-secret
-                securityContext:
-                  runAsNonRoot: true
-                  runAsUser: 1000
-                containers:
-                  - name: af-api
-                    image: ${{ needs.build-af-api.outputs.image }}
-                    env:
-                      - name: DEV_MODE
-                        value: "true"
-                    ports:
-                      - containerPort: 8000
-                    readinessProbe:
-                      httpGet:
-                        path: /api/v1/health
-                        port: 8000
-                      initialDelaySeconds: 5
-                      periodSeconds: 5
-          ---
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: $DEPLOY_NAME
-          spec:
-            selector:
-              app: $DEPLOY_NAME
-            ports:
-              - port: 8000
-                targetPort: 8000
-          EOF
-
-      - name: Wait for af-api ready
-        run: kubectl rollout status deployment/$DEPLOY_NAME --timeout=120s
-
-      - name: Port-forward af-api
-        run: |
-          kubectl port-forward svc/$DEPLOY_NAME 8000:8000 &
-          echo $! > /tmp/pf.pid
-          sleep 3
-          curl -sf http://localhost:8000/api/v1/health
 
       - name: Discover Ubuntu image UUID
         id: image
@@ -221,9 +131,9 @@ jobs:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
         run: |
-          image_uuid=$(ionosctl compute image list --location de/txl -o json | \
+          uuid=$(ionosctl compute image list --location de/txl -o json | \
             jq -r '[.items[] | select(.properties.public==true) | select(.properties.name | test("Ubuntu-22.04";"i"))] | sort_by(.properties.createdDate) | last | .id')
-          echo "uuid=$image_uuid" >> "$GITHUB_OUTPUT"
+          echo "uuid=$uuid" >> "$GITHUB_OUTPUT"
 
       - name: Generate cloud-init via /compose
         run: |
@@ -246,21 +156,6 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: |
-          kill "$(cat /tmp/pf.pid)" 2>/dev/null || true
-          kubectl delete deployment/$DEPLOY_NAME svc/$DEPLOY_NAME --ignore-not-found
-
-  test-results:
-    name: Report Test Results
-    runs-on: ubuntu-latest
-    needs: [test-recipes]
-    if: always()
-    steps:
-      - name: Check test status
-        run: |
-          if [ "${{ needs.test-recipes.result }}" == "success" ]; then
-            echo "All recipe tests passed!"
-          else
-            echo "Some recipe tests failed"
-            exit 1
-          fi
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: kill "$(cat /tmp/pf.pid)" 2>/dev/null || true
