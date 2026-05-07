@@ -53,14 +53,75 @@ jobs:
           github_token: ${{ env.GH_APP_TOKEN }}
           app_id: ${{ env.GH_APP_ID }}
           app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
-          workflow_file_name: build.yaml  # TODO: confirm in af-api repo
+          workflow_file_name: test.yaml
           ref: main
           client_payload: >-
-            {"recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
+            {"af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
+
+  deploy-af-api:
+    name: Deploy af-api for branch
+    needs: trigger-af-api-build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      name: ${{ steps.ref.outputs.name }}
+      url: ${{ steps.url.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout python-dwh-image-build-algorithm
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: feature/ionostestvm-image-id
+          path: image-builder-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ./image-builder-src
+
+      - name: Compute deployment name and image tag from branch ref
+        id: ref
+        run: |
+          raw="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          safe=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-*//' | sed 's/-*$//')
+          name="af-api-${safe:0:55}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=$safe" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy af-api Deployment + Service
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py deploy \
+            "${{ steps.ref.outputs.name }}" \
+            "harbor.infra.cluster.ionos.com/imagefactory/af-api:${{ steps.ref.outputs.tag }}"
+
+      - name: Wait for rollout
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: python scripts/k8s_helper.py rollout-status "${{ steps.ref.outputs.name }}"
+
+      - name: Get af-api ClusterIP URL
+        id: url
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          url=$(python scripts/k8s_helper.py get-url "${{ steps.ref.outputs.name }}" 8000)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
-    needs: [detect-changed-recipes, trigger-af-api-build]
+    needs: [detect-changed-recipes, deploy-af-api]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -103,23 +164,6 @@ jobs:
       - name: Install Python dependencies
         run: pip install ./image-builder-src ./testsuite-src
 
-      - name: Update af-api deployment to PR image tag and wait for rollout
-        env:
-          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}  # TODO: confirm key name from get-secrets
-          RECIPES_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
-        run: |
-          python scripts/k8s_helper.py set-image af-api-dev af-api \
-            "TODO_INTERNAL_REGISTRY/af-api:$RECIPES_REF"  # TODO: confirm registry + image name
-          python scripts/k8s_helper.py rollout-status af-api-dev
-
-      - name: Port-forward af-api
-        env:
-          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
-        run: |
-          python scripts/k8s_helper.py port-forward svc/af-api-dev 8000:8000 --pid-file /tmp/pf.pid
-          sleep 3
-          curl -sf http://localhost:8000/api/v1/health
-
       - name: Generate SSH keypair
         run: |
           ssh-keygen -t ed25519 -N "" -f /tmp/vm_key -q
@@ -138,7 +182,7 @@ jobs:
       - name: Generate cloud-init via /compose
         run: |
           python scripts/call-compose.py \
-            --api-url http://localhost:8000 \
+            --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
 
@@ -154,8 +198,39 @@ jobs:
             --cloudinit /tmp/cloudinit.yaml \
             --test-config tests/recipe-health-check.conf
 
-      - name: Cleanup
-        if: always()
+  cleanup-af-api:
+    name: Cleanup af-api deployment
+    needs: [deploy-af-api, test-recipes]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout python-dwh-image-build-algorithm
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: feature/ionostestvm-image-id
+          path: image-builder-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ./image-builder-src
+
+      - name: Delete af-api Deployment + Service
         env:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
-        run: kill "$(cat /tmp/pf.pid)" 2>/dev/null || true
+        run: |
+          python scripts/k8s_helper.py delete \
+            "deployment/${{ needs.deploy-af-api.outputs.name }}" \
+            "svc/${{ needs.deploy-af-api.outputs.name }}"
