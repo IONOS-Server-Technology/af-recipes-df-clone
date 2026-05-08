@@ -46,6 +46,18 @@ jobs:
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
 
+      - name: Resolve af-api branch ref
+        id: af-api-ref
+        run: |
+          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          if git ls-remote --exit-code \
+              "https://x-access-token:${GH_APP_TOKEN}@github.com/IONOS-Server-Technology/af-api.git" \
+              "refs/heads/${branch}" > /dev/null 2>&1; then
+            echo "value=${branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=main" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
         with:
           owner: IONOS-Server-Technology
@@ -54,7 +66,7 @@ jobs:
           app_id: ${{ env.GH_APP_ID }}
           app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
           workflow_file_name: test.yaml
-          ref: main
+          ref: ${{ steps.af-api-ref.outputs.value }}
           client_payload: >-
             {"af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
 
