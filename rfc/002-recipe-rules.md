@@ -100,6 +100,20 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** Load `os-baselines.yaml`, intersect.
 - **Why:** Without a baseline entry, the AF API cannot compute total resource requirements for the OS the recipe targets.
 
+#### `short-description-required`
+
+- **Level:** ERROR
+- **What:** `metadata.short_description` must be present, be a language map (`dict[str, str]`), and contain an `en` key.
+- **How to check:** Check presence and type; verify `"en"` key exists.
+- **Why:** The customer-facing UI requires an English short description for every app; the `en` key is the fallback for all locales.
+
+#### `short-description-max-length`
+
+- **Level:** ERROR
+- **What:** Each value in `metadata.short_description` must be ≤ 160 characters.
+- **How to check:** For each key-value pair: `len(value) <= 160`.
+- **Why:** UI display constraint — the control panel app card has a fixed character limit.
+
 ### 3.3 Parameters
 
 #### `param-name-upper-snake`

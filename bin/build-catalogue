@@ -47,6 +47,17 @@ def main():
                 errors.append(f"{recipe_name}: missing fields: {', '.join(missing)}")
                 continue
 
+            # Validate short_description
+            sd = meta.get("short_description")
+            if not sd or not isinstance(sd, dict):
+                errors.append(f"{recipe_name}: missing or invalid short_description (must be a language map)")
+            elif "en" not in sd:
+                errors.append(f"{recipe_name}: short_description missing required 'en' key")
+            else:
+                for lang, text in sd.items():
+                    if len(text) > 160:
+                        errors.append(f"{recipe_name}: short_description['{lang}'] exceeds 160 chars ({len(text)})")
+
             if meta["name"] != recipe_name:
                 errors.append(
                     f"{recipe_name}: name '{meta['name']}' does not match directory"
@@ -65,6 +76,7 @@ def main():
                 "name": meta["name"],
                 "display_name": meta["display_name"],
                 "description": meta["description"],
+                "short_description": meta.get("short_description", {}),
                 "categories": meta["categories"],
                 "app_version": str(meta["app_version"]),
                 "recipe_version": str(meta["recipe_version"]),
