@@ -33,6 +33,9 @@ def main() -> int:
     p = sub.add_parser("delete")
     p.add_argument("resources", nargs="+")
 
+    p = sub.add_parser("describe")
+    p.add_argument("name")
+
     args = parser.parse_args()
     k8s = K8sHelper(kubeconfig())
 
@@ -73,6 +76,13 @@ def main() -> int:
         print(f"http://{str(result).strip()}:{args.port}")
     elif args.cmd == "delete":
         k8s.delete(*args.resources)
+    elif args.cmd == "describe":
+        print("--- Deployment ---")
+        print(str(k8s.failsafe_kubectl("describe", f"deployment/{args.name}")))
+        print("--- Pods (selector app=" + args.name + ") ---")
+        print(str(k8s.failsafe_kubectl("get", "pods", "-l", f"app={args.name}", "-o", "wide")))
+        print("--- Pod events ---")
+        print(str(k8s.failsafe_kubectl("describe", "pods", "-l", f"app={args.name}")))
 
     return 0
 

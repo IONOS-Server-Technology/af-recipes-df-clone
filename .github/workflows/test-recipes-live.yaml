@@ -125,6 +125,13 @@ jobs:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
         run: python scripts/k8s_helper.py rollout-status "${{ steps.ref.outputs.name }}"
 
+      - name: Diagnose rollout failure
+        if: failure()
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py describe "${{ steps.ref.outputs.name }}"
+
       - name: Get af-api ClusterIP URL
         id: url
         env:
