@@ -17,7 +17,8 @@ on:
 jobs:
   detect-changed-recipes:
     name: Detect Changed Recipes
-    runs-on: ubuntu-latest
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
     outputs:
       recipes: ${{ steps.detect.outputs.recipes }}
     steps:
@@ -40,7 +41,8 @@ jobs:
 
   trigger-af-api-build:
     name: Trigger af-api image build
-    runs-on: ubuntu-latest
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
@@ -75,7 +77,8 @@ jobs:
   deploy-af-api:
     name: Deploy af-api for branch
     needs: trigger-af-api-build
-    runs-on: ubuntu-latest
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
@@ -164,7 +167,8 @@ jobs:
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
     needs: [detect-changed-recipes, deploy-af-api]
-    runs-on: ubuntu-latest
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
@@ -244,7 +248,8 @@ jobs:
     name: Cleanup af-api deployment
     needs: [deploy-af-api, test-recipes]
     if: always() && needs.deploy-af-api.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
