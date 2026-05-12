@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """CLI wrapper around K8sHelper for af-api deployment management."""
 import argparse
+import base64
+import json
 import os
 import sys
 
 from ImageBuilder.Util.K8sHelper import K8sHelper
+
+# Shared pull secret name used by every per-branch af-api deployment.
+# The Harbor credentials behind it are identical across runs, so a single
+# secret in the default namespace is created/updated idempotently before
+# each deploy and referenced via imagePullSecrets.
+PULL_SECRET_NAME = "harbor-imagefactory-pull"
 
 
 def kubeconfig() -> str:
@@ -12,6 +20,23 @@ def kubeconfig() -> str:
     if not kc:
         raise RuntimeError("KUBECONFIG_CONTENT env var not set")
     return kc
+
+
+def ensure_pull_secret(k8s: K8sHelper, registry: str) -> None:
+    username = os.environ.get("HARBOR_USERNAME")
+    password = os.environ.get("HARBOR_PASSWORD")
+    if not username or not password:
+        raise RuntimeError("HARBOR_USERNAME / HARBOR_PASSWORD env vars not set")
+    auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+    dockerconfig = {"auths": {registry: {"username": username, "password": password, "auth": auth}}}
+    dockerconfig_b64 = base64.b64encode(json.dumps(dockerconfig).encode()).decode()
+    k8s.apply({
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "type": "kubernetes.io/dockerconfigjson",
+        "metadata": {"name": PULL_SECRET_NAME},
+        "data": {".dockerconfigjson": dockerconfig_b64},
+    })
 
 
 def main() -> int:
@@ -38,6 +63,9 @@ def main() -> int:
 
     p = sub.add_parser("list-pull-secrets")
 
+    p = sub.add_parser("ensure-pull-secret")
+    p.add_argument("registry")
+
     args = parser.parse_args()
     k8s = K8sHelper(kubeconfig())
 
@@ -52,6 +80,7 @@ def main() -> int:
                 "template": {
                     "metadata": {"labels": {"app": args.name}},
                     "spec": {
+                        "imagePullSecrets": [{"name": PULL_SECRET_NAME}],
                         "containers": [{
                             "name": "af-api",
                             "image": args.image,
@@ -91,6 +120,8 @@ def main() -> int:
             "--field-selector=type=kubernetes.io/dockerconfigjson",
             "-o", "custom-columns=NAME:.metadata.name,AGE:.metadata.creationTimestamp",
         )))
+    elif args.cmd == "ensure-pull-secret":
+        ensure_pull_secret(k8s, args.registry)
 
     return 0
 

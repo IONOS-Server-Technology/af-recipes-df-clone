@@ -112,10 +112,12 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "tag=$safe" >> "$GITHUB_OUTPUT"
 
-      - name: List available pull secrets
+      - name: Ensure Harbor pull secret
         env:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
-        run: python scripts/k8s_helper.py list-pull-secrets
+          HARBOR_USERNAME: ${{ env.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ env.HARBOR_PASSWORD }}
+        run: python scripts/k8s_helper.py ensure-pull-secret harbor.infra.cluster.ionos.com
 
       - name: Deploy af-api Deployment + Service
         env:
