@@ -36,6 +36,8 @@ def main() -> int:
     p = sub.add_parser("describe")
     p.add_argument("name")
 
+    p = sub.add_parser("list-pull-secrets")
+
     args = parser.parse_args()
     k8s = K8sHelper(kubeconfig())
 
@@ -83,6 +85,12 @@ def main() -> int:
         print(str(k8s.failsafe_kubectl("get", "pods", "-l", f"app={args.name}", "-o", "wide")))
         print("--- Pod events ---")
         print(str(k8s.failsafe_kubectl("describe", "pods", "-l", f"app={args.name}")))
+    elif args.cmd == "list-pull-secrets":
+        print(str(k8s.failsafe_kubectl(
+            "get", "secrets",
+            "--field-selector=type=kubernetes.io/dockerconfigjson",
+            "-o", "custom-columns=NAME:.metadata.name,AGE:.metadata.creationTimestamp",
+        )))
 
     return 0
 
