@@ -47,6 +47,7 @@ af-recipes/
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `id` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
+| `enabled` | boolean | yes | Whether the recipe is exposed by the AF API. Disabled recipes stay in the catalogue source but are hidden from public endpoints. |
 | `display_name` | string | yes | Human-readable name for UI display. |
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |
