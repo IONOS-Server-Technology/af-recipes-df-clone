@@ -46,7 +46,7 @@ af-recipes/
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
+| `id` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
 | `display_name` | string | yes | Human-readable name for UI display. |
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |

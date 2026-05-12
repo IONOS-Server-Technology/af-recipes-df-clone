@@ -72,10 +72,10 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** `jsonschema.validate(metadata, schema)`.
 - **Why:** The AF API loads recipes against this schema at startup; a recipe that fails the schema crashes the API.
 
-#### `name-matches-dir`
+#### `id-matches-dir`
 
 - **Level:** ERROR
-- **What:** `metadata.name` must equal the recipe directory name.
+- **What:** `metadata.id` must equal the recipe directory name.
 - **How to check:** String comparison.
 - **Why:** The directory name is the slug used everywhere (URLs, `incompatible_with_apps`, install paths). Divergence breaks lookups.
 

@@ -1,6 +1,6 @@
 # Anatomy of a recipe — annotated walk-through using `recipes/n8n/`
 
-Each recipe lives in `recipes/<slug>/` and ships **five files** for `docker-compose` recipes (three for `native`). The slug must match `metadata.yaml`'s `name` field and the directory name.
+Each recipe lives in `recipes/<slug>/` and ships **five files** for `docker-compose` recipes (three for `native`). The slug must match `metadata.yaml`'s `id` field and the directory name.
 
 ## File 1: `metadata.yaml` — the contract
 
@@ -9,7 +9,7 @@ The schema-validated declaration of what the app is, what it costs, what it expo
 Annotated `recipes/n8n/metadata.yaml`:
 
 ```yaml
-name: n8n                         # slug — matches the directory name
+id: n8n                           # slug — matches the directory name
 display_name: n8n                 # what shows up in the customer's control panel
 description: Low-code workflow automation tool to connect various apps and APIs.
 categories:                       # one or more from the enum in metadata.schema.json
