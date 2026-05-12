@@ -96,20 +96,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install af-core
-        run: |
-          # Patch schema to include preinstall_cmds (field exists in models.py but missing
-          # from metadata.schema.json in af-core — upstream fix pending)
-          python3 - <<'PYEOF'
-          import json
-          from pathlib import Path
-          p = Path("af-core-src/af_core/schema/metadata.schema.json")
-          s = json.loads(p.read_text())
-          s["properties"].setdefault("preinstall_cmds", {
-              "type": "array", "items": {"type": "string"}, "default": []
-          })
-          p.write_text(json.dumps(s, indent=4))
-          PYEOF
-          pip install -e ./af-core-src
+        run: pip install -e ./af-core-src
 
       - name: Validate recipe schema
         run: af-validate recipe recipes/${{ matrix.recipe }}
