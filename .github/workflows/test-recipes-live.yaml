@@ -147,6 +147,20 @@ jobs:
           url=$(python scripts/k8s_helper.py get-url "${{ steps.ref.outputs.name }}" 8000)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      - name: Verify af-api reachable from runner
+        run: |
+          set -x
+          url="${{ steps.url.outputs.url }}"
+          for i in $(seq 1 15); do
+            if curl -sf -m 5 "${url}/api/v1/health"; then
+              echo "af-api reachable at $url after attempt $i"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "af-api NOT reachable at $url" >&2
+          exit 1
+
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
     needs: [detect-changed-recipes, deploy-af-api]

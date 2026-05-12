@@ -86,6 +86,11 @@ def main() -> int:
                             "image": args.image,
                             "ports": [{"containerPort": 8000}],
                             "env": [{"name": "DEV_MODE", "value": "true"}],
+                            "readinessProbe": {
+                                "httpGet": {"path": "/api/v1/health", "port": 8000},
+                                "periodSeconds": 2,
+                                "failureThreshold": 30,
+                            },
                         }]
                     }
                 }
