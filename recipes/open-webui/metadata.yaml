@@ -1,0 +1,46 @@
+id: open-webui
+display_name: Open WebUI
+description: Browser-based chat interface for local AI models, bundled with Ollama for model management and inference.
+categories:
+  - ai
+app_version: "0.9.2"
+recipe_version: "1.0.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/open-webui/open-webui
+
+app_min_ram_mb: 8192
+app_min_disk_mb: 51200
+
+supported_os:
+  - ubuntu-26.04
+
+ports:
+  - port: 3004
+    protocol: tcp
+    public: true
+    description: Open WebUI Web Interface
+
+parameters:
+  - name: APP_DOMAIN
+    display_name: Domain
+    type: domain
+    required: true
+    description: Domain for accessing Open WebUI (e.g., ai.example.com).
+
+  - name: WEBUI_SECRET_KEY
+    display_name: Secret Key
+    type: password
+    required: false
+    auto_generate: true
+    description: Secret key for JWT token signing (auto-generated if not provided).
+
+notes: >
+  Open WebUI is bundled with Ollama. Ollama requires significant RAM — minimum 8 GB
+  just to run, more for useful models (a 7B parameter model needs ~8 GB, a 13B model ~16 GB).
+  The first user to register becomes the administrator. GPU passthrough is out of scope
+  for Phase 1; CPU-only deployments are functional but should be limited to small models
+  (3B parameters or fewer). The Ollama API is not exposed publicly — it is accessible
+  internally between containers only.
+
+incompatible_with_apps:
+  - ollama
