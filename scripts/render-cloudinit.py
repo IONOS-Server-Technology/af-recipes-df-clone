@@ -10,6 +10,7 @@ import yaml
 
 from af_core.recipe import load_recipe
 from af_core.renderer import render_cloudinit
+from af_core.validator import generate_secret
 
 
 def main() -> int:
@@ -59,6 +60,14 @@ def main() -> int:
             return 1
         key, value = param.split("=", 1)
         params[key] = value
+
+    # Fill in missing params: auto-generate passwords, apply defaults
+    for p in recipe.parameters:
+        if p.name not in params:
+            if p.auto_generate:
+                params[p.name] = generate_secret()
+            elif p.default is not None:
+                params[p.name] = str(p.default)
 
     try:
         cloudinit = render_cloudinit(recipe, params)
