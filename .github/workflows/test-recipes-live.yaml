@@ -296,8 +296,10 @@ jobs:
           python3 -c "import pkg_resources; print('pkg_resources:', pkg_resources.__file__)"
 
       - name: Generate SSH keypair
+        # RSA, not ed25519 — python-dwh-testsuite hardcodes
+        # paramiko.RSAKey.from_private_key_file for SSH auth.
         run: |
-          ssh-keygen -t ed25519 -N "" -f /tmp/vm_key -q
+          ssh-keygen -t rsa -b 4096 -m PEM -N "" -f /tmp/vm_key -q
           echo "SSH_KEY_ABSPATH=/tmp/vm_key" >> "$GITHUB_ENV"
 
       - name: Pin Ubuntu image UUID
