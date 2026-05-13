@@ -101,6 +101,7 @@ def main() -> int:
             "kind": "Service",
             "metadata": {"name": args.name},
             "spec": {
+                "type": "NodePort",
                 "selector": {"app": args.name},
                 "ports": [{"port": 8000, "targetPort": 8000}],
             }
@@ -108,8 +109,17 @@ def main() -> int:
     elif args.cmd == "rollout-status":
         k8s.rollout_status(args.deployment, args.timeout)
     elif args.cmd == "get-url":
-        result = k8s.failsafe_kubectl("get", "svc", args.service, "-o", "jsonpath={.spec.clusterIP}")
-        print(f"http://{str(result).strip()}:{args.port}")
+        node_port = str(k8s.failsafe_kubectl(
+            "get", "svc", args.service,
+            "-o", f"jsonpath={{.spec.ports[?(@.port=={args.port})].nodePort}}",
+        )).strip()
+        if not node_port:
+            raise RuntimeError(f"service {args.service} has no nodePort for port {args.port}")
+        node_ip = str(k8s.failsafe_kubectl(
+            "get", "nodes",
+            "-o", "jsonpath={.items[0].status.addresses[?(@.type=='InternalIP')].address}",
+        )).strip().split()[0]
+        print(f"http://{node_ip}:{node_port}")
     elif args.cmd == "delete":
         k8s.delete(*args.resources)
     elif args.cmd == "describe":
