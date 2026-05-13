@@ -181,6 +181,10 @@ jobs:
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
     needs: deploy-af-api
+    # Explicit success() against the direct need — without this, the
+    # default if propagates the SKIPPED status of trigger-af-api-build
+    # through deploy-af-api and would skip this job too.
+    if: needs.deploy-af-api.result == 'success'
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
