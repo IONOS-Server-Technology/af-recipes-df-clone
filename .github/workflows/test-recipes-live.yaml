@@ -28,8 +28,12 @@ jobs:
 
       - name: Detect changed recipe directories
         id: detect
+        env:
+          FOCUS_RECIPE: uptime-kuma
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+          if [ -n "$FOCUS_RECIPE" ]; then
+            recipes="[\"$FOCUS_RECIPE\"]"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
