@@ -288,15 +288,12 @@ jobs:
           ssh-keygen -t ed25519 -N "" -f /tmp/vm_key -q
           echo "SSH_KEY_ABSPATH=/tmp/vm_key" >> "$GITHUB_ENV"
 
-      - name: Discover Ubuntu image UUID
+      - name: Pin Ubuntu image UUID
         id: image
-        env:
-          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
-          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
-        run: |
-          uuid=$(ionosctl compute image list --location de/txl -o json | \
-            jq -r '[.items[] | select(.properties.public==true) | select(.properties.name | test("Ubuntu-22.04";"i"))] | sort_by(.properties.createdDate) | last | .id')
-          echo "uuid=$uuid" >> "$GITHUB_OUTPUT"
+        # Hardcoded HDD + cloud-init-compatible Ubuntu image. Restore the
+        # ionosctl-based discovery once it filters on imageType=HDD and
+        # cloudInit!=NONE.
+        run: echo "uuid=c20bbf54-4e86-11f1-8e50-0ebdf53ef869" >> "$GITHUB_OUTPUT"
 
       - name: Generate cloud-init via /compose
         run: |
