@@ -104,11 +104,13 @@ jobs:
       - name: Generate test .env
         run: |
           python3 - <<'EOF'
-          import sys
+          import secrets, string, sys, yaml
           from pathlib import Path
           from af_core.recipe import load_recipe
-          from af_core.renderer import render_env_template
-          from af_core.validator import generate_secret
+
+          def _generate_secret(length=32):
+              alphabet = string.ascii_letters + string.digits
+              return ''.join(secrets.choice(alphabet) for _ in range(length))
 
           recipe_dir = Path("recipes/${{ matrix.recipe }}")
           recipe = load_recipe(recipe_dir)
@@ -118,20 +120,27 @@ jobs:
               print("No .env.template — skipping")
               sys.exit(0)
 
-          params = {}
-          for p in recipe.parameters:
-              if p.auto_generate or p.type == "password":
-                  params[p.name] = generate_secret()
-              elif p.type == "email":
-                  params[p.name] = "test@example.com"
-              elif p.type == "domain":
-                  params[p.name] = "localhost"
-              elif p.default is not None:
-                  params[p.name] = str(p.default)
-              else:
-                  params[p.name] = "test-value"
+          # af-core no longer exposes recipe.parameters — read from metadata.yaml directly
+          raw_meta = yaml.safe_load((recipe_dir / "metadata.yaml").read_text())
+          parameters = raw_meta.get("parameters", [])
 
-          env_content = render_env_template(env_template_path.read_text(), params)
+          params = {}
+          for p in parameters:
+              if p.get("auto_generate") or p.get("type") == "password":
+                  params[p["name"]] = _generate_secret()
+              elif p.get("type") == "email":
+                  params[p["name"]] = "test@example.com"
+              elif p.get("type") == "domain":
+                  params[p["name"]] = "localhost"
+              elif p.get("default") is not None:
+                  params[p["name"]] = str(p["default"])
+              else:
+                  params[p["name"]] = "test-value"
+
+          template = env_template_path.read_text()
+          env_content = template
+          for key, value in params.items():
+              env_content = env_content.replace(f'{{{{{key}}}}}', str(value))
           (recipe_dir / ".env").write_text(env_content)
           print(f"Generated .env for {recipe.id}: {list(params.keys())}")
           EOF
