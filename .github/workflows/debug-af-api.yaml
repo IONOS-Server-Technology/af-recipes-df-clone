@@ -11,17 +11,59 @@ on:
   workflow_dispatch:
     inputs:
       af_recipes_ref:
-        description: "af-recipes branch to bake into af-api (used to derive the image tag in Harbor)"
+        description: "af-recipes branch to bake into af-api (passed through to af-api build)"
         required: false
         default: ""
       hold_minutes:
         description: "Minutes to keep the deployment alive after diagnostics so kubectl exec can be used"
         required: false
         default: "30"
+      skip_build:
+        description: "Skip triggering af-api build and use whatever image is already in Harbor under the resolved tag"
+        required: false
+        default: "false"
 
 jobs:
+  trigger-af-api-build:
+    name: Trigger af-api image build
+    if: ${{ inputs.skip_build != 'true' }}
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Resolve af-api branch ref
+        id: af-api-ref
+        run: |
+          branch="${{ inputs.af_recipes_ref || github.ref_name }}"
+          if git ls-remote --exit-code \
+              "https://x-access-token:${GH_APP_TOKEN}@github.com/IONOS-Server-Technology/af-api.git" \
+              "refs/heads/${branch}" > /dev/null 2>&1; then
+            echo "value=${branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
+        with:
+          owner: IONOS-Server-Technology
+          repo: af-api
+          github_token: ${{ env.GH_APP_TOKEN }}
+          app_id: ${{ env.GH_APP_ID }}
+          app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
+          workflow_file_name: test.yaml
+          ref: ${{ steps.af-api-ref.outputs.value }}
+          client_payload: >-
+            {"af_recipes_ref": "${{ inputs.af_recipes_ref || github.ref_name }}"}
+
   debug:
     name: Deploy + diagnose + hold
+    needs: trigger-af-api-build
+    if: always() && (needs.trigger-af-api-build.result == 'success' || needs.trigger-af-api-build.result == 'skipped')
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
