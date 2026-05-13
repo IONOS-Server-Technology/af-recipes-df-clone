@@ -315,6 +315,19 @@ jobs:
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
+          # Append a standard cloud-init users block so root SSH works as
+          # soon as cloud-init runs — independent of whether the
+          # `application_factory:` plugin in the VM image fires the
+          # /bootstrap flow that would otherwise install the key. This
+          # lets the diagnostic tests run regardless of bootstrap state.
+          {
+            echo "users:"
+            echo "  - default"
+            echo "  - name: root"
+            echo "    ssh_authorized_keys:"
+            echo "      - $(cat /tmp/vm_key.pub)"
+            echo "disable_root: false"
+          } >> /tmp/cloudinit.yaml
 
       - name: Run ImageTester
         env:
