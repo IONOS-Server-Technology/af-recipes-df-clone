@@ -213,20 +213,20 @@ jobs:
           sudo chmod +x /usr/local/bin/ionosctl
 
       # ImageBuilder.Util.ImageDownloader does `from sh import aws, qemu_img`
-      # at import-time, so both CLIs must be on PATH before run-imagetester.py
-      # even imports the module. qemu-utils via apt, awscli via pip (the apt
-      # package was dropped in newer Ubuntu releases).
-      - name: Install qemu-utils
+      # at import-time. Both binaries are baked into the if-operative-docker-image
+      # base layer that the IF runner uses, so we just verify them on PATH.
+      - name: Verify ImageTester system deps on PATH
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends qemu-utils
+          which aws qemu-img
+          aws --version
+          qemu-img --version | head -1
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        run: pip install awscli ./image-builder-src ./testsuite-src
+        run: pip install ./image-builder-src ./testsuite-src
 
       - name: Generate SSH keypair
         run: |
