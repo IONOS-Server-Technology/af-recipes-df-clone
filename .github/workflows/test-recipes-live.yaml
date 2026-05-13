@@ -208,6 +208,14 @@ jobs:
           sudo tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/ ionosctl
           sudo chmod +x /usr/local/bin/ionosctl
 
+      # ImageBuilder.Util.ImageDownloader does `from sh import aws, qemu_img`
+      # at import-time, so both CLIs must be on PATH before run-imagetester.py
+      # even imports the module.
+      - name: Install ImageTester system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-utils awscli
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
