@@ -1,7 +1,8 @@
 id: wud
 enabled: false
+composition: true
 display_name: What's Up Docker
-description: Monitor Docker containers and get notified when new image versions are available.
+description: Auto-injected composition app — monitors Docker containers and enables one-click manual image updates via the WUD web UI.
 short_description:
   en: "Stay on top of Docker image updates — get notified when newer versions of your running containers are available."
   de: "Docker-Image-Updates im Blick behalten — benachrichtigt werden, wenn neue Versionen laufender Container verfügbar sind."
@@ -11,30 +12,48 @@ short_description:
   nl: "Houd Docker-image-updates bij — ontvang meldingen wanneer nieuwere versies van je containers beschikbaar zijn."
   pl: "Śledź aktualizacje obrazów Docker — otrzymuj powiadomienia, gdy dostępne są nowe wersje twoich kontenerów."
 categories:
-  - monitoring
-app_version: "6.5.0"
-recipe_version: "1.0.0"
+  - infrastructure
+app_version: "8.2.2"
+recipe_version: "2.0.0"
 recipe_type: docker-compose
-upstream_url: https://github.com/fmartinou/whats-up-docker
+upstream_url: https://github.com/getwud/wud
 
-app_min_ram_mb: 256
-app_min_disk_mb: 2048
+app_min_ram_mb: 128
+app_min_disk_mb: 1536
 
 supported_os:
   - ubuntu-26.04
 
-ports:
-  - port: 3002
-    protocol: tcp
-    public: true
-    description: WUD Web UI
+ports: []
 
 parameters:
-  - name: APP_DOMAIN
-    display_name: Domain
+  - name: BASE_DOMAIN
+    display_name: Base Domain
     type: domain
     required: true
-    description: Domain for accessing WUD (e.g., wud.example.com).
+    description: Customer's base domain (e.g., h12345.stratoserver.net). WUD UI is served at updates.<base_domain>.
 
-incompatible_with_apps:
-  - gitea
+  - name: WUD_ADMIN_PASSWORD
+    display_name: WUD Admin Password
+    type: password
+    required: false
+    auto_generate: true
+    description: Password for the WUD web UI (auto-generated if not provided). Log in at updates.<base_domain> with username "admin".
+
+notes: >
+  Composition app — auto-included by af-core when the customer selects at least one docker-compose recipe.
+  Hidden from the customer-facing catalogue (enabled: false). The WUD web UI is accessible at
+  updates.<base_domain> behind HTTP Basic auth (username: admin).
+  SECURITY: The Docker socket is mounted read-write. This is an accepted architectural trade-off
+  required for WUD's one-click apply feature (dockercompose trigger rewrites compose files and
+  recreates containers). A compromised WUD container has root-equivalent access to the host via
+  the Docker daemon. Mitigations: auto-generated strong password, TLS via Traefik + Let's Encrypt,
+  WUD only accessible at updates.<base_domain> (not on a raw port), wud.watch=false prevents
+  WUD from updating itself.
+  Notification triggers (ntfy/SMTP) ship in .env but are disabled by default; the customer enables
+  them by editing /opt/wud/.env and restarting the service.
+  af-core injects /opt/<app>:/opt/<app> bind-mounts for each recipe that carries the
+  dockercompose.apply trigger label, enabling one-click updates from the WUD UI.
+
+preinstall_cmds:
+  - docker network create traefik-net 2>/dev/null || true
