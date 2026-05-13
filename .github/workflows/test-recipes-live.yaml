@@ -281,9 +281,15 @@ jobs:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        # setuptools is needed at runtime by Plugins.Ssh (paramiko →
-        # pkg_resources); Python 3.12 venvs don't ship it by default.
-        run: pip install setuptools ./image-builder-src ./testsuite-src
+        # Plugins.Ssh transitively imports pkg_resources (via fs.sshfs /
+        # paramiko); Python 3.12 venvs from actions/setup-python don't
+        # ship setuptools by default. Pin pip+setuptools+wheel first and
+        # smoke-test the import so any breakage shows up here rather
+        # than 90 seconds into a VM run.
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install ./image-builder-src ./testsuite-src
+          python3 -c "import pkg_resources; print('pkg_resources:', pkg_resources.__file__)"
 
       - name: Generate SSH keypair
         run: |
