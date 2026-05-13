@@ -45,6 +45,10 @@ jobs:
 
   trigger-af-api-build:
     name: Trigger af-api image build
+    # TEMP: skipped while we iterate on pipeline plumbing. The current
+    # branch already has an af-api image at the expected Harbor tag from
+    # earlier builds. Remove this `if` to re-enable per-push rebuilds.
+    if: false
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -81,6 +85,7 @@ jobs:
   deploy-af-api:
     name: Deploy af-api for branch
     needs: trigger-af-api-build
+    if: always() && (needs.trigger-af-api-build.result == 'success' || needs.trigger-af-api-build.result == 'skipped')
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
