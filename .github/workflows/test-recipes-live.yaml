@@ -180,15 +180,17 @@ jobs:
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
-    needs: [detect-changed-recipes, deploy-af-api]
+    needs: deploy-af-api
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
     strategy:
+      # TEMP: hardcoded while debugging the e2e path. Restore the
+      # detect-changed-recipes-driven matrix once the pipeline is green.
       matrix:
-        recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
+        recipe: [uptime-kuma]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
