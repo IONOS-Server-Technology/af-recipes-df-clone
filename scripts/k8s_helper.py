@@ -70,6 +70,31 @@ def main() -> int:
     k8s = K8sHelper(kubeconfig())
 
     if args.cmd == "deploy":
+        # Service first so the NodePort is allocated and we can derive the
+        # externally-reachable URL that has to be baked into the af-api
+        # container as AF_API_URL — the per-branch deploy must not phone
+        # home to the production af-api host that the default points at.
+        k8s.apply({
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": args.name},
+            "spec": {
+                "type": "NodePort",
+                "selector": {"app": args.name},
+                "ports": [{"port": 8000, "targetPort": 8000}],
+            }
+        })
+        node_port = str(k8s.failsafe_kubectl(
+            "get", "svc", args.name,
+            "-o", "jsonpath={.spec.ports[?(@.port==8000)].nodePort}",
+        )).strip()
+        if not node_port:
+            raise RuntimeError(f"service {args.name} has no nodePort for port 8000")
+        node_ip = str(k8s.failsafe_kubectl(
+            "get", "nodes",
+            "-o", "jsonpath={.items[0].status.addresses[?(@.type=='InternalIP')].address}",
+        )).strip().split()[0]
+        af_api_url = f"http://{node_ip}:{node_port}/api/v1"
         k8s.apply({
             "apiVersion": "apps/v1",
             "kind": "Deployment",
@@ -85,7 +110,10 @@ def main() -> int:
                             "name": "af-api",
                             "image": args.image,
                             "ports": [{"containerPort": 8000}],
-                            "env": [{"name": "DEV_MODE", "value": "true"}],
+                            "env": [
+                                {"name": "DEV_MODE", "value": "true"},
+                                {"name": "AF_API_URL", "value": af_api_url},
+                            ],
                             "readinessProbe": {
                                 "httpGet": {"path": "/api/v1/health", "port": 8000},
                                 "periodSeconds": 2,
@@ -94,16 +122,6 @@ def main() -> int:
                         }]
                     }
                 }
-            }
-        })
-        k8s.apply({
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {"name": args.name},
-            "spec": {
-                "type": "NodePort",
-                "selector": {"app": args.name},
-                "ports": [{"port": 8000, "targetPort": 8000}],
             }
         })
     elif args.cmd == "rollout-status":
