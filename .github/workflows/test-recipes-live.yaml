@@ -134,9 +134,26 @@ jobs:
           HARBOR_PASSWORD: ${{ env.HARBOR_PASSWORD }}
         run: python scripts/k8s_helper.py ensure-pull-secret harbor.infra.cluster.ionos.com
 
+      - name: Generate per-deployment JWE signing key
+        # Match the production code path: af-api loads the JWE key from env
+        # rather than the DEV_MODE auto-generate branch. Without this, each
+        # uvicorn worker generates its own ephemeral key (Dockerfile CMD uses
+        # --workers 2), so /compose and /bootstrap round-robined to different
+        # workers fail decryption. Generate one fresh key per deployment and
+        # pin it via JWE_PRIVATE_KEY_PEM so every worker uses the same one.
+        # Not a prod key — single-use per pipeline run.
+        run: |
+          openssl genrsa 2048 > /tmp/af_api_jwe_key.pem
+          {
+            echo "JWE_PRIVATE_KEY_PEM<<__AF_API_KEY_EOF__"
+            cat /tmp/af_api_jwe_key.pem
+            echo "__AF_API_KEY_EOF__"
+          } >> "$GITHUB_ENV"
+
       - name: Deploy af-api Deployment + Service
         env:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+          AF_API_JWE_PRIVATE_KEY_PEM: ${{ env.JWE_PRIVATE_KEY_PEM }}
         run: |
           python scripts/k8s_helper.py deploy \
             "${{ steps.ref.outputs.name }}" \

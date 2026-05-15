@@ -99,6 +99,19 @@ def main() -> int:
             "-o", "jsonpath={.items[0].status.addresses[?(@.type=='InternalIP')].address}",
         )).strip().split()[0]
         af_api_url = f"http://{node_ip}:{node_port}/api/v1"
+        # Match the production code path: load the JWE key from env instead
+        # of the DEV_MODE auto-generate branch. Without a shared key, each
+        # uvicorn worker (Dockerfile starts --workers 2) builds its own
+        # ephemeral key on startup, and /compose vs. /bootstrap round-robined
+        # to different workers fail decryption. The caller passes a freshly
+        # generated key per deployment in AF_API_JWE_PRIVATE_KEY_PEM.
+        jwe_pem = os.environ.get("AF_API_JWE_PRIVATE_KEY_PEM")
+        if not jwe_pem:
+            raise RuntimeError("AF_API_JWE_PRIVATE_KEY_PEM env var not set")
+        container_env = [
+            {"name": "AF_API_URL", "value": af_api_url},
+            {"name": "JWE_PRIVATE_KEY_PEM", "value": jwe_pem},
+        ]
         k8s.apply({
             "apiVersion": "apps/v1",
             "kind": "Deployment",
@@ -114,10 +127,7 @@ def main() -> int:
                             "name": "af-api",
                             "image": args.image,
                             "ports": [{"containerPort": 8000}],
-                            "env": [
-                                {"name": "DEV_MODE", "value": "true"},
-                                {"name": "AF_API_URL", "value": af_api_url},
-                            ],
+                            "env": container_env,
                             "readinessProbe": {
                                 "httpGet": {"path": "/api/v1/health", "port": 8000},
                                 "periodSeconds": 2,
