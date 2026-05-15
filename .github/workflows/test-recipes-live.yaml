@@ -28,12 +28,8 @@ jobs:
 
       - name: Detect changed recipe directories
         id: detect
-        env:
-          FOCUS_RECIPE: uptime-kuma
         run: |
-          if [ -n "$FOCUS_RECIPE" ]; then
-            recipes="[\"$FOCUS_RECIPE\"]"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
@@ -45,10 +41,6 @@ jobs:
 
   trigger-af-api-build:
     name: Trigger af-api image build
-    # TEMP: skipped while we iterate on pipeline plumbing. The current
-    # branch already has an af-api image at the expected Harbor tag from
-    # earlier builds. Remove this `if` to re-enable per-push rebuilds.
-    if: false
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -85,7 +77,6 @@ jobs:
   deploy-af-api:
     name: Deploy af-api for branch
     needs: trigger-af-api-build
-    if: always() && (needs.trigger-af-api-build.result == 'success' || needs.trigger-af-api-build.result == 'skipped')
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -180,21 +171,15 @@ jobs:
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
-    needs: deploy-af-api
-    # always() is required for the if to override GitHub's auto-skip when
-    # a transitive ancestor (trigger-af-api-build) is SKIPPED. Without a
-    # status function, the explicit condition isn't even evaluated.
-    if: always() && needs.deploy-af-api.result == 'success'
+    needs: [detect-changed-recipes, deploy-af-api]
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
     strategy:
-      # TEMP: hardcoded while debugging the e2e path. Restore the
-      # detect-changed-recipes-driven matrix once the pipeline is green.
       matrix:
-        recipe: [uptime-kuma]
+        recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -302,12 +287,36 @@ jobs:
           ssh-keygen -t rsa -b 4096 -m PEM -N "" -f /tmp/vm_key -q
           echo "SSH_KEY_ABSPATH=/tmp/vm_key" >> "$GITHUB_ENV"
 
-      - name: Pin Ubuntu image UUID
+      - name: Discover Ubuntu 26.04 image UUID
         id: image
-        # Hardcoded HDD + cloud-init-compatible Ubuntu image. Restore the
-        # ionosctl-based discovery once it filters on imageType=HDD and
-        # cloudInit!=NONE.
-        run: echo "uuid=c20bbf54-4e86-11f1-8e50-0ebdf53ef869" >> "$GITHUB_OUTPUT"
+        env:
+          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
+          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
+        # if-main-ubuntu-2604-af uploads its built qcow2 to IONOS Cloud with
+        # the image NAME set to the qcow2 filename (see
+        # IonosImageUploader._upload_once `--name` argument). The FTP
+        # filename gets a random hex suffix to dodge the ionos overwrite
+        # restriction, but the IONOS image NAME stays the original. We
+        # match by substring and pick the newest HDD entry.
+        run: |
+          image_json=$(ionosctl compute image list -o json)
+          uuid=$(echo "$image_json" | jq -r '
+            [.items[]? | select(
+              ((.properties.name // "") | test("live-ubuntu-26.04-server-cloudimg-amd64";"i"))
+              and ((.properties.imageType // "HDD") == "HDD")
+            )]
+            | sort_by(.properties.createdDate // "")
+            | last
+            | .id // empty
+          ')
+          if [ -z "$uuid" ] || [ "$uuid" = "null" ]; then
+            echo "No matching Ubuntu 26.04 image found in IONOS Cloud" >&2
+            echo "Available images (first 50):" >&2
+            echo "$image_json" | jq -r '.items[]? | "\(.id) \(.properties.name)"' | head -50 >&2
+            exit 1
+          fi
+          echo "Discovered Ubuntu image UUID: $uuid"
+          echo "uuid=$uuid" >> "$GITHUB_OUTPUT"
 
       - name: Generate cloud-init via /compose
         run: |
@@ -315,19 +324,6 @@ jobs:
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
-          # Append a standard cloud-init users block so root SSH works as
-          # soon as cloud-init runs — independent of whether the
-          # `application_factory:` plugin in the VM image fires the
-          # /bootstrap flow that would otherwise install the key. This
-          # lets the diagnostic tests run regardless of bootstrap state.
-          {
-            echo "users:"
-            echo "  - default"
-            echo "  - name: root"
-            echo "    ssh_authorized_keys:"
-            echo "      - $(cat /tmp/vm_key.pub)"
-            echo "disable_root: false"
-          } >> /tmp/cloudinit.yaml
 
       - name: Run ImageTester
         env:
