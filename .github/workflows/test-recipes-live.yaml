@@ -116,7 +116,14 @@ jobs:
         run: |
           raw="${{ github.event.pull_request.head.ref || github.ref_name }}"
           safe=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-*//' | sed 's/-*$//')
-          name="af-api-${safe:0:55}"
+          # Deployment + Service name is per-run so concurrent runs on the
+          # same branch get their own pod and NodePort instead of stomping
+          # on each other. k8s Service names cap at 63 chars (DNS subdomain),
+          # so trim the branch portion to leave room for the run-id suffix.
+          # Image tag stays branch-scoped — that's the artifact af-api built.
+          run_id="${{ github.run_id }}"
+          name_branch="${safe:0:44}"
+          name="af-api-${name_branch}-${run_id}"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "tag=$safe" >> "$GITHUB_OUTPUT"
 
@@ -387,6 +394,13 @@ jobs:
         uses: azure/setup-kubectl@v4
         with:
           version: v1.30.0
+
+      - name: Dump af-api pod logs and metadata
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py describe "${{ needs.deploy-af-api.outputs.name }}" || true
+          python scripts/k8s_helper.py logs "${{ needs.deploy-af-api.outputs.name }}" || true
 
       - name: Delete af-api Deployment + Service
         env:

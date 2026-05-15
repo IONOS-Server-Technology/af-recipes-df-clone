@@ -61,6 +61,10 @@ def main() -> int:
     p = sub.add_parser("describe")
     p.add_argument("name")
 
+    p = sub.add_parser("logs")
+    p.add_argument("name")
+    p.add_argument("--tail", default="1000")
+
     p = sub.add_parser("list-pull-secrets")
 
     p = sub.add_parser("ensure-pull-secret")
@@ -147,6 +151,11 @@ def main() -> int:
         print(str(k8s.failsafe_kubectl("get", "pods", "-l", f"app={args.name}", "-o", "wide")))
         print("--- Pod events ---")
         print(str(k8s.failsafe_kubectl("describe", "pods", "-l", f"app={args.name}")))
+    elif args.cmd == "logs":
+        print("--- Pod logs (deployment=" + args.name + ", tail=" + args.tail + ") ---")
+        print(str(k8s.failsafe_kubectl(
+            "logs", f"deployment/{args.name}", f"--tail={args.tail}",
+        )))
     elif args.cmd == "list-pull-secrets":
         print(str(k8s.failsafe_kubectl(
             "get", "secrets",
