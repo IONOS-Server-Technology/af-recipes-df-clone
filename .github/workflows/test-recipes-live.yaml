@@ -325,6 +325,37 @@ jobs:
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
 
+      - name: Probe /bootstrap with the JWT before booting the VM
+        # The cloud-init af-cloud-init module rejects http:// non-loopback URLs
+        # before it ever calls /bootstrap. To see what af-api would have
+        # returned for this branch's recipe, dry-run the call from the runner.
+        # Two variants:
+        #   (1) Body form `{"token": "..."}` — what af-api's BootstrapRequest expects
+        #   (2) Authorization: Bearer header, empty body — what cc_application_factory
+        #       actually sends
+        # Outputs go to the job log; the body of the install script is also saved
+        # so we can grep it for the SSH key step.
+        run: |
+          set -x
+          token=$(awk '/^  token:/ { print $2; exit }' /tmp/cloudinit.yaml)
+          api_url="${{ needs.deploy-af-api.outputs.url }}/api/v1"
+          if [ -z "$token" ]; then
+            echo "could not extract token from /tmp/cloudinit.yaml" >&2
+            cat /tmp/cloudinit.yaml >&2
+            exit 1
+          fi
+          echo "=== Variant 1: POST with body {token:...} (af-api expects this) ==="
+          curl -sS -i -X POST -H 'Content-Type: application/json' \
+            --max-time 15 \
+            --data "$(jq -n --arg t "$token" '{token:$t}')" \
+            "$api_url/bootstrap" | tee /tmp/bootstrap-body.out
+          echo
+          echo "=== Variant 2: POST Authorization: Bearer, empty body (cc_application_factory actually sends this) ==="
+          curl -sS -i -X POST -H "Authorization: Bearer $token" -H 'Accept: application/json' \
+            --max-time 15 \
+            "$api_url/bootstrap" | tee /tmp/bootstrap-bearer.out
+          echo
+
       - name: Run ImageTester
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
