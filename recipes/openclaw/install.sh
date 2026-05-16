@@ -11,9 +11,17 @@ set +a
 command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
 command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
 
-# Create host directories for persistent data
+# Create host directories with world-writable perms so the node user in the
+# container can write the config (openclaw runs as uid 1000, not root).
 mkdir -p /opt/openclaw/config
 mkdir -p /opt/openclaw/workspace
+chmod 777 /opt/openclaw/config /opt/openclaw/workspace
+
+# Pre-seed config so the gateway starts without requiring interactive setup.
+cat > /opt/openclaw/config/openclaw.json << 'OPENCLAW_CFG'
+{"gateway":{"controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}
+OPENCLAW_CFG
+chmod 666 /opt/openclaw/config/openclaw.json
 
 # Deploy application
 docker-compose up -d
