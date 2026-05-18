@@ -62,6 +62,15 @@ jobs:
             echo "value=main" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Derive Harbor image tag from af-recipes branch
+        id: image-tag
+        run: |
+          # Same sanitisation as deploy-af-api's tag derivation — must match
+          # so the deploy step finds the image at harbor.../af-api:<tag>.
+          raw="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          safe=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-*//' | sed 's/-*$//')
+          echo "value=$safe" >> "$GITHUB_OUTPUT"
+
       - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
         with:
           owner: IONOS-Server-Technology
@@ -69,10 +78,12 @@ jobs:
           github_token: ${{ env.GH_APP_TOKEN }}
           app_id: ${{ env.GH_APP_ID }}
           app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
-          workflow_file_name: test.yaml
+          workflow_file_name: build.yaml
           ref: ${{ steps.af-api-ref.outputs.value }}
           client_payload: >-
-            {"af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
+            {"ref": "${{ steps.af-api-ref.outputs.value }}",
+             "image_tag": "${{ steps.image-tag.outputs.value }}",
+             "af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
 
   deploy-af-api:
     name: Deploy af-api for branch
