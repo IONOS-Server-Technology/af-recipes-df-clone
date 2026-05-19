@@ -1,0 +1,197 @@
+name: Test Recipes (Docker)
+
+# Phase 1 CI path: runs recipes locally via docker compose on the GitHub runner.
+# No VM provisioning needed — results available in ~2-5 min vs ~10-15 min for live VM tests.
+# Phase 2 (CoreVPS live VM) is handled by test-recipes-live.yaml.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "recipes/**"
+  workflow_dispatch:
+    inputs:
+      recipes:
+        description: "Comma-separated recipe names to test (empty = changed or pilot set)"
+        required: false
+        default: ""
+
+jobs:
+  detect:
+    name: Detect recipes to test
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build test matrix
+        id: build
+        run: |
+          is_docker_compose_recipe() { [ -f "recipes/$1/docker-compose.yaml" ]; }
+
+          filter_compose_recipes() {
+            local filtered="[]"
+            while IFS= read -r r; do
+              [ -n "$r" ] || continue
+              if is_docker_compose_recipe "$r"; then
+                filtered=$(printf '%s' "$filtered" | jq -c --arg r "$r" '. + [$r]')
+              else
+                echo "Skipping non-docker-compose recipe: $r" >&2
+              fi
+            done < <(printf '%s' "$1" | jq -r '.[]')
+            printf '%s' "$filtered"
+          }
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+            candidates=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+            candidates=$(echo "$changed" \
+              | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u \
+              | jq -c -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+          else
+            # workflow_dispatch without input: pilot set
+            candidates='["n8n","portainer","ollama"]'
+          fi
+          recipes=$(filter_compose_recipes "$candidates")
+
+          count=$(echo "$recipes" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No docker-compose recipes changed."
+            echo "matrix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"recipe\":$(echo "$recipes")}" >> "$GITHUB_OUTPUT"
+            echo "Recipes to test: $recipes"
+          fi
+
+  test:
+    name: Test ${{ matrix.recipe }} (docker)
+    needs: detect
+    if: ${{ needs.detect.outputs.matrix != '' }}
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout af-core
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/af-core
+          path: af-core-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install af-core
+        run: pip install -e ./af-core-src
+
+      - name: Validate recipe schema
+        run: af-validate recipe recipes/${{ matrix.recipe }}
+
+      - name: Generate test .env
+        run: |
+          python3 - <<'EOF'
+          import secrets, string, sys, yaml
+          from pathlib import Path
+          from af_core.recipe import load_recipe
+
+          def _generate_secret(length=32):
+              alphabet = string.ascii_letters + string.digits
+              return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+          recipe_dir = Path("recipes/${{ matrix.recipe }}")
+          recipe = load_recipe(recipe_dir)
+
+          env_template_path = recipe_dir / ".env.template"
+          if not env_template_path.exists():
+              print("No .env.template — skipping")
+              sys.exit(0)
+
+          # af-core no longer exposes recipe.parameters — read from metadata.yaml directly
+          raw_meta = yaml.safe_load((recipe_dir / "metadata.yaml").read_text())
+          parameters = raw_meta.get("parameters", [])
+
+          params = {}
+          for p in parameters:
+              if p.get("auto_generate") or p.get("type") == "password":
+                  params[p["name"]] = _generate_secret()
+              elif p.get("type") == "email":
+                  params[p["name"]] = "test@example.com"
+              elif p.get("type") == "domain":
+                  params[p["name"]] = "localhost"
+              elif p.get("default") is not None:
+                  params[p["name"]] = str(p["default"])
+              else:
+                  params[p["name"]] = "test-value"
+
+          template = env_template_path.read_text()
+          env_content = template
+          for key, value in params.items():
+              env_content = env_content.replace(f'{{{{{key}}}}}', str(value))
+          (recipe_dir / ".env").write_text(env_content)
+          print(f"Generated .env for {recipe.id}: {list(params.keys())}")
+          EOF
+
+      - name: Start services
+        run: |
+          docker compose \
+            --project-directory "recipes/${{ matrix.recipe }}" \
+            -f "recipes/${{ matrix.recipe }}/docker-compose.yaml" \
+            up -d
+
+      - name: Run health check
+        timeout-minutes: 7
+        run: bash "recipes/${{ matrix.recipe }}/health-check.sh"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose \
+            --project-directory "recipes/${{ matrix.recipe }}" \
+            -f "recipes/${{ matrix.recipe }}/docker-compose.yaml" \
+            logs --tail=150
+
+      - name: Write job summary
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          case "$STATUS" in
+            success)   ICON="✅" ;;
+            failure)   ICON="❌" ;;
+            cancelled) ICON="⚪" ;;
+            *)         ICON="⏳" ;;
+          esac
+          {
+            echo "## ${ICON} Docker test: \`${{ matrix.recipe }}\`"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Status | \`${STATUS}\` |"
+            echo "| Mode | docker-on-runner (Phase 1) |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo ""
+            echo "_Phase 2 (CoreVPS live VM): [test-recipes-live.yaml](../../actions/workflows/test-recipes-live.yaml)_"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose \
+            --project-directory "recipes/${{ matrix.recipe }}" \
+            -f "recipes/${{ matrix.recipe }}/docker-compose.yaml" \
+            down -v

@@ -437,3 +437,20 @@ jobs:
           python scripts/k8s_helper.py delete \
             "deployment/${{ needs.deploy-af-api.outputs.name }}" \
             "svc/${{ needs.deploy-af-api.outputs.name }}"
+
+  test-results:
+    name: Report Test Results
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    needs: [test-recipes]
+    if: always()
+    steps:
+      - name: Check test status
+        run: |
+          if [ "${{ needs.test-recipes.result }}" == "success" ]; then
+            echo "All recipe tests passed!"
+            exit 0
+          else
+            echo "Some recipe tests failed"
+            exit 1
+          fi

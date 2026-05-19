@@ -38,7 +38,7 @@ def main():
 
             # Validate required fields
             required = [
-                "name", "display_name", "description", "categories",
+                "id", "enabled", "display_name", "description", "categories",
                 "app_version", "recipe_version", "recipe_type",
                 "app_min_ram_mb", "app_min_disk_mb",
             ]
@@ -47,9 +47,20 @@ def main():
                 errors.append(f"{recipe_name}: missing fields: {', '.join(missing)}")
                 continue
 
-            if meta["name"] != recipe_name:
+            # Validate short_description
+            sd = meta.get("short_description")
+            if not sd or not isinstance(sd, dict):
+                errors.append(f"{recipe_name}: missing or invalid short_description (must be a language map)")
+            elif "en" not in sd:
+                errors.append(f"{recipe_name}: short_description missing required 'en' key")
+            else:
+                for lang, text in sd.items():
+                    if len(text) > 160:
+                        errors.append(f"{recipe_name}: short_description['{lang}'] exceeds 160 chars ({len(text)})")
+
+            if meta["id"] != recipe_name:
                 errors.append(
-                    f"{recipe_name}: name '{meta['name']}' does not match directory"
+                    f"{recipe_name}: id '{meta['id']}' does not match directory"
                 )
                 continue
 
@@ -62,9 +73,12 @@ def main():
 
             # Build catalogue entry
             entry = {
-                "name": meta["name"],
+                "id": meta["id"],
+                "enabled": meta["enabled"],
+                "composition": meta.get("composition", False),
                 "display_name": meta["display_name"],
                 "description": meta["description"],
+                "short_description": meta.get("short_description", {}),
                 "categories": meta["categories"],
                 "app_version": str(meta["app_version"]),
                 "recipe_version": str(meta["recipe_version"]),

@@ -1,18 +1,32 @@
 services:
   wud:
-    image: fmartinou/whats-up-docker:6.5.0
+    image: getwud/wud:8.2.2
     restart: unless-stopped
-    environment:
-      - WUD_LOG_LEVEL=info
-    ports:
-      - "3002:3000"
+    env_file:
+      - .env
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - /opt/wud/store:/store
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # af-core injects /opt/<app>:/opt/<app> bind-mounts here for each recipe
+      # that carries the dockercompose.apply trigger label, so WUD can rewrite
+      # and recreate those stacks on demand.
     networks:
       - wud-network
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wud.rule=Host(`updates.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.wud.entrypoints=websecure"
+      - "traefik.http.routers.wud.tls.certresolver=le"
+      - "traefik.http.services.wud.loadbalancer.server.port=3000"
+      - "traefik.docker.network=traefik-net"
+      # WUD must not watch itself — it cannot safely apply its own update.
+      - "wud.watch=false"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/registries || exit 1"]
+      # Accepts both 200 (no auth) and 401 (auth enabled) as healthy.
+      # Using 127.0.0.1 — localhost resolves to ::1 only in current Docker
+      # networking, but WUD binds to 0.0.0.0 (IPv4).
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/registries | grep -qE '^(200|401)$'"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -21,3 +35,5 @@ services:
 networks:
   wud-network:
     driver: bridge
+  traefik-net:
+    external: true

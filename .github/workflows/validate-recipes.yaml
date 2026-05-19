@@ -114,3 +114,34 @@ jobs:
 
           print("All .env.template placeholders match metadata parameters.")
           PYEOF
+
+  af-validate-rfc002:
+    name: af-validate (RFC-002 rules)
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout af-core
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/af-core
+          path: af-core-src
+          ref: main
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install af-core
+        run: pip install ./af-core-src
+
+      - name: Run af-validate against the catalogue
+        run: af-validate catalogue recipes/ --baselines os-baselines.yaml

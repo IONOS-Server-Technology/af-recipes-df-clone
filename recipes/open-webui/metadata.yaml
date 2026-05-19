@@ -1,0 +1,55 @@
+id: open-webui
+enabled: true
+display_name: Open WebUI
+description: Browser-based chat interface for local AI models, bundled with Ollama for model management and inference.
+short_description:
+  en: "Chat with local AI models in your browser — no cloud, no data leaves your server. Bundled with Ollama for model management."
+  de: "KI-Modelle im Browser nutzen — lokal auf Ihrem Server, ohne Cloud. Inklusive Ollama zur Modellverwaltung."
+  es: "Chatea con modelos de IA locales desde tu navegador — sin nube, los datos no salen de tu servidor. Incluye Ollama para gestión."
+  fr: "Discutez avec des modèles d'IA locaux depuis votre navigateur — sans cloud, les données restent sur votre serveur. Ollama inclus."
+  it: "Chatta con modelli IA locali dal browser — niente cloud, i dati restano sul tuo server. Ollama incluso per la gestione modelli."
+  nl: "Chat met lokale AI-modellen in je browser — geen cloud, data blijft op je server. Inclusief Ollama voor modelbeheer."
+  pl: "Rozmawiaj z lokalnymi modelami AI w przeglądarce — bez chmury, dane zostają na serwerze. W zestawie Ollama do zarządzania modelami."
+categories:
+  - ai
+app_version: "0.9.2"
+recipe_version: "1.0.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/open-webui/open-webui
+
+app_min_ram_mb: 8192
+app_min_disk_mb: 51200
+
+supported_os:
+  - ubuntu-26.04
+
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    description: Open WebUI Web Interface
+
+parameters:
+  - name: APP_DOMAIN
+    display_name: Domain
+    type: domain
+    required: true
+    description: Domain for accessing Open WebUI (e.g., ai.example.com).
+
+  - name: WEBUI_SECRET_KEY
+    display_name: Secret Key
+    type: password
+    required: false
+    auto_generate: true
+    description: Secret key for JWT token signing (auto-generated if not provided).
+
+notes: >
+  Open WebUI is bundled with Ollama. Ollama requires significant RAM — minimum 8 GB
+  just to run, more for useful models (a 7B parameter model needs ~8 GB, a 13B model ~16 GB).
+  The first user to register becomes the administrator. GPU passthrough is out of scope
+  for Phase 1; CPU-only deployments are functional but should be limited to small models
+  (3B parameters or fewer). The Ollama API is not exposed publicly — it is accessible
+  internally between containers only.
+
+incompatible_with_apps:
+  - ollama
