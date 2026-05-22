@@ -210,62 +210,70 @@ jobs:
             exit 1
           }
 
-      - name: Validate docker-compose files
+      - name: Validate required files and docker-compose structure
         run: |
-          for dir in recipes/*/; do
-            recipe=$(basename "$dir")
-            type=$(python3 -c "
-          import yaml
-          with open('${dir}metadata.yaml') as f:
-              print(yaml.safe_load(f).get('recipe_type', ''))
-          ")
-            if [ "$type" = "docker-compose" ]; then
-              echo "Checking $recipe ..."
-              for f in docker-compose.yaml .env.template install.sh health-check.sh; do
-                if [ ! -f "${dir}${f}" ]; then
-                  echo "::error::${recipe}: missing required file ${f}"
-                  exit 1
-                fi
-              done
-              # The runner image has neither 'docker compose' (plugin) nor a
-              # standalone docker-compose binary, and the unmaintained v1 pip
-              # package won't build on Python 3.12. Validate the compose file
-              # structurally with PyYAML — full semantic validation happens in
-              # test-recipes-docker.
-              python3 -c '
-              import sys, yaml
-              path, recipe = sys.argv[1], sys.argv[2]
+          python3 - <<'PYEOF'
+          # Replaces an earlier bash-for-loop that called 'docker compose config'.
+          # The runner image has neither the docker-compose plugin nor a
+          # standalone binary (and the legacy pip package won't build on 3.12),
+          # so we validate compose files structurally here. Full semantic
+          # validation runs later in test-recipes-docker.
+          import sys, yaml
+          from pathlib import Path
+
+          REQUIRED_COMPOSE = ("docker-compose.yaml", ".env.template", "install.sh", "health-check.sh")
+          REQUIRED_NATIVE  = ("install.sh", "health-check.sh")
+          errors = []
+
+          def report(recipe, msg):
+              errors.append(f"{recipe}: {msg}")
+
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              recipe = meta_path.parent.name
               try:
-                  doc = yaml.safe_load(open(path))
+                  meta = yaml.safe_load(meta_path.read_text()) or {}
               except yaml.YAMLError as e:
-                  print(f"::error::{recipe}: invalid docker-compose.yaml — YAML parse error: {e}")
-                  sys.exit(1)
+                  report(recipe, f"metadata.yaml not valid YAML: {e}")
+                  continue
+              rtype = meta.get("recipe_type", "docker-compose")
+              print(f"Checking {recipe} ...")
+
+              required = REQUIRED_COMPOSE if rtype == "docker-compose" else REQUIRED_NATIVE
+              for fname in required:
+                  if not (meta_path.parent / fname).exists():
+                      report(recipe, f"missing required file {fname}")
+
+              if rtype != "docker-compose":
+                  continue
+
+              cf = meta_path.parent / "docker-compose.yaml"
+              if not cf.exists():
+                  continue
+              try:
+                  doc = yaml.safe_load(cf.read_text())
+              except yaml.YAMLError as e:
+                  report(recipe, f"invalid docker-compose.yaml — YAML parse error: {e}")
+                  continue
               if not isinstance(doc, dict):
-                  print(f"::error::{recipe}: invalid docker-compose.yaml — top level is not a mapping")
-                  sys.exit(1)
+                  report(recipe, "invalid docker-compose.yaml — top level is not a mapping")
+                  continue
               services = doc.get("services")
               if not isinstance(services, dict) or not services:
-                  print(f"::error::{recipe}: invalid docker-compose.yaml — missing or empty services")
-                  sys.exit(1)
+                  report(recipe, "invalid docker-compose.yaml — missing or empty services")
+                  continue
               for name, svc in services.items():
                   if not isinstance(svc, dict):
-                      print(f"::error::{recipe}: invalid docker-compose.yaml — service {name!r} is not a mapping")
-                      sys.exit(1)
+                      report(recipe, f"invalid docker-compose.yaml — service {name!r} is not a mapping")
+                      continue
                   if "image" not in svc and "build" not in svc:
-                      print(f"::error::{recipe}: invalid docker-compose.yaml — service {name!r} has neither image nor build")
-                      sys.exit(1)
-              ' "${dir}docker-compose.yaml" "$recipe" || exit 1
-            elif [ "$type" = "native" ]; then
-              echo "Checking $recipe ..."
-              for f in install.sh health-check.sh; do
-                if [ ! -f "${dir}${f}" ]; then
-                  echo "::error::${recipe}: missing required file ${f}"
-                  exit 1
-                fi
-              done
-            fi
-          done
-          echo "All recipes have required files."
+                      report(recipe, f"invalid docker-compose.yaml — service {name!r} has neither image nor build")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          print("All recipes have required files and valid compose structure.")
+          PYEOF
 
       - name: Check shell scripts are executable
         run: |
