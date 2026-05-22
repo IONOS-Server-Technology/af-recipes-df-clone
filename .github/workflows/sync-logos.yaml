@@ -73,14 +73,16 @@ jobs:
           recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
           errors = []
           for recipe in recipes:
+              # --diff-filter=M: only existing-file modifications require a version bump.
+              # Newly added logos (A) have no previous URL/cache and are exempt.
               changed_files = subprocess.run(
-                  ["git", "diff", "--name-only", base, head, "--",
+                  ["git", "diff", "--name-only", "--diff-filter=M", base, head, "--",
                    f"recipes/{recipe}/logo.svg"],
                   capture_output=True, text=True, check=True,
               ).stdout.strip()
               if not changed_files:
-                  continue  # only metadata changed — no version bump required
-              # Logo file changed. recipe_version must also change.
+                  continue  # logo unchanged or newly added — no version bump required
+              # Logo file modified (not added). recipe_version must also change.
               meta_diff = subprocess.run(
                   ["git", "diff", base, head, "--", f"recipes/{recipe}/metadata.yaml"],
                   capture_output=True, text=True, check=True,
