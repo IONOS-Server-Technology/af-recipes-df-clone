@@ -192,7 +192,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python3 -m pip install pyyaml docker-compose
+        run: python3 -m pip install pyyaml
 
       - name: Validate all recipes
         run: python3 bin/build-catalogue
@@ -221,14 +221,34 @@ jobs:
                   exit 1
                 fi
               done
-              # Use the legacy hyphenated docker-compose binary — the runner image
-              # has it but doesn't ship the modern 'docker compose' plugin, so
-              # 'docker compose -f …' falls through to docker CLI and errors on -f.
-              # Capture stderr so failures are debuggable.
-              compose_err=$(docker-compose -f "${dir}docker-compose.yaml" config -q 2>&1) || {
-                echo "::error::${recipe}: invalid docker-compose.yaml — ${compose_err}"
-                exit 1
-              }
+              # The runner image has neither 'docker compose' (plugin) nor a
+              # standalone docker-compose binary, and the unmaintained v1 pip
+              # package won't build on Python 3.12. Validate the compose file
+              # structurally with PyYAML — full semantic validation happens in
+              # test-recipes-docker.
+              python3 - "${dir}docker-compose.yaml" "$recipe" <<'PYEOF' || exit 1
+              import sys, yaml
+              path, recipe = sys.argv[1], sys.argv[2]
+              try:
+                  doc = yaml.safe_load(open(path))
+              except yaml.YAMLError as e:
+                  print(f"::error::{recipe}: invalid docker-compose.yaml — YAML parse error: {e}")
+                  sys.exit(1)
+              if not isinstance(doc, dict):
+                  print(f"::error::{recipe}: invalid docker-compose.yaml — top level is not a mapping")
+                  sys.exit(1)
+              services = doc.get("services")
+              if not isinstance(services, dict) or not services:
+                  print(f"::error::{recipe}: invalid docker-compose.yaml — missing or empty 'services'")
+                  sys.exit(1)
+              for name, svc in services.items():
+                  if not isinstance(svc, dict):
+                      print(f"::error::{recipe}: invalid docker-compose.yaml — service '{name}' is not a mapping")
+                      sys.exit(1)
+                  if "image" not in svc and "build" not in svc:
+                      print(f"::error::{recipe}: invalid docker-compose.yaml — service '{name}' has neither image nor build")
+                      sys.exit(1)
+              PYEOF
             elif [ "$type" = "native" ]; then
               echo "Checking $recipe ..."
               for f in install.sh health-check.sh; do
