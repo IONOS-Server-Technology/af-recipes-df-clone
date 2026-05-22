@@ -226,7 +226,7 @@ jobs:
               # package won't build on Python 3.12. Validate the compose file
               # structurally with PyYAML — full semantic validation happens in
               # test-recipes-docker.
-              python3 - "${dir}docker-compose.yaml" "$recipe" <<'PYEOF' || exit 1
+              python3 -c '
               import sys, yaml
               path, recipe = sys.argv[1], sys.argv[2]
               try:
@@ -239,16 +239,16 @@ jobs:
                   sys.exit(1)
               services = doc.get("services")
               if not isinstance(services, dict) or not services:
-                  print(f"::error::{recipe}: invalid docker-compose.yaml — missing or empty 'services'")
+                  print(f"::error::{recipe}: invalid docker-compose.yaml — missing or empty services")
                   sys.exit(1)
               for name, svc in services.items():
                   if not isinstance(svc, dict):
-                      print(f"::error::{recipe}: invalid docker-compose.yaml — service '{name}' is not a mapping")
+                      print(f"::error::{recipe}: invalid docker-compose.yaml — service {name!r} is not a mapping")
                       sys.exit(1)
                   if "image" not in svc and "build" not in svc:
-                      print(f"::error::{recipe}: invalid docker-compose.yaml — service '{name}' has neither image nor build")
+                      print(f"::error::{recipe}: invalid docker-compose.yaml — service {name!r} has neither image nor build")
                       sys.exit(1)
-              PYEOF
+              ' "${dir}docker-compose.yaml" "$recipe" || exit 1
             elif [ "$type" = "native" ]; then
               echo "Checking $recipe ..."
               for f in install.sh health-check.sh; do
@@ -361,8 +361,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install af-core
-        run: python3 -m pip install ./af-core-src pyyaml
+      - name: Bootstrap pip and install af-core
+        run: |
+          # setup-python's path injection is unreliable on this self-hosted runner
+          # when two jobs race for the tool cache. Bootstrap pip via ensurepip on
+          # whichever python3 resolves at runtime.
+          python3 -m ensurepip --upgrade --default-pip || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install ./af-core-src pyyaml
 
       - name: Run af-validate against the catalogue
         run: af-validate catalogue recipes/ --baselines os-baselines.yaml
