@@ -40,7 +40,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pyyaml awscli
+        run: pip install pyyaml boto3
 
       - name: Determine changed recipes
         id: changed
@@ -112,23 +112,28 @@ jobs:
         env:
           RECIPES: ${{ steps.changed.outputs.recipes }}
         run: |
-          # Alias S3_* (set by get-secrets via vault-action at runtime) to AWS_*
-          # for aws CLI. Templating ${{ env.S3_ACCESS_KEY_ID }} on the step env:
-          # block resolves too early — vault-action hasn't populated GITHUB_ENV yet.
-          export AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY_ID"
-          export AWS_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
           python3 - <<'PYEOF'
           import hashlib
           import os
-          import subprocess
           import sys
           import yaml
+          import boto3
+          from botocore.config import Config
           from pathlib import Path
 
           bucket = os.environ["BUCKET"]
           recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
           mime = {"svg": "image/svg+xml"}  # SVG only (RFC-001 §4.6)
           errors = []
+
+          s3 = boto3.client(
+              "s3",
+              endpoint_url=os.environ["S3_ENDPOINT_URL"],
+              region_name="eu-central-3",
+              aws_access_key_id=os.environ["S3_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
+              config=Config(s3={"addressing_style": "path"}),
+          )
 
           for recipe in recipes:
               recipe_dir = Path("recipes") / recipe
@@ -160,20 +165,17 @@ jobs:
                   continue
 
               key = f"recipes/{recipe_id}/{version}/logo.{ext}"
-              s3_url = f"s3://{bucket}/{key}"
-              print(f"Uploading {logo} -> {s3_url}")
-              endpoint = os.environ["S3_ENDPOINT_URL"]
-              r = subprocess.run(
-                  [
-                      "aws", "s3", "cp", str(logo), s3_url,
-                      "--endpoint-url", endpoint,
-                      "--cache-control", "public, max-age=31536000, immutable",
-                      "--content-type", mime[ext],
-                  ],
-                  capture_output=True, text=True,
-              )
-              if r.returncode != 0:
-                  errors.append(f"{recipe}: aws s3 cp failed: {r.stderr.strip() or r.stdout.strip()}")
+              print(f"Uploading {logo} -> s3://{bucket}/{key}")
+              try:
+                  s3.upload_file(
+                      str(logo), bucket, key,
+                      ExtraArgs={
+                          "CacheControl": "public, max-age=31536000, immutable",
+                          "ContentType": mime[ext],
+                      },
+                  )
+              except Exception as e:
+                  errors.append(f"{recipe}: upload failed: {e}")
 
           if errors:
               for e in errors:
