@@ -12,8 +12,176 @@ on:
       - "bin/build-catalogue"
 
 jobs:
+  sync-logos:
+    name: Sync recipe logos to S3
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      S3_ENDPOINT_URL: https://s3.eu-central-3.ionoscloud.com
+      AWS_DEFAULT_REGION: eu-central-3
+      # PR builds go to dev only; main merges go to both (prod + keep dev in sync).
+      BUCKETS: ${{ github.event_name == 'push' && 'appfactory appfactory-dev' || 'appfactory-dev' }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml boto3
+
+      - name: Determine changed recipes
+        id: changed
+        run: |
+          set -euo pipefail
+          changed_recipes=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E '^recipes/[^/]+/(logo\.svg|metadata\.yaml)$' \
+            | cut -d/ -f2 \
+            | sort -u)
+          {
+            echo "recipes<<EOF"
+            echo "$changed_recipes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          if [ -z "$changed_recipes" ]; then
+            echo "No recipe logo or metadata changes — nothing to sync."
+          else
+            echo "Recipes to sync:"
+            echo "$changed_recipes"
+          fi
+
+      - name: Enforce recipe_version bump when logo changes
+        if: steps.changed.outputs.recipes != ''
+        env:
+          RECIPES: ${{ steps.changed.outputs.recipes }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, subprocess, sys
+          from pathlib import Path
+          base = os.environ["BASE_SHA"]
+          head = os.environ["HEAD_SHA"]
+          recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
+          errors = []
+          for recipe in recipes:
+              changed_files = subprocess.run(
+                  ["git", "diff", "--name-only", "--diff-filter=M", base, head, "--",
+                   f"recipes/{recipe}/logo.svg"],
+                  capture_output=True, text=True, check=True,
+              ).stdout.strip()
+              if not changed_files:
+                  continue
+              meta_diff = subprocess.run(
+                  ["git", "diff", base, head, "--", f"recipes/{recipe}/metadata.yaml"],
+                  capture_output=True, text=True, check=True,
+              ).stdout
+              version_lines = [l for l in meta_diff.splitlines()
+                               if l.startswith(("+", "-")) and "recipe_version" in l
+                               and not l.startswith(("+++", "---"))]
+              if len(version_lines) < 2:
+                  errors.append(
+                      f"{recipe}: logo file changed but recipe_version was not bumped. "
+                      f"Bump metadata.yaml recipe_version (semver) before merging — "
+                      f"the S3 path is versioned and Cache-Control is immutable, so "
+                      f"without a bump consumers see stale logos forever."
+                  )
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          print("Version-bump check passed.")
+          PYEOF
+
+      - name: Upload logos to ${{ env.BUCKETS }}
+        if: steps.changed.outputs.recipes != ''
+        env:
+          RECIPES: ${{ steps.changed.outputs.recipes }}
+        run: |
+          python3 - <<'PYEOF'
+          import hashlib
+          import os
+          import sys
+          import yaml
+          import boto3
+          from botocore.config import Config
+          from pathlib import Path
+
+          buckets = os.environ["BUCKETS"].split()
+          recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
+          mime = {"svg": "image/svg+xml"}
+          errors = []
+
+          s3 = boto3.client(
+              "s3",
+              endpoint_url=os.environ["S3_ENDPOINT_URL"],
+              region_name="eu-central-3",
+              aws_access_key_id=os.environ["S3_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
+              config=Config(s3={"addressing_style": "path"}),
+          )
+
+          for recipe in recipes:
+              recipe_dir = Path("recipes") / recipe
+              meta_path = recipe_dir / "metadata.yaml"
+              if not meta_path.exists():
+                  errors.append(f"{recipe}: metadata.yaml missing")
+                  continue
+              meta = yaml.safe_load(meta_path.read_text())
+              recipe_id = meta.get("id")
+              version = meta.get("recipe_version")
+              if not recipe_id or not version:
+                  errors.append(f"{recipe}: id or recipe_version missing")
+                  continue
+
+              logo_files = sorted(recipe_dir.glob("logo.*"))
+              if not logo_files:
+                  print(f"{recipe}: no logo file, skipping")
+                  continue
+              logo = logo_files[0]
+              ext = logo.suffix.lstrip(".").lower()
+              if ext not in mime:
+                  errors.append(f"{recipe}: unsupported logo extension .{ext}")
+                  continue
+
+              digest = hashlib.sha256(logo.read_bytes()).hexdigest()
+              declared = meta.get("logo_sha256")
+              if declared and declared != digest:
+                  errors.append(f"{recipe}: logo_sha256 mismatch (file={digest[:12]} meta={declared[:12]})")
+                  continue
+
+              key = f"recipes/{recipe_id}/{version}/logo.{ext}"
+              for bucket in buckets:
+                  print(f"Uploading {logo} -> s3://{bucket}/{key}")
+                  try:
+                      s3.upload_file(
+                          str(logo), bucket, key,
+                          ExtraArgs={
+                              "CacheControl": "public, max-age=31536000, immutable",
+                              "ContentType": mime[ext],
+                          },
+                      )
+                  except Exception as e:
+                      errors.append(f"{recipe} -> {bucket}: upload failed: {e}")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+
   validate:
     name: Validate recipe schema
+    needs: sync-logos
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     steps:
@@ -117,11 +285,16 @@ jobs:
 
   af-validate-rfc002:
     name: af-validate (RFC-002 rules)
+    needs: sync-logos
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
+    env:
+      # Mirror BUCKETS from the sync-logos job so the URL-reachability check
+      # below validates exactly the locations we just uploaded to.
+      BUCKETS: ${{ github.event_name == 'push' && 'appfactory appfactory-dev' || 'appfactory-dev' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -143,5 +316,42 @@ jobs:
       - name: Install af-core
         run: pip install ./af-core-src
 
+      - name: Install pyyaml for URL check
+        run: pip install pyyaml
+
       - name: Run af-validate against the catalogue
         run: af-validate catalogue recipes/ --baselines os-baselines.yaml
+
+      - name: Verify logo URLs are reachable on every active bucket
+        run: |
+          python3 - <<'PYEOF'
+          import os, subprocess, sys, yaml
+          from pathlib import Path
+
+          buckets = os.environ["BUCKETS"].split()
+          errors = []
+          checked = 0
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              meta = yaml.safe_load(meta_path.read_text()) or {}
+              logo_url = meta.get("logo_url")
+              if not logo_url:
+                  continue
+              recipe_id = meta.get("id")
+              version = meta.get("recipe_version")
+              # metadata logo_url points at prod (appfactory); rewrite the host
+              # to test every active bucket the sync-logos job uploaded to.
+              for bucket in buckets:
+                  url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.svg"
+                  r = subprocess.run(["curl", "-fsI", "--max-time", "15", url],
+                                     capture_output=True, text=True)
+                  checked += 1
+                  if r.returncode != 0:
+                      errors.append(f"{recipe_id} @ {bucket}: {url} not reachable")
+                  else:
+                      print(f"OK {url}")
+          print(f"\nChecked {checked} URL(s) across {len(buckets)} bucket(s).")
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
