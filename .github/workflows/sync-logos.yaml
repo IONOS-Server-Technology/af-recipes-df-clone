@@ -20,11 +20,10 @@ jobs:
       id-token: write
       contents: read
     env:
-      # AWS_ENDPOINT_URL env var trips awscli v1 ("NoneType not iterable"
-      # inside the signer). Pass --endpoint-url in the script instead.
       S3_ENDPOINT_URL: https://s3.eu-central-3.ionoscloud.com
       AWS_DEFAULT_REGION: eu-central-3
-      BUCKET: ${{ github.event_name == 'push' && 'appfactory' || 'appfactory-dev' }}
+      # PR builds go to dev only; main merges go to both (prod + keep dev in sync).
+      BUCKETS: ${{ github.event_name == 'push' && 'appfactory appfactory-dev' || 'appfactory-dev' }}
       BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
     steps:
@@ -107,7 +106,7 @@ jobs:
           print("Version-bump check passed.")
           PYEOF
 
-      - name: Upload logos to ${{ env.BUCKET }}
+      - name: Upload logos to ${{ env.BUCKETS }}
         if: steps.changed.outputs.recipes != ''
         env:
           RECIPES: ${{ steps.changed.outputs.recipes }}
@@ -121,7 +120,7 @@ jobs:
           from botocore.config import Config
           from pathlib import Path
 
-          bucket = os.environ["BUCKET"]
+          buckets = os.environ["BUCKETS"].split()
           recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
           mime = {"svg": "image/svg+xml"}  # SVG only (RFC-001 §4.6)
           errors = []
@@ -165,17 +164,18 @@ jobs:
                   continue
 
               key = f"recipes/{recipe_id}/{version}/logo.{ext}"
-              print(f"Uploading {logo} -> s3://{bucket}/{key}")
-              try:
-                  s3.upload_file(
-                      str(logo), bucket, key,
-                      ExtraArgs={
-                          "CacheControl": "public, max-age=31536000, immutable",
-                          "ContentType": mime[ext],
-                      },
-                  )
-              except Exception as e:
-                  errors.append(f"{recipe}: upload failed: {e}")
+              for bucket in buckets:
+                  print(f"Uploading {logo} -> s3://{bucket}/{key}")
+                  try:
+                      s3.upload_file(
+                          str(logo), bucket, key,
+                          ExtraArgs={
+                              "CacheControl": "public, max-age=31536000, immutable",
+                              "ContentType": mime[ext],
+                          },
+                      )
+                  except Exception as e:
+                      errors.append(f"{recipe} -> {bucket}: upload failed: {e}")
 
           if errors:
               for e in errors:
@@ -195,7 +195,7 @@ jobs:
           import yaml
           from pathlib import Path
 
-          bucket = os.environ["BUCKET"]
+          buckets = os.environ["BUCKETS"].split()
           recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
           errors = []
           for recipe in recipes:
@@ -205,13 +205,13 @@ jobs:
               logo_files = sorted((Path("recipes") / recipe).glob("logo.*"))
               if not logo_files:
                   continue
-              ext = logo_files[0].suffix.lstrip(".").lower()
-              url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.svg"
-              r = subprocess.run(["curl", "-fsI", url], capture_output=True, text=True)
-              if r.returncode != 0:
-                  errors.append(f"{recipe}: {url} not reachable\n{r.stderr}")
-              else:
-                  print(f"OK {url}")
+              for bucket in buckets:
+                  url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.svg"
+                  r = subprocess.run(["curl", "-fsI", url], capture_output=True, text=True)
+                  if r.returncode != 0:
+                      errors.append(f"{recipe} @ {bucket}: {url} not reachable\n{r.stderr}")
+                  else:
+                      print(f"OK {url}")
           if errors:
               for e in errors:
                   print(f"::error::{e}", file=sys.stderr)
