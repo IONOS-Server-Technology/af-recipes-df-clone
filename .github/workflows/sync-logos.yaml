@@ -157,14 +157,18 @@ jobs:
               key = f"recipes/{recipe_id}/{version}/logo.{ext}"
               s3_url = f"s3://{bucket}/{key}"
               print(f"Uploading {logo} -> {s3_url}")
-              subprocess.run(
+              endpoint = os.environ["AWS_ENDPOINT_URL"]
+              r = subprocess.run(
                   [
                       "aws", "s3", "cp", str(logo), s3_url,
+                      "--endpoint-url", endpoint,
                       "--cache-control", "public, max-age=31536000, immutable",
                       "--content-type", mime[ext],
                   ],
-                  check=True,
+                  capture_output=True, text=True,
               )
+              if r.returncode != 0:
+                  errors.append(f"{recipe}: aws s3 cp failed: {r.stderr.strip() or r.stdout.strip()}")
 
           if errors:
               for e in errors:
@@ -195,7 +199,7 @@ jobs:
               if not logo_files:
                   continue
               ext = logo_files[0].suffix.lstrip(".").lower()
-              url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.{ext}"
+              url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.svg"
               r = subprocess.run(["curl", "-fsI", url], capture_output=True, text=True)
               if r.returncode != 0:
                   errors.append(f"{recipe}: {url} not reachable\n{r.stderr}")
