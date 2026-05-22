@@ -20,7 +20,9 @@ jobs:
       id-token: write
       contents: read
     env:
-      AWS_ENDPOINT_URL: https://s3.eu-central-3.ionoscloud.com
+      # AWS_ENDPOINT_URL env var trips awscli v1 ("NoneType not iterable"
+      # inside the signer). Pass --endpoint-url in the script instead.
+      S3_ENDPOINT_URL: https://s3.eu-central-3.ionoscloud.com
       AWS_DEFAULT_REGION: eu-central-3
       BUCKET: ${{ github.event_name == 'push' && 'appfactory' || 'appfactory-dev' }}
       BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -160,7 +162,7 @@ jobs:
               key = f"recipes/{recipe_id}/{version}/logo.{ext}"
               s3_url = f"s3://{bucket}/{key}"
               print(f"Uploading {logo} -> {s3_url}")
-              endpoint = os.environ["AWS_ENDPOINT_URL"]
+              endpoint = os.environ["S3_ENDPOINT_URL"]
               r = subprocess.run(
                   [
                       "aws", "s3", "cp", str(logo), s3_url,
