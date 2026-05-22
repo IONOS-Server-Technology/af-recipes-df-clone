@@ -221,8 +221,9 @@ jobs:
                   exit 1
                 fi
               done
-              docker compose -f "${dir}docker-compose.yaml" config --quiet 2>&1 || {
-                echo "::error::${recipe}: invalid docker-compose.yaml"
+              # Surface compose's own error message so failures are debuggable.
+              compose_err=$(docker compose -f "${dir}docker-compose.yaml" config -q 2>&1) || {
+                echo "::error::${recipe}: invalid docker-compose.yaml — ${compose_err}"
                 exit 1
               }
             elif [ "$type" = "native" ]; then
