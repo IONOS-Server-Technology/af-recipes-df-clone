@@ -221,8 +221,11 @@ jobs:
                   exit 1
                 fi
               done
-              # Surface compose's own error message so failures are debuggable.
-              compose_err=$(docker compose -f "${dir}docker-compose.yaml" config -q 2>&1) || {
+              # Use the legacy hyphenated docker-compose binary — the runner image
+              # has it but doesn't ship the modern 'docker compose' plugin, so
+              # 'docker compose -f …' falls through to docker CLI and errors on -f.
+              # Capture stderr so failures are debuggable.
+              compose_err=$(docker-compose -f "${dir}docker-compose.yaml" config -q 2>&1) || {
                 echo "::error::${recipe}: invalid docker-compose.yaml — ${compose_err}"
                 exit 1
               }
