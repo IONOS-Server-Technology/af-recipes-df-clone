@@ -18,6 +18,7 @@ categories:                       # one or more from the enum in metadata.schema
 app_version: "1.94.1"             # PINNED — never "latest". Quote it; YAML may parse 1.94 as a float otherwise.
 recipe_version: "1.0.0"           # semver. Bump when this recipe changes (separate from app version)
 recipe_type: docker-compose       # or 'native'
+base_image: IF-ubuntu-26.04-server-cloudimg-amd64_af.qcow2   # Base OS image ref the recipe is built against.
 upstream_url: https://github.com/n8n-io/n8n
 
 app_min_ram_mb: 2048              # APP-ONLY. OS baseline (512 MB on ubuntu-26.04) is added once by the AF API.

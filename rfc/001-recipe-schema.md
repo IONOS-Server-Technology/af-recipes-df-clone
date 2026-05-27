@@ -55,6 +55,7 @@ af-recipes/
 | `app_version` | string | yes | Upstream application version being deployed. |
 | `recipe_version` | string | yes | Recipe format version (semver). |
 | `recipe_type` | enum | yes | `docker-compose` or `native`. |
+| `base_image` | string | yes | Base OS image reference the recipe is built against (e.g. `IF-ubuntu-26.04-server-cloudimg-amd64_af.qcow2`). |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
