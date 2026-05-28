@@ -1,0 +1,182 @@
+name: Debug af-api deployment
+
+on:
+  # Triggered on edits to this file so the workflow registers in the
+  # Actions UI (GitHub only surfaces workflow_dispatch after at least
+  # one run). Also re-runs the debug deploy when the workflow itself
+  # is changed.
+  push:
+    paths:
+      - '.github/workflows/debug-af-api.yaml'
+  workflow_dispatch:
+    inputs:
+      af_recipes_ref:
+        description: "af-recipes branch to bake into af-api (passed through to af-api build)"
+        required: false
+        default: ""
+      hold_minutes:
+        description: "Minutes to keep the deployment alive after diagnostics so kubectl exec can be used"
+        required: false
+        default: "30"
+      skip_build:
+        description: "Skip triggering af-api build and use whatever image is already in Harbor under the resolved tag"
+        required: false
+        default: "false"
+
+jobs:
+  trigger-af-api-build:
+    name: Trigger af-api image build
+    if: ${{ inputs.skip_build != 'true' }}
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Resolve af-api branch ref
+        id: af-api-ref
+        run: |
+          branch="${{ inputs.af_recipes_ref || github.ref_name }}"
+          if git ls-remote --exit-code \
+              "https://x-access-token:${GH_APP_TOKEN}@github.com/IONOS-Server-Technology/af-api.git" \
+              "refs/heads/${branch}" > /dev/null 2>&1; then
+            echo "value=${branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
+        with:
+          owner: IONOS-Server-Technology
+          repo: af-api
+          github_token: ${{ env.GH_APP_TOKEN }}
+          app_id: ${{ env.GH_APP_ID }}
+          app_private_key: ${{ env.GH_APP_PRIVATE_KEY }}
+          workflow_file_name: test.yaml
+          ref: ${{ steps.af-api-ref.outputs.value }}
+          client_payload: >-
+            {"af_recipes_ref": "${{ inputs.af_recipes_ref || github.ref_name }}"}
+
+  debug:
+    name: Deploy + diagnose + hold
+    needs: trigger-af-api-build
+    if: always() && (needs.trigger-af-api-build.result == 'success' || needs.trigger-af-api-build.result == 'skipped')
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout python-dwh-image-build-algorithm
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: main
+          path: image-builder-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ./image-builder-src
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Compute deployment name and image tag from branch ref
+        id: ref
+        run: |
+          raw="${{ inputs.af_recipes_ref || github.ref_name }}"
+          safe=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-*//' | sed 's/-*$//')
+          name="debug-af-api-${safe:0:50}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=$safe" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure Harbor pull secret
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+          HARBOR_USERNAME: ${{ env.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ env.HARBOR_PASSWORD }}
+        run: python scripts/k8s_helper.py ensure-pull-secret harbor.infra.cluster.ionos.com
+
+      - name: Deploy af-api
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py deploy \
+            "${{ steps.ref.outputs.name }}" \
+            "harbor.infra.cluster.ionos.com/imagefactory/af-api:${{ steps.ref.outputs.tag }}"
+
+      - name: Wait for rollout (best-effort)
+        if: always()
+        continue-on-error: true
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: python scripts/k8s_helper.py rollout-status "${{ steps.ref.outputs.name }}" --timeout 60s
+
+      - name: Describe deployment + pods + events
+        if: always()
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: python scripts/k8s_helper.py describe "${{ steps.ref.outputs.name }}"
+
+      - name: Get ClusterIP URL
+        id: url
+        if: always()
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          url=$(python scripts/k8s_helper.py get-url "${{ steps.ref.outputs.name }}" 8000 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "ClusterIP URL: $url"
+
+      - name: Probe /api/v1/health from runner
+        if: always()
+        run: |
+          set -x
+          url="${{ steps.url.outputs.url }}"
+          curl -v -m 10 "${url}/api/v1/health" || true
+
+      - name: Hold deployment alive for manual kubectl debugging
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          cat <<EOF
+          =====================================================================
+          Deployment is up and held alive for ${{ inputs.hold_minutes }} minutes.
+
+          To attach with your local kubectl, save AF_CI_KUBECONFIG from Vault to
+          ~/.kube/af-test.json and run, e.g.:
+
+            export KUBECONFIG=~/.kube/af-test.json
+            kubectl get pods -l app=${{ steps.ref.outputs.name }}
+            kubectl exec -it -l app=${{ steps.ref.outputs.name }} -- sh
+            kubectl logs -l app=${{ steps.ref.outputs.name }} -f
+            kubectl port-forward svc/${{ steps.ref.outputs.name }} 8000:8000
+
+          Deployment name: ${{ steps.ref.outputs.name }}
+          Service ClusterIP URL: ${{ steps.url.outputs.url }}
+          =====================================================================
+          EOF
+          sleep $((${{ inputs.hold_minutes }} * 60))
+
+      - name: Cleanup
+        if: always()
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: |
+          python scripts/k8s_helper.py delete \
+            "deployment/${{ steps.ref.outputs.name }}" \
+            "svc/${{ steps.ref.outputs.name }}"
