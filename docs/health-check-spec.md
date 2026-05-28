@@ -8,6 +8,45 @@ installed on a test VM. It verifies that the application is actually reachable a
 It is **not** deployed to production VMs and is **separate** from Docker Compose healthchecks
 (which are declared in `docker-compose.yml` and govern container restarts).
 
+## Where the script runs — IMPORTANT
+
+The script is invoked from `tests/recipe-health-check.conf` as a `Plugins.Shell.Test` with
+`executors = exec_local`. That means **`health-check.sh` runs on the GitHub Actions runner,
+not on the test VM**. The runner exec'es `bash $WORKFLOW_HOMEDIR/recipes/$RECIPE_NAME/health-check.sh`
+locally while the application stack is running on the remote VM.
+
+Consequences:
+
+- `localhost` inside the script resolves to the **runner**, not the VM. A naive
+  `curl http://localhost:5678/healthz` hits the runner (which has nothing listening)
+  and silently fails.
+- To reach the application, use the `$SERVERIP` env var that the test framework injects
+  (the VM's public IPv4). Example: `curl -sf "http://${SERVERIP}:5678/healthz"`.
+- VM-side checks that need a shell on the VM (filesystem layout, `docker images`,
+  `systemctl status …`) belong in the `.conf` file as `Plugins.Ssh.Test` entries with
+  `executors = exec_vm`, not in `health-check.sh`. See `tests/recipe-health-check.conf`
+  for the existing examples (`test_install_dir`, `test_docker_images`,
+  `test_bootstrap_reachable`).
+
+> **Known follow-up:** the existing recipes in this repository (n8n, portainer, …) still
+> use `curl http://localhost:<port>` because the original spec described the script as
+> VM-side. Those scripts currently no-op against an empty runner and need to be
+> retargeted to `$SERVERIP`. Tracked separately — do not add new recipes that use
+> `localhost`.
+
+## Env vars available to the script
+
+The test framework guarantees the following env vars are set before invocation
+(declared in `tests/recipe-health-check.conf` `[require_env]`):
+
+| Var | Meaning |
+|-----|---------|
+| `SERVERIP` | Public IPv4 of the test VM |
+| `RECIPE_NAME` | The recipe currently under test |
+| `WORKFLOW_HOMEDIR` | Absolute path to the `af-recipes` checkout on the runner |
+| `SSH_KEY_ABSPATH` | Path to the private SSH key for the VM (RSA, root) |
+| `AF_API_URL` | URL of the af-api Service exposed for this run (per-branch deployment) |
+
 ## Location
 
 ```
@@ -27,7 +66,7 @@ Required for every recipe that participates in live VM testing.
 | Exit 0 | Application is healthy |
 | Exit non-zero | Application is unhealthy — CI marks the test as failed |
 | stdout/stderr | May print diagnostic output freely — it is captured and attached to the CI run |
-| Network | Runs on the test VM; `localhost` resolves to the VM itself |
+| Network | Runs on the runner — use `$SERVERIP` to reach the VM, **not** `localhost` |
 | Execution time | Must exit within **120 seconds** (CI workflow timeout per recipe) |
 
 The script must be **executable** (`chmod +x` or `755` in git):
@@ -37,11 +76,12 @@ git update-index --chmod=+x recipes/<app>/health-check.sh
 
 ## What to Check
 
-Check the minimum that proves the application is running and reachable:
+Check the minimum that proves the application is running and reachable. The script runs
+on the runner, so all probes must target `$SERVERIP` (the VM), not `localhost`:
 
-- **HTTP app**: `curl -sf http://localhost:<port><path>` returns HTTP 2xx
-- **HTTPS app**: `curl -sfk https://localhost:<port><path>` (skip cert validation in test)
-- **Non-HTTP app**: use `nc -z localhost <port>` or a protocol-specific client
+- **HTTP app**: `curl -sf "http://${SERVERIP}:<port><path>"` returns HTTP 2xx
+- **HTTPS app**: `curl -sfk "https://${SERVERIP}:<port><path>"` (skip cert validation in test)
+- **Non-HTTP app**: use `nc -z "$SERVERIP" <port>` or a protocol-specific client
 
 Do **not** test application logic or data — only reachability and a basic status response.
 
@@ -55,12 +95,14 @@ test fails immediately.
 #!/usr/bin/env bash
 set -euo pipefail
 
+: "${SERVERIP:?SERVERIP must be set by the test framework}"
+
 MAX_WAIT=90
 INTERVAL=5
 ELAPSED=0
 
 while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
-    if curl -sf http://localhost:<port>/<healthpath> > /dev/null 2>&1; then
+    if curl -sf "http://${SERVERIP}:<port>/<healthpath>" > /dev/null 2>&1; then
         echo "Healthy after ${ELAPSED}s"
         exit 0
     fi
@@ -91,8 +133,8 @@ health_check:
 ```
 
 ```bash
-# health-check.sh — checks the same endpoint
-curl -sf http://localhost:5678/healthz > /dev/null 2>&1
+# health-check.sh — checks the same endpoint, addressed at the VM
+curl -sf "http://${SERVERIP}:5678/healthz" > /dev/null 2>&1
 ```
 
 ## Examples
@@ -102,7 +144,8 @@ curl -sf http://localhost:5678/healthz > /dev/null 2>&1
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-curl -sf http://localhost:5678/healthz > /dev/null 2>&1
+: "${SERVERIP:?SERVERIP must be set by the test framework}"
+curl -sf "http://${SERVERIP}:5678/healthz" > /dev/null 2>&1
 ```
 
 ### HTTP check with wait loop (Traefik)
@@ -110,13 +153,14 @@ curl -sf http://localhost:5678/healthz > /dev/null 2>&1
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
+: "${SERVERIP:?SERVERIP must be set by the test framework}"
 
 MAX_WAIT=60
 INTERVAL=5
 ELAPSED=0
 
 while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
-    if curl -sf http://localhost:8080/ping > /dev/null 2>&1; then
+    if curl -sf "http://${SERVERIP}:8080/ping" > /dev/null 2>&1; then
         echo "Healthy after ${ELAPSED}s"
         exit 0
     fi
@@ -131,9 +175,14 @@ exit 1
 
 ## What the CI Workflow Does
 
-1. Provisions a CoreVPS test VM via IONOS Cloud API
-2. Injects cloud-init rendered by `scripts/render-cloudinit.py` (using `test-params.yaml` defaults)
-3. Waits for SSH to become available
-4. Copies and executes `health-check.sh` on the VM via SSH
-5. Tears down the VM (even on failure)
-6. Reports exit code as the PR status check result
+1. Resolves matching `af-api` / `af-core` branches (same-name with `main` fallback)
+2. Triggers af-api `build.yaml` to build a per-branch image and pushes it to Harbor
+3. Deploys af-api into the test cluster as a per-run Deployment + NodePort Service
+4. Generates cloud-init for the recipe by calling the deployed `af-api`'s `/compose` endpoint
+5. Provisions a CoreVPS test VM via the IF `ImageTester` tooling (`python-dwh-image-build-algorithm`)
+6. Waits for SSH to become available on the VM
+7. Runs `tests/recipe-health-check.conf` through `python-dwh-testsuite`:
+    - VM-side SSH probes (`test_install_dir`, `test_docker_images`, `test_bootstrap_reachable`)
+    - Runner-side `Plugins.Shell.Test` invocation of `health-check.sh` with `$SERVERIP` injected
+8. Tears down the VM and deletes the af-api Deployment + Service (even on failure)
+9. Reports exit code as the PR status check result
