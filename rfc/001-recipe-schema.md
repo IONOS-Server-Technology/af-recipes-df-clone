@@ -125,10 +125,10 @@ Current composition apps:
 
 ### 4.6 Logo specification
 
-Every customer-visible (`enabled: true`) recipe must have a logo. The logo binary lives in the recipe directory (`recipes/<id>/logo.<ext>`) and is mirrored to an IONOS Object Storage bucket by the `sync-logos.yaml` workflow on merge.
+Every customer-visible (`enabled: true`) recipe must have a logo. The logo binary lives in the recipe directory (`recipes/<id>/logo.<ext>`) and is mirrored to an IONOS Object Storage bucket by the `sync-logos` job in `recipe-pipeline.yaml` on merge.
 
 **File requirements:**
-- Extension: `.svg` only — no PNG or WEBP. SVG scales without quality loss across panel rendering densities and is the only format accepted by `af-validate` and the `sync-logos.yaml` workflow.
+- Extension: `.svg` only — no PNG or WEBP. SVG scales without quality loss across panel rendering densities and is the only format accepted by `af-validate` and the `sync-logos` job.
 - Square or near-square aspect ratio recommended for thumbnail rendering
 - File lives at `recipes/<id>/logo.svg` — git is the source of truth, S3 is a derived artifact
 
@@ -139,7 +139,7 @@ Every customer-visible (`enabled: true`) recipe must have a logo. The logo binar
 | Production | `appfactory` | `https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
 | PR preview | `appfactory-dev` | `https://appfactory-dev.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
 
-Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, max-age=31536000, immutable` on the uploaded object, this means **any logo change requires a `recipe_version` bump** — otherwise consumers see the previously-cached file forever. The `sync-logos.yaml` workflow refuses to merge a logo change without an accompanying `recipe_version` change.
+Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, max-age=31536000, immutable` on the uploaded object, this means **any logo change requires a `recipe_version` bump** — otherwise consumers see the previously-cached file forever. The `sync-logos` job refuses to merge a logo change without an accompanying `recipe_version` change.
 
 **Integrity:** `logo_sha256` is the SHA-256 of the file content. `af-validate` recomputes the hash from the on-disk file and refuses the recipe if it diverges from the declared value. This protects against silent edits, partial uploads, and S3 drift.
 

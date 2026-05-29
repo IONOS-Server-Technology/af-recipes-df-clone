@@ -12,6 +12,20 @@ on:
       - "bin/build-catalogue"
 
 jobs:
+  # Mirrors changed recipe logos (recipes/<id>/logo.svg) to IONOS Object Storage.
+  # This job MUTATES storage, including the production bucket — it is why this
+  # workflow is a pipeline, not pure validation. Behaviour by event:
+  #   * pull_request -> uploads to the `appfactory-dev` bucket only (PR preview).
+  #   * push to main -> uploads to BOTH `appfactory` (prod) and `appfactory-dev`.
+  # Objects are written with Cache-Control: public, max-age=31536000, immutable,
+  # so paths are versioned by recipe_version; this job FAILS a logo change that
+  # is not accompanied by a recipe_version bump (otherwise consumers would be
+  # pinned to the previously-cached file forever).
+  # Credentials: the if-bot Ceph S3 user, pulled from Vault
+  # (imagefactory/data/ci/devel/s3) by the if-ci-actions get-secrets step. The
+  # bucket policies grant that principal PutObject; see docs/buckets.md / IF-712.
+  # The validate jobs below depend on this job (needs: sync-logos) because their
+  # logo-reachability check HEADs the uploaded object.
   sync-logos:
     name: Sync recipe logos to S3
     runs-on:
