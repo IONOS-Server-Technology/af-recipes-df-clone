@@ -13,8 +13,21 @@ Each recipe lives in `recipes/<app-name>/` and contains:
 | `.env.template` | required | — | `{{PARAM}}` placeholders resolved at install time |
 | `install.sh` | required | required | Installation orchestration script |
 | `health-check.sh` | required | required | CI-only health check script |
+| `logo.svg` | required* | required* | App logo shown in catalogue thumbnails (*required when `enabled: true`) |
 
 See [rfc/001-recipe-schema.md](rfc/001-recipe-schema.md) for the full specification.
+
+### Logos
+
+Every customer-visible (`enabled: true`) recipe ships an SVG logo at
+`recipes/<id>/logo.svg`, referenced from `metadata.yaml` via `logo_url`,
+`logo_sha256`, `logo_license`, and `logo_source`. Git is the source of truth; the
+[`recipe-pipeline.yaml`](.github/workflows/recipe-pipeline.yaml) workflow mirrors
+changed logos to IONOS Object Storage (the `appfactory-dev` bucket on PRs, the
+`appfactory` production bucket on merge) and serves them over HTTPS on a
+`recipe_version`-versioned, immutably-cached path. See
+[CONTRIBUTING.md](CONTRIBUTING.md#adding-a-logo) for the how-to and
+[docs/buckets.md](docs/buckets.md) for the storage/operations reference.
 
 ## Quick Reference
 
@@ -395,3 +408,6 @@ Requires `pyyaml` (`pip install pyyaml`).
 2. Add all required files for your recipe type.
 3. Run `python3 bin/build-catalogue` to validate.
 4. Submit a PR for review.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide, including how to add a
+recipe logo and the logo licensing rules.
