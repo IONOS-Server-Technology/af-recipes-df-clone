@@ -114,7 +114,39 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** For each key-value pair: `len(value) <= 160`.
 - **Why:** UI display constraint — the control panel app card has a fixed character limit.
 
-### 3.3 Parameters
+### 3.3 Logo
+
+These rules enforce RFC-001 §4.6 — every customer-visible recipe has a logo, and the declared logo metadata is consistent with the file on disk.
+
+#### `logo-required-when-enabled`
+
+- **Level:** ERROR
+- **What:** When `metadata.enabled: true`, all of `logo_url`, `logo_sha256`, `logo_license` must be present.
+- **How to check:** If `enabled` is truthy, check each field is a non-empty string.
+- **Why:** A customer-visible recipe without a logo renders as a blank card in the catalogue UI. Disabled recipes are exempt because they don't appear in the catalogue.
+
+#### `logo-url-canonical`
+
+- **Level:** ERROR
+- **What:** `logo_url`, when present, matches `^https://appfactory\.s3\.eu-central-3\.ionoscloud\.com/recipes/<id>/<recipe_version>/logo\.svg$`, where `<id>` equals `metadata.id` and `<recipe_version>` equals `metadata.recipe_version`. SVG is the only supported extension.
+- **How to check:** Regex match the URL; assert path components equal the recipe's own id and version.
+- **Why:** Logos are served from one bucket on a versioned path; off-bucket URLs bypass our integrity model and break the sync workflow. Mismatched id/version components mean a copy-paste error that would point consumers at the wrong logo.
+
+#### `logo-file-exists`
+
+- **Level:** ERROR
+- **What:** When `logo_url` is declared, the file `recipes/<id>/logo.svg` exists in the repo.
+- **How to check:** Check that `recipes/<id>/logo.svg` exists.
+- **Why:** Git is the source of truth (RFC-001 §4.6). A `logo_url` referencing a file that doesn't exist in the repo cannot be uploaded by CI and breaks the consumer.
+
+#### `logo-sha256-matches`
+
+- **Level:** ERROR
+- **What:** When `logo_url` is declared, `logo_sha256` is a 64-char lowercase hex digest **and** equals the SHA-256 of the on-disk logo file.
+- **How to check:** Validate the hex shape; compute `sha256(logo_file.read_bytes())`; compare.
+- **Why:** Tamper-evidence. Without the hash check, a logo file could be edited in git (or replaced in S3) without anyone noticing — this rule pins the metadata to the exact bytes shipped.
+
+### 3.4 Parameters
 
 #### `param-name-upper-snake`
 
@@ -144,7 +176,7 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** For each parameter, if `auto_generate` is true and `type != password`, fail.
 - **Why:** The AF API generates a 32-char `[a-zA-Z0-9]` value; only meaningful for secret-type fields.
 
-### 3.4 docker-compose.yaml (skipped for `native`)
+### 3.5 docker-compose.yaml (skipped for `native`)
 
 #### `compose-valid-yaml`
 

@@ -64,6 +64,10 @@ af-recipes/
 | `incompatible_with_apps` | list[string] | no | App IDs that cannot be co-installed (e.g., GPU conflicts, port clashes). Cloud Panel uses this to prevent invalid combinations during app selection. |
 | `notes` | string | no | Free-text notes (caveats, limitations). |
 | `composition` | boolean | no | If `true`, marks this recipe as a **composition app** — auto-injected by af-core when the customer selects at least one `recipe_type: docker-compose` recipe. Composition apps are hidden from the customer-facing catalogue (`enabled: false`) and are not customer-selectable. See §4.5. |
+| `logo_url` | string | conditional | HTTPS URL to the logo served from the IONOS Object Storage bucket. Required for `enabled: true` recipes. See §4.6. |
+| `logo_sha256` | string | conditional | SHA-256 (lowercase hex) of the logo file. Required when `logo_url` is set. |
+| `logo_license` | string | conditional | License or usage basis (e.g. `CC-BY-SA-4.0`, `MIT`, `trademark-nominative-fair-use`). Required when `logo_url` is set. |
+| `logo_source` | string | no | Attribution URL — the upstream page or repository the logo was sourced from. |
 
 ### 4.2 Categories
 
@@ -118,6 +122,30 @@ Current composition apps:
 | Recipe | Role |
 |---|---|
 | `wud` | Docker image update notifier and one-click updater |
+
+### 4.6 Logo specification
+
+Every customer-visible (`enabled: true`) recipe must have a logo. The logo binary lives in the recipe directory (`recipes/<id>/logo.<ext>`) and is mirrored to an IONOS Object Storage bucket by the `sync-logos` job in `recipe-pipeline.yaml` on merge.
+
+**File requirements:**
+- Extension: `.svg` only — no PNG or WEBP. SVG scales without quality loss across panel rendering densities and is the only format accepted by `af-validate` and the `sync-logos` job.
+- Square or near-square aspect ratio recommended for thumbnail rendering
+- File lives at `recipes/<id>/logo.svg` — git is the source of truth, S3 is a derived artifact
+
+**Bucket layout:**
+
+| Environment | Bucket | URL pattern |
+|---|---|---|
+| Production | `appfactory` | `https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
+| PR preview | `appfactory-dev` | `https://appfactory-dev.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
+
+Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, max-age=31536000, immutable` on the uploaded object, this means **any logo change requires a `recipe_version` bump** — otherwise consumers see the previously-cached file forever. The `sync-logos` job refuses to merge a logo change without an accompanying `recipe_version` change.
+
+**Integrity:** `logo_sha256` is the SHA-256 of the file content. `af-validate` recomputes the hash from the on-disk file and refuses the recipe if it diverges from the declared value. This protects against silent edits, partial uploads, and S3 drift.
+
+**Licensing:** Recipes must declare `logo_license`. Permissible values include any SPDX identifier (`MIT`, `Apache-2.0`, `CC-BY-SA-4.0`, etc.) or the sentinel `trademark-nominative-fair-use` for cases where the logo is a third-party trademark displayed under nominative fair use (i.e. to identify the upstream product in the catalogue). For attribution-required licenses (`CC-BY*`), the upstream source URL should be set in `logo_source`.
+
+**Disabled recipes:** `enabled: false` recipes are exempt from the `logo-required-when-enabled` rule, but if they *declare* `logo_url`, all integrity/canonicalisation rules still apply.
 
 ## 5. OS Baselines and Resource Calculation
 

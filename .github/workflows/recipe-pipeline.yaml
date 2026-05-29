@@ -1,0 +1,436 @@
+name: Recipe Pipeline
+
+on:
+  pull_request:
+    paths:
+      - "recipes/**"
+      - "bin/build-catalogue"
+  push:
+    branches: [main]
+    paths:
+      - "recipes/**"
+      - "bin/build-catalogue"
+
+jobs:
+  # Mirrors changed recipe logos (recipes/<id>/logo.svg) to IONOS Object Storage.
+  # This job MUTATES storage, including the production bucket — it is why this
+  # workflow is a pipeline, not pure validation. Behaviour by event:
+  #   * pull_request -> uploads to the `appfactory-dev` bucket only (PR preview).
+  #   * push to main -> uploads to BOTH `appfactory` (prod) and `appfactory-dev`.
+  # Objects are written with Cache-Control: public, max-age=31536000, immutable,
+  # so paths are versioned by recipe_version; this job FAILS a logo change that
+  # is not accompanied by a recipe_version bump (otherwise consumers would be
+  # pinned to the previously-cached file forever).
+  # Credentials: the if-bot Ceph S3 user, pulled from Vault
+  # (imagefactory/data/ci/devel/s3) by the if-ci-actions get-secrets step. The
+  # bucket policies grant that principal PutObject; see docs/buckets.md / IF-712.
+  # The validate jobs below depend on this job (needs: sync-logos) because their
+  # logo-reachability check HEADs the uploaded object.
+  sync-logos:
+    name: Sync recipe logos to S3
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      S3_ENDPOINT_URL: https://s3.eu-central-3.ionoscloud.com
+      AWS_DEFAULT_REGION: eu-central-3
+      # PR builds go to dev only; main merges go to both (prod + keep dev in sync).
+      BUCKETS: ${{ github.event_name == 'push' && 'appfactory appfactory-dev' || 'appfactory-dev' }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python3 -m ensurepip --upgrade --default-pip || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml boto3
+
+      - name: Determine changed recipes
+        id: changed
+        run: |
+          set -euo pipefail
+          changed_recipes=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E '^recipes/[^/]+/(logo\.svg|metadata\.yaml)$' \
+            | cut -d/ -f2 \
+            | sort -u)
+          {
+            echo "recipes<<EOF"
+            echo "$changed_recipes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          if [ -z "$changed_recipes" ]; then
+            echo "No recipe logo or metadata changes — nothing to sync."
+          else
+            echo "Recipes to sync:"
+            echo "$changed_recipes"
+          fi
+
+      - name: Enforce recipe_version bump when logo changes
+        if: steps.changed.outputs.recipes != ''
+        env:
+          RECIPES: ${{ steps.changed.outputs.recipes }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, subprocess, sys
+          from pathlib import Path
+          base = os.environ["BASE_SHA"]
+          head = os.environ["HEAD_SHA"]
+          recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
+          errors = []
+          for recipe in recipes:
+              changed_files = subprocess.run(
+                  ["git", "diff", "--name-only", "--diff-filter=M", base, head, "--",
+                   f"recipes/{recipe}/logo.svg"],
+                  capture_output=True, text=True, check=True,
+              ).stdout.strip()
+              if not changed_files:
+                  continue
+              meta_diff = subprocess.run(
+                  ["git", "diff", base, head, "--", f"recipes/{recipe}/metadata.yaml"],
+                  capture_output=True, text=True, check=True,
+              ).stdout
+              version_lines = [l for l in meta_diff.splitlines()
+                               if l.startswith(("+", "-")) and "recipe_version" in l
+                               and not l.startswith(("+++", "---"))]
+              if len(version_lines) < 2:
+                  errors.append(
+                      f"{recipe}: logo file changed but recipe_version was not bumped. "
+                      f"Bump metadata.yaml recipe_version (semver) before merging — "
+                      f"the S3 path is versioned and Cache-Control is immutable, so "
+                      f"without a bump consumers see stale logos forever."
+                  )
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          print("Version-bump check passed.")
+          PYEOF
+
+      - name: Upload logos to ${{ env.BUCKETS }}
+        if: steps.changed.outputs.recipes != ''
+        env:
+          RECIPES: ${{ steps.changed.outputs.recipes }}
+        run: |
+          python3 - <<'PYEOF'
+          import hashlib
+          import os
+          import sys
+          import yaml
+          import boto3
+          from botocore.config import Config
+          from pathlib import Path
+
+          buckets = os.environ["BUCKETS"].split()
+          recipes = [r for r in os.environ["RECIPES"].strip().split("\n") if r]
+          mime = {"svg": "image/svg+xml"}
+          errors = []
+
+          s3 = boto3.client(
+              "s3",
+              endpoint_url=os.environ["S3_ENDPOINT_URL"],
+              region_name="eu-central-3",
+              aws_access_key_id=os.environ["S3_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
+              config=Config(s3={"addressing_style": "path"}),
+          )
+
+          for recipe in recipes:
+              recipe_dir = Path("recipes") / recipe
+              meta_path = recipe_dir / "metadata.yaml"
+              if not meta_path.exists():
+                  errors.append(f"{recipe}: metadata.yaml missing")
+                  continue
+              meta = yaml.safe_load(meta_path.read_text())
+              recipe_id = meta.get("id")
+              version = meta.get("recipe_version")
+              if not recipe_id or not version:
+                  errors.append(f"{recipe}: id or recipe_version missing")
+                  continue
+
+              logo_files = sorted(recipe_dir.glob("logo.*"))
+              if not logo_files:
+                  print(f"{recipe}: no logo file, skipping")
+                  continue
+              logo = logo_files[0]
+              ext = logo.suffix.lstrip(".").lower()
+              if ext not in mime:
+                  errors.append(f"{recipe}: unsupported logo extension .{ext}")
+                  continue
+
+              digest = hashlib.sha256(logo.read_bytes()).hexdigest()
+              declared = meta.get("logo_sha256")
+              if declared and declared != digest:
+                  errors.append(f"{recipe}: logo_sha256 mismatch (file={digest[:12]} meta={declared[:12]})")
+                  continue
+
+              key = f"recipes/{recipe_id}/{version}/logo.{ext}"
+              for bucket in buckets:
+                  print(f"Uploading {logo} -> s3://{bucket}/{key}")
+                  try:
+                      s3.upload_file(
+                          str(logo), bucket, key,
+                          ExtraArgs={
+                              "CacheControl": "public, max-age=31536000, immutable",
+                              "ContentType": mime[ext],
+                          },
+                      )
+                  except Exception as e:
+                      errors.append(f"{recipe} -> {bucket}: upload failed: {e}")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+
+  validate:
+    name: Validate recipe schema
+    needs: sync-logos
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python3 -m ensurepip --upgrade --default-pip || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Validate all recipes
+        run: python3 bin/build-catalogue
+
+      - name: Check catalogue.json is up to date
+        run: |
+          git diff --exit-code catalogue.json || {
+            echo "::error::catalogue.json is out of date. Run 'python3 bin/build-catalogue' and commit the result."
+            exit 1
+          }
+
+      - name: Validate required files and docker-compose structure
+        run: |
+          python3 - <<'PYEOF'
+          # Replaces an earlier bash-for-loop that called 'docker compose config'.
+          # The runner image has neither the docker-compose plugin nor a
+          # standalone binary (and the legacy pip package won't build on 3.12),
+          # so we validate compose files structurally here. Full semantic
+          # validation runs later in test-recipes-docker.
+          import sys, yaml
+          from pathlib import Path
+
+          REQUIRED_COMPOSE = ("docker-compose.yaml", ".env.template", "install.sh", "health-check.sh")
+          REQUIRED_NATIVE  = ("install.sh", "health-check.sh")
+          errors = []
+
+          def report(recipe, msg):
+              errors.append(f"{recipe}: {msg}")
+
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              recipe = meta_path.parent.name
+              try:
+                  meta = yaml.safe_load(meta_path.read_text()) or {}
+              except yaml.YAMLError as e:
+                  report(recipe, f"metadata.yaml not valid YAML: {e}")
+                  continue
+              rtype = meta.get("recipe_type", "docker-compose")
+              print(f"Checking {recipe} ...")
+
+              required = REQUIRED_COMPOSE if rtype == "docker-compose" else REQUIRED_NATIVE
+              for fname in required:
+                  if not (meta_path.parent / fname).exists():
+                      report(recipe, f"missing required file {fname}")
+
+              if rtype != "docker-compose":
+                  continue
+
+              cf = meta_path.parent / "docker-compose.yaml"
+              if not cf.exists():
+                  continue
+              try:
+                  doc = yaml.safe_load(cf.read_text())
+              except yaml.YAMLError as e:
+                  report(recipe, f"invalid docker-compose.yaml — YAML parse error: {e}")
+                  continue
+              if not isinstance(doc, dict):
+                  report(recipe, "invalid docker-compose.yaml — top level is not a mapping")
+                  continue
+              services = doc.get("services")
+              if not isinstance(services, dict) or not services:
+                  report(recipe, "invalid docker-compose.yaml — missing or empty services")
+                  continue
+              for name, svc in services.items():
+                  if not isinstance(svc, dict):
+                      report(recipe, f"invalid docker-compose.yaml — service {name!r} is not a mapping")
+                      continue
+                  if "image" not in svc and "build" not in svc:
+                      report(recipe, f"invalid docker-compose.yaml — service {name!r} has neither image nor build")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          print("All recipes have required files and valid compose structure.")
+          PYEOF
+
+      - name: Check shell scripts are executable
+        run: |
+          fail=0
+          for f in recipes/*/install.sh recipes/*/health-check.sh; do
+            if [ ! -x "$f" ]; then
+              echo "::error::${f} is not executable (chmod +x)"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Verify .env.template placeholders match parameters
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, re, sys
+          from pathlib import Path
+
+          errors = []
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              with open(meta_path) as f:
+                  meta = yaml.safe_load(f)
+
+              if meta.get("recipe_type") != "docker-compose":
+                  continue
+
+              recipe = meta_path.parent.name
+              env_path = meta_path.parent / ".env.template"
+              if not env_path.exists():
+                  continue
+
+              env_text = env_path.read_text()
+              template_params = set(re.findall(r"\{\{(\w+)\}\}", env_text))
+              meta_params = {p["name"] for p in meta.get("parameters", [])}
+
+              missing_in_meta = template_params - meta_params
+              if missing_in_meta:
+                  errors.append(f"{recipe}: .env.template uses {missing_in_meta} not declared in metadata.yaml parameters")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+
+          print("All .env.template placeholders match metadata parameters.")
+          PYEOF
+
+  af-validate-rfc002:
+    name: af-validate (RFC-002 rules)
+    needs: sync-logos
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      # Mirror BUCKETS from the sync-logos job so the URL-reachability check
+      # below validates exactly the locations we just uploaded to.
+      BUCKETS: ${{ github.event_name == 'push' && 'appfactory appfactory-dev' || 'appfactory-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
+      - name: Pick af-core ref (PR branch if it exists, else main)
+        id: af_core_ref
+        env:
+          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GH_APP_TOKEN: ${{ env.GH_APP_TOKEN }}
+        run: |
+          # Refuse anything that isn't a legal git branch name.
+          if [[ ! "$PR_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid branch name '$PR_BRANCH' — falling back to main"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token $GH_APP_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/IONOS-Server-Technology/af-core/branches/$PR_BRANCH")
+          if [ "$status" = "200" ]; then
+            echo "af-core has branch '$PR_BRANCH' — using it"
+            echo "ref=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "af-core branch lookup returned HTTP $status — falling back to main"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout af-core
+        uses: actions/checkout@v4
+        with:
+          repository: IONOS-Server-Technology/af-core
+          path: af-core-src
+          ref: ${{ steps.af_core_ref.outputs.ref }}
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bootstrap pip and install af-core
+        run: |
+          # setup-python's path injection is unreliable on this self-hosted runner
+          # when two jobs race for the tool cache. Bootstrap pip via ensurepip on
+          # whichever python3 resolves at runtime.
+          python3 -m ensurepip --upgrade --default-pip || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install ./af-core-src pyyaml
+
+      - name: Run af-validate against the catalogue
+        run: af-validate catalogue recipes/ --baselines os-baselines.yaml
+
+      - name: Verify logo URLs are reachable on every active bucket
+        run: |
+          python3 - <<'PYEOF'
+          import os, subprocess, sys, yaml
+          from pathlib import Path
+
+          buckets = os.environ["BUCKETS"].split()
+          errors = []
+          checked = 0
+          for meta_path in sorted(Path("recipes").glob("*/metadata.yaml")):
+              meta = yaml.safe_load(meta_path.read_text()) or {}
+              logo_url = meta.get("logo_url")
+              if not logo_url:
+                  continue
+              recipe_id = meta.get("id")
+              version = meta.get("recipe_version")
+              # metadata logo_url points at prod (appfactory); rewrite the host
+              # to test every active bucket the sync-logos job uploaded to.
+              for bucket in buckets:
+                  url = f"https://{bucket}.s3.eu-central-3.ionoscloud.com/recipes/{recipe_id}/{version}/logo.svg"
+                  r = subprocess.run(["curl", "-fsI", "--max-time", "15", url],
+                                     capture_output=True, text=True)
+                  checked += 1
+                  if r.returncode != 0:
+                      errors.append(f"{recipe_id} @ {bucket}: {url} not reachable")
+                  else:
+                      print(f"OK {url}")
+          print(f"\nChecked {checked} URL(s) across {len(buckets)} bucket(s).")
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
