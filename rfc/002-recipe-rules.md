@@ -93,13 +93,6 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** Regex.
 - **Why:** Allows mechanical bumping when this recipe (not the upstream app) changes.
 
-#### `supported-os-known`
-
-- **Level:** ERROR
-- **What:** Every entry in `metadata.supported_os` must be a key under `baselines:` in the repo-level `os-baselines.yaml`.
-- **How to check:** Load `os-baselines.yaml`, intersect.
-- **Why:** Without a baseline entry, the AF API cannot compute total resource requirements for the OS the recipe targets.
-
 #### `short-description-required`
 
 - **Level:** ERROR
