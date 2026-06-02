@@ -172,6 +172,27 @@ jobs:
           print(f"Generated .env for {recipe.id}: {list(params.keys())}")
           EOF
 
+      - name: Ensure Docker Compose v2 is available
+        run: |
+          set -euo pipefail
+          # The IF default runner image ships Docker but not the Compose v2 plugin
+          # (see the structural-only check in recipe-pipeline.yaml). Install it as a
+          # user-level CLI plugin so `docker compose` works for the steps below.
+          if docker compose version >/dev/null 2>&1; then
+            echo "docker compose already present:"
+            docker compose version
+            exit 0
+          fi
+          arch="$(uname -m)"
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${arch}" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+        env:
+          COMPOSE_VERSION: v5.1.4
+
       - name: Start services
         run: |
           docker compose \
