@@ -86,11 +86,36 @@ jobs:
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
 
+      - name: Pick af-core ref (PR branch if it exists, else main)
+        id: af_core_ref
+        env:
+          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GH_APP_TOKEN: ${{ env.GH_APP_TOKEN }}
+        run: |
+          # Refuse anything that isn't a legal git branch name.
+          if [[ ! "$PR_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Invalid branch name '$PR_BRANCH' — falling back to main"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token $GH_APP_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/IONOS-Server-Technology/af-core/branches/$PR_BRANCH")
+          if [ "$status" = "200" ]; then
+            echo "af-core has branch '$PR_BRANCH' — using it"
+            echo "ref=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "af-core branch lookup returned HTTP $status — falling back to main"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout af-core
         uses: actions/checkout@v4
         with:
           repository: IONOS-Server-Technology/af-core
           path: af-core-src
+          ref: ${{ steps.af_core_ref.outputs.ref }}
           token: ${{ env.GH_APP_TOKEN }}
 
       - uses: actions/setup-python@v5
