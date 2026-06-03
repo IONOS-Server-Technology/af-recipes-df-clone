@@ -38,21 +38,6 @@ parameters:
     auto_generate: true
     description: Password for the WUD web UI (auto-generated if not provided). Log in at updates.<base_domain> with username "admin".
 
-notes: >
-  Composition app — auto-included by af-core when the customer selects at least one docker-compose recipe.
-  Hidden from the customer-facing catalogue (enabled: false). The WUD web UI is accessible at
-  updates.<base_domain> behind HTTP Basic auth (username: admin).
-  SECURITY: The Docker socket is mounted read-write. This is an accepted architectural trade-off
-  required for WUD's one-click apply feature (dockercompose trigger rewrites compose files and
-  recreates containers). A compromised WUD container has root-equivalent access to the host via
-  the Docker daemon. Mitigations: auto-generated strong password, TLS via Traefik + Let's Encrypt,
-  WUD only accessible at updates.<base_domain> (not on a raw port), wud.watch=false prevents
-  WUD from updating itself.
-  Notification triggers (ntfy/SMTP) ship in .env but are disabled by default; the customer enables
-  them by editing /opt/wud/.env and restarting the service.
-  af-core injects /opt/<app>:/opt/<app> bind-mounts for each recipe that carries the
-  dockercompose.apply trigger label, enabling one-click updates from the WUD UI.
-
 preinstall_cmds:
   - docker network create traefik-net 2>/dev/null || true
 
