@@ -10,22 +10,11 @@ import yaml
 def main():
     repo_root = Path(__file__).resolve().parent.parent
     recipes_dir = repo_root / "recipes"
-    baselines_file = repo_root / "os-baselines.yaml"
     output_file = repo_root / "catalogue.json"
 
     if not recipes_dir.is_dir():
         print(f"Error: {recipes_dir} not found", file=sys.stderr)
         sys.exit(1)
-
-    # Load OS baselines
-    if not baselines_file.is_file():
-        print(f"Error: {baselines_file} not found", file=sys.stderr)
-        sys.exit(1)
-
-    with open(baselines_file) as f:
-        os_baselines = yaml.safe_load(f).get("baselines", {})
-
-    print(f"Loaded OS baselines: {', '.join(os_baselines.keys())}")
 
     recipes = []
     errors = []
@@ -64,13 +53,6 @@ def main():
                 )
                 continue
 
-            # Validate supported_os entries have matching baselines
-            for os_name in meta.get("supported_os", []):
-                if os_name not in os_baselines:
-                    errors.append(
-                        f"{recipe_name}: supported_os '{os_name}' has no entry in os-baselines.yaml"
-                    )
-
             # Build catalogue entry
             entry = {
                 "id": meta["id"],
@@ -85,13 +67,10 @@ def main():
                 "recipe_type": meta["recipe_type"],
                 "app_min_ram_mb": meta["app_min_ram_mb"],
                 "app_min_disk_mb": meta["app_min_disk_mb"],
-                "supported_os": meta.get("supported_os", []),
                 "ports": meta.get("ports", []),
                 "parameters": [
                     p["name"] for p in meta.get("parameters", [])
                 ],
-                "incompatible_with_apps": meta.get("incompatible_with_apps", []),
-                "notes": meta.get("notes", None),
             }
             recipes.append(entry)
             print(f"  OK: {recipe_name}")
@@ -106,7 +85,6 @@ def main():
         sys.exit(1)
 
     catalogue = {
-        "os_baselines": os_baselines,
         "recipe_count": len(recipes),
         "recipes": recipes,
     }

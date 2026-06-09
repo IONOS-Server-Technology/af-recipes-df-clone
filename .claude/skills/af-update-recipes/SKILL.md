@@ -9,7 +9,7 @@ The other half of WP4 alongside `af-create-recipe`: where that skill helps creat
 
 ## Operating mode
 
-- Run from inside a clone of `af-recipes`. The CWD must be the repo root (where `recipes/`, `rfc/`, `os-baselines.yaml` live). If the bash command in Phase 1 fails because those paths don't exist, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
+- Run from inside a clone of `af-recipes`. The CWD must be the repo root (where `recipes/` and `rfc/` live). If the bash command in Phase 1 fails because those paths don't exist, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
 - This skill **never** commits, pushes, or opens PRs on its own. It produces patches and per-recipe handover blurbs. The developer ships them.
 - The skill does not depend on `af-validate` or any external CLI — RFC-002 is the canonical rule list and is applied by the agent. If `af-validate` is also installed, the developer can cross-check independently.
 
@@ -23,7 +23,7 @@ Parse the trigger for: which rules to sweep against. Patterns:
 
 Then, in this order:
 
-1. **CWD check.** If `recipes/`, `rfc/`, or `os-baselines.yaml` are not visible from the current directory, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
+1. **CWD check.** If `recipes/` or `rfc/` are not visible from the current directory, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
 2. **Branch state.** Run `git status` — if there are uncommitted changes, ask the developer whether to proceed (the per-recipe patches will be written into the working tree; mixing them with unrelated edits is messy).
 3. **Missing-info check.** If the trigger uses `--since` but no ref is given, ask once.
 

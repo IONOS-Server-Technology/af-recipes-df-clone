@@ -9,7 +9,7 @@ Phase 1 of WP4 (IF-548) — a developer-facing recipe authoring loop. The develo
 
 ## Operating mode
 
-- Run from inside a clone of `af-recipes`. The CWD must be the repo root (where `recipes/`, `os-baselines.yaml`, `rfc/` live). If a Bash command in Phase 1 fails because those paths don't exist, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
+- Run from inside a clone of `af-recipes`. The CWD must be the repo root (where `recipes/` and `rfc/` live). If a Bash command in Phase 1 fails because those paths don't exist, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
 - This skill **never** commits, pushes, or opens PRs on its own. It produces files and a handover blurb. The developer ships it.
 - This skill **does not depend on `af-validate` or any external CLI**. The validation rules live in `rfc/002-recipe-rules.md` in this repo and are applied by the agent itself in Phase 4. If `af-validate` is also installed, the developer can run it as an independent cross-check after the handover — it implements the same rules from the same RFC.
 
@@ -17,7 +17,7 @@ Phase 1 of WP4 (IF-548) — a developer-facing recipe authoring loop. The develo
 
 Parse the trigger for: app slug, upstream URL (GitHub or Docker Hub), and any extra flags (`native`, a specific version pin, "no postgres", etc.). Then, in this order:
 
-1. **CWD check.** If `recipes/`, `rfc/`, or `os-baselines.yaml` are not visible from the current directory, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
+1. **CWD check.** If `recipes/` or `rfc/` are not visible from the current directory, stop and tell the developer to `cd` into the af-recipes clone before re-triggering.
 2. **Conflict check.** Run `ls recipes/` and look for the slug. If it already exists, stop and ask whether the intent is an update (this skill is for *new* recipes only).
 3. **Missing-info check.** If the trigger gave only a slug with no upstream, ask once for the source. If the trigger gave nothing recognizable, ask for the app name and a source.
 
@@ -109,7 +109,6 @@ This developer's environment blocks Bash command chaining with `&&` or `;`. Make
 - [`rfc/001-recipe-schema.md`](../../../rfc/001-recipe-schema.md) — formal schema spec, what each file is for
 - `references/recipe-anatomy.md` — annotated walkthrough of `recipes/n8n/` as a learning template
 - `recipes/n8n/` — canonical Postgres-backed example
-- `os-baselines.yaml` — OS overhead reference for resource calculation
 
 ## Out-of-band notes for the developer
 

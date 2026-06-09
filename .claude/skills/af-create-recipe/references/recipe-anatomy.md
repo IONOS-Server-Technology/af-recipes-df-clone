@@ -23,9 +23,6 @@ upstream_url: https://github.com/n8n-io/n8n
 app_min_ram_mb: 2048              # APP-ONLY. OS baseline (512 MB on ubuntu-26.04) is added once by the AF API.
 app_min_disk_mb: 20480            # Same logic. CPU is OS-baseline only — don't declare per-app.
 
-supported_os:                     # Must intersect os-baselines.yaml. Ubuntu 26.04 is the AF default.
-  - ubuntu-26.04
-
 ports:                            # Network ports the *app declares*. Public ones are reachable from the internet.
   - port: 5678
     protocol: tcp
