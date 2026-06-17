@@ -13,6 +13,10 @@ on:
         description: "Comma-separated recipe names (leave empty for all changed)"
         required: false
         default: ""
+      image_uuid:
+        description: "IONOS image UUID to use directly (skips image discovery)"
+        required: false
+        default: ""
 
 jobs:
   detect-changed-recipes:
@@ -337,6 +341,7 @@ jobs:
 
       - name: Discover Ubuntu 26.04 image UUID
         id: image
+        if: ${{ inputs.image_uuid == '' }}
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
@@ -395,7 +400,7 @@ jobs:
           AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
         run: |
           python scripts/run-imagetester.py \
-            --image-id "${{ steps.image.outputs.uuid }}" \
+            --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
