@@ -169,6 +169,23 @@ These rules enforce RFC-001 §4.6 — every customer-visible recipe has a logo, 
 - **How to check:** For each parameter, if `auto_generate` is true and `type != password`, fail.
 - **Why:** The AF API generates a 32-char `[a-zA-Z0-9]` value; only meaningful for secret-type fields.
 
+#### `param-value-charset`
+
+- **Level:** ERROR
+- **What:** Every parameter `default` value matches the charset allowed for its declared `type`:
+  - `domain`: hostname pattern `^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`
+  - `boolean`: exactly `true` or `false`
+  - `string` / `password` / any other type: no newline characters (`\n`, `\r`) and no unquoted
+    shell metacharacters (`` ` ``, `$`, `(`, `)`, `;`, `|`, `&`, `<`, `>`, `\`)
+- **How to check:** For each parameter with a `default`, validate the value against the pattern
+  for its type.
+- **Why:** af-recipes does not escape or quote parameter values when rendering — the af-core
+  renderer writes `.env.template` verbatim, and the values are later consumed by Docker Compose
+  interpolation. Runtime safety for recipe values comes from the af-api input-validation boundary,
+  not from this catalogue. A declared `default` containing shell metacharacters or newlines is
+  therefore either an injection-unsafe value or, at best, an authoring mistake — catch it at
+  recipe-author time rather than relying on a downstream consumer to neutralise it.
+
 ### 3.5 docker-compose.yaml (skipped for `native`)
 
 #### `compose-valid-yaml`
