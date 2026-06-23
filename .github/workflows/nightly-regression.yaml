@@ -31,6 +31,11 @@ jobs:
           echo "recipes=$recipes" >> "$GITHUB_OUTPUT"
 
   test-recipes:
+    container:
+      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
+      credentials:
+        username: ${{ secrets.DOCKER_REGISTRY_USER }}
+        password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
     name: Test Recipe - ${{ matrix.recipe }}
     needs: discover-recipes
     runs-on:
@@ -58,10 +63,6 @@ jobs:
           path: af-core-src
           token: ${{ env.GH_APP_TOKEN }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Install dependencies
         run: pip install ./af-core-src
 
@@ -76,15 +77,6 @@ jobs:
         run: |
           cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
           echo "cloudinit_file=/tmp/cloudinit.txt" >> "$GITHUB_OUTPUT"
-
-      - name: Install ionosctl
-        run: |
-          if ! command -v ionosctl &> /dev/null; then
-            echo "Installing ionosctl..."
-            curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
-            tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/
-            chmod +x /usr/local/bin/ionosctl
-          fi
 
       - name: Get Ubuntu 22.04 image UUID
         id: image
