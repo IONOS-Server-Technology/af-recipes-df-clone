@@ -36,6 +36,27 @@ jobs:
           else
             changed=$(git diff --name-only origin/main...HEAD)
             recipes=$(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u | jq -c -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+            # If an auto-inject recipe changed but no user-selectable recipe is in the matrix,
+            # add a carrier recipe so the auto-inject health check can run on a real VM.
+            has_auto_inject=false
+            for r in $(echo "$changed" | grep -E '^recipes/[^/]+/' | cut -d/ -f2 | sort -u); do
+              if grep -q '^docker_auto_inject:[[:space:]]*true' "recipes/$r/metadata.yaml" 2>/dev/null; then
+                has_auto_inject=true
+                break
+              fi
+            done
+            if [ "$has_auto_inject" = "true" ]; then
+              # Remove auto-inject recipes from the matrix (they cannot be deployed
+              # standalone — /compose returns recipe_not_selectable) and add a
+              # carrier recipe so the auto-inject health check runs on a real VM.
+              filtered='[]'
+              for r in $(echo "$recipes" | jq -r '.[]'); do
+                if ! grep -q '^docker_auto_inject:[[:space:]]*true' "recipes/$r/metadata.yaml" 2>/dev/null; then
+                  filtered=$(echo "$filtered" | jq -c --arg r "$r" '. + [$r]')
+                fi
+              done
+              recipes=$(echo "$filtered" | jq -c '. + ["n8n"] | unique')
+            fi
           fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 

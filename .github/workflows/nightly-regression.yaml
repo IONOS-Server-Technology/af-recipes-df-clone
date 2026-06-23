@@ -18,7 +18,16 @@ jobs:
       - name: Discover all recipes
         id: discover
         run: |
-          recipes=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | sort' < <(ls -d recipes/*/ | xargs -n1 basename))
+          # Exclude docker_auto_inject recipes — they cannot be deployed standalone
+          # and are covered by the auto-inject health check step in each docker-compose run.
+          all_recipes=$(ls -d recipes/*/ | xargs -n1 basename)
+          recipes=$(
+            for r in $all_recipes; do
+              meta="recipes/$r/metadata.yaml"
+              grep -q '^docker_auto_inject:[[:space:]]*true' "$meta" 2>/dev/null && continue
+              echo "$r"
+            done | jq -R -s -c 'split("\n") | map(select(length > 0)) | sort'
+          )
           echo "recipes=$recipes" >> "$GITHUB_OUTPUT"
 
   test-recipes:
@@ -170,6 +179,22 @@ jobs:
               -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
               root@${{ steps.wait.outputs.vm_ip }} \
               "bash -x /tmp/health-check.sh"
+
+      - name: Check auto-inject recipes
+        run: |
+          recipe_type=$(grep '^recipe_type:' "recipes/${{ matrix.recipe }}/metadata.yaml" | awk '{print $2}')
+          if [ "$recipe_type" != "docker-compose" ]; then
+            echo "Skipping auto-inject check for native recipe: ${{ matrix.recipe }}"
+            exit 0
+          fi
+          echo "Running auto-inject health checks for docker-compose recipe: ${{ matrix.recipe }}"
+          SSH_KEY_FILE=$(mktemp)
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > "$SSH_KEY_FILE"
+          chmod 600 "$SSH_KEY_FILE"
+          bash tests/auto-inject/run-auto-inject-checks.sh \
+            "${{ steps.wait.outputs.vm_ip }}" \
+            "$SSH_KEY_FILE"
+          rm -f "$SSH_KEY_FILE"
 
       - name: Destroy VM
         if: always()
