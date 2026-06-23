@@ -37,7 +37,7 @@ def main() -> int:
     payload = {
         "applications": applications,
         "credentials": {
-            "root_password": args.root_password or random_password(),
+            "root_credentials": args.root_password or random_password(),
             "ssh_public_key": args.ssh_public_key,
         },
         "base_os": args.base_os,
