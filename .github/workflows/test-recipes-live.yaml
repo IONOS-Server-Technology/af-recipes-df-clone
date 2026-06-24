@@ -397,7 +397,13 @@ jobs:
           python scripts/call-compose.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
-            "${{ matrix.recipe }}" > /tmp/cloudinit.yaml
+            "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
+          
+          echo "patching"
+          python scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
+          echo "...done"
+          
+          cat /tmp/cloudinit.yaml
 
       - name: Probe /bootstrap with the JWT before booting the VM
         # Calls /compose and /bootstrap from a single Python process so the
