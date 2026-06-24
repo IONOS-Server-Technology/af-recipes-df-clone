@@ -36,11 +36,11 @@ def main() -> int:
 
     payload = {
         "applications": applications,
-        "credentials": {
+        "root_credentials": {
             "root_password": args.root_password or random_password(),
             "ssh_public_key": args.ssh_public_key,
         },
-        "base_os": args.base_os,
+        # "base_os": args.base_os,
     }
 
     resp = requests.post(f"{args.api_url}/api/v1/compose", json=payload, timeout=30)
