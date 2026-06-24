@@ -38,7 +38,7 @@ def main() -> int:
 
     compose_body = {
         "applications": applications,
-        "credentials": {
+        "root_credentials": {
             "root_password": random_password(),
             "ssh_public_key": args.ssh_public_key,
         },
