@@ -42,7 +42,7 @@ def main() -> int:
             "root_password": random_password(),
             "ssh_public_key": args.ssh_public_key,
         },
-        "base_os": "ubuntu-26.04",
+        # "base_os": "ubuntu-26.04",
     }
 
     print(f"=== POST {args.api_url}/api/v1/compose ===")
