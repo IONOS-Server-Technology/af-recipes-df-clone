@@ -61,7 +61,7 @@ af-recipes/
 | `parameters` | list[parameter] | yes | Customer-facing parameters (see §4.4). |
 | `incompatible_with_apps` | list[string] | no | App IDs that cannot be co-installed (e.g., GPU conflicts, port clashes). Cloud Panel uses this to prevent invalid combinations during app selection. |
 | `notes` | string | no | Free-text notes (caveats, limitations). |
-| `composition` | boolean | no | If `true`, marks this recipe as a **composition app** — auto-injected by af-core when the customer selects at least one `recipe_type: docker-compose` recipe. Composition apps are hidden from the customer-facing catalogue (`enabled: false`) and are not customer-selectable. See §4.5. |
+| `docker_auto_inject` | boolean | no | If `true`, this recipe is **auto-injected** by af-core whenever the customer's selection includes at least one `recipe_type: docker-compose` recipe. Such recipes must themselves be `docker-compose`, must ship `enabled: false` (hidden from the catalogue), and are rejected by `POST /api/v1/compose` if selected directly. See §4.5. |
 | `logo_url` | string | conditional | HTTPS URL to the logo served from the IONOS Object Storage bucket. Required for `enabled: true` recipes. See §4.6. |
 | `logo_sha256` | string | conditional | SHA-256 (lowercase hex) of the logo file. Required when `logo_url` is set. |
 | `logo_license` | string | conditional | License or usage basis (e.g. `CC-BY-SA-4.0`, `MIT`, `trademark-nominative-fair-use`). Required when `logo_url` is set. |
@@ -104,18 +104,20 @@ af-recipes/
 | `description` | string | no | Help text for the customer. |
 | `validation` | string | no | Regex pattern for validation. |
 
-### 4.5 Composition Apps
+### 4.5 Auto-injected recipes (composition apps)
 
-A **composition app** is a recipe that af-core automatically injects alongside any customer-selected `docker-compose` recipe. It is infrastructure the AF platform manages transparently — not a user-selectable application.
+A recipe with `docker_auto_inject: true` is **auto-injected** by af-core onto every VM whose customer selection contains at least one `recipe_type: docker-compose` recipe. It is infrastructure the AF platform manages transparently — not a user-selectable application. (Such recipes are also referred to as *composition apps*.)
 
-Rules:
-- `composition: true` implies `enabled: false`. The recipe never appears in the customer-facing catalogue.
-- af-core unconditionally injects composition apps when at least one `docker-compose` recipe is selected.
-- af-core may inject additional volumes, networks, or labels into a composition app's `docker-compose.yaml` at render time (e.g. `/opt/<app>:/opt/<app>` bind-mounts for applyable stacks).
+Rules (all enforced by `af-validate`, the renderer, or `/api/v1/compose`):
+- **Must be disabled.** `docker_auto_inject: true` requires `enabled: false` — the recipe never appears in the customer-facing catalogue. `af-validate` enforces this (`auto-inject-must-be-disabled`).
+- **Must be docker-compose.** Auto-inject recipes are themselves `recipe_type: docker-compose`; the renderer only injects recipes of that type.
+- **Must ship an executable `health-check.sh`.** `af-validate` enforces this (`auto-inject-health-check-required`); the test pipeline runs it (see IF-940).
+- **Conditional injection.** af-core injects auto-inject recipes **only when** the customer's selection (excluding any auto-inject recipes) contains at least one `docker-compose` recipe. A native-only selection injects nothing. Injection order in the install script is: Traefik → auto-inject recipes (sorted by id) → customer apps.
+- **Not selectable.** `POST /api/v1/compose` rejects any selection that names an auto-inject recipe directly, with `error: recipe_not_selectable`.
 
-**Security note for composition apps with RW Docker socket access:** Mounting `/var/run/docker.sock` read-write (as `wud` does) grants root-equivalent host access to the container. This is the accepted architectural trade-off for apply-capable update tooling. Recipe authors must document this in the `notes` field and ensure defence-in-depth (TLS, strong auth, no raw-port exposure).
+**Security note (RW Docker socket):** Mounting `/var/run/docker.sock` read-write (as `wud` does) grants root-equivalent host access to the container. This is the accepted architectural trade-off for apply-capable update tooling; such recipes must rely on defence-in-depth (TLS, strong auth, no raw-port exposure).
 
-Current composition apps:
+Current auto-inject recipes:
 
 | Recipe | Role |
 |---|---|
