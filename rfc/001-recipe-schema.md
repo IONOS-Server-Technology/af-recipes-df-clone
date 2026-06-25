@@ -58,9 +58,8 @@ af-recipes/
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
 | `ports` | list[port] | no | Network ports (see §4.3). |
-| `parameters` | list[parameter] | yes | Customer-facing parameters (see §4.4). |
-| `incompatible_with_apps` | list[string] | no | App IDs that cannot be co-installed (e.g., GPU conflicts, port clashes). Cloud Panel uses this to prevent invalid combinations during app selection. |
-| `notes` | string | no | Free-text notes (caveats, limitations). |
+| `parameters` | list[parameter] | no | Recipe-author documentation only — **no longer consumed at runtime** (IF-944). The API does not expose, accept, validate, or substitute them, and the `{{PARAM}}` placeholder mechanism has been removed (`.env.template` must contain literal values). Still shape-validated by `af-validate`. See §4.4. |
+| `preinstall_cmds` | list[string] | no | Shell commands run before the recipe's compose/install step (e.g. `docker network create …`). |
 | `docker_auto_inject` | boolean | no | If `true`, this recipe is **auto-injected** by af-core whenever the customer's selection includes at least one `recipe_type: docker-compose` recipe. Such recipes must themselves be `docker-compose`, must ship `enabled: false` (hidden from the catalogue), and are rejected by `POST /api/v1/compose` if selected directly. See §4.5. |
 | `logo_url` | string | conditional | HTTPS URL to the logo served from the IONOS Object Storage bucket. Required for `enabled: true` recipes. See §4.6. |
 | `logo_sha256` | string | conditional | SHA-256 (lowercase hex) of the logo file. Required when `logo_url` is set. |
@@ -92,6 +91,12 @@ af-recipes/
 | `description` | string | yes | What this port is for (e.g., "Web UI"). |
 
 ### 4.4 Parameter Object
+
+> **Deprecated at runtime (IF-944).** Parameters are no longer consumed by the AF API
+> or af-core — not exposed via `/catalogue`, not accepted by `/compose`, not substituted
+> into `.env`. The block is retained only as recipe-author documentation and is
+> shape-validated by `af-validate`; the `{{PARAM}}` placeholder mechanism has been
+> removed. The fields below describe the original (pre-IF-944) design.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
