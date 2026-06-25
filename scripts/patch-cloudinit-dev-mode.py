@@ -58,7 +58,8 @@ def patch_cloud_init(text: str) -> str:
     #     15 * * * * root ship_logs
     #   path: /etc/crontab
     #   append: true
-    doc["write_files"] = [{"content": "", "path": "/etc/app-factory/.dev-mode-enabled", "append": True}]
+    doc["write_files"] = [{"content": "", "path": "/etc/app-factory/.dev-mode-enabled", "append": True},
+                          {"content": "", "path": "/etc/app-factory/.finalize-disabled", "append": True}]
 
     # safe_dump drops the leading '#cloud-config' comment that cloud-init
     # requires, so re-prepend it. width is set high so the long JWE token in
