@@ -33,6 +33,22 @@ jobs:
       - name: Detect changed recipe directories
         id: detect
         run: |
+          # Keep only recipes marked `enabled: true` in metadata.yaml. Disabled
+          # recipes cannot be deployed via /compose — af-core's validator rejects
+          # them with recipe_not_found (see af_core/validator.py) — so they would
+          # always fail at the cloud-init step. Live-test only activated recipes.
+          filter_enabled() {
+            local out='[]'
+            for r in $(echo "$1" | jq -r '.[]'); do
+              if grep -q '^enabled:[[:space:]]*true' "recipes/$r/metadata.yaml" 2>/dev/null; then
+                out=$(echo "$out" | jq -c --arg r "$r" '. + [$r]')
+              else
+                echo "Skipping non-enabled recipe: $r" >&2
+              fi
+            done
+            echo "$out"
+          }
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -62,6 +78,10 @@ jobs:
               recipes=$(echo "$filtered" | jq -c '. + ["n8n"] | unique')
             fi
           fi
+          # Restrict the matrix to activated (enabled: true) recipes regardless of
+          # how it was assembled above. The auto-inject carrier (n8n) is enabled,
+          # so it survives this filter.
+          recipes=$(filter_enabled "$recipes")
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 
   trigger-af-api-build:
@@ -487,15 +507,27 @@ jobs:
     name: Report Test Results
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
-    needs: [test-recipes]
+    needs: [detect-changed-recipes, test-recipes]
     if: always()
     steps:
       - name: Check test status
         run: |
+          if [ "${{ needs.detect-changed-recipes.result }}" != "success" ]; then
+            echo "Recipe detection failed"
+            exit 1
+          fi
+          # An empty matrix means no activated recipe was in scope (e.g. only
+          # disabled recipes changed). That's a clean no-op, not a failure —
+          # test-recipes is 'skipped' in that case.
+          count=$(echo '${{ needs.detect-changed-recipes.outputs.recipes }}' | jq 'length' 2>/dev/null || echo 0)
+          if [ "${count:-0}" = "0" ]; then
+            echo "No activated recipes to test — nothing to do."
+            exit 0
+          fi
           if [ "${{ needs.test-recipes.result }}" == "success" ]; then
             echo "All recipe tests passed!"
             exit 0
           else
-            echo "Some recipe tests failed"
+            echo "Some recipe tests failed (test-recipes=${{ needs.test-recipes.result }})"
             exit 1
           fi
