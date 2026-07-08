@@ -1,30 +1,45 @@
 #!/usr/bin/env bash
+# health-check.sh — health check for Immich.
+# With a URL arg: probes /api/server/ping at that URL directly.
+# Without a URL arg (Docker CI mode, run on the target VM): waits for the
+# immich-server container's Docker healthcheck to report healthy — no
+# published host port required.
 set -euo pipefail
 
-URL="${1:-http://localhost:2283}"
-MAX_WAIT=300
-INTERVAL=10
-ELAPSED=0
+URL="${1:-}"
+CONTAINER_MATCH="immich-server"
 
-echo "Waiting for Immich at ${URL}/api/server/ping ..."
+if [ -n "$URL" ]; then
+  if curl -fsS --max-time 10 "${URL}/api/server/ping" > /dev/null 2>&1; then
+    echo "Immich is healthy"
+    exit 0
+  fi
+  echo "Immich health check failed at ${URL}/api/server/ping"
+  exit 1
+fi
 
-while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
-    if curl -fsS --max-time 5 "${URL}/api/server/ping" > /dev/null 2>&1; then
-        echo "Immich is healthy after ${ELAPSED}s"
-        exit 0
+# No URL provided: wait for Docker's own healthcheck to report healthy.
+max_wait=300
+waited=0
+while [ "$waited" -lt "$max_wait" ]; do
+  CONTAINER=$(docker ps --filter "name=${CONTAINER_MATCH}" --format '{{.Names}}' 2>/dev/null | head -1)
+  if [ -n "$CONTAINER" ]; then
+    STATUS=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER" 2>/dev/null || echo "unknown")
+    if [ "$STATUS" = "healthy" ]; then
+      echo "Immich container ${CONTAINER} is healthy after ${waited}s"
+      exit 0
     fi
-    echo "  Not ready yet... (${ELAPSED}s / ${MAX_WAIT}s)"
-    sleep "$INTERVAL"
-    ELAPSED=$((ELAPSED + INTERVAL))
+  fi
+  echo "  Not ready yet... (${waited}s / ${max_wait}s, status=${STATUS:-none})"
+  sleep 5
+  waited=$((waited + 5))
 done
 
-echo "ERROR: Immich did not become healthy within ${MAX_WAIT}s"
+echo "ERROR: Immich did not become healthy within ${max_wait}s"
 echo "--- docker ps -a ---"
 docker ps -a 2>&1 || true
-echo "--- immich-server logs (last 50 lines) ---"
-docker logs --tail 50 immich-immich-server-1 2>&1 || true
-echo "--- immich-machine-learning logs (last 20 lines) ---"
-docker logs --tail 20 immich-immich-machine-learning-1 2>&1 || true
-echo "--- postgres logs (last 20 lines) ---"
-docker logs --tail 20 immich-postgres-1 2>&1 || true
+echo "--- immich-server logs (last 100) ---"
+docker logs --tail 100 "$(docker ps -a --filter "name=${CONTAINER_MATCH}" --format '{{.Names}}' | head -1)" 2>&1 || true
+echo "--- postgres logs (last 30) ---"
+docker logs --tail 30 "$(docker ps -a --filter 'name=immich-postgres' --format '{{.Names}}' | head -1)" 2>&1 || true
 exit 1
