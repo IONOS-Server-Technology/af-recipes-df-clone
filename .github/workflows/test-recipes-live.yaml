@@ -82,6 +82,15 @@ jobs:
           # how it was assembled above. The auto-inject carrier (n8n) is enabled,
           # so it survives this filter.
           recipes=$(filter_enabled "$recipes")
+          # Report the effective selection — the "Skipping" lines above only show
+          # what was dropped, not what actually ends up in the matrix.
+          count=$(echo "$recipes" | jq 'length')
+          selected=$(echo "$recipes" | jq -r 'join(", ")')
+          echo "Selected $count enabled recipe(s) for live test: ${selected:-<none>}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo "### Recipes selected for live test ($count)" >> "$GITHUB_STEP_SUMMARY"
+            echo "${selected:-_none — no enabled recipe in scope_}" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 
   trigger-af-api-build:
