@@ -411,3 +411,139 @@ Requires `pyyaml` (`pip install pyyaml`).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide, including how to add a
 recipe logo and the logo licensing rules.
+
+## Testing
+
+The CI workflows, and — most importantly — **how to test a branch or a specific
+version**. For the OS image these recipes install onto, see
+[`if-main-ubuntu-2604-af`](https://github.com/IONOS-Server-Technology/if-main-ubuntu-2604-af#ci-pipeline-build_releaseyaml).
+
+### The workflows
+
+| Workflow | Trigger | Where it runs | Cost / time |
+|----------|---------|---------------|-------------|
+| [`recipe-pipeline.yaml`](.github/workflows/recipe-pipeline.yaml) | PR / push to `main` on `recipes/**` or `bin/build-catalogue` | GitHub runner (static + S3 logo sync) | seconds–1 min |
+| [`test-recipes-docker.yaml`](.github/workflows/test-recipes-docker.yaml) | PR to `main` on `recipes/**`, manual | `docker compose` on the runner | ~2–5 min |
+| [`test-recipes-live.yaml`](.github/workflows/test-recipes-live.yaml) | PR to `main` on `recipes/**`, push on `feature/IF-547-**`, manual | IONOS CoreVPS VM + per-branch `af-api` in k8s | ~10–15 min, IONOS quota |
+| [`nightly-regression.yaml`](.github/workflows/nightly-regression.yaml) | Daily `0 2 * * *` UTC, manual | Same VM stack, **all** recipes | ~30–60 min |
+| [`debug-af-api.yaml`](.github/workflows/debug-af-api.yaml) | Manual | Deploys `af-api` and holds it for `kubectl` | as long as you hold it |
+| [`af-api-cleanup.yaml`](.github/workflows/af-api-cleanup.yaml) | Manual | Reaps orphaned ephemeral `af-api` deployments | seconds |
+
+- **`recipe-pipeline.yaml`** — the static gate plus (mutating) logo mirroring:
+  `sync-logos` uploads changed `recipes/<id>/logo.svg` to IONOS Object Storage
+  (`appfactory-dev` on a PR, **prod + dev** on merge to `main`; **fails a logo
+  change that doesn't bump `recipe_version`**); `validate` runs `bin/build-catalogue`
+  and checks required files / compose structure / `.env.template` placeholders;
+  `af-validate-rfc002` runs the [RFC-002](rfc/002-recipe-rules.md) rules and HEADs
+  every `logo_url`. (This replaced the old `validate-recipes.yaml`.)
+- **`test-recipes-docker.yaml`** (Phase 1) — spins up the recipe's
+  `docker-compose.yaml` on the runner, runs `health-check.sh` against `localhost`,
+  tears it down. Matrix = changed compose recipes (native recipes dropped here).
+- **`test-recipes-live.yaml`** (Phase 2) — the production path: builds a per-branch
+  `af-api`, deploys it to a per-run k8s NodePort, renders cloud-init via `/compose`,
+  provisions a **real CoreVPS VM**, and runs the recipe's health check on it. Matrix
+  = changed recipes with `enabled: true`. Pipeline shape:
+
+  ```
+  detect-changed-recipes  →  trigger-af-api-build  →  deploy-af-api
+        →  test-recipes (matrix)                    →  cleanup-af-api (always)
+             ├─ discover "_af" image UUID (or use the image_uuid input)
+             ├─ /compose → cloud-init → patch dev-mode/http
+             ├─ probe /bootstrap with the JWT
+             └─ ImageTester: provision VM, inject cloud-init, run
+                tests/recipe-health-check.conf (SSH probes + health-check.sh on the VM)
+  ```
+- **`nightly-regression.yaml`** — same VM stack, **all** recipes (minus
+  `docker_auto_inject`), rendered locally via `scripts/render-cloudinit.py` on an
+  Ubuntu 22.04 VM. `max-parallel: 3`. Failures show in the Actions UI only.
+- **`debug-af-api.yaml`** — deploys an `af-api` for a chosen `af_recipes_ref` and
+  holds it `hold_minutes` (default 30) so you can attach with your own `kubectl`
+  (`exec`, `logs`). `skip_build=true` reuses the image already in Harbor.
+- **`af-api-cleanup.yaml`** — reaps ephemeral `af-api` deployments a force-cancelled
+  run left behind (`max_age_hours`, default 6.5).
+
+### How to test a branch or a specific version
+
+1. **Recipe change (single-repo):** open a PR touching `recipes/**`. That runs, in
+   parallel, `recipe-pipeline.yaml` (validation), `test-recipes-docker.yaml` (fast),
+   and `test-recipes-live.yaml` (full VM install of every *enabled* changed recipe).
+   No cross-repo setup — `af-api`/`af-core` lookups fall back to `main`.
+2. **Recipe change that needs `af-api`/`af-core` too:** give the other repos a branch
+   with the **same name** (see [Same-name branch resolution](#same-name-branch-resolution)).
+   The live test builds `af-api` from your branch and runs it.
+3. **One recipe on demand (no PR):** dispatch `test-recipes-docker.yaml` (fast) or
+   `test-recipes-live.yaml` (full VM) with `recipes=<name>` (comma-separated for
+   several; empty ⇒ pilot set `n8n,portainer,ollama` for the docker workflow).
+4. **Against a specific OS image version:** dispatch `test-recipes-live.yaml` with
+   `image_uuid=<uuid>` (optionally plus `recipes=<name>`) to skip image discovery:
+
+   ```bash
+   ionosctl image list -o json \
+     | jq -r '.items[] | select(.properties.name | test("_af.qcow2";"i"))
+              | "\(.properties.createdDate) \(.id) \(.properties.name)"' \
+     | sort | tail
+   ```
+5. **Debug a broken `af-api`:** dispatch `debug-af-api.yaml`, then attach with
+   `kubectl` using the deployment name it prints.
+
+### OS-image integration
+
+The OS image repo
+[`if-main-ubuntu-2604-af`](https://github.com/IONOS-Server-Technology/if-main-ubuntu-2604-af)
+calls **into** this repo: after building the image it publishes it to IONOS Cloud
+and dispatches `test-recipes-live.yaml` here with that image's `image_uuid` (and the
+resolved `af-recipes` ref), so *all enabled recipes* are installed on the brand-new
+image, then deletes the throwaway image. A green OS-image build therefore proves the
+image can bootstrap the whole catalogue.
+
+### Same-name branch resolution
+
+For each of `af-api` and `af-core`, the live workflow does:
+
+```
+branch = current af-recipes branch (head.ref on a PR, ref_name otherwise)
+if branch exists on the target repo → use it   else → fall back to main
+```
+
+`af-api` is built from its resolved ref (image tagged with the sanitised branch
+name); `af-core` is passed as `af_core_ref` into that build. `recipe-pipeline.yaml`
+and `test-recipes-docker.yaml` do the same lookup for `af-core`.
+
+**Practical rule:** when a change spans repos, use the **same branch name**
+everywhere (`af-recipes`, `af-api`, `af-core`, and the OS image). Single-repo PRs
+need no setup — missing branches fall back to `main`.
+
+### `test-params.yaml` — recipe-local test inputs
+
+A recipe may ship `recipes/<slug>/test-params.yaml` to supply parameter values that
+`metadata.yaml` declares. Read by `scripts/render-cloudinit.py` and merged with
+auto-generated (`auto_generate: true`) and `default:` values. Format is a flat
+`KEY: value` mapping keyed by parameter `name`. **Required** only when `metadata.yaml`
+has parameters that are neither `auto_generate: true` nor have a `default:` — else the
+renderer aborts with `Missing required parameters: …`. Use obviously fake values
+(`example.com`, `test_*`); they land on a throwaway VM.
+
+```yaml
+# recipes/n8n/test-params.yaml
+APP_DOMAIN: n8n.example.com
+N8N_ADMIN_EMAIL: admin@example.com
+POSTGRES_PASSWORD: "test_postgres_password_123"
+N8N_ENCRYPTION_KEY: "test_encryption_key_1234567890"
+```
+
+### Native recipes
+
+Recipes without `docker-compose.yaml` (`recipe_type: native`, e.g. `claude-code`,
+`gemini-cli`) install directly via `install.sh`. They are **excluded** from the
+docker workflow by design, and included in the live/nightly workflows **only when
+`enabled: true`**. The two native recipes are currently `enabled: false`, so they are
+covered by `recipe-pipeline.yaml` (static) only — no end-to-end VM run yet.
+
+### Pointers
+
+- [docs/health-check-spec.md](docs/health-check-spec.md) — the `health-check.sh` contract.
+- [docs/buckets.md](docs/buckets.md) — logo storage / Object Storage operations.
+- [tests/recipe-health-check.conf](tests/recipe-health-check.conf) — the
+  `python-dwh-testsuite` config the live/nightly workflows drive.
+- `scripts/call-compose.py`, `scripts/probe-bootstrap.py`,
+  `scripts/patch-cloudinit-dev-mode.py` — helpers for talking to the per-branch `af-api`.
