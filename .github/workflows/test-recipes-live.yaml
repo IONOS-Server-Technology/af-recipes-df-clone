@@ -273,6 +273,11 @@ jobs:
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
+    container:
+      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:IF-1139
+      credentials:
+        username: ${{ secrets.DOCKER_REGISTRY_USER }}
+        password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
     needs: [detect-changed-recipes, deploy-af-api]
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
@@ -288,99 +293,6 @@ jobs:
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
-
-      - name: Checkout python-dwh-image-build-algorithm
-        uses: actions/checkout@v5
-        with:
-          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
-          ref: main
-          path: image-builder-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Checkout python-dwh-testsuite
-        uses: actions/checkout@v5
-        with:
-          repository: IONOS-Server-Technology/python-dwh-testsuite
-          path: testsuite-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Install ionosctl
-        run: |
-          curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
-          sudo tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/ ionosctl
-          sudo chmod +x /usr/local/bin/ionosctl
-
-      # ImageBuilder.Util.ImageDownloader does `from sh import aws, qemu_img`
-      # at import-time, so both CLIs must be on PATH before run-imagetester.py
-      # can even import the module. The IF runner image does not bundle them.
-      # aws install copied from if-operative-docker-image (1-BaseImage/Dockerfile):
-      # awscli v2 downloaded from upstream, GPG-verified, installed into
-      # /usr/local/bin.
-      - name: Install qemu-utils
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends qemu-utils
-
-      - name: Install awscli v2
-        working-directory: /tmp
-        run: |
-          curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.1.zip" -o awscliv2.zip
-          curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.1.zip.sig" -o awscliv2.sig
-          cat > aws-cli-pubkey.asc <<'PUBKEY'
-          -----BEGIN PGP PUBLIC KEY BLOCK-----
-
-          mQINBF2Cr7UBEADJZHcgusOJl7ENSyumXh85z0TRV0xJorM2B/JL0kHOyigQluUG
-          ZMLhENaG0bYatdrKP+3H91lvK050pXwnO/R7fB/FSTouki4ciIx5OuLlnJZIxSzx
-          PqGl0mkxImLNbGWoi6Lto0LYxqHN2iQtzlwTVmq9733zd3XfcXrZ3+LblHAgEt5G
-          TfNxEKJ8soPLyWmwDH6HWCnjZ/aIQRBTIQ05uVeEoYxSh6wOai7ss/KveoSNBbYz
-          gbdzoqI2Y8cgH2nbfgp3DSasaLZEdCSsIsK1u05CinE7k2qZ7KgKAUIcT/cR/grk
-          C6VwsnDU0OUCideXcQ8WeHutqvgZH1JgKDbznoIzeQHJD238GEu+eKhRHcz8/jeG
-          94zkcgJOz3KbZGYMiTh277Fvj9zzvZsbMBCedV1BTg3TqgvdX4bdkhf5cH+7NtWO
-          lrFj6UwAsGukBTAOxC0l/dnSmZhJ7Z1KmEWilro/gOrjtOxqRQutlIqG22TaqoPG
-          fYVN+en3Zwbt97kcgZDwqbuykNt64oZWc4XKCa3mprEGC3IbJTBFqglXmZ7l9ywG
-          EEUJYOlb2XrSuPWml39beWdKM8kzr1OjnlOm6+lpTRCBfo0wa9F8YZRhHPAkwKkX
-          XDeOGpWRj4ohOx0d2GWkyV5xyN14p2tQOCdOODmz80yUTgRpPVQUtOEhXQARAQAB
-          tCFBV1MgQ0xJIFRlYW0gPGF3cy1jbGlAYW1hem9uLmNvbT6JAlQEEwEIAD4CGwMF
-          CwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQT7Xbd/1cEYuAURraimMQrMRnJHXAUC
-          aGveYQUJDMpiLAAKCRCmMQrMRnJHXKBYD/9Ab0qQdGiO5hObchG8xh8Rpb4Mjyf6
-          0JrVo6m8GNjNj6BHkSc8fuTQJ/FaEhaQxj3pjZ3GXPrXjIIVChmICLlFuRXYzrXc
-          Pw0lniybypsZEVai5kO0tCNBCCFuMN9RsmmRG8mf7lC4FSTbUDmxG/QlYK+0IV/l
-          uJkzxWa+rySkdpm0JdqumjegNRgObdXHAQDWlubWQHWyZyIQ2B4U7AxqSpcdJp6I
-          S4Zds4wVLd1WE5pquYQ8vS2cNlDm4QNg8wTj58e3lKN47hXHMIb6CHxRnb947oJa
-          pg189LLPR5koh+EorNkA1wu5mAJtJvy5YMsppy2y/kIjp3lyY6AmPT1posgGk70Z
-          CmToEZ5rbd7ARExtlh76A0cabMDFlEHDIK8RNUOSRr7L64+KxOUegKBfQHb9dADY
-          qqiKqpCbKgvtWlds909Ms74JBgr2KwZCSY1HaOxnIr4CY43QRqAq5YHOay/mU+6w
-          hhmdF18vpyK0vfkvvGresWtSXbag7Hkt3XjaEw76BzxQH21EBDqU8WJVjHgU6ru+
-          DJTs+SxgJbaT3hb/vyjlw0lK+hFfhWKRwgOXH8vqducF95NRSUxtS4fpqxWVaw3Q
-          V2OWSjbne99A5EPEySzryFTKbMGwaTlAwMCwYevt4YT6eb7NmFhTx0Fis4TalUs+
-          j+c7Kg92pDx2uQ==
-          =OBAt
-          -----END PGP PUBLIC KEY BLOCK-----
-          PUBKEY
-          gpg --import aws-cli-pubkey.asc
-          gpg --verify awscliv2.sig awscliv2.zip
-          unzip -qq awscliv2.zip
-          sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
-          aws --version
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install Python dependencies
-        # Plugins.Ssh transitively imports pkg_resources (via fs.sshfs /
-        # paramiko); Python 3.12 venvs from actions/setup-python don't
-        # ship setuptools by default. Pin pip+setuptools+wheel first and
-        # smoke-test the import so any breakage shows up here rather
-        # than 90 seconds into a VM run.
-        run: |
-          # setuptools 82.0+ removed pkg_resources; pin to <81 so the
-          # paramiko/fs.sshfs import chain that Plugins.Ssh relies on
-          # still works.
-          pip install --upgrade pip wheel
-          pip install "setuptools<81"
-          pip install ./image-builder-src ./testsuite-src
-          python3 -c "import pkg_resources; print('pkg_resources:', pkg_resources.__file__)"
 
       - name: Generate SSH keypair
         # RSA, not ed25519 — python-dwh-testsuite hardcodes
@@ -423,13 +335,13 @@ jobs:
 
       - name: Generate cloud-init via /compose
         run: |
-          python scripts/call-compose.py \
+          python3 scripts/call-compose.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
           
           echo "patching"
-          python scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
+          python3 scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
           echo "...done"
           
           cat /tmp/cloudinit.yaml
@@ -440,7 +352,7 @@ jobs:
         # the earlier-observed "Token is malformed or cannot be decrypted"
         # we got back from variant 1.
         run: |
-          python scripts/probe-bootstrap.py \
+          python3 scripts/probe-bootstrap.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}"
@@ -455,7 +367,7 @@ jobs:
           # the per-branch af-api Service NodePort.
           AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
         run: |
-          python scripts/run-imagetester.py \
+          python3 scripts/run-imagetester.py \
             --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
