@@ -90,6 +90,9 @@ def main() -> int:
     p = sub.add_parser("delete")
     p.add_argument("resources", nargs="+")
 
+    p = sub.add_parser("reap-af-api")
+    p.add_argument("--max-age-hours", type=float, default=6.5)
+
     p = sub.add_parser("describe")
     p.add_argument("name")
 
@@ -190,6 +193,8 @@ def main() -> int:
         print(f"http://{node_ip}:{node_port}")
     elif args.cmd == "delete":
         k8s.delete(*args.resources)
+    elif args.cmd == "reap-af-api":
+        reap_stale_af_api(k8s, "", int(args.max_age_hours * 3600))
     elif args.cmd == "describe":
         print("--- Deployment ---")
         print(str(k8s.failsafe_kubectl("describe", f"deployment/{args.name}")))
