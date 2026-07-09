@@ -2,6 +2,7 @@
 """CLI wrapper around K8sHelper for af-api deployment management."""
 import argparse
 import base64
+import datetime
 import json
 import os
 import sys
@@ -39,6 +40,37 @@ def ensure_pull_secret(k8s: K8sHelper, registry: str) -> None:
     })
 
 
+def reap_stale_af_api(k8s: K8sHelper, keep_name: str, max_age_seconds: int = 23400) -> None:
+    """Delete leftover ephemeral af-api Deployments/Services from earlier runs
+    whose own cleanup-af-api never ran (force-cancelled run, runner crash, etc).
+    Age gate is 6.5 h: the pipeline's max runtime is 6 h, so anything older is a
+    failed/orphaned run by definition — a concurrent in-flight run can never be
+    that old, and the current run's name is excluded explicitly. Cross-branch on
+    purpose (age is the safety filter). Best-effort: never blocks deploy."""
+    try:
+        out = str(k8s.failsafe_kubectl(
+            "get", "deploy,svc", "-l", "af-api-ephemeral=true", "-o", "json",
+        ))
+        items = json.loads(out).get("items", [])
+    except Exception as exc:
+        print(f"reap: skipped ({exc})", file=sys.stderr)
+        return
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stale = []
+    for it in items:
+        meta = it.get("metadata", {})
+        name = meta.get("name", "")
+        ts = meta.get("creationTimestamp")
+        if not name or name == keep_name or not ts:
+            continue
+        created = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if (now - created).total_seconds() > max_age_seconds:
+            stale.append(f"{it.get('kind', '').lower()}/{name}")
+    if stale:
+        print(f"reap: deleting {len(stale)} stale af-api resource(s): {', '.join(stale)}")
+        k8s.delete(*stale)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -74,6 +106,10 @@ def main() -> int:
     k8s = K8sHelper(kubeconfig())
 
     if args.cmd == "deploy":
+        # Reap leftovers from earlier runs whose own cleanup never ran before
+        # allocating anything new — self-heals orphan accumulation / NodePort
+        # exhaustion. Age-gated, so concurrent in-flight runs are safe.
+        reap_stale_af_api(k8s, args.name)
         # Service first so the NodePort is allocated and we can derive the
         # externally-reachable URL that has to be baked into the af-api
         # container as AF_API_URL — the per-branch deploy must not phone
@@ -81,7 +117,7 @@ def main() -> int:
         k8s.apply({
             "apiVersion": "v1",
             "kind": "Service",
-            "metadata": {"name": args.name},
+            "metadata": {"name": args.name, "labels": {"af-api-ephemeral": "true"}},
             "spec": {
                 "type": "NodePort",
                 "selector": {"app": args.name},
@@ -115,7 +151,7 @@ def main() -> int:
         k8s.apply({
             "apiVersion": "apps/v1",
             "kind": "Deployment",
-            "metadata": {"name": args.name},
+            "metadata": {"name": args.name, "labels": {"af-api-ephemeral": "true"}},
             "spec": {
                 "replicas": 1,
                 "selector": {"matchLabels": {"app": args.name}},
