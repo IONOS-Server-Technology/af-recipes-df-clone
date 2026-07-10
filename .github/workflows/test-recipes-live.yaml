@@ -17,6 +17,23 @@ on:
         description: "IONOS image UUID to use directly (skips image discovery)"
         required: false
         default: ""
+  # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
+  # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
+  workflow_call:
+    inputs:
+      recipes:
+        type: string
+        required: false
+        default: ""
+      image_uuid:
+        type: string
+        required: false
+        default: ""
+      all_enabled:
+        description: "Test every enabled recipe (set by the nightly caller)"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   detect-changed-recipes:
@@ -49,9 +66,12 @@ jobs:
             echo "$out"
           }
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+          if [ -n "${{ inputs.recipes }}" ]; then
+            # explicit list (manual dispatch or a caller passing recipes)
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ inputs.all_enabled }}" = "true" ]; then
+            # manual dispatch without a list, or the nightly caller (workflow_call with
+            # all_enabled=true): test every recipe (filter_enabled narrows to activated).
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
           else
             changed=$(git diff --name-only origin/main...HEAD)

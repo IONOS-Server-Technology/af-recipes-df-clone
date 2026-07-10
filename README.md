@@ -425,7 +425,7 @@ version**. For the OS image these recipes install onto, see
 | [`recipe-pipeline.yaml`](.github/workflows/recipe-pipeline.yaml) | PR / push to `main` on `recipes/**` or `bin/build-catalogue` | GitHub runner (static + S3 logo sync) | seconds–1 min |
 | [`test-recipes-docker.yaml`](.github/workflows/test-recipes-docker.yaml) | PR to `main` on `recipes/**`, manual | `docker compose` on the runner | ~2–5 min |
 | [`test-recipes-live.yaml`](.github/workflows/test-recipes-live.yaml) | PR to `main` on `recipes/**`, push on `feature/IF-547-**`, manual | IONOS CoreVPS VM + per-branch `af-api` in k8s | ~10–15 min, IONOS quota |
-| [`nightly-regression.yaml`](.github/workflows/nightly-regression.yaml) | Daily `0 2 * * *` UTC, manual | Same VM stack, **all** recipes | ~30–60 min |
+| [`nightly-regression.yaml`](.github/workflows/nightly-regression.yaml) | Daily `0 2 * * *` UTC, manual | Reuses `test-recipes-live` via `workflow_call` (all enabled recipes) | ~30–60 min |
 | [`debug-af-api.yaml`](.github/workflows/debug-af-api.yaml) | Manual | Deploys `af-api` and holds it for `kubectl` | as long as you hold it |
 | [`af-api-cleanup.yaml`](.github/workflows/af-api-cleanup.yaml) | Manual | Reaps orphaned ephemeral `af-api` deployments | seconds |
 
@@ -453,9 +453,11 @@ version**. For the OS image these recipes install onto, see
              └─ ImageTester: provision VM, inject cloud-init, run
                 tests/recipe-health-check.conf (SSH probes + health-check.sh on the VM)
   ```
-- **`nightly-regression.yaml`** — same VM stack, **all** recipes (minus
-  `docker_auto_inject`), rendered locally via `scripts/render-cloudinit.py` on an
-  Ubuntu 22.04 VM. `max-parallel: 3`. Failures show in the Actions UI only.
+- **`nightly-regression.yaml`** — a dedicated scheduled workflow that reuses
+  `test-recipes-live.yaml` via `workflow_call` (`with: all_enabled: true`), so the
+  nightly runs the **same** production path over every enabled recipe — same run, no
+  second runner, no separate renderer. Scheduled runs fire only from the default
+  branch; use `workflow_dispatch` to run it by hand.
 - **`debug-af-api.yaml`** — deploys an `af-api` for a chosen `af_recipes_ref` and
   holds it `hold_minutes` (default 30) so you can attach with your own `kubectl`
   (`exec`, `logs`). `skip_build=true` reuses the image already in Harbor.
@@ -516,7 +518,7 @@ need no setup — missing branches fall back to `main`.
 ### `test-params.yaml` — recipe-local test inputs
 
 A recipe may ship `recipes/<slug>/test-params.yaml` to supply parameter values that
-`metadata.yaml` declares. Read by `scripts/render-cloudinit.py` and merged with
+`metadata.yaml` declares. Read by `scripts/call-compose.py` / `probe-bootstrap.py` and merged with
 auto-generated (`auto_generate: true`) and `default:` values. Format is a flat
 `KEY: value` mapping keyed by parameter `name`. **Required** only when `metadata.yaml`
 has parameters that are neither `auto_generate: true` nor have a `default:` — else the

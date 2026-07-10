@@ -1,202 +1,24 @@
 name: Nightly Regression Tests
 
+# Dedicated nightly workflow. It does NOT re-implement anything — it reuses the real
+# live pipeline via `workflow_call`, so the nightly runs the exact production path
+# (af-api /compose + /bootstrap on a real VM) over every enabled recipe. Running in
+# the same run (no trigger-and-wait, no second runner). Scheduled runs fire only from
+# the default branch; use workflow_dispatch to run it by hand.
+
 on:
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  discover-recipes:
-    name: Discover Recipes
-    runs-on:
-      - ${{ vars.IF_DEFAULT_RUNNER }}
-    outputs:
-      recipes: ${{ steps.discover.outputs.recipes }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Discover all recipes
-        id: discover
-        run: |
-          # Exclude docker_auto_inject recipes — they cannot be deployed standalone
-          # and are covered by the auto-inject health check step in each docker-compose run.
-          all_recipes=$(ls -d recipes/*/ | xargs -n1 basename)
-          recipes=$(
-            for r in $all_recipes; do
-              meta="recipes/$r/metadata.yaml"
-              grep -q '^docker_auto_inject:[[:space:]]*true' "$meta" 2>/dev/null && continue
-              echo "$r"
-            done | jq -R -s -c 'split("\n") | map(select(length > 0)) | sort'
-          )
-          echo "recipes=$recipes" >> "$GITHUB_OUTPUT"
-
-  test-recipes:
-    container:
-      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
-      credentials:
-        username: ${{ secrets.DOCKER_REGISTRY_USER }}
-        password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
-    name: Test Recipe - ${{ matrix.recipe }}
-    needs: discover-recipes
-    runs-on:
-      - ${{ vars.IF_DEFAULT_RUNNER }}
-    permissions:
-      id-token: write
-      contents: read
-    strategy:
-      matrix:
-        recipe: ${{ fromJson(needs.discover-recipes.outputs.recipes) }}
-      max-parallel: 3
-      fail-fast: false
-    env:
-      VM_NAME: "nightly-${{ github.run_id }}-${{ matrix.recipe }}-${{ strategy.job-index }}"
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Get CI secrets
-        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
-
-      - name: Checkout af-core
-        uses: actions/checkout@v5
-        with:
-          repository: IONOS-Server-Technology/af-core
-          path: af-core-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Install dependencies
-        run: pip install --break-system-packages ./af-core-src
-
-      - name: Render cloud-init
-        id: render
-        run: |
-          python3 scripts/render-cloudinit.py recipes/${{ matrix.recipe }} > /tmp/cloudinit.yaml
-          echo "Generated cloud-init YAML for recipe: ${{ matrix.recipe }}"
-
-      - name: Save cloud-init to file
-        id: encode
-        run: |
-          cp /tmp/cloudinit.yaml /tmp/cloudinit.txt
-          echo "cloudinit_file=/tmp/cloudinit.txt" >> "$GITHUB_OUTPUT"
-
-      - name: Get Ubuntu 22.04 image UUID
-        id: image
-        run: |
-          image_uuid=$(ionosctl compute image list \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json | jq -r '.items[] | select(.properties.name | contains("ubuntu-22.04")) | .id' | head -1)
-
-          if [ -z "$image_uuid" ]; then
-            echo "ERROR: Could not find Ubuntu 22.04 image"
-            exit 1
-          fi
-
-          echo "image_uuid=$image_uuid" >> "$GITHUB_OUTPUT"
-          echo "Found Ubuntu 22.04 image: $image_uuid"
-
-      - name: Provision VM
-        id: provision
-        run: |
-          echo "Provisioning VM: ${{ env.VM_NAME }}"
-
-          ionosctl compute server create \
-            --name "${{ env.VM_NAME }}" \
-            --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-            --cores 2 \
-            --cpu-family "INTEL_XEON" \
-            --ram 2048 \
-            --volume-size 50 \
-            --volume-type SSD \
-            --image "${{ steps.image.outputs.image_uuid }}" \
-            --user-data "${{ steps.encode.outputs.cloudinit_file }}" \
-            -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-            -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-            -o json > /tmp/vm_response.json
-
-          vm_id=$(jq -r '.id' /tmp/vm_response.json)
-          echo "vm_id=$vm_id" >> "$GITHUB_OUTPUT"
-          echo "VM created with ID: $vm_id"
-
-      - name: Wait for VM to boot and SSH ready
-        id: wait
-        run: |
-          max_attempts=60
-          attempt=0
-          vm_ip=""
-
-          while [ $attempt -lt $max_attempts ]; do
-            attempt=$((attempt + 1))
-
-            ionosctl compute server get \
-              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-              --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              -o json > /tmp/vm_details.json
-
-            vm_ip=$(jq -r '.entities.nics.items[0].properties.ips[0]' /tmp/vm_details.json 2>/dev/null || echo "")
-
-            if [ -n "$vm_ip" ] && [ "$vm_ip" != "null" ]; then
-              echo "VM IP: $vm_ip"
-
-              if timeout 5 ssh -o StrictHostKeyChecking=no \
-                   -o UserKnownHostsFile=/dev/null \
-                   -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
-                   root@$vm_ip "echo 'SSH ready'" 2>/dev/null; then
-                echo "VM is ready for testing"
-                echo "vm_ip=$vm_ip" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
-            fi
-
-            echo "Waiting for VM to boot... (attempt $attempt/$max_attempts)"
-            sleep 10
-          done
-
-          echo "ERROR: VM failed to boot after $max_attempts attempts"
-          exit 1
-
-      - name: Run health check
-        run: |
-          recipe_name="${{ matrix.recipe }}"
-
-          scp -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
-              "recipes/$recipe_name/health-check.sh" \
-              root@${{ steps.wait.outputs.vm_ip }}:/tmp/health-check.sh
-
-          ssh -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -i <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
-              root@${{ steps.wait.outputs.vm_ip }} \
-              "bash -x /tmp/health-check.sh"
-
-      - name: Check auto-inject recipes
-        run: |
-          recipe_type=$(grep '^recipe_type:' "recipes/${{ matrix.recipe }}/metadata.yaml" | awk '{print $2}')
-          if [ "$recipe_type" != "docker-compose" ]; then
-            echo "Skipping auto-inject check for native recipe: ${{ matrix.recipe }}"
-            exit 0
-          fi
-          echo "Running auto-inject health checks for docker-compose recipe: ${{ matrix.recipe }}"
-          SSH_KEY_FILE=$(mktemp)
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > "$SSH_KEY_FILE"
-          chmod 600 "$SSH_KEY_FILE"
-          bash tests/auto-inject/run-auto-inject-checks.sh \
-            "${{ steps.wait.outputs.vm_ip }}" \
-            "$SSH_KEY_FILE"
-          rm -f "$SSH_KEY_FILE"
-
-      - name: Destroy VM
-        if: always()
-        run: |
-          if [ -n "${{ steps.provision.outputs.vm_id }}" ]; then
-            echo "Destroying VM: ${{ env.VM_NAME }}"
-            ionosctl compute server delete \
-              --datacenter-id "${{ secrets.IONOS_DATACENTER_ID }}" \
-              --server-id "${{ steps.provision.outputs.vm_id }}" \
-              -u "${{ env.INSTALLTEST_DCD_USERNAME }}" \
-              -p "${{ env.INSTALLTEST_DCD_PASSWORD }}" \
-              --force || true
-          fi
+  live:
+    name: Live recipe tests (all enabled recipes)
+    uses: ./.github/workflows/test-recipes-live.yaml
+    with:
+      all_enabled: true
+    secrets: inherit
