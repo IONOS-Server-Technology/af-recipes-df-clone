@@ -1,30 +1,43 @@
 #!/usr/bin/env bash
+# health-check.sh — health check for n8n.
+# With a URL arg: probes /healthz at that URL directly.
+# Without a URL arg (Docker CI mode, run on the target VM): waits for the
+# n8n container's Docker healthcheck to report healthy — no published host
+# port required.
 set -euo pipefail
 
-URL="${1:-http://${SERVERIP:-127.0.0.1}:5678}"
-MAX_WAIT=300
-INTERVAL=10
-ELAPSED=0
+URL="${1:-}"
+CONTAINER_MATCH="n8n-n8n"
 
-echo "Waiting for n8n at ${URL}/healthz ..."
+if [ -n "$URL" ]; then
+  if curl -fsS --max-time 10 "${URL}/healthz" > /dev/null 2>&1; then
+    echo "n8n is healthy"
+    exit 0
+  fi
+  echo "n8n health check failed at ${URL}/healthz"
+  exit 1
+fi
 
-while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
-    if curl -fsS --max-time 5 "${URL}/healthz" > /dev/null 2>&1; then
-        echo "n8n is healthy after ${ELAPSED}s"
-        exit 0
+# No URL provided: wait for Docker's own healthcheck to report healthy.
+max_wait=300
+waited=0
+while [ "$waited" -lt "$max_wait" ]; do
+  CONTAINER=$(docker ps --filter "name=${CONTAINER_MATCH}" --format '{{.Names}}' 2>/dev/null | head -1)
+  if [ -n "$CONTAINER" ]; then
+    STATUS=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER" 2>/dev/null || echo "unknown")
+    if [ "$STATUS" = "healthy" ]; then
+      echo "n8n container ${CONTAINER} is healthy after ${waited}s"
+      exit 0
     fi
-    echo "  Not ready yet... (${ELAPSED}s / ${MAX_WAIT}s)"
-    sleep "$INTERVAL"
-    ELAPSED=$((ELAPSED + INTERVAL))
+  fi
+  echo "  Not ready yet... (${waited}s / ${max_wait}s, status=${STATUS:-none})"
+  sleep 5
+  waited=$((waited + 5))
 done
 
-echo "ERROR: n8n did not become healthy within ${MAX_WAIT}s"
+echo "ERROR: n8n did not become healthy within ${max_wait}s"
 echo "--- docker ps -a ---"
 docker ps -a 2>&1 || true
-echo "--- n8n container logs (last 100 lines) ---"
-docker logs --tail 100 n8n-n8n-1 2>&1 || true
-echo "--- n8n inspect (state) ---"
-docker inspect n8n-n8n-1 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); s=d[0].get('State',{}); print('Status:', s.get('Status')); print('ExitCode:', s.get('ExitCode')); print('Error:', s.get('Error'))" 2>/dev/null || true
-echo "--- /opt/n8n/.env (masked) ---"
-cat /opt/n8n/.env 2>&1 | sed 's/=.*/=REDACTED/' || true
+echo "--- n8n logs (last 100) ---"
+docker logs --tail 100 "$(docker ps -a --filter "name=${CONTAINER_MATCH}" --format '{{.Names}}' | head -1)" 2>&1 || true
 exit 1

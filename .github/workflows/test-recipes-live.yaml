@@ -17,6 +17,23 @@ on:
         description: "IONOS image UUID to use directly (skips image discovery)"
         required: false
         default: ""
+  # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
+  # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
+  workflow_call:
+    inputs:
+      recipes:
+        type: string
+        required: false
+        default: ""
+      image_uuid:
+        type: string
+        required: false
+        default: ""
+      all_enabled:
+        description: "Test every enabled recipe (set by the nightly caller)"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   detect-changed-recipes:
@@ -33,9 +50,28 @@ jobs:
       - name: Detect changed recipe directories
         id: detect
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.recipes }}" ]; then
+          # Keep only recipes marked `enabled: true` in metadata.yaml. Disabled
+          # recipes cannot be deployed via /compose — af-core's validator rejects
+          # them with recipe_not_found (see af_core/validator.py) — so they would
+          # always fail at the cloud-init step. Live-test only activated recipes.
+          filter_enabled() {
+            local out='[]'
+            for r in $(echo "$1" | jq -r '.[]'); do
+              if grep -q '^enabled:[[:space:]]*true' "recipes/$r/metadata.yaml" 2>/dev/null; then
+                out=$(echo "$out" | jq -c --arg r "$r" '. + [$r]')
+              else
+                echo "Skipping non-enabled recipe: $r" >&2
+              fi
+            done
+            echo "$out"
+          }
+
+          if [ -n "${{ inputs.recipes }}" ]; then
+            # explicit list (manual dispatch or a caller passing recipes)
             recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ inputs.all_enabled }}" = "true" ]; then
+            # manual dispatch without a list, or the nightly caller (workflow_call with
+            # all_enabled=true): test every recipe (filter_enabled narrows to activated).
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
           else
             changed=$(git diff --name-only origin/main...HEAD)
@@ -61,6 +97,19 @@ jobs:
               done
               recipes=$(echo "$filtered" | jq -c '. + ["n8n"] | unique')
             fi
+          fi
+          # Restrict the matrix to activated (enabled: true) recipes regardless of
+          # how it was assembled above. The auto-inject carrier (n8n) is enabled,
+          # so it survives this filter.
+          recipes=$(filter_enabled "$recipes")
+          # Report the effective selection — the "Skipping" lines above only show
+          # what was dropped, not what actually ends up in the matrix.
+          count=$(echo "$recipes" | jq 'length')
+          selected=$(echo "$recipes" | jq -r 'join(", ")')
+          echo "Selected $count enabled recipe(s) for live test: ${selected:-<none>}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo "### Recipes selected for live test ($count)" >> "$GITHUB_STEP_SUMMARY"
+            echo "${selected:-_none — no enabled recipe in scope_}" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 
@@ -244,6 +293,11 @@ jobs:
 
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
+    container:
+      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:IF-1139
+      credentials:
+        username: ${{ secrets.DOCKER_REGISTRY_USER }}
+        password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
     needs: [detect-changed-recipes, deploy-af-api]
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
@@ -259,99 +313,6 @@ jobs:
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
-
-      - name: Checkout python-dwh-image-build-algorithm
-        uses: actions/checkout@v5
-        with:
-          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
-          ref: main
-          path: image-builder-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Checkout python-dwh-testsuite
-        uses: actions/checkout@v5
-        with:
-          repository: IONOS-Server-Technology/python-dwh-testsuite
-          path: testsuite-src
-          token: ${{ env.GH_APP_TOKEN }}
-
-      - name: Install ionosctl
-        run: |
-          curl -sL https://github.com/ionos-cloud/ionosctl/releases/download/v6.9.9/ionosctl-6.9.9-linux-amd64.tar.gz -o /tmp/ionosctl.tar.gz
-          sudo tar -xzf /tmp/ionosctl.tar.gz -C /usr/local/bin/ ionosctl
-          sudo chmod +x /usr/local/bin/ionosctl
-
-      # ImageBuilder.Util.ImageDownloader does `from sh import aws, qemu_img`
-      # at import-time, so both CLIs must be on PATH before run-imagetester.py
-      # can even import the module. The IF runner image does not bundle them.
-      # aws install copied from if-operative-docker-image (1-BaseImage/Dockerfile):
-      # awscli v2 downloaded from upstream, GPG-verified, installed into
-      # /usr/local/bin.
-      - name: Install qemu-utils
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends qemu-utils
-
-      - name: Install awscli v2
-        working-directory: /tmp
-        run: |
-          curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.1.zip" -o awscliv2.zip
-          curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.1.zip.sig" -o awscliv2.sig
-          cat > aws-cli-pubkey.asc <<'PUBKEY'
-          -----BEGIN PGP PUBLIC KEY BLOCK-----
-
-          mQINBF2Cr7UBEADJZHcgusOJl7ENSyumXh85z0TRV0xJorM2B/JL0kHOyigQluUG
-          ZMLhENaG0bYatdrKP+3H91lvK050pXwnO/R7fB/FSTouki4ciIx5OuLlnJZIxSzx
-          PqGl0mkxImLNbGWoi6Lto0LYxqHN2iQtzlwTVmq9733zd3XfcXrZ3+LblHAgEt5G
-          TfNxEKJ8soPLyWmwDH6HWCnjZ/aIQRBTIQ05uVeEoYxSh6wOai7ss/KveoSNBbYz
-          gbdzoqI2Y8cgH2nbfgp3DSasaLZEdCSsIsK1u05CinE7k2qZ7KgKAUIcT/cR/grk
-          C6VwsnDU0OUCideXcQ8WeHutqvgZH1JgKDbznoIzeQHJD238GEu+eKhRHcz8/jeG
-          94zkcgJOz3KbZGYMiTh277Fvj9zzvZsbMBCedV1BTg3TqgvdX4bdkhf5cH+7NtWO
-          lrFj6UwAsGukBTAOxC0l/dnSmZhJ7Z1KmEWilro/gOrjtOxqRQutlIqG22TaqoPG
-          fYVN+en3Zwbt97kcgZDwqbuykNt64oZWc4XKCa3mprEGC3IbJTBFqglXmZ7l9ywG
-          EEUJYOlb2XrSuPWml39beWdKM8kzr1OjnlOm6+lpTRCBfo0wa9F8YZRhHPAkwKkX
-          XDeOGpWRj4ohOx0d2GWkyV5xyN14p2tQOCdOODmz80yUTgRpPVQUtOEhXQARAQAB
-          tCFBV1MgQ0xJIFRlYW0gPGF3cy1jbGlAYW1hem9uLmNvbT6JAlQEEwEIAD4CGwMF
-          CwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQT7Xbd/1cEYuAURraimMQrMRnJHXAUC
-          aGveYQUJDMpiLAAKCRCmMQrMRnJHXKBYD/9Ab0qQdGiO5hObchG8xh8Rpb4Mjyf6
-          0JrVo6m8GNjNj6BHkSc8fuTQJ/FaEhaQxj3pjZ3GXPrXjIIVChmICLlFuRXYzrXc
-          Pw0lniybypsZEVai5kO0tCNBCCFuMN9RsmmRG8mf7lC4FSTbUDmxG/QlYK+0IV/l
-          uJkzxWa+rySkdpm0JdqumjegNRgObdXHAQDWlubWQHWyZyIQ2B4U7AxqSpcdJp6I
-          S4Zds4wVLd1WE5pquYQ8vS2cNlDm4QNg8wTj58e3lKN47hXHMIb6CHxRnb947oJa
-          pg189LLPR5koh+EorNkA1wu5mAJtJvy5YMsppy2y/kIjp3lyY6AmPT1posgGk70Z
-          CmToEZ5rbd7ARExtlh76A0cabMDFlEHDIK8RNUOSRr7L64+KxOUegKBfQHb9dADY
-          qqiKqpCbKgvtWlds909Ms74JBgr2KwZCSY1HaOxnIr4CY43QRqAq5YHOay/mU+6w
-          hhmdF18vpyK0vfkvvGresWtSXbag7Hkt3XjaEw76BzxQH21EBDqU8WJVjHgU6ru+
-          DJTs+SxgJbaT3hb/vyjlw0lK+hFfhWKRwgOXH8vqducF95NRSUxtS4fpqxWVaw3Q
-          V2OWSjbne99A5EPEySzryFTKbMGwaTlAwMCwYevt4YT6eb7NmFhTx0Fis4TalUs+
-          j+c7Kg92pDx2uQ==
-          =OBAt
-          -----END PGP PUBLIC KEY BLOCK-----
-          PUBKEY
-          gpg --import aws-cli-pubkey.asc
-          gpg --verify awscliv2.sig awscliv2.zip
-          unzip -qq awscliv2.zip
-          sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
-          aws --version
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install Python dependencies
-        # Plugins.Ssh transitively imports pkg_resources (via fs.sshfs /
-        # paramiko); Python 3.12 venvs from actions/setup-python don't
-        # ship setuptools by default. Pin pip+setuptools+wheel first and
-        # smoke-test the import so any breakage shows up here rather
-        # than 90 seconds into a VM run.
-        run: |
-          # setuptools 82.0+ removed pkg_resources; pin to <81 so the
-          # paramiko/fs.sshfs import chain that Plugins.Ssh relies on
-          # still works.
-          pip install --upgrade pip wheel
-          pip install "setuptools<81"
-          pip install ./image-builder-src ./testsuite-src
-          python3 -c "import pkg_resources; print('pkg_resources:', pkg_resources.__file__)"
 
       - name: Generate SSH keypair
         # RSA, not ed25519 — python-dwh-testsuite hardcodes
@@ -394,13 +355,13 @@ jobs:
 
       - name: Generate cloud-init via /compose
         run: |
-          python scripts/call-compose.py \
+          python3 scripts/call-compose.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
           
           echo "patching"
-          python scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
+          python3 scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
           echo "...done"
           
           cat /tmp/cloudinit.yaml
@@ -411,7 +372,7 @@ jobs:
         # the earlier-observed "Token is malformed or cannot be decrypted"
         # we got back from variant 1.
         run: |
-          python scripts/probe-bootstrap.py \
+          python3 scripts/probe-bootstrap.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}"
@@ -426,7 +387,7 @@ jobs:
           # the per-branch af-api Service NodePort.
           AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
         run: |
-          python scripts/run-imagetester.py \
+          python3 scripts/run-imagetester.py \
             --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
@@ -487,15 +448,27 @@ jobs:
     name: Report Test Results
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
-    needs: [test-recipes]
+    needs: [detect-changed-recipes, test-recipes]
     if: always()
     steps:
       - name: Check test status
         run: |
+          if [ "${{ needs.detect-changed-recipes.result }}" != "success" ]; then
+            echo "Recipe detection failed"
+            exit 1
+          fi
+          # An empty matrix means no activated recipe was in scope (e.g. only
+          # disabled recipes changed). That's a clean no-op, not a failure —
+          # test-recipes is 'skipped' in that case.
+          count=$(echo '${{ needs.detect-changed-recipes.outputs.recipes }}' | jq 'length' 2>/dev/null || echo 0)
+          if [ "${count:-0}" = "0" ]; then
+            echo "No activated recipes to test — nothing to do."
+            exit 0
+          fi
           if [ "${{ needs.test-recipes.result }}" == "success" ]; then
             echo "All recipe tests passed!"
             exit 0
           else
-            echo "Some recipe tests failed"
+            echo "Some recipe tests failed (test-recipes=${{ needs.test-recipes.result }})"
             exit 1
           fi

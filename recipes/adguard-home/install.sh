@@ -6,9 +6,6 @@ set -a
 source .env
 set +a
 
-command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
-command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
-
 WG_INTERFACE_IP="${WG_INTERFACE_IP:-10.8.0.1}"
 
 # WireGuard must be running before AdGuard Home can bind to its interface
@@ -31,8 +28,6 @@ if [ ! -f /opt/adguard-home/conf/AdGuardHome.yaml ]; then
   cp AdGuardHome.yaml /opt/adguard-home/conf/AdGuardHome.yaml
 fi
 
-docker-compose up -d
-
 echo ""
 echo "================================================================"
 echo " AdGuard Home is starting up."
@@ -43,17 +38,3 @@ echo "   DNS      : set your DNS to ${WG_INTERFACE_IP} in your"
 echo "              WireGuard peer config (DNS = ${WG_INTERFACE_IP})"
 echo "================================================================"
 echo ""
-
-max_attempts=60
-attempt=0
-while [ $attempt -lt $max_attempts ]; do
-  if curl -fsS "http://${WG_INTERFACE_IP}/admin/" > /dev/null 2>&1; then
-    echo "AdGuard Home is healthy"
-    exit 0
-  fi
-  attempt=$((attempt + 1))
-  sleep 1
-done
-
-echo "Error: AdGuard Home failed to become healthy"
-exit 1

@@ -6,8 +6,6 @@ set -a
 source .env
 set +a
 
-command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
-command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
 command -v openssl >/dev/null || { echo "Error: openssl not found (needed for APR1 hash)"; exit 1; }
 
 [ -n "${BASE_DOMAIN:-}" ] || { echo "Error: BASE_DOMAIN is required but not set"; exit 1; }
@@ -45,24 +43,3 @@ fi
 
 # Restrict .env permissions: it contains the admin password in plaintext.
 chmod 600 .env
-
-docker-compose up -d
-
-# Wait up to 60 s. WUD has no published host port (routes via Traefik), so probe
-# via docker-compose exec to stay inside the container network.
-max_attempts=60
-attempt=0
-while [ $attempt -lt $max_attempts ]; do
-  HTTP_CODE=$(docker-compose exec -T wud \
-    curl -s -o /dev/null -w '%{http_code}' --max-time 3 \
-    http://127.0.0.1:3000/api/registries 2>/dev/null || echo "000")
-  if echo "$HTTP_CODE" | grep -qE '^(200|401)$'; then
-    echo "WUD is healthy (HTTP ${HTTP_CODE})"
-    exit 0
-  fi
-  attempt=$((attempt + 1))
-  sleep 1
-done
-
-echo "Error: WUD failed to become healthy after ${max_attempts}s"
-exit 1

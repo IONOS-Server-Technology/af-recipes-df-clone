@@ -1,0 +1,53 @@
+name: af-api Cleanup (manual)
+
+# Manually reap ephemeral af-api Deployments/Services (label af-api-ephemeral=true)
+# that a run's own cleanup-af-api never removed — e.g. force-cancelled runs.
+# Manual trigger only. Reuses the same age-gated reaper the deploy path runs at
+# start (scripts/k8s_helper.py reap-af-api), just with an overridable age so an
+# operator can reap sooner than the automatic 6.5h policy.
+on:
+  workflow_dispatch:
+    inputs:
+      max_age_hours:
+        description: "Reap ephemeral af-api resources older than this (0 = all). Keep >0 to spare a live test's in-flight deployment."
+        required: false
+        default: "6.5"
+
+jobs:
+  cleanup:
+    name: Reap ephemeral af-api deployments
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout python-dwh-image-build-algorithm
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: main
+          path: image-builder-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ./image-builder-src
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v5
+        with:
+          version: v1.30.0
+
+      - name: Reap ephemeral af-api deployments
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+        run: python scripts/k8s_helper.py reap-af-api --max-age-hours "${{ inputs.max_age_hours }}"
