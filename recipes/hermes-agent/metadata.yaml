@@ -1,0 +1,101 @@
+id: hermes-agent
+enabled: true
+display_name: Hermes Agent
+description: Self-hosted AI agent from Nous Research that works through messaging apps and a web dashboard.
+short_description:
+  en: "Run your own AI agent that handles tasks through Telegram and a web dashboard — self-hosted and always on."
+  de: "Betreibe deinen eigenen KI-Agenten, der Aufgaben per Telegram und Web-Dashboard erledigt — selbstgehostet und immer erreichbar."
+  es: "Ejecuta tu propio agente de IA que gestiona tareas vía Telegram y un panel web — autoalojado y siempre activo."
+  fr: "Lancez votre propre agent IA qui gère des tâches via Telegram et un tableau de bord web — auto-hébergé et toujours actif."
+  it: "Esegui il tuo agente AI che gestisce i compiti via Telegram e una dashboard web — self-hosted e sempre attivo."
+  nl: "Draai je eigen AI-agent die taken afhandelt via Telegram en een webdashboard — zelf gehost en altijd bereikbaar."
+  pl: "Uruchom własnego agenta AI, który obsługuje zadania przez Telegram i panel webowy — samodzielnie hostowany i zawsze dostępny."
+categories:
+  - ai
+  - automation
+# app_version pinned to the current nousresearch/hermes-agent Docker Hub tag
+# (verified against Docker Hub on 2026-07-15; :latest / :main deliberately avoided).
+# RE-VERIFY the tag is still current before merge.
+app_version: "v2026.7.7.2"
+recipe_version: "1.0.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/NousResearch/hermes-agent
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 20480
+
+
+ports:
+  - port: 9119
+    protocol: tcp
+    public: true
+    description: Hermes Agent web dashboard
+
+parameters:
+  - name: APP_DOMAIN
+    display_name: Domain
+    type: domain
+    required: true
+    description: Domain name for accessing the Hermes Agent dashboard (e.g., hermes-agent.example.com).
+
+  - name: OPENROUTER_API_KEY
+    display_name: OpenRouter API Key
+    type: string
+    required: false
+    description: Universal LLM provider key. Hermes routes all models (Anthropic, OpenAI, etc.) through OpenRouter — no direct provider keys are used. Get one at https://openrouter.ai.
+
+  - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+    display_name: Dashboard Username
+    type: string
+    required: false
+    default: admin
+    description: Username for the dashboard basic-auth login (defaults to "admin").
+
+  - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+    display_name: Dashboard Password
+    type: password
+    required: false
+    auto_generate: true
+    description: Password for the dashboard basic-auth login (auto-generated if not provided).
+
+  - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
+    display_name: Dashboard Session Secret
+    type: password
+    required: false
+    auto_generate: true
+    description: Secret used to sign dashboard session cookies (auto-generated if not provided).
+
+  - name: TELEGRAM_BOT_TOKEN
+    display_name: Telegram Bot Token
+    type: string
+    required: false
+    description: Telegram bot token for receiving messages (create via @BotFather).
+
+# NOTE: the enforced af-core metadata.schema.json uses additionalProperties:false
+# and does NOT permit `preinstall_cmds` or `notes` (despite RFC-001 §4.1 documenting
+# them). No existing recipe uses those fields; n8n creates its /opt dirs in install.sh
+# instead. Both are therefore kept below as comments so `metadata-schema-valid` passes,
+# and the host data dir is created in install.sh (mkdir -p /opt/hermes-agent/data +
+# chmod 777), mirroring the n8n precedent.
+#
+# Operational notes (were the `notes:` field):
+# - Dashboard basic-auth is a hard boot requirement, not optional hardening: since the
+#   upstream June-2026 security hardening, Hermes refuses to start when the dashboard
+#   binds a non-loopback address (0.0.0.0, as required for Traefik routing) unless an
+#   auth provider is configured. HERMES_DASHBOARD_BASIC_AUTH_USERNAME/PASSWORD/SECRET
+#   are therefore wired in and the container will not come up without them.
+# - Single-container design: the web dashboard runs as a supervised s6 service inside
+#   the same container (HERMES_DASHBOARD=1), not upstream's separate two-container
+#   host-network compose layout.
+# - The LLM provider/model and any additional messaging platforms (Discord, Slack,
+#   WhatsApp, Signal, Email) are configured post-provision via the authenticated
+#   dashboard. install.sh pre-seeds a minimal model block in config.yaml only when an
+#   OpenRouter key is supplied.
+
+# Logo (rendered in app catalogue thumbnails)
+# Original, hand-authored icon (public domain / own work) nodding to the caduceus (☤)
+# emblem the Hermes Agent project uses in its README. NOT an official upstream brand asset.
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/hermes-agent/1.0.0/logo.svg
+logo_sha256: e16bdde8fc74b3f24eb9718c7b93550e7484765bcd17251304737a5bd4a032cf
+logo_license: CC0-1.0
+logo_source: https://github.com/NousResearch/hermes-agent#readme

@@ -1,0 +1,36 @@
+services:
+  hermes-agent:
+    image: nousresearch/hermes-agent:v2026.7.7.2
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_HOST=0.0.0.0
+      - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD}
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - /opt/hermes-agent/data:/opt/data
+    ports:
+      - "9119:9119"
+    networks:
+      - hermes-agent-network
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/hermes-agent/docker-compose.yml"
+    # Do NOT override entrypoint — the image's own /init (s6-overlay) entrypoint
+    # must stay in charge. Only pass the gateway subcommand.
+    command: ["gateway", "run"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9119/api/status',timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+networks:
+  hermes-agent-network:
+    driver: bridge
