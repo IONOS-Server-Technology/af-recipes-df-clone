@@ -44,19 +44,12 @@ parameters:
     required: false
     description: Universal LLM provider key. Hermes routes all models (Anthropic, OpenAI, etc.) through OpenRouter — no direct provider keys are used. Get one at https://openrouter.ai.
 
-  - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
-    display_name: Dashboard Username
-    type: string
-    required: false
-    default: admin
-    description: Username for the dashboard basic-auth login (defaults to "admin").
-
   - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
     display_name: Dashboard Password
     type: password
     required: false
     auto_generate: true
-    description: Password for the dashboard basic-auth login (auto-generated if not provided).
+    description: Password for the dashboard basic-auth login (auto-generated if not provided). Log in at the dashboard with username "admin".
 
   - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
     display_name: Dashboard Session Secret
@@ -82,8 +75,10 @@ parameters:
 # - Dashboard basic-auth is a hard boot requirement, not optional hardening: since the
 #   upstream June-2026 security hardening, Hermes refuses to start when the dashboard
 #   binds a non-loopback address (0.0.0.0, as required for Traefik routing) unless an
-#   auth provider is configured. HERMES_DASHBOARD_BASIC_AUTH_USERNAME/PASSWORD/SECRET
-#   are therefore wired in and the container will not come up without them.
+#   auth provider is configured. HERMES_DASHBOARD_BASIC_AUTH_PASSWORD/SECRET are
+#   therefore wired in and the container will not come up without them. The
+#   username is fixed to "admin" (not a customer parameter), matching the
+#   wud/guacamole convention for apps with a single conventional admin account.
 # - Single-container design: the web dashboard runs as a supervised s6 service inside
 #   the same container (HERMES_DASHBOARD=1), not upstream's separate two-container
 #   host-network compose layout.
