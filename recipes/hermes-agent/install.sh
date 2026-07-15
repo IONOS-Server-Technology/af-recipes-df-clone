@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# install.sh — Install Hermes Agent via docker-compose
+# install.sh — Prepare Hermes Agent for docker-compose.
+# Prep-only (IF-1139 convention): mkdir/chown/config-preseed here, the shared
+# compose-up.sh helper brings the containers up; docker/compose availability
+# is already checked once in the OS-image bootstrap.
 set -euo pipefail
 
 # Load resolved parameters from .env
 set -a
 source .env
 set +a
-
-# Ensure Docker and Docker Compose are available
-command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
-command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
 
 # Create the host data directory world-writable so the non-root uid inside the
 # container (per the Dockerfile) can write config.yaml, sessions, memories, etc.
@@ -28,21 +27,3 @@ model:
 EOF
   chmod 666 /opt/hermes-agent/data/config.yaml
 fi
-
-# Deploy application
-docker-compose up -d
-
-# Wait for the dashboard to answer (first boot is slow; 300s budget).
-max_wait=300
-waited=0
-while [ "$waited" -lt "$max_wait" ]; do
-  if curl -fsS --max-time 10 "http://127.0.0.1:9119/api/status" > /dev/null 2>&1; then
-    echo "Hermes Agent is healthy after ${waited}s"
-    exit 0
-  fi
-  sleep 5
-  waited=$((waited + 5))
-done
-
-echo "Error: Hermes Agent failed to become healthy within ${max_wait}s"
-exit 1
