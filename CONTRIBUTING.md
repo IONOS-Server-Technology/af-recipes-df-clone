@@ -19,7 +19,7 @@ This guide is the practical how-to. When in doubt, the RFCs win.
 recipes/<id>/
 ├── metadata.yaml      # catalogue metadata, parameters, logo fields
 ├── docker-compose.yaml# (recipe_type: docker-compose) the stack
-├── install.sh         # provisioning / first-boot logic
+├── install.sh         # docker-compose: prep only (compose-up.sh starts the stack); native: full install — see RFC-001 §9
 ├── health-check.sh    # readiness probe (see docs/health-check-spec.md)
 ├── logo.svg           # the application logo — see below
 └── test-params.yaml   # values used by the test workflows
