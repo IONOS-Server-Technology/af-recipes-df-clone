@@ -165,6 +165,16 @@ def main() -> int:
                         "containers": [{
                             "name": "af-api",
                             "image": args.image,
+                            # The image tag is a mutable per-branch tag (reused across
+                            # every push to the same branch/PR), not `:latest` or a
+                            # digest pin. Kubernetes' default imagePullPolicy for any
+                            # other tag is IfNotPresent, so a single-node cluster that
+                            # already cached an earlier image under this exact tag
+                            # string would silently keep serving stale content forever,
+                            # regardless of new pushes to the same tag in Harbor
+                            # (confirmed via digest mismatch + stale rendered install.sh
+                            # during IF-1309 debugging). Force a real pull every time.
+                            "imagePullPolicy": "Always",
                             "ports": [{"containerPort": 8000}],
                             "env": container_env,
                             "readinessProbe": {
