@@ -377,6 +377,28 @@ jobs:
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             "${{ matrix.recipe }}"
 
+      - name: Checkout if-image-tests
+        # Same branch-then-main-fallback pattern as if-main-ubuntu-2604-af's
+        # build_release.yaml test-install job. run-imagetester.py's ImageTester
+        # invokes `python3 -m TestSuite` from the workflow cwd, so the test repo
+        # must be on disk before that step, at the same relative path convention.
+        id: image_tests_checkout
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/if-image-tests
+          path: if-image-tests
+          token: ${{ env.GH_APP_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      - name: Checkout if-image-tests (fallback to main)
+        if: steps.image_tests_checkout.outcome == 'failure'
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/if-image-tests
+          path: if-image-tests
+          token: ${{ env.GH_APP_TOKEN }}
+
       - name: Run ImageTester
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
