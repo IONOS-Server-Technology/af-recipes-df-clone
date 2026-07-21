@@ -183,6 +183,7 @@ jobs:
     outputs:
       name: ${{ steps.ref.outputs.name }}
       url: ${{ steps.url.outputs.url }}
+      bootstrap_verification_key: ${{ steps.signing_key.outputs.bootstrap_verification_key }}
     steps:
       - uses: actions/checkout@v5
 
@@ -248,10 +249,34 @@ jobs:
             echo "__AF_API_KEY_EOF__"
           } >> "$GITHUB_ENV"
 
+      - name: Generate per-deployment bootstrap signing key
+        # Ed25519 key pair scoped to this pipeline run. Private key goes to
+        # af-api via BOOTSTRAP_SIGNING_KEY_PEM; public key is injected into
+        # the test VM cloud-config as bootstrap_verification_key (dev mode).
+        # No pre-shared secret — fresh pair per run satisfies IF-1037 AC#3.
+        run: |
+          openssl genpkey -algorithm ed25519 > /tmp/af_signing_key.pem
+          openssl pkey -in /tmp/af_signing_key.pem -pubout > /tmp/af_signing_key.pub
+          {
+            echo "BOOTSTRAP_SIGNING_KEY_PEM<<__AF_SIGNING_EOF__"
+            cat /tmp/af_signing_key.pem
+            echo "__AF_SIGNING_EOF__"
+          } >> "$GITHUB_ENV"
+
+      - name: Capture verification key for test jobs
+        id: signing_key
+        run: |
+          {
+            echo "bootstrap_verification_key<<__AF_VERIF_EOF__"
+            cat /tmp/af_signing_key.pub
+            echo "__AF_VERIF_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy af-api Deployment + Service
         env:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
           AF_API_JWE_PRIVATE_KEY_PEM: ${{ env.JWE_PRIVATE_KEY_PEM }}
+          AF_API_BOOTSTRAP_SIGNING_KEY_PEM: ${{ env.BOOTSTRAP_SIGNING_KEY_PEM }}
         run: |
           python scripts/k8s_helper.py deploy \
             "${{ steps.ref.outputs.name }}" \
@@ -294,7 +319,7 @@ jobs:
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
     container:
-      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:IF-1139
+      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
       credentials:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
@@ -355,15 +380,18 @@ jobs:
 
       - name: Generate cloud-init via /compose
         run: |
+          # bootstrap_verification_key is a multiline PEM; GHA expands it inline and bash
+          # treats the quoted newlines as a single argument, so argparse receives it intact.
           python3 scripts/call-compose.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            --bootstrap-verification-key "${{ needs.deploy-af-api.outputs.bootstrap_verification_key }}" \
             "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
-          
+
           echo "patching"
           python3 scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
           echo "...done"
-          
+
           cat /tmp/cloudinit.yaml
 
       - name: Probe /bootstrap with the JWT before booting the VM
