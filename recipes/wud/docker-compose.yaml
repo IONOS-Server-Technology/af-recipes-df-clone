@@ -4,6 +4,18 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # dockercompose.apply trigger — the platform "one-click update" mechanism
+      # that every app's `wud.trigger.include=...,dockercompose.apply` label points
+      # at. Defined here (not in .env) because it is platform plumbing, not
+      # customer-tunable config like the notification triggers in .env.template.
+      #   AUTO=false  → never auto-updates; fires only on manual RUN (UI/API).
+      #   MODE=batch  → the only mode the docker-compose trigger supports; updates
+      #                 all pending services in a compose file together (lockstep).
+      #   BACKUP=true → writes docker-compose.yml.back before rewriting (rollback).
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_AUTO=false"
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_MODE=batch"
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_BACKUP=true"
     # Published so the af-core renderer detects the public port (metadata ports:),
     # injects the Traefik router/service labels, and drops this host binding on ship
     # (traffic then arrives only via Traefik). With no base_domain the binding is

@@ -2,6 +2,9 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:0.9.2
     restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/open-webui/docker-compose.yml"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
@@ -25,6 +28,10 @@ services:
   ollama:
     image: ollama/ollama:0.7.1
     restart: unless-stopped
+    # Independently versioned backend; watched so its updates can be applied too.
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/open-webui/docker-compose.yml"
     volumes:
       - /opt/open-webui/ollama:/root/.ollama
     networks:
