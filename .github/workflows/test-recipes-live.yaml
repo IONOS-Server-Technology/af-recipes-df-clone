@@ -17,6 +17,10 @@ on:
         description: "IONOS image UUID to use directly (skips image discovery)"
         required: false
         default: ""
+      finalize_break_glass:
+        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+        required: false
+        default: "true"
   # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
   # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
   workflow_call:
@@ -34,6 +38,11 @@ on:
         type: boolean
         required: false
         default: false
+      finalize_break_glass:
+        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+        type: string
+        required: false
+        default: "true"
 
 jobs:
   detect-changed-recipes:
@@ -389,7 +398,11 @@ jobs:
             "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
 
           echo "patching"
-          python3 scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
+          keep_finalize_flag=""
+          if [ "${{ inputs.finalize_break_glass }}" = "false" ]; then
+            keep_finalize_flag="--keep-finalize"
+          fi
+          python3 scripts/patch-cloudinit-dev-mode.py $keep_finalize_flag /tmp/cloudinit.yaml
           echo "...done"
 
           cat /tmp/cloudinit.yaml
@@ -437,12 +450,20 @@ jobs:
           # the per-branch af-api Service NodePort.
           AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
         run: |
+          testsuite_exclude_flag=""
+          if [ "${{ inputs.finalize_break_glass }}" != "false" ]; then
+            # Break-glass skips af-finalize's cloud-init cache scrub, so the
+            # FIN-marked tests (which check the scrub happened) would always
+            # fail here — they only make sense when finalize_break_glass=false.
+            testsuite_exclude_flag="--testsuite-exclude af_FIN_"
+          fi
           python3 scripts/run-imagetester.py \
             --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
-            --test-config tests/recipe-health-check.conf
+            --test-config tests/recipe-health-check.conf \
+            $testsuite_exclude_flag
 
   cleanup-af-api:
     name: Cleanup af-api deployment
