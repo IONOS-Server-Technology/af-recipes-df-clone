@@ -31,13 +31,18 @@ ports:
     public: true
     description: Hermes Agent web dashboard
 
+# NOTE (IF-1309 review, Björn Jäger, 2026-07-21): since IF-944, af-core no
+# longer reads this `parameters:` block or substitutes {{PLACEHOLDER}} values
+# into .env.template — the only value that reaches the VM dynamically is
+# base_domain (via injected Traefik labels, not the env file). APP_DOMAIN is
+# therefore dropped entirely (dead — docker-compose.yaml never referenced it;
+# routing already comes from base_domain/Traefik). OPENROUTER_API_KEY and
+# TELEGRAM_BOT_TOKEN are kept here as documentation of what the app accepts,
+# but ship as empty literals in .env.template (see comment there) — the
+# customer sets them post-provision via the authenticated dashboard, not at
+# order time. RFC-001/RFC-002/af-create-recipe are stale on this point
+# catalogue-wide; tracked separately, not fixed in this recipe.
 parameters:
-  - name: APP_DOMAIN
-    display_name: Domain
-    type: domain
-    required: true
-    description: Domain name for accessing the Hermes Agent dashboard (e.g., hermes-agent.example.com).
-
   - name: OPENROUTER_API_KEY
     display_name: OpenRouter API Key
     type: string
