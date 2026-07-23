@@ -169,6 +169,11 @@ def main() -> int:
                         "containers": [{
                             "name": "af-api",
                             "image": args.image,
+                            # Image tag is branch-derived (mutable, reused across every run
+                            # on that branch) — without this, a node with a cached image
+                            # under the same tag can silently keep serving a stale build
+                            # instead of the one just pushed by this run.
+                            "imagePullPolicy": "Always",
                             "ports": [{"containerPort": 8000}],
                             "env": container_env,
                             "readinessProbe": {
