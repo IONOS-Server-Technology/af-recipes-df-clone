@@ -29,9 +29,16 @@ services:
       # once the Traefik basic-auth feature lands (see metadata.yaml note).
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/wud/store:/store
-      # af-core injects /opt/<app>:/opt/<app> bind-mounts here for each recipe
-      # that carries the dockercompose.apply trigger label, so WUD can rewrite
-      # and recreate those stacks on demand.
+      # INTERIM WORKAROUND (Option 1): the dockercompose.apply trigger must read
+      # and rewrite each app's /opt/<app>/docker-compose.yml, but WUD runs in its
+      # own container and cannot see the host's /opt without a mount. Without this,
+      # apply logs "Compose file ... does not exist" yet still reports success, so
+      # nothing updates. The proper fix is for af-core to inject per-app
+      # /opt/<app>:/opt/<app> mounts (analogous to Traefik-label injection); until
+      # that lands we mount all of /opt so WUD can reach every app's compose file.
+      # This is a live view — apps started after WUD become visible automatically.
+      # No real extra privilege: WUD already holds the RW docker socket.
+      - /opt:/opt
     labels:
       # WUD must not watch itself — it cannot safely apply its own update.
       # (Traefik routing labels are injected by the af-core renderer, not here.)
