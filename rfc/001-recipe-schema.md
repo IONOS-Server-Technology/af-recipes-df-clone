@@ -88,6 +88,7 @@ af-recipes/
 | `port` | integer | yes | Port number. |
 | `protocol` | enum | yes | `tcp` or `udp`. |
 | `public` | boolean | yes | Whether this port should be accessible externally. |
+| `http` | boolean | no | Whether this is an HTTP(S) port routed through the per-VM Traefik reverse proxy (default `true`). HTTP ports are reached at `<app-id>.<base_domain>` and never bind the host, so they are exempt from the port-uniqueness rule. Set `false` for raw TCP/UDP services (SSH, WireGuard, sync protocols) that bind the host port directly. A `udp` port cannot be HTTP-routed, so `http` must be `false` for it. |
 | `description` | string | yes | What this port is for (e.g., "Web UI"). |
 
 ### 4.4 Parameter Object

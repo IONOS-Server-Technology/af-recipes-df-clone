@@ -246,10 +246,16 @@ These rules apply to the catalogue as a whole — running over all `recipes/*/` 
 #### `no-duplicate-public-port`
 
 - **Level:** ERROR
-- **What:** No two recipes declare the same `(port, protocol)` combination as public, except for ports `80` and `443`.
-- **How to check:** Iterate all recipes, collect `metadata.ports[]` entries with `public: true`. Group by `(port, protocol)`. Any group of size > 1 (excluding 80/443) is a conflict.
-- **Why:** Two co-installed recipes on the same VM cannot both bind the same host port. Either change one host port or list the conflict in `incompatible_with_apps`.
-- **80/443 exception:** Traefik (the per-VM reverse proxy) terminates HTTP/HTTPS for everyone; recipes routed through Traefik all "use" 80/443 conceptually but only Traefik binds them.
+- **What:** No two recipes declare the same `(port, protocol)` combination as a **host-bound** public port, except for ports `80` and `443`.
+- **How to check:** Iterate all recipes, collect `metadata.ports[]` entries with `public: true` that are **not** Traefik-routed (i.e. `http: false`, or any `udp` port). Group by `(port, protocol)`. Any group of size > 1 (excluding 80/443) is a conflict.
+- **Why:** Two co-installed recipes on the same VM cannot both bind the same host port.
+- **HTTP/Traefik exception:** HTTP ports (`http: true`, the default) are reached through the per-VM Traefik reverse proxy at `<app-id>.<base_domain>` on 80/443 and never bind their declared port on the host — so any number of recipes may share e.g. `tcp/8080`. Only raw services (`http: false`) actually bind the host and can collide. The literal `80`/`443` carve-out remains for Traefik's own entrypoints.
+
+#### `http-port-must-be-tcp`
+
+- **Level:** ERROR
+- **What:** A public port marked `http: true` (or defaulting to it) must use `protocol: tcp`.
+- **Why:** Traefik's HTTP router cannot subdomain-route UDP. A public UDP port must set `http: false` (it is a raw host-bound service).
 
 #### `incompatibility-ref-valid`
 
@@ -270,6 +276,7 @@ Per-recipe checks
   metadata-valid-yaml             ✓
   app-version-pinned              ✓
   image-tag-pinned                ✗ ERROR — image 'redis:latest' on service 'redis'
+  http-port-must-be-tcp           ✓
   bind-mount-under-opt            ⚠ WARN  — bind mount '/var/lib/postgres' should be under /opt/<slug>/
   ...
 
