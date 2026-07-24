@@ -27,6 +27,11 @@ def main() -> int:
     parser.add_argument("recipes", nargs="+")
     parser.add_argument("--api-url", required=True, help="af-api root, e.g. http://<host>:<port>")
     parser.add_argument("--ssh-public-key", required=True)
+    parser.add_argument(
+        "--bootstrap-output",
+        default="bootstrap-response.tar.gz",
+        help="Where to write the raw /bootstrap response body (it's a gzip'd tar, not text)",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -72,10 +77,19 @@ def main() -> int:
     )
     print(f"HTTP {boot_resp.status_code}")
     print(f"content-type: {boot_resp.headers.get('content-type')}")
-    print("---response body---")
-    print(boot_resp.text)
-    print("---end---")
-    return 0 if boot_resp.ok else 2
+    if not boot_resp.ok:
+        print("---response body---")
+        print(boot_resp.text)
+        print("---end---")
+        return 2
+
+    # The response is a gzip'd tar (the install archive) — not text. Printing
+    # it garbles the log; write it out instead so it can be uploaded as a
+    # GitHub Actions artifact and inspected locally (tar -tzvf / tar -xzf).
+    out_path = Path(args.bootstrap_output)
+    out_path.write_bytes(boot_resp.content)
+    print(f"response body written to {out_path} ({len(boot_resp.content)} bytes)")
+    return 0
 
 
 if __name__ == "__main__":

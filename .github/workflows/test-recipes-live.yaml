@@ -416,7 +416,17 @@ jobs:
           python3 scripts/probe-bootstrap.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            --bootstrap-output "/tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz" \
             "${{ matrix.recipe }}"
+      - uses: actions/upload-artifact@v7
+        name: Upload bootstrap response as Artifact
+        if: always()
+        with:
+          name: bootstrap-response-${{ matrix.recipe }}
+          path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
+          archive: false
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Checkout if-image-tests
         # Same branch-then-main-fallback pattern as if-main-ubuntu-2604-af's
@@ -445,6 +455,7 @@ jobs:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
           IONOS_DATACENTER_ID: ${{ vars.IONOS_DATACENTER_ID }}
+          IONOS_TEMPLATE_ID: 2713068b-f0bb-441a-9bdc-b2961e81408b # VPS 6-8-240
           RECIPE_NAME: ${{ matrix.recipe }}
           # Used by the diagnostic SSH tests to verify the VM can reach
           # the per-branch af-api Service NodePort.
@@ -464,6 +475,15 @@ jobs:
             --ssh-keypair-public /tmp/vm_key.pub \
             --test-config tests/recipe-health-check.conf \
             $testsuite_exclude_flag
+      - uses: actions/upload-artifact@v7
+        name: Upload Test Results as Artifact
+        if: always()
+        with:
+          name: AppTestResults-${{ matrix.recipe }}
+          path: tests/af-logs/
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
 
   cleanup-af-api:
     name: Cleanup af-api deployment
