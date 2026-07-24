@@ -416,7 +416,16 @@ jobs:
           python3 scripts/probe-bootstrap.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            --bootstrap-output "/tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz" \
             "${{ matrix.recipe }}"
+      - uses: actions/upload-artifact@v7
+        name: Upload bootstrap response as Artifact
+        if: always()
+        with:
+          name: bootstrap-response-${{ matrix.recipe }}
+          path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Checkout if-image-tests
         # Same branch-then-main-fallback pattern as if-main-ubuntu-2604-af's
@@ -465,6 +474,15 @@ jobs:
             --ssh-keypair-public /tmp/vm_key.pub \
             --test-config tests/recipe-health-check.conf \
             $testsuite_exclude_flag
+      - uses: actions/upload-artifact@v7
+        name: Upload Test Results as Artifact
+        if: always()
+        with:
+          name: AppTestResults-${{ matrix.recipe }}
+          path: tests/af-logs/
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
 
   cleanup-af-api:
     name: Cleanup af-api deployment
