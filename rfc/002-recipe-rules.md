@@ -246,10 +246,30 @@ These rules apply to the catalogue as a whole — running over all `recipes/*/` 
 #### `no-duplicate-public-port`
 
 - **Level:** ERROR
-- **What:** No two recipes declare the same `(port, protocol)` combination as public, except for ports `80` and `443`.
-- **How to check:** Iterate all recipes, collect `metadata.ports[]` entries with `public: true`. Group by `(port, protocol)`. Any group of size > 1 (excluding 80/443) is a conflict.
-- **Why:** Two co-installed recipes on the same VM cannot both bind the same host port. Either change one host port or list the conflict in `incompatible_with_apps`.
-- **80/443 exception:** Traefik (the per-VM reverse proxy) terminates HTTP/HTTPS for everyone; recipes routed through Traefik all "use" 80/443 conceptually but only Traefik binds them.
+- **What:** No two recipes declare the same `(port, protocol)` combination as a **host-bound** public port.
+- **How to check:** Iterate all recipes, collect `metadata.ports[]` entries with `public: true` that are **not** Traefik-routed (i.e. `http: false`, or any `udp` port). Group by `(port, protocol)`. Any group of size > 1 is a conflict.
+- **Why:** Two co-installed recipes on the same VM cannot both bind the same host port. Either change one host port, or list the conflict in `incompatible_with_apps` so the pair can never be selected together.
+- **HTTP/Traefik exception:** HTTP ports (`http: true`, the default) are reached through the per-VM Traefik reverse proxy at `<app-id>.<base_domain>` on 80/443 and never bind their declared port on the host — so any number of recipes may share e.g. `tcp/8080`. Only raw services (`http: false`) actually bind the host and can collide.
+- **No 80/443 carve-out:** earlier revisions exempted ports 80 and 443 outright, because HTTP recipes conceptually "use" Traefik's entrypoints. `http: true` now identifies exactly those recipes, so the carve-out is redundant for them — and actively harmful otherwise, since it would have exempted a *raw* binding on 80/443, the one case guaranteed to collide with Traefik itself. Those are rejected outright by `raw-port-not-reserved` below.
+
+#### `http-port-must-be-tcp`
+
+- **Level:** ERROR
+- **What:** A public port marked `http: true` (or defaulting to it) must use `protocol: tcp`.
+- **Why:** Traefik's HTTP router cannot subdomain-route UDP. A public UDP port must set `http: false` (it is a raw host-bound service).
+
+#### `raw-port-not-reserved`
+
+- **Level:** ERROR
+- **What:** A public port with `http: false` may not use port `80` or `443`.
+- **Why:** The per-VM Traefik container binds `80:80` and `443:443` on the host. A raw service claiming either would fail to start behind it. HTTP ports on 80/443 are fine — Traefik fronts them and they never bind the host (this is the runtipi shape).
+
+#### `single-http-port`
+
+- **Level:** WARN
+- **What:** A recipe should declare at most one Traefik-routed port. Ports `80` and `443` declared together count as one endpoint (the "app terminates its own TLS" idiom).
+- **How to check:** Collect `public: true` entries that are Traefik-routed. Collapse a declared 80/443 pair into a single entry. More than one remaining entry is a finding.
+- **Why:** The renderer emits exactly one Traefik router per app, targeting the *first* Traefik-routed port in declaration order — but it strips the host binding of *every* routed port. A second routed port therefore ends up with neither a host binding nor a route, i.e. silently unreachable. Mark the extras `http: false`, or make them non-public.
 
 #### `incompatibility-ref-valid`
 
@@ -270,6 +290,9 @@ Per-recipe checks
   metadata-valid-yaml             ✓
   app-version-pinned              ✓
   image-tag-pinned                ✗ ERROR — image 'redis:latest' on service 'redis'
+  http-port-must-be-tcp           ✓
+  raw-port-not-reserved           ✓
+  single-http-port                ✓
   bind-mount-under-opt            ⚠ WARN  — bind mount '/var/lib/postgres' should be under /opt/<slug>/
   ...
 
