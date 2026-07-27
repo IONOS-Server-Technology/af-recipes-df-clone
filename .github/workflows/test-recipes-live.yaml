@@ -17,6 +17,10 @@ on:
         description: "IONOS image UUID to use directly (skips image discovery)"
         required: false
         default: ""
+      finalize_break_glass:
+        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+        required: false
+        default: "true"
   # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
   # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
   workflow_call:
@@ -34,6 +38,11 @@ on:
         type: boolean
         required: false
         default: false
+      finalize_break_glass:
+        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+        type: string
+        required: false
+        default: "true"
 
 jobs:
   detect-changed-recipes:
@@ -183,6 +192,7 @@ jobs:
     outputs:
       name: ${{ steps.ref.outputs.name }}
       url: ${{ steps.url.outputs.url }}
+      bootstrap_verification_key: ${{ steps.signing_key.outputs.bootstrap_verification_key }}
     steps:
       - uses: actions/checkout@v5
 
@@ -248,10 +258,34 @@ jobs:
             echo "__AF_API_KEY_EOF__"
           } >> "$GITHUB_ENV"
 
+      - name: Generate per-deployment bootstrap signing key
+        # Ed25519 key pair scoped to this pipeline run. Private key goes to
+        # af-api via BOOTSTRAP_SIGNING_KEY_PEM; public key is injected into
+        # the test VM cloud-config as bootstrap_verification_key (dev mode).
+        # No pre-shared secret — fresh pair per run satisfies IF-1037 AC#3.
+        run: |
+          openssl genpkey -algorithm ed25519 > /tmp/af_signing_key.pem
+          openssl pkey -in /tmp/af_signing_key.pem -pubout > /tmp/af_signing_key.pub
+          {
+            echo "BOOTSTRAP_SIGNING_KEY_PEM<<__AF_SIGNING_EOF__"
+            cat /tmp/af_signing_key.pem
+            echo "__AF_SIGNING_EOF__"
+          } >> "$GITHUB_ENV"
+
+      - name: Capture verification key for test jobs
+        id: signing_key
+        run: |
+          {
+            echo "bootstrap_verification_key<<__AF_VERIF_EOF__"
+            cat /tmp/af_signing_key.pub
+            echo "__AF_VERIF_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy af-api Deployment + Service
         env:
           KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
           AF_API_JWE_PRIVATE_KEY_PEM: ${{ env.JWE_PRIVATE_KEY_PEM }}
+          AF_API_BOOTSTRAP_SIGNING_KEY_PEM: ${{ env.BOOTSTRAP_SIGNING_KEY_PEM }}
         run: |
           python scripts/k8s_helper.py deploy \
             "${{ steps.ref.outputs.name }}" \
@@ -294,7 +328,7 @@ jobs:
   test-recipes:
     name: Test Recipe - ${{ matrix.recipe }}
     container:
-      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:IF-1139
+      image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
       credentials:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
@@ -355,15 +389,22 @@ jobs:
 
       - name: Generate cloud-init via /compose
         run: |
+          # bootstrap_verification_key is a multiline PEM; GHA expands it inline and bash
+          # treats the quoted newlines as a single argument, so argparse receives it intact.
           python3 scripts/call-compose.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            --bootstrap-verification-key "${{ needs.deploy-af-api.outputs.bootstrap_verification_key }}" \
             "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
-          
+
           echo "patching"
-          python3 scripts/patch-cloudinit-dev-mode.py /tmp/cloudinit.yaml
+          keep_finalize_flag=""
+          if [ "${{ inputs.finalize_break_glass }}" = "false" ]; then
+            keep_finalize_flag="--keep-finalize"
+          fi
+          python3 scripts/patch-cloudinit-dev-mode.py $keep_finalize_flag /tmp/cloudinit.yaml
           echo "...done"
-          
+
           cat /tmp/cloudinit.yaml
 
       - name: Probe /bootstrap with the JWT before booting the VM
@@ -375,24 +416,74 @@ jobs:
           python3 scripts/probe-bootstrap.py \
             --api-url "${{ needs.deploy-af-api.outputs.url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+            --bootstrap-output "/tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz" \
             "${{ matrix.recipe }}"
+      - uses: actions/upload-artifact@v7
+        name: Upload bootstrap response as Artifact
+        if: always()
+        with:
+          name: bootstrap-response-${{ matrix.recipe }}
+          path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
+          archive: false
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Checkout if-image-tests
+        # Same branch-then-main-fallback pattern as if-main-ubuntu-2604-af's
+        # build_release.yaml test-install job. run-imagetester.py's ImageTester
+        # invokes `python3 -m TestSuite` from the workflow cwd, so the test repo
+        # must be on disk before that step, at the same relative path convention.
+        id: image_tests_checkout
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/if-image-tests
+          path: if-image-tests
+          token: ${{ env.GH_APP_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      - name: Checkout if-image-tests (fallback to main)
+        if: steps.image_tests_checkout.outcome == 'failure'
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/if-image-tests
+          path: if-image-tests
+          token: ${{ env.GH_APP_TOKEN }}
 
       - name: Run ImageTester
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
           IONOS_DATACENTER_ID: ${{ vars.IONOS_DATACENTER_ID }}
+          IONOS_TEMPLATE_ID: 2713068b-f0bb-441a-9bdc-b2961e81408b # VPS 6-8-240
           RECIPE_NAME: ${{ matrix.recipe }}
           # Used by the diagnostic SSH tests to verify the VM can reach
           # the per-branch af-api Service NodePort.
           AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
         run: |
+          testsuite_exclude_flag=""
+          if [ "${{ inputs.finalize_break_glass }}" != "false" ]; then
+            # Break-glass skips af-finalize's cloud-init cache scrub, so the
+            # FIN-marked tests (which check the scrub happened) would always
+            # fail here — they only make sense when finalize_break_glass=false.
+            testsuite_exclude_flag="--testsuite-exclude af_FIN_"
+          fi
           python3 scripts/run-imagetester.py \
             --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
-            --test-config tests/recipe-health-check.conf
+            --test-config tests/recipe-health-check.conf \
+            $testsuite_exclude_flag
+      - uses: actions/upload-artifact@v7
+        name: Upload Test Results as Artifact
+        if: always()
+        with:
+          name: AppTestResults-${{ matrix.recipe }}
+          path: tests/af-logs/
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
 
   cleanup-af-api:
     name: Cleanup af-api deployment

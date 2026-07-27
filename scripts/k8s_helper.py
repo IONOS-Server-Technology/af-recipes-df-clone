@@ -147,9 +147,13 @@ def main() -> int:
         jwe_pem = os.environ.get("AF_API_JWE_PRIVATE_KEY_PEM")
         if not jwe_pem:
             raise RuntimeError("AF_API_JWE_PRIVATE_KEY_PEM env var not set")
+        signing_key_pem = os.environ.get("AF_API_BOOTSTRAP_SIGNING_KEY_PEM")
+        if not signing_key_pem:
+            raise RuntimeError("AF_API_BOOTSTRAP_SIGNING_KEY_PEM env var not set")
         container_env = [
             {"name": "AF_API_URL", "value": af_api_url},
             {"name": "JWE_PRIVATE_KEY_PEM", "value": jwe_pem},
+            {"name": "BOOTSTRAP_SIGNING_KEY_PEM", "value": signing_key_pem},
         ]
         k8s.apply({
             "apiVersion": "apps/v1",
@@ -165,6 +169,11 @@ def main() -> int:
                         "containers": [{
                             "name": "af-api",
                             "image": args.image,
+                            # Image tag is branch-derived (mutable, reused across every run
+                            # on that branch) — without this, a node with a cached image
+                            # under the same tag can silently keep serving a stale build
+                            # instead of the one just pushed by this run.
+                            "imagePullPolicy": "Always",
                             "ports": [{"containerPort": 8000}],
                             "env": container_env,
                             "readinessProbe": {

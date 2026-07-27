@@ -21,6 +21,11 @@ def main() -> int:
     parser.add_argument("--ssh-public-key", required=True)
     parser.add_argument("--root-password", default=None)
     parser.add_argument("--base-os", default="ubuntu-26.04")
+    parser.add_argument(
+        "--bootstrap-verification-key",
+        default=None,
+        help="Ed25519 public key PEM for dev-mode archive signature verification",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -48,7 +53,16 @@ def main() -> int:
         print(f"/compose failed: {resp.status_code} {resp.text}", file=sys.stderr)
         return 1
 
-    print(resp.json()["cloud_init"], end="")
+    if args.bootstrap_verification_key:
+        cloudinit = yaml.safe_load(resp.json()["cloud_init"])
+        cloudinit["application_factory"]["dev_mode"] = True
+        cloudinit["application_factory"]["bootstrap_verification_key"] = (
+            args.bootstrap_verification_key
+        )
+        print("#cloud-config")
+        print(yaml.dump(cloudinit, default_flow_style=False, allow_unicode=True), end="")
+    else:
+        print(resp.json()["cloud_init"], end="")
     return 0
 
 
