@@ -88,6 +88,7 @@ af-recipes/
 | `port` | integer | yes | Port number. |
 | `protocol` | enum | yes | `tcp` or `udp`. |
 | `public` | boolean | yes | Whether this port should be accessible externally. |
+| `http` | boolean | no | Whether this is an HTTP(S) port routed through the per-VM Traefik reverse proxy (default `true`). HTTP ports are reached at `<app-id>.<base_domain>` and never bind the host, so they are exempt from the port-uniqueness rule. Set `false` for raw TCP/UDP services (SSH, WireGuard, sync protocols) that bind the host port directly. A `udp` port cannot be HTTP-routed, so `http` must be `false` for it. A raw port may not claim `80` or `443` — Traefik binds those. Declare at most one HTTP port per recipe: only the first gets a router. |
 | `description` | string | yes | What this port is for (e.g., "Web UI"). |
 
 ### 4.4 Parameter Object
@@ -212,25 +213,24 @@ curl -fsS --max-time 10 "$URL" > /dev/null
 
 ## 9. install.sh
 
-Standard interface between the Application Factory installation orchestrator and the recipe's installation process.
+Standard interface between the Application Factory installation orchestrator and the recipe's installation process. Its responsibilities differ by `recipe_type`:
 
-- **Purpose:** Orchestrate the installation of the application on the target system.
+- **`docker-compose` recipes: prep-only.** `install.sh` runs *before* the containers come up — mkdir/chown of data directories, secret/config generation, anything `docker-compose.yaml` assumes already exists. It must **not** run `docker compose up` itself: the af-core-rendered top-level install archive runs each app's `install.sh` and then brings the stack up via the shared `compose-up.sh` helper (with its own retry/backoff). Checking that Docker/Compose are available is *not* the recipe's job either — that check lives once in the OS-image bootstrap, not per-recipe.
+- **`native` recipes: full install.** No shared "up" helper exists for native apps, so `install.sh` performs the complete installation — package install, download/build, service startup, health verification — end to end.
+
+Common interface, both types:
+
 - **Interface:** Receives environment variables and resolves parameters from `.env` file.
 - **Exit code:** 0 = success, non-zero = failure.
 - **Timeout:** Scripts should complete within a reasonable time (implementation-specific).
 - **Working directory:** Executes in the recipe directory (where this script resides).
 - **Environment:** All `.env` variables are available in the script's environment.
-- **Responsibilities:**
-  - Load and validate the `.env` file (with parameters already resolved).
-  - Deploy the application (docker compose up for docker-compose recipes, package installation for bare-metal).
-  - Ensure the application starts successfully.
-  - Configure application-specific settings (if needed).
 
-### Example: docker-compose recipe
+### Example: docker-compose recipe (prep-only)
 
 ```bash
 #!/usr/bin/env bash
-# install.sh — Install n8n via docker-compose
+# install.sh — Prepare n8n for docker-compose (compose-up.sh brings it up afterwards)
 set -euo pipefail
 
 # Load resolved parameters from .env
@@ -238,30 +238,8 @@ set -a
 source .env
 set +a
 
-# Ensure Docker and Docker Compose are available
-command -v docker >/dev/null || { echo "Error: Docker not installed"; exit 1; }
-command -v docker-compose >/dev/null || { echo "Error: Docker Compose not installed"; exit 1; }
-
-# Create named volumes
+# Create named volumes / data directories the compose file expects
 docker volume create n8n-data || true
-
-# Deploy application
-docker-compose up -d
-
-# Wait for service to be healthy (max 60 seconds)
-max_attempts=60
-attempt=0
-while [ $attempt -lt $max_attempts ]; do
-  if docker-compose exec -T n8n curl -fsS http://localhost:5678 > /dev/null 2>&1; then
-    echo "n8n is healthy"
-    exit 0
-  fi
-  attempt=$((attempt + 1))
-  sleep 1
-done
-
-echo "Error: n8n failed to become healthy"
-exit 1
 ```
 
 ### Example: bare-metal recipe

@@ -147,9 +147,13 @@ def main() -> int:
         jwe_pem = os.environ.get("AF_API_JWE_PRIVATE_KEY_PEM")
         if not jwe_pem:
             raise RuntimeError("AF_API_JWE_PRIVATE_KEY_PEM env var not set")
+        signing_key_pem = os.environ.get("AF_API_BOOTSTRAP_SIGNING_KEY_PEM")
+        if not signing_key_pem:
+            raise RuntimeError("AF_API_BOOTSTRAP_SIGNING_KEY_PEM env var not set")
         container_env = [
             {"name": "AF_API_URL", "value": af_api_url},
             {"name": "JWE_PRIVATE_KEY_PEM", "value": jwe_pem},
+            {"name": "BOOTSTRAP_SIGNING_KEY_PEM", "value": signing_key_pem},
         ]
         k8s.apply({
             "apiVersion": "apps/v1",
@@ -165,15 +169,10 @@ def main() -> int:
                         "containers": [{
                             "name": "af-api",
                             "image": args.image,
-                            # The image tag is a mutable per-branch tag (reused across
-                            # every push to the same branch/PR), not `:latest` or a
-                            # digest pin. Kubernetes' default imagePullPolicy for any
-                            # other tag is IfNotPresent, so a single-node cluster that
-                            # already cached an earlier image under this exact tag
-                            # string would silently keep serving stale content forever,
-                            # regardless of new pushes to the same tag in Harbor
-                            # (confirmed via digest mismatch + stale rendered install.sh
-                            # during IF-1309 debugging). Force a real pull every time.
+                            # Image tag is branch-derived (mutable, reused across every run
+                            # on that branch) — without this, a node with a cached image
+                            # under the same tag can silently keep serving a stale build
+                            # instead of the one just pushed by this run.
                             "imagePullPolicy": "Always",
                             "ports": [{"containerPort": 8000}],
                             "env": container_env,

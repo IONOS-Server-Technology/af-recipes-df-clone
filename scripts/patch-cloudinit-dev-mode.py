@@ -14,6 +14,12 @@ the /compose output to:
   * rewrite ``bootstrap_url`` from ``https://`` to ``http://`` so the VM hits the
     af-api NodePort directly.
 
+It also writes the ``.finalize-disabled`` break-glass sentinel for af-finalize,
+unless ``--keep-finalize`` is passed — that flag lets a caller test with
+af-finalize actually running (its cloud-init cache scrub included) instead of
+always short-circuiting it. This is independent of ``dev_mode``, which is only
+about the HTTP/TLS relaxation above and must stay on regardless.
+
 It is a CI-only transform — production cloud-init must never carry ``dev_mode``.
 """
 from __future__ import annotations
@@ -28,7 +34,7 @@ import yaml
 CLOUD_CONFIG_HEADER = "#cloud-config"
 
 
-def patch_cloud_init(text: str) -> str:
+def patch_cloud_init(text: str, *, keep_finalize: bool = False) -> str:
     """Return *text* with the application_factory block patched for dev/HTTP.
 
     Raises ValueError if the document has no ``application_factory`` block or no
@@ -58,8 +64,11 @@ def patch_cloud_init(text: str) -> str:
     #     15 * * * * root ship_logs
     #   path: /etc/crontab
     #   append: true
-    doc["write_files"] = [{"content": "", "path": "/etc/app-factory/.dev-mode-enabled", "append": True},
-                          {"content": "", "path": "/etc/app-factory/.finalize-disabled", "append": True}]
+    doc["write_files"] = [{"content": "", "path": "/etc/app-factory/.dev-mode-enabled", "append": True}]
+    if not keep_finalize:
+        doc["write_files"].append(
+            {"content": "", "path": "/etc/app-factory/.finalize-disabled", "append": True}
+        )
 
     # safe_dump drops the leading '#cloud-config' comment that cloud-init
     # requires, so re-prepend it. width is set high so the long JWE token in
@@ -74,13 +83,19 @@ def main() -> int:
         "cloudinit",
         help="Path to the cloud-init YAML from /compose, or '-' to read stdin",
     )
+    parser.add_argument(
+        "--keep-finalize",
+        action="store_true",
+        help="Do not write the .finalize-disabled break-glass sentinel — "
+        "let af-finalize run for real (scrub included) on this VM.",
+    )
     args = parser.parse_args()
 
 
     text = Path(args.cloudinit).read_text()
 
     try:
-        patched = patch_cloud_init(text)
+        patched = patch_cloud_init(text, keep_finalize=args.keep_finalize)
     except (ValueError, yaml.YAMLError) as exc:
         print(f"failed to patch cloud-init: {exc}", file=sys.stderr)
         return 1
@@ -88,7 +103,8 @@ def main() -> int:
     Path(args.cloudinit).write_text(patched)
     af = yaml.safe_load(patched)["application_factory"]
     print(
-        f"patched {args.cloudinit}: dev_mode=true, bootstrap_url={af['bootstrap_url']}",
+        f"patched {args.cloudinit}: dev_mode=true, bootstrap_url={af['bootstrap_url']}, "
+        f"keep_finalize={args.keep_finalize}",
         file=sys.stderr,
     )
     return 0
