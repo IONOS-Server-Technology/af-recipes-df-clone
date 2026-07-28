@@ -1,0 +1,123 @@
+id: hermes-agent
+enabled: true
+display_name: Hermes Agent
+description: Self-hosted AI agent from Nous Research that works through messaging apps and a web dashboard.
+short_description:
+  en: "Run your own AI agent that handles tasks through Telegram and a web dashboard — self-hosted and always on."
+  de: "Betreibe deinen eigenen KI-Agenten, der Aufgaben per Telegram und Web-Dashboard erledigt — selbstgehostet und immer erreichbar."
+  es: "Ejecuta tu propio agente de IA que gestiona tareas vía Telegram y un panel web — autoalojado y siempre activo."
+  fr: "Lancez votre propre agent IA qui gère des tâches via Telegram et un tableau de bord web — auto-hébergé et toujours actif."
+  it: "Esegui il tuo agente AI che gestisce i compiti via Telegram e una dashboard web — self-hosted e sempre attivo."
+  nl: "Draai je eigen AI-agent die taken afhandelt via Telegram en een webdashboard — zelf gehost en altijd bereikbaar."
+  pl: "Uruchom własnego agenta AI, który obsługuje zadania przez Telegram i panel webowy — samodzielnie hostowany i zawsze dostępny."
+categories:
+  - ai
+  - automation
+# app_version pinned to a specific nousresearch/hermes-agent Docker Hub tag
+# (:latest / :main deliberately avoided). Bumped 2026-07-22 from v2026.7.7.2 to
+# v2026.7.20: the older tag has an upstream dashboard-auth bug that made the web
+# dashboard return HTTP 500 on first load (IF-1309). When basic-auth is the only
+# session provider, the unauth gate auto-redirected "/" to the OAuth route
+# /auth/login?provider=basic, and BasicAuthProvider.start_login() raises
+# NotImplementedError → 500. v2026.7.20 adds a guard
+# (`if getattr(provider, "supports_password", False): return None` in
+# dashboard_auth/middleware.py) that routes password-only providers to /login
+# instead. Verified live (GET / → 302 /login → 200 on v2026.7.20 vs 500 on
+# v2026.7.7.2) with identical config; no breaking changes (same entrypoint,
+# config_version, required env). RE-VERIFY the tag is still current before merge.
+app_version: "v2026.7.20"
+recipe_version: "1.0.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/NousResearch/hermes-agent
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 20480
+
+
+ports:
+  - port: 9119
+    protocol: tcp
+    public: true
+    description: Hermes Agent web dashboard
+
+# NOTE (IF-1309 review, Björn Jäger, 2026-07-21): since IF-944, af-core no
+# longer reads this `parameters:` block or substitutes {{PLACEHOLDER}} values
+# into .env.template — the only value that reaches the VM dynamically is
+# base_domain (via injected Traefik labels, not the env file). APP_DOMAIN is
+# therefore dropped entirely (dead — docker-compose.yaml never referenced it;
+# routing already comes from base_domain/Traefik). OPENROUTER_API_KEY and
+# TELEGRAM_BOT_TOKEN are kept here as documentation of what the app accepts,
+# but ship as empty literals in .env.template (see comment there) — the
+# customer sets them post-provision via the authenticated dashboard, not at
+# order time. RFC-001/RFC-002/af-create-recipe are stale on this point
+# catalogue-wide; tracked separately, not fixed in this recipe.
+parameters:
+  - name: OPENROUTER_API_KEY
+    display_name: OpenRouter API Key
+    type: string
+    required: false
+    description: Universal LLM provider key. Hermes routes all models (Anthropic, OpenAI, etc.) through OpenRouter — no direct provider keys are used. Get one at https://openrouter.ai.
+
+  # Migration candidate: IF-1312 plans to deliver a bcrypt-hashed copy of the
+  # customer's root password through the JWE bootstrap token. If that lands
+  # generically (not just for recipes opting into the basic_auth:true Traefik
+  # toggle — open question asked on IF-1312), switch this from auto_generate
+  # to that value so the customer reuses their existing password instead of
+  # getting a second generated one to look up.
+  - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+    display_name: Dashboard Password
+    type: password
+    required: false
+    auto_generate: true
+    description: Password for the dashboard basic-auth login (auto-generated if not provided). Log in at the dashboard with username "admin".
+
+  - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
+    display_name: Dashboard Session Secret
+    type: password
+    required: false
+    auto_generate: true
+    description: Secret used to sign dashboard session cookies (auto-generated if not provided).
+
+  - name: TELEGRAM_BOT_TOKEN
+    display_name: Telegram Bot Token
+    type: string
+    required: false
+    description: Telegram bot token for receiving messages (create via @BotFather).
+
+# NOTE: the enforced af-core metadata.schema.json uses additionalProperties:false
+# and does NOT permit `preinstall_cmds` or `notes` (despite RFC-001 §4.1 documenting
+# them). No existing recipe uses those fields; n8n creates its /opt dirs in install.sh
+# instead. Both are therefore kept below as comments so `metadata-schema-valid` passes,
+# and the host data dir is created in install.sh (mkdir -p /opt/hermes-agent/data +
+# chmod 777), mirroring the n8n precedent.
+#
+# Operational notes (were the `notes:` field):
+# - Dashboard basic-auth is a hard boot requirement, not optional hardening: since the
+#   upstream June-2026 security hardening, Hermes refuses to start when the dashboard
+#   binds a non-loopback address (0.0.0.0, as required for Traefik routing) unless an
+#   auth provider is configured. HERMES_DASHBOARD_BASIC_AUTH_PASSWORD/SECRET are
+#   therefore wired in and the container will not come up without them. The
+#   username is fixed to "admin" (not a customer parameter), matching the
+#   wud/guacamole convention for apps with a single conventional admin account.
+# - Single-container design: the web dashboard runs as a supervised s6 service inside
+#   the same container (HERMES_DASHBOARD=1), not upstream's separate two-container
+#   host-network compose layout.
+# - The LLM provider/model and any additional messaging platforms (Discord, Slack,
+#   WhatsApp, Signal, Email) are configured post-provision via the authenticated
+#   dashboard. install.sh pre-seeds a minimal model block in config.yaml only when an
+#   OpenRouter key is supplied.
+
+# Logo (rendered in app catalogue thumbnails)
+# Official upstream icon (nous-logo.png from the project's own docs site),
+# unmodified other than SVG-wrapping (RFC-001 requires an .svg file; upstream
+# only ships raster icons, so the PNG is embedded verbatim as a data URI
+# inside a minimal SVG shell — no pixel data altered). Tighter crop than the
+# repo's apple-touch-icon.png (same artwork, no white margin). Descriptive/
+# nominative use per the AF-wide legal clearance (STRDWH-1129 / LEGALIONOS-8064):
+# displaying a third-party logo solely to identify an installable product is
+# covered under § 23(1) No. 3 MarkenG, provided the standard AF catalogue
+# disclaimer ("not affiliated with/endorsed by the vendor") is shown.
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/hermes-agent/1.0.0/logo.svg
+logo_sha256: f86f58d9fd678851ca565e3084cc30f4388974b023eca1c076281052aab15371
+logo_license: trademark-nominative-fair-use
+logo_source: https://github.com/NousResearch/hermes-agent/blob/main/website/static/img/nous-logo.png
