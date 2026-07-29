@@ -14,7 +14,7 @@ It is the single source of truth for:
 
 - Recipe authors (human or AI agent) — generate against these rules
 - The `af-create-recipe` Claude Code skill — applies these rules as a self-check before handoff
-- The `af-validate` CLI in [af-core](https://github.com/IONOS-Server-Technology/af-core) — enforces these rules in CI
+- The `af-validate` CLI in [af-api](https://github.com/IONOS-Server-Technology/af-api) — enforces these rules in CI
 - Future maintenance sweeps — when a rule changes here, every existing recipe is re-checked against the new version
 
 If a rule cannot be expressed concretely enough to be machine-checked, it does not belong in this RFC — it belongs in style notes.
@@ -68,7 +68,7 @@ These rules apply to a single `recipes/<slug>/` directory.
 #### `metadata-schema-valid`
 
 - **Level:** ERROR
-- **What:** The parsed metadata must satisfy [`metadata.schema.json`](https://github.com/IONOS-Server-Technology/af-core/blob/main/af_core/schema/metadata.schema.json).
+- **What:** The parsed metadata must satisfy [`metadata.schema.json`](https://github.com/IONOS-Server-Technology/af-api/blob/main/src/af_api/core/schema/metadata.schema.json).
 - **How to check:** `jsonschema.validate(metadata, schema)`.
 - **Why:** The AF API loads recipes against this schema at startup; a recipe that fails the schema crashes the API.
 

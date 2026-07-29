@@ -175,7 +175,7 @@ exit 1
 
 ## What the CI Workflow Does
 
-1. Resolves matching `af-api` / `af-core` branches (same-name with `main` fallback)
+1. Resolves a matching `af-api` branch (same-name with `main` fallback)
 2. Triggers af-api `build.yaml` to build a per-branch image and pushes it to Harbor
 3. Deploys af-api into the test cluster as a per-run Deployment + NodePort Service
 4. Generates cloud-init for the recipe by calling the deployed `af-api`'s `/compose` endpoint
