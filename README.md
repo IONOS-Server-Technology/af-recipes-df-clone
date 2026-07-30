@@ -469,9 +469,9 @@ version**. For the OS image these recipes install onto, see
 1. **Recipe change (single-repo):** open a PR touching `recipes/**`. That runs, in
    parallel, `recipe-pipeline.yaml` (validation), `test-recipes-docker.yaml` (fast),
    and `test-recipes-live.yaml` (full VM install of every *enabled* changed recipe).
-   No cross-repo setup — `af-api`/`af-core` lookups fall back to `main`.
-2. **Recipe change that needs `af-api`/`af-core` too:** give the other repos a branch
-   with the **same name** (see [Same-name branch resolution](#same-name-branch-resolution)).
+   No cross-repo setup — the `af-api` lookup falls back to `main`.
+2. **Recipe change that needs `af-api` too:** give that repo a branch with the
+   **same name** (see [Same-name branch resolution](#same-name-branch-resolution)).
    The live test builds `af-api` from your branch and runs it.
 3. **One recipe on demand (no PR):** dispatch `test-recipes-docker.yaml` (fast) or
    `test-recipes-live.yaml` (full VM) with `recipes=<name>` (comma-separated for
@@ -500,20 +500,25 @@ image can bootstrap the whole catalogue.
 
 ### Same-name branch resolution
 
-For each of `af-api` and `af-core`, the live workflow does:
+For `af-api`, the live workflow does:
 
 ```
 branch = current af-recipes branch (head.ref on a PR, ref_name otherwise)
-if branch exists on the target repo → use it   else → fall back to main
+if branch exists on af-api → use it   else → fall back to main
 ```
 
 `af-api` is built from its resolved ref (image tagged with the sanitised branch
-name); `af-core` is passed as `af_core_ref` into that build. `recipe-pipeline.yaml`
-and `test-recipes-docker.yaml` do the same lookup for `af-core`.
+name). `recipe-pipeline.yaml` and `test-recipes-docker.yaml` do the same lookup, but
+instead of building an image they install `af-api` from that ref to get the
+`af-validate` CLI.
+
+> The validator used to be a separate `af-core` repo, resolved the same way. It is now
+> af-api's in-tree `af_api.core` package (IF-1327), so there is one cross-repo lookup
+> instead of two, and one ref rather than a pair that could disagree.
 
 **Practical rule:** when a change spans repos, use the **same branch name**
-everywhere (`af-recipes`, `af-api`, `af-core`, and the OS image). Single-repo PRs
-need no setup — missing branches fall back to `main`.
+everywhere (`af-recipes`, `af-api`, and the OS image). Single-repo PRs need no
+setup — missing branches fall back to `main`.
 
 ### `test-params.yaml` — recipe-local test inputs
 

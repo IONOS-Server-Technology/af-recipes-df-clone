@@ -86,8 +86,8 @@ jobs:
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
 
-      - name: Pick af-core ref (PR branch if it exists, else main)
-        id: af_core_ref
+      - name: Pick af-api ref (PR branch if it exists, else main)
+        id: af_api_ref
         env:
           PR_BRANCH: ${{ github.head_ref || github.ref_name }}
           GH_APP_TOKEN: ${{ env.GH_APP_TOKEN }}
@@ -101,29 +101,40 @@ jobs:
           status=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: token $GH_APP_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/IONOS-Server-Technology/af-core/branches/$PR_BRANCH")
+            "https://api.github.com/repos/IONOS-Server-Technology/af-api/branches/$PR_BRANCH")
           if [ "$status" = "200" ]; then
-            echo "af-core has branch '$PR_BRANCH' — using it"
+            echo "af-api has branch '$PR_BRANCH' — using it"
             echo "ref=$PR_BRANCH" >> "$GITHUB_OUTPUT"
           else
-            echo "af-core branch lookup returned HTTP $status — falling back to main"
+            echo "af-api branch lookup returned HTTP $status — falling back to main"
             echo "ref=main" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout af-core
+      - name: Checkout af-api
         uses: actions/checkout@v5
         with:
-          repository: IONOS-Server-Technology/af-core
-          path: af-core-src
-          ref: ${{ steps.af_core_ref.outputs.ref }}
+          repository: IONOS-Server-Technology/af-api
+          path: af-api-src
+          ref: ${{ steps.af_api_ref.outputs.ref }}
           token: ${{ env.GH_APP_TOKEN }}
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
 
-      - name: Install af-core
-        run: pip install -e ./af-core-src
+      - name: Install the af-validate CLI from af-api
+        run: |
+          # The validator used to live in af-core; it is now af-api's in-tree
+          # af_api.core package (IF-1327), installed via af-api's *lean base* —
+          # no `server` extra, so none of the FastAPI stack is pulled in here.
+          #
+          # uv rather than setup-python: af-api requires Python 3.14 and this
+          # runner's tool cache only carries 3.12. uv downloads the interpreter
+          # itself, which is how af-api's own CI gets 3.14.
+          uv venv --python 3.14 .venv-af-api
+          uv pip install --python .venv-af-api ./af-api-src
+          # Put the venv first on PATH so both `af-validate` and the inline
+          # `python3` heredocs below resolve against it (they need pyyaml, which
+          # is one of af-api's base dependencies).
+          echo "$PWD/.venv-af-api/bin" >> "$GITHUB_PATH"
 
       - name: Validate recipe schema
         run: af-validate recipe recipes/${{ matrix.recipe }}
@@ -133,7 +144,7 @@ jobs:
           python3 - <<'EOF'
           import secrets, string, sys, yaml
           from pathlib import Path
-          from af_core.recipe import load_recipe
+          from af_api.core.recipe import load_recipe
 
           def _generate_secret(length=32):
               alphabet = string.ascii_letters + string.digits
@@ -147,7 +158,7 @@ jobs:
               print("No .env.template — skipping")
               sys.exit(0)
 
-          # af-core no longer exposes recipe.parameters — read from metadata.yaml directly
+          # The validator no longer exposes recipe.parameters — read metadata.yaml directly
           raw_meta = yaml.safe_load((recipe_dir / "metadata.yaml").read_text())
           parameters = raw_meta.get("parameters", [])
 

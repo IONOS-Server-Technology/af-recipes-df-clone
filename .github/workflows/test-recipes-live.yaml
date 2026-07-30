@@ -60,8 +60,8 @@ jobs:
         id: detect
         run: |
           # Keep only recipes marked `enabled: true` in metadata.yaml. Disabled
-          # recipes cannot be deployed via /compose — af-core's validator rejects
-          # them with recipe_not_found (see af_core/validator.py) — so they would
+          # recipes cannot be deployed via /compose — af-api's validator rejects
+          # them with recipe_not_found (see af_api/core/validator.py) — so they would
           # always fail at the cloud-init step. Live-test only activated recipes.
           filter_enabled() {
             local out='[]'
@@ -145,18 +145,6 @@ jobs:
             echo "value=main" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Resolve af-core branch ref
-        id: af-core-ref
-        run: |
-          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
-          if git ls-remote --exit-code \
-              "https://x-access-token:${GH_APP_TOKEN}@github.com/IONOS-Server-Technology/af-core.git" \
-              "refs/heads/${branch}" > /dev/null 2>&1; then
-            echo "value=${branch}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=main" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Derive Harbor image tag from af-recipes branch
         id: image-tag
         run: |
@@ -178,8 +166,7 @@ jobs:
           client_payload: >-
             {"ref": "${{ steps.af-api-ref.outputs.value }}",
              "image_tag": "${{ steps.image-tag.outputs.value }}",
-             "af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}",
-             "af_core_ref": "${{ steps.af-core-ref.outputs.value }}"}
+             "af_recipes_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}"}
 
   deploy-af-api:
     name: Deploy af-api for branch
