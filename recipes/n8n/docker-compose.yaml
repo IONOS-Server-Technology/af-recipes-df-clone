@@ -2,6 +2,9 @@ services:
   n8n:
     image: n8nio/n8n:2.32.6
     restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/n8n/docker-compose.yml"
     environment:
       - N8N_HOST=${APP_DOMAIN}
       - N8N_PROTOCOL=https
@@ -35,6 +38,9 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
     environment:
       - POSTGRES_DB=n8n
       - POSTGRES_USER=n8n

@@ -1,39 +1,56 @@
 services:
   wud:
-    image: getwud/wud:8.3.0
+    # PINNED to 8.2.2 — do NOT bump to 8.3.0 (dockercompose.apply regression,
+    # upstream PR #946; silent no-op on one-click updates). See metadata.yaml.
+    image: getwud/wud:8.2.2
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # dockercompose.apply trigger — the platform "one-click update" mechanism
+      # that every app's `wud.trigger.include=...,dockercompose.apply` label points
+      # at. Defined here (not in .env) because it is platform plumbing, not
+      # customer-tunable config like the notification triggers in .env.template.
+      #   AUTO=false  → never auto-updates; fires only on manual RUN (UI/API).
+      #   MODE=batch  → the only mode the docker-compose trigger supports; updates
+      #                 all pending services in a compose file together (lockstep).
+      #   BACKUP=true → writes docker-compose.yml.back before rewriting (rollback).
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_AUTO=false"
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_MODE=batch"
+      - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_BACKUP=true"
+    # Published so the af-core renderer detects the public port (metadata ports:),
+    # injects the Traefik router/service labels, and drops this host binding on ship
+    # (traffic then arrives only via Traefik). With no base_domain the binding is
+    # kept and WUD is reachable on the host at :3000 — production always sets one.
+    ports:
+      - "3000:3000"
     volumes:
+      # RW socket: required for the one-click dockercompose.apply trigger (AC1).
+      # WARNING: with no auth in front of the Traefik route yet, this exposes a
+      # Docker-controlling API unauthenticated at wud.<base_domain>. Locked down
+      # once the Traefik basic-auth feature lands (see metadata.yaml note).
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/wud/store:/store
-      # af-core injects /opt/<app>:/opt/<app> bind-mounts here for each recipe
-      # that carries the dockercompose.apply trigger label, so WUD can rewrite
-      # and recreate those stacks on demand.
-    networks:
-      - wud-network
-      - traefik-net
+      # INTERIM WORKAROUND (Option 1): the dockercompose.apply trigger must read
+      # and rewrite each app's /opt/<app>/docker-compose.yml, but WUD runs in its
+      # own container and cannot see the host's /opt without a mount. Without this,
+      # apply logs "Compose file ... does not exist" yet still reports success, so
+      # nothing updates. The proper fix is for af-core to inject per-app
+      # /opt/<app>:/opt/<app> mounts (analogous to Traefik-label injection); until
+      # that lands we mount all of /opt so WUD can reach every app's compose file.
+      # This is a live view — apps started after WUD become visible automatically.
+      # No real extra privilege: WUD already holds the RW docker socket.
+      - /opt:/opt
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.wud.rule=Host(`updates.${BASE_DOMAIN}`)"
-      - "traefik.http.routers.wud.entrypoints=websecure"
-      - "traefik.http.routers.wud.tls.certresolver=le"
-      - "traefik.http.services.wud.loadbalancer.server.port=3000"
-      - "traefik.docker.network=traefik-net"
       # WUD must not watch itself — it cannot safely apply its own update.
+      # (Traefik routing labels are injected by the af-core renderer, not here.)
       - "wud.watch=false"
     healthcheck:
-      # Accepts both 200 (no auth) and 401 (auth enabled) as healthy.
-      # Using 127.0.0.1 — localhost resolves to ::1 only in current Docker
-      # networking, but WUD binds to 0.0.0.0 (IPv4).
+      # Accepts both 200 (no auth) and 401 (auth enabled, once basic-auth lands)
+      # as healthy. Using 127.0.0.1 — localhost resolves to ::1 only in current
+      # Docker networking, but WUD binds to 0.0.0.0 (IPv4).
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/registries | grep -qE '^(200|401)$'"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
-
-networks:
-  wud-network:
-    driver: bridge
-  traefik-net:
-    external: true
