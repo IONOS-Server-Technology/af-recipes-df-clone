@@ -6,6 +6,7 @@ the workflow so we can rule out token mangling between /compose and the
 bootstrap call. If af-api can't decrypt its own freshly-issued token here,
 the issue is either pod restart / replica race or a real crypto bug.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -16,23 +17,47 @@ from pathlib import Path
 
 import requests
 import yaml
+from mtls_cert import resolve_client_cert
 
 
 def random_password(length: int = 20) -> str:
-    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
+    return "".join(
+        secrets.choice(string.ascii_letters + string.digits) for _ in range(length)
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("recipes", nargs="+")
-    parser.add_argument("--api-url", required=True, help="af-api root, e.g. http://<host>:<port>")
+    parser.add_argument(
+        "--api-url", required=True, help="af-api root, e.g. http://<host>:<port>"
+    )
     parser.add_argument("--ssh-public-key", required=True)
     parser.add_argument(
         "--bootstrap-output",
         default="bootstrap-response.tar.gz",
         help="Where to write the raw /bootstrap response body (it's a gzip'd tar, not text)",
     )
+    parser.add_argument(
+        "--client-cert",
+        default=None,
+        help="mTLS client certificate (path to a PEM file) for any leg that hits "
+        "an af-api mTLS ingress (both real-cluster prod-mode legs); omit "
+        "otherwise. Requires --client-key.",
+    )
+    parser.add_argument(
+        "--client-key",
+        default=None,
+        help="mTLS client private key (path to a PEM file). "
+        "Must be supplied together with --client-cert.",
+    )
     args = parser.parse_args()
+
+    try:
+        client_cert = resolve_client_cert(args.client_cert, args.client_key)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     repo_root = Path(__file__).resolve().parent.parent
     applications = []
@@ -51,27 +76,58 @@ def main() -> int:
     }
 
     print(f"=== POST {args.api_url}/api/v1/compose ===")
-    resp = requests.post(f"{args.api_url}/api/v1/compose", json=compose_body, timeout=30)
+    resp = requests.post(
+        f"{args.api_url}/api/v1/compose",
+        json=compose_body,
+        timeout=30,
+        cert=client_cert,
+    )
     print(f"HTTP {resp.status_code}")
     if not resp.ok:
         print(resp.text)
         return 1
     cloud_init = resp.json()["cloud_init"]
     # find the token line and capture it without awk
-    token_line = next((line for line in cloud_init.splitlines() if line.strip().startswith("token:")), None)
+    token_line = next(
+        (line for line in cloud_init.splitlines() if line.strip().startswith("token:")),
+        None,
+    )
     if token_line is None:
         print("no token line in cloud-init", file=sys.stderr)
         print(cloud_init)
         return 1
     token = token_line.split("token:", 1)[1].strip()
     segments = token.count(".") + 1
-    print(f"token length={len(token)} JWE-segments={segments} (5 expected for JWE compact)")
+    print(
+        f"token length={len(token)} JWE-segments={segments} (5 expected for JWE compact)"
+    )
     print(f"token[:20]={token[:20]!r}  token[-20:]={token[-20:]!r}")
 
+    # Redeem the token against the bootstrap_url baked into the cloud-init, not
+    # the /compose host. With the Envoy Gateway split (dev cluster) bootstrap is
+    # served on a separate public, non-mTLS host (bootstrap.<env>.appfactory...),
+    # while the mTLS main host rejects a certless /bootstrap at the TLS handshake.
+    # A real VM only ever calls bootstrap_url and presents no client cert, so
+    # follow it here and send no cert — this mirrors the VM on every leg (for the
+    # ephemeral NodePort and prod legs bootstrap_url equals the old {api_url} path).
+    bootstrap_line = next(
+        (
+            line
+            for line in cloud_init.splitlines()
+            if line.strip().startswith("bootstrap_url:")
+        ),
+        None,
+    )
+    if bootstrap_line is None:
+        print("no bootstrap_url line in cloud-init", file=sys.stderr)
+        print(cloud_init)
+        return 1
+    bootstrap_url = bootstrap_line.split("bootstrap_url:", 1)[1].strip()
+
     print()
-    print(f"=== POST {args.api_url}/api/v1/bootstrap (body form) ===")
+    print(f"=== POST {bootstrap_url} (body form) ===")
     boot_resp = requests.post(
-        f"{args.api_url}/api/v1/bootstrap",
+        bootstrap_url,
         json={"token": token},
         timeout=30,
     )

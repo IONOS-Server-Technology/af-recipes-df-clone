@@ -8,6 +8,7 @@ from pathlib import Path
 
 import requests
 import yaml
+from mtls_cert import resolve_client_cert
 
 
 def random_password(length: int = 20) -> str:
@@ -26,7 +27,27 @@ def main() -> int:
         default=None,
         help="Ed25519 public key PEM for dev-mode archive signature verification",
     )
+    parser.add_argument(
+        "--client-cert",
+        default=None,
+        help="mTLS client certificate: path to a PEM file. Supply together with "
+        "--client-key on any leg that hits an af-api mTLS ingress (both real-cluster "
+        "prod-mode legs); omit where no client cert is required, e.g. the ephemeral "
+        "af-api of a dev-mode run.",
+    )
+    parser.add_argument(
+        "--client-key",
+        default=None,
+        help="mTLS client private key: path to a PEM file. "
+        "Must be supplied together with --client-cert.",
+    )
     args = parser.parse_args()
+
+    try:
+        client_cert = resolve_client_cert(args.client_cert, args.client_key)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     repo_root = Path(__file__).resolve().parent.parent
     applications = []
@@ -48,7 +69,9 @@ def main() -> int:
         # "base_os": args.base_os,
     }
 
-    resp = requests.post(f"{args.api_url}/api/v1/compose", json=payload, timeout=30)
+    resp = requests.post(
+        f"{args.api_url}/api/v1/compose", json=payload, timeout=30, cert=client_cert
+    )
     if not resp.ok:
         print(f"/compose failed: {resp.status_code} {resp.text}", file=sys.stderr)
         return 1

@@ -21,6 +21,10 @@ on:
         description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
         required: false
         default: "true"
+      mode:
+        description: "dev = ephemeral af-api on a ClusterIP/NodePort (branch/PR); prod = validate a production image against the real dev+prod clusters"
+        required: false
+        default: "dev"
   # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
   # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
   workflow_call:
@@ -43,21 +47,43 @@ on:
         type: string
         required: false
         default: "true"
+      mode:
+        description: "dev = ephemeral af-api on a ClusterIP/NodePort (branch/PR); prod = validate a production image against the real dev+prod clusters"
+        type: string
+        required: false
+        default: "dev"
 
 jobs:
   detect-changed-recipes:
     name: Detect Changed Recipes
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
     outputs:
       recipes: ${{ steps.detect.outputs.recipes }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
+      - name: Get CI secrets
+        # Needed for the mTLS client certs the catalogue check below presents.
+        # if-ci-actions is the action carrying AF_RECIPES_MTLS_CLIENT_*, same as
+        # the test-recipes job.
+        uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
+
       - name: Detect changed recipe directories
         id: detect
+        # Inputs come in via env, not ${{ }}: the runner substitutes an expression
+        # as literal text before bash parses the script, so a free-text input
+        # interpolated into a run block becomes shell source rather than data.
+        env:
+          RECIPES_INPUT: ${{ inputs.recipes }}
+          ALL_ENABLED: ${{ inputs.all_enabled }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Keep only recipes marked `enabled: true` in metadata.yaml. Disabled
           # recipes cannot be deployed via /compose — af-api's validator rejects
@@ -75,10 +101,10 @@ jobs:
             echo "$out"
           }
 
-          if [ -n "${{ inputs.recipes }}" ]; then
+          if [ -n "$RECIPES_INPUT" ]; then
             # explicit list (manual dispatch or a caller passing recipes)
-            recipes=$(echo "${{ inputs.recipes }}" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ inputs.all_enabled }}" = "true" ]; then
+            recipes=$(echo "$RECIPES_INPUT" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$ALL_ENABLED" = "true" ]; then
             # manual dispatch without a list, or the nightly caller (workflow_call with
             # all_enabled=true): test every recipe (filter_enabled narrows to activated).
             recipes=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
@@ -122,8 +148,118 @@ jobs:
           fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 
+      - name: Write mTLS client certs for the catalogue check
+        # Both real clusters serve /api/v1/catalogue on the mTLS main host (only
+        # /api/v1/bootstrap has its own public listener), so the check needs a
+        # client cert per cluster. umask 077 keeps the private keys off 0644.
+        if: ${{ (inputs.mode || 'dev') == 'prod' }}
+        run: |
+          umask 077
+          printf '%s' "$AF_RECIPES_MTLS_CLIENT_CRT_PEM_DEV"  > /tmp/af_client_dev.crt
+          printf '%s' "$AF_RECIPES_MTLS_CLIENT_KEY_PEM_DEV"  > /tmp/af_client_dev.key
+          printf '%s' "$AF_RECIPES_MTLS_CLIENT_CRT_PEM_PROD" > /tmp/af_client_prod.crt
+          printf '%s' "$AF_RECIPES_MTLS_CLIENT_KEY_PEM_PROD" > /tmp/af_client_prod.key
+
+      - name: Expand recipe/cluster matrix
+        id: matrix
+        # Expand the recipe list into the test-recipes job matrix. The dev-mode run
+        # tests each recipe once against the ephemeral af-api; the prod-mode run
+        # tests each recipe against BOTH real clusters (dev + prod legs), so a
+        # single prod-mode invocation exercises both signing paths.
+        #
+        # A prod-mode leg can only validate a recipe the cluster's af-api actually
+        # serves: af-api bakes an af-recipes snapshot at build time, so a recipe
+        # activated here but not yet carried by the deployed af-api would fail with
+        # recipe_not_found. On the blocking prod leg that stops every production
+        # image build, so derive the legs from the live catalogue instead of
+        # assuming the two are in step.
+        env:
+          MODE: ${{ inputs.mode || 'dev' }}
+          RECIPES_JSON: ${{ steps.detect.outputs.recipes }}
+        run: |
+          set -o pipefail
+
+          report() {  # message goes to the log AND the run summary
+            echo "::${1}::${2}"
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              echo "- ${2}" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+
+          # Catalogue ids for one cluster, or non-zero if the call itself failed.
+          # A failed call is an outage and must never be reported as "the recipe is
+          # missing from the catalogue" — the two need different responses.
+          catalogue_ids() {  # $1 cluster, $2 api url, $3 crt, $4 key
+            local body
+            if ! body=$(curl -sS --fail-with-body -m 30 \
+                          --cert "$3" --key "$4" "${2}/api/v1/catalogue"); then
+              echo "GET ${2}/api/v1/catalogue failed: ${body}" >&2
+              return 1
+            fi
+            echo "$body" | jq -r '.applications[].id'
+          }
+
+          enabled_count=$(echo "$RECIPES_JSON" | jq 'length')
+          if [ "$MODE" = "prod" ]; then
+            clusters="dev prod"
+            echo "### Prod-mode catalogue check" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          else
+            clusters="ephemeral"
+          fi
+
+          include='[]'
+          for c in $clusters; do
+            case "$c" in
+              dev)  api="https://api.dev.appfactory.ionos.com"
+                    crt=/tmp/af_client_dev.crt;  key=/tmp/af_client_dev.key ;;
+              prod) api="https://api.appfactory.ionos.com"
+                    crt=/tmp/af_client_prod.crt; key=/tmp/af_client_prod.key ;;
+              # The ephemeral af-api is built from this branch, so its catalogue is
+              # in sync by construction — nothing to intersect against.
+              ephemeral) api="" ;;
+            esac
+
+            if [ -z "$api" ]; then
+              legs="$RECIPES_JSON"
+            elif ! ids=$(catalogue_ids "$c" "$api" "$crt" "$key"); then
+              if [ "$c" = "prod" ]; then
+                report error "prod cluster catalogue is unreachable — cannot tell which recipes production can validate. This is an outage or a cert/allowlist problem, NOT a stale catalogue."
+                exit 1
+              fi
+              # A dev-cluster outage must never block a production image build,
+              # for the same reason the whole dev leg is continue-on-error.
+              report warning "dev cluster catalogue is unreachable — dropping all dev legs (non-blocking). The prod leg still gates the build."
+              continue
+            else
+              avail=$(printf '%s\n' "$ids" \
+                | jq -R -s -c 'split("\n") | map(select(length > 0))')
+              legs=$(echo "$RECIPES_JSON" | jq -c --argjson a "$avail" \
+                '[.[] | select(IN($a[]))]')
+              for r in $(echo "$RECIPES_JSON" | jq -r --argjson a "$avail" \
+                           '.[] | select(IN($a[]) | not)'); do
+                report notice "recipe '${r}' is absent from the ${c} cluster catalogue — skipping the ${c} leg. The af-api deployed there predates this recipe activation."
+              done
+              # Silently shipping zero production validation behind a green build is
+              # the exact false-green this pipeline exists to remove.
+              if [ "$c" = "prod" ] && [ "$enabled_count" -gt 0 ] \
+                 && [ "$(echo "$legs" | jq 'length')" -eq 0 ]; then
+                report error "no recipe in scope is present in the prod cluster catalogue — nothing would be validated against production. Deploy an af-api carrying these recipes to prod first."
+                exit 1
+              fi
+            fi
+
+            include=$(echo "$include" | jq -c --argjson legs "$legs" --arg c "$c" \
+              '. + [$legs[] | {recipe: ., cluster: $c}]')
+          done
+
+          echo "Pipeline mode: $MODE; matrix legs: $(echo "$include" | jq 'length')"
+          echo "matrix={\"include\":$include}" >> $GITHUB_OUTPUT
+
   trigger-af-api-build:
     name: Trigger af-api image build
+    # Ephemeral af-api is only for the dev-mode run. The prod-mode run targets
+    # the real clusters, so it skips build/deploy/cleanup entirely.
+    if: ${{ (inputs.mode || 'dev') != 'prod' }}
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -171,6 +307,7 @@ jobs:
   deploy-af-api:
     name: Deploy af-api for branch
     needs: trigger-af-api-build
+    if: ${{ (inputs.mode || 'dev') != 'prod' }}
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -313,7 +450,10 @@ jobs:
           exit 1
 
   test-recipes:
-    name: Test Recipe - ${{ matrix.recipe }}
+    name: Test Recipe - ${{ matrix.recipe }} (${{ matrix.cluster }})
+    # deploy-af-api is skipped in prod mode, so gate on !failure rather than
+    # success — otherwise a skipped dependency would skip this job too.
+    if: ${{ !cancelled() && needs.detect-changed-recipes.result == 'success' && needs.deploy-af-api.result != 'failure' }}
     container:
       image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
       credentials:
@@ -326,8 +466,7 @@ jobs:
       id-token: write
       contents: read
     strategy:
-      matrix:
-        recipe: ${{ fromJson(needs.detect-changed-recipes.outputs.recipes) }}
+      matrix: ${{ fromJson(needs.detect-changed-recipes.outputs.matrix) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@v5
@@ -374,42 +513,227 @@ jobs:
           echo "Discovered Ubuntu image UUID: $uuid"
           echo "uuid=$uuid" >> "$GITHUB_OUTPUT"
 
-      - name: Generate cloud-init via /compose
+      - name: Resolve leg configuration
+        id: leg
+        # One matrix entry = one recipe on one cluster leg. Map the leg to its
+        # af-api URL; the ephemeral leg uses the per-run deploy job's NodePort.
+        env:
+          CLUSTER: ${{ matrix.cluster }}
         run: |
-          # bootstrap_verification_key is a multiline PEM; GHA expands it inline and bash
-          # treats the quoted newlines as a single argument, so argparse receives it intact.
-          python3 scripts/call-compose.py \
-            --api-url "${{ needs.deploy-af-api.outputs.url }}" \
-            --ssh-public-key "$(cat /tmp/vm_key.pub)" \
-            --bootstrap-verification-key "${{ needs.deploy-af-api.outputs.bootstrap_verification_key }}" \
-            "${{ matrix.recipe }}" | tee /tmp/cloudinit.yaml
+          case "$CLUSTER" in
+            ephemeral) api_url="${{ needs.deploy-af-api.outputs.url }}" ;;
+            dev)       api_url="https://api.dev.appfactory.ionos.com" ;;
+            prod)      api_url="https://api.appfactory.ionos.com" ;;
+            *) echo "unknown cluster leg: $CLUSTER" >&2; exit 1 ;;
+          esac
+          echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
 
-          echo "patching"
+      - name: Write mTLS client cert for the leg
+        # Both real-cluster legs hit an af-api mTLS ingress and present the
+        # recipes-pipeline PUKI client cert for that cluster. umask 077 so the
+        # private key is not world-readable in the job workspace. The ephemeral
+        # leg talks to a plain-HTTP NodePort and needs no cert.
+        if: ${{ matrix.cluster != 'ephemeral' }}
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+        run: |
+          umask 077
+          case "$CLUSTER" in
+            dev)
+              crt="$AF_RECIPES_MTLS_CLIENT_CRT_PEM_DEV"
+              key="$AF_RECIPES_MTLS_CLIENT_KEY_PEM_DEV"
+              ;;
+            prod)
+              crt="$AF_RECIPES_MTLS_CLIENT_CRT_PEM_PROD"
+              key="$AF_RECIPES_MTLS_CLIENT_KEY_PEM_PROD"
+              ;;
+            *)
+              echo "no client cert defined for cluster leg: $CLUSTER" >&2
+              exit 1
+              ;;
+          esac
+          if [ -z "$crt" ] || [ -z "$key" ]; then
+            echo "mTLS client cert/key for the $CLUSTER leg is empty — check get-secrets" >&2
+            exit 1
+          fi
+          printf '%s' "$crt" > /tmp/af_client.crt
+          printf '%s' "$key" > /tmp/af_client.key
+
+      - name: Generate cloud-init via /compose
+        id: compose
+        # Dev-cluster leg runs against pre-release af-api/recipes and only
+        # exercises non-customer paths (mTLS, dev-mode). A recipe-test failure
+        # there is a forward-compat signal, not a production gate — keep it
+        # non-blocking so it never fails a production image build. See the
+        # "Flag dev-cluster leg outcome" step below and test-results.
+        continue-on-error: ${{ matrix.cluster == 'dev' }}
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+          RECIPE: ${{ matrix.recipe }}
+          FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
+        run: |
           keep_finalize_flag=""
-          if [ "${{ inputs.finalize_break_glass }}" = "false" ]; then
+          if [ "$FINALIZE_BREAK_GLASS" = "false" ]; then
             keep_finalize_flag="--keep-finalize"
           fi
-          python3 scripts/patch-cloudinit-dev-mode.py $keep_finalize_flag /tmp/cloudinit.yaml
-          echo "...done"
+
+          case "$CLUSTER" in
+            ephemeral)
+              # Dev-mode run: ephemeral af-api over plain-HTTP NodePort. The
+              # per-run ed25519 pubkey is injected as the user-data verification
+              # key; patch downgrades bootstrap_url https->http and switches on
+              # dev mode. bootstrap_verification_key is a multiline PEM — GHA
+              # expands it inline and bash keeps the quoted newlines as one arg.
+              python3 scripts/call-compose.py \
+                --api-url "${{ steps.leg.outputs.api_url }}" \
+                --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+                --bootstrap-verification-key "${{ needs.deploy-af-api.outputs.bootstrap_verification_key }}" \
+                "$RECIPE" | tee /tmp/cloudinit.yaml
+              ;;
+            dev)
+              # Prod-mode dev-cluster leg: reach the real dev af-api and present the
+              # recipes-pipeline PUKI client cert to its mTLS ingress; no user-data key
+              # (the archive is signed by the real dev-cluster key, verified via the
+              # baked key).
+              python3 scripts/call-compose.py \
+                --api-url "${{ steps.leg.outputs.api_url }}" \
+                --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+                --client-cert /tmp/af_client.crt \
+                --client-key /tmp/af_client.key \
+                "$RECIPE" | tee /tmp/cloudinit.yaml
+              ;;
+            prod)
+              # Prod-mode prod-cluster leg: reach the real prod af-api. The prod main
+              # host is mTLS-required host-wide, so present the _PROD recipes client
+              # cert exactly as the dev leg does — a certless request dies in the TLS
+              # handshake, it does not get a 4xx. The always-trusted baked prod key
+              # verifies the prod-signed archive and af-finalize runs for real
+              # (production first-boot lifecycle).
+              python3 scripts/call-compose.py \
+                --api-url "${{ steps.leg.outputs.api_url }}" \
+                --ssh-public-key "$(cat /tmp/vm_key.pub)" \
+                --client-cert /tmp/af_client.crt \
+                --client-key /tmp/af_client.key \
+                "$RECIPE" | tee /tmp/cloudinit.yaml
+              ;;
+          esac
+
+          # One patch invocation for every leg — the script maps the leg to what its
+          # cloud-init needs: dev mode plus the https->http downgrade on the ephemeral
+          # NodePort, dev mode with https kept on the dev cluster (so the production
+          # image trusts the baked dev-cluster key), and normal mode on the prod
+          # cluster, where only the break-glass sentinel is written. That is how an
+          # explicit finalize_break_glass request is honoured on the prod leg too;
+          # --leg prod with break-glass off patches nothing.
+          python3 scripts/patch-cloudinit-dev-mode.py \
+            --leg "$CLUSTER" $keep_finalize_flag /tmp/cloudinit.yaml
+
+          # Publish the bootstrap_url the VM will actually use. Downstream steps must
+          # not derive it from the /compose host: with the Envoy host split, bootstrap
+          # is served on a separate public host and the mTLS main host refuses a
+          # certless request. This is the same value probe-bootstrap.py follows, read
+          # after the patch so the ephemeral leg's https->http downgrade is included.
+          bootstrap_url=$(python3 -c "import yaml; print(yaml.safe_load(open('/tmp/cloudinit.yaml'))['application_factory']['bootstrap_url'])")
+          echo "bootstrap_url=$bootstrap_url" >> "$GITHUB_OUTPUT"
 
           cat /tmp/cloudinit.yaml
 
+      - name: Verify the af-api host split
+        # BLOCKING ON EVERY REAL-CLUSTER LEG, INCLUDING DEV — deliberately not
+        # continue-on-error. The dev leg is advisory for *recipe* outcomes, because it
+        # runs pre-release recipes against a pre-release af-api. A broken host split or
+        # an mTLS gate that stopped enforcing is not a recipe outcome, it is our
+        # infrastructure, and collapsing the two is how the dev leg sat green while its
+        # bootstrap reachability check had been failing ever since the dev cluster moved
+        # to Envoy Gateway. The prod cutover is what finally surfaced it.
+        if: ${{ matrix.cluster != 'ephemeral' }}
+        env:
+          BOOTSTRAP_URL: ${{ steps.compose.outputs.bootstrap_url }}
+          MAIN_URL: ${{ steps.leg.outputs.api_url }}
+        run: |
+          set -uo pipefail
+          rc=0
+
+          if [ -z "$BOOTSTRAP_URL" ]; then
+            echo "::error::no bootstrap_url captured from /compose — cannot verify the host split" >&2
+            exit 1
+          fi
+
+          # Probe certless and report BOTH curl's exit code and the HTTP status. The
+          # verdict keys on curl's exit code, which is what distinguishes the layers:
+          # 0 = handshake completed and HTTP answered, 6 = DNS, 7 = connect,
+          # 28 = timeout, 35 = TLS, 56/55 = peer reset mid-request (what an Envoy
+          # mTLS rejection looks like). http_code is logged for context.
+          probe() {  # $1 url -> sets PROBE_EXIT and PROBE_CODE
+            # GHA runs this step under `bash -e` (no `shell:` key = `bash -e {0}`),
+            # and a bare `X=$(cmd)` adopts cmd's exit status, so a failing curl would
+            # kill the step before the verdict below runs — including the expected
+            # mTLS refusal. The && / || list keeps errexit out of it.
+            PROBE_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$1") \
+              && PROBE_EXIT=0 || PROBE_EXIT=$?
+          }
+
+          # The public bootstrap host must ANSWER a request carrying no client cert:
+          # that is the only network position a customer VM ever has. A GET on the
+          # POST-only endpoint is expected to be a 4xx — any HTTP answer proves the
+          # handshake completed, which is the property under test.
+          probe "$BOOTSTRAP_URL"
+          if [ "$PROBE_EXIT" -ne 0 ]; then
+            echo "::error::certless request to the bootstrap host never reached HTTP (${BOOTSTRAP_URL}): curl exit ${PROBE_EXIT}, http_code ${PROBE_CODE}. A VM cannot redeem its token, so first boot would fail. curl 6/7/28 points at DNS or routing for the bootstrap host; 35/55/56 means it is demanding a client cert it must not." >&2
+            rc=1
+          else
+            echo "OK: bootstrap host answered a certless request with HTTP ${PROBE_CODE} (${BOOTSTRAP_URL})"
+          fi
+
+          # ...and the mTLS main host must REFUSE one. /api/v1/bootstrap on the main
+          # host was certless-reachable under nginx via a per-path exemption; under
+          # Envoy the SecurityPolicy covers the whole main route and it must not be.
+          # Asserted from the runner rather than from the VM on purpose: the runner is
+          # on the IP allowlist, so a rejection here isolates the mTLS gate instead of
+          # being masked by the IP gate the VM would also hit.
+          probe "${MAIN_URL}/api/v1/bootstrap"
+          if [ "$PROBE_EXIT" -ne 0 ]; then
+            echo "OK: mTLS main host refused a certless request as expected (curl exit ${PROBE_EXIT}) (${MAIN_URL}/api/v1/bootstrap)"
+          else
+            echo "::error::mTLS main host answered a certless request with HTTP ${PROBE_CODE} (${MAIN_URL}/api/v1/bootstrap) — the mTLS gate is not enforcing on the main route" >&2
+            rc=1
+          fi
+
+          exit $rc
+
       - name: Probe /bootstrap with the JWT before booting the VM
+        id: probe
+        continue-on-error: ${{ matrix.cluster == 'dev' }}
         # Calls /compose and /bootstrap from a single Python process so the
         # token never goes through the shell. Rules out awk/jq quoting from
         # the earlier-observed "Token is malformed or cannot be decrypted"
         # we got back from variant 1.
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+          RECIPE: ${{ matrix.recipe }}
         run: |
+          # Both real-cluster legs need the cert: probe-bootstrap.py makes its own
+          # /compose call against the mTLS main host. Its /bootstrap redemption
+          # follows the cloud-init bootstrap_url and stays certless on every leg,
+          # mirroring what a real VM does.
+          cert_args=""
+          if [ "$CLUSTER" != "ephemeral" ]; then
+            cert_args="--client-cert /tmp/af_client.crt --client-key /tmp/af_client.key"
+          fi
           python3 scripts/probe-bootstrap.py \
-            --api-url "${{ needs.deploy-af-api.outputs.url }}" \
+            --api-url "${{ steps.leg.outputs.api_url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
-            --bootstrap-output "/tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz" \
-            "${{ matrix.recipe }}"
+            --bootstrap-output "/tmp/bootstrap-response-${RECIPE}.tar.gz" \
+            $cert_args \
+            "$RECIPE"
       - uses: actions/upload-artifact@v7
         name: Upload bootstrap response as Artifact
         if: always()
         with:
-          name: bootstrap-response-${{ matrix.recipe }}
+          # Cluster in the name: a prod-mode run has two legs per recipe, and
+          # without it downloading the failed prod leg's artifact hands you the
+          # dev leg's instead.
+          name: bootstrap-response-${{ matrix.recipe }}-${{ matrix.cluster }}
           path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
           archive: false
           if-no-files-found: warn
@@ -438,25 +762,33 @@ jobs:
           token: ${{ env.GH_APP_TOKEN }}
 
       - name: Run ImageTester
+        id: imagetester
+        continue-on-error: ${{ matrix.cluster == 'dev' }}
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
           IONOS_DATACENTER_ID: ${{ vars.IONOS_DATACENTER_ID }}
           IONOS_TEMPLATE_ID: 2713068b-f0bb-441a-9bdc-b2961e81408b # VPS 6-8-240
           RECIPE_NAME: ${{ matrix.recipe }}
-          # Used by the diagnostic SSH tests to verify the VM can reach
-          # the per-branch af-api Service NodePort.
-          AF_API_URL: ${{ needs.deploy-af-api.outputs.url }}/api/v1
+          # Used by the diagnostic SSH tests to verify the VM can reach af-api
+          # (the per-run NodePort in dev mode, or the real cluster in prod mode).
+          AF_API_URL: ${{ steps.leg.outputs.api_url }}/api/v1
+          # The endpoint the VM actually redeems its token against. NOT derivable from
+          # AF_API_URL: on both real clusters bootstrap lives on a separate public host,
+          # while the mTLS main host refuses the certless request a VM makes.
+          AF_BOOTSTRAP_URL: ${{ steps.compose.outputs.bootstrap_url }}
+          FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
+          IMAGE_ID: ${{ inputs.image_uuid || steps.image.outputs.uuid }}
         run: |
           testsuite_exclude_flag=""
-          if [ "${{ inputs.finalize_break_glass }}" != "false" ]; then
+          if [ "$FINALIZE_BREAK_GLASS" != "false" ]; then
             # Break-glass skips af-finalize's cloud-init cache scrub, so the
             # FIN-marked tests (which check the scrub happened) would always
             # fail here — they only make sense when finalize_break_glass=false.
             testsuite_exclude_flag="--testsuite-exclude af_FIN_"
           fi
           python3 scripts/run-imagetester.py \
-            --image-id "${{ inputs.image_uuid || steps.image.outputs.uuid }}" \
+            --image-id "$IMAGE_ID" \
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
@@ -465,12 +797,37 @@ jobs:
       - uses: actions/upload-artifact@v7
         name: Upload Test Results as Artifact
         if: always()
+        # if-no-files-found: error would hard-fail the leg when ImageTester
+        # soft-failed on dev and produced no logs — keep it non-blocking there
+        # too so the dev leg stays advisory.
+        continue-on-error: ${{ matrix.cluster == 'dev' }}
         with:
-          name: AppTestResults-${{ matrix.recipe }}
+          name: AppTestResults-${{ matrix.recipe }}-${{ matrix.cluster }}
           path: tests/af-logs/
           if-no-files-found: error
           retention-days: 30
           overwrite: true
+
+      - name: Flag dev-cluster leg outcome (non-blocking)
+        # The dev-cluster leg is advisory (pre-release control plane, non-customer
+        # paths). Its recipe-test steps are continue-on-error, so surface any
+        # failure loudly here instead of letting it silently pass.
+        if: ${{ always() && matrix.cluster == 'dev' }}
+        env:
+          RECIPE: ${{ matrix.recipe }}
+        run: |
+          if [ "${{ steps.compose.outcome }}" = "failure" ] \
+             || [ "${{ steps.probe.outcome }}" = "failure" ] \
+             || [ "${{ steps.imagetester.outcome }}" = "failure" ]; then
+            msg="dev-cluster leg for ${RECIPE} failed — non-blocking. Dev runs pre-release af-api/recipes; this is a forward-compat signal, not a production gate. The prod-cluster leg gates the build."
+            echo "::warning::${msg}"
+            {
+              echo "### ⚠️ dev-cluster leg failed (non-blocking): ${RECIPE}"
+              echo "$msg"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "dev-cluster leg for ${RECIPE} passed."
+          fi
 
   cleanup-af-api:
     name: Cleanup af-api deployment
@@ -530,6 +887,11 @@ jobs:
     if: always()
     steps:
       - name: Check test status
+        env:
+          # Via env, not ${{ }}: the value carries recipe names that originate in
+          # the workflow_dispatch input, and the shell single-quoting below would
+          # not survive one containing a quote.
+          RECIPES_JSON: ${{ needs.detect-changed-recipes.outputs.recipes }}
         run: |
           if [ "${{ needs.detect-changed-recipes.result }}" != "success" ]; then
             echo "Recipe detection failed"
@@ -538,7 +900,7 @@ jobs:
           # An empty matrix means no activated recipe was in scope (e.g. only
           # disabled recipes changed). That's a clean no-op, not a failure —
           # test-recipes is 'skipped' in that case.
-          count=$(echo '${{ needs.detect-changed-recipes.outputs.recipes }}' | jq 'length' 2>/dev/null || echo 0)
+          count=$(echo "$RECIPES_JSON" | jq 'length' 2>/dev/null || echo 0)
           if [ "${count:-0}" = "0" ]; then
             echo "No activated recipes to test — nothing to do."
             exit 0
