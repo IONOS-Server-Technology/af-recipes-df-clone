@@ -154,6 +154,9 @@ def main() -> int:
             {"name": "AF_API_URL", "value": af_api_url},
             {"name": "JWE_PRIVATE_KEY_PEM", "value": jwe_pem},
             {"name": "BOOTSTRAP_SIGNING_KEY_PEM", "value": signing_key_pem},
+            # IF-1385: this deployment only ever serves ephemeral test/CI VMs, so
+            # the Traefik it renders onto them must never mint real LE certs.
+            {"name": "LE_CASERVER", "value": "https://acme-staging-v02.api.letsencrypt.org/directory"},
         ]
         k8s.apply({
             "apiVersion": "apps/v1",
