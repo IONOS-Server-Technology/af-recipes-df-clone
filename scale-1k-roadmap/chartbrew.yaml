@@ -1,0 +1,118 @@
+slug: chartbrew
+name: Chartbrew
+source_description: "Open-source dashboard builder for APIs, SQL, and NoSQL data with an AI assistant"
+
+upstream:
+  url: https://chartbrew.com/
+  repo_url: https://github.com/chartbrew/chartbrew
+  license: "FSL-1.1-MIT (Functional Source License, converts to MIT 2 years after each version's release) OR commercial license (dual-licensed)"
+  docker_image: razvanilin/chartbrew (Docker Hub; latest numbered tag 5.3.1)
+
+version_health:
+  latest_version: "v5.3.1"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.3.1 released 2026-07-31, 5 days before today (2026-08-05). GitHub
+    releases show a tight, ongoing cadence: v5.3.0 (2026-07-23), v5.2.3
+    (2026-07-19), v5.2.2 (2026-06-24), v5.2.1 (2026-06-14), v5.2.0
+    (2026-05-25), v5.1.0 (2026-05-12), v5.0.1 (2026-04-24), v5.0.0
+    (2026-04-14), v4.9.0 (2026-03-11) — roughly one release every 2-4
+    weeks for the last 5 months, with active feature work (AI dataset
+    intelligence, new visualization engine) in the most recent releases.
+    Repo is not archived. Clearly active, no maintenance-only or EOL
+    signal.
+
+catalogue_fit:
+  categories: [analytics, developer-tools, business-intelligence]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers dashboard/BI charting that
+    connects directly to a customer's own databases (MySQL, Postgres,
+    MongoDB) or APIs and turns query results into shareable/embeddable
+    charts and dashboards, now with an AI assistant for building
+    charts/datasets from a chat prompt. Genuinely distinct category from
+    anything already in the catalogue — closest in spirit is n8n
+    (developer/data tooling) but n8n orchestrates workflows rather than
+    visualizing data. Note: `reverse_proxy_compatible: false` above is
+    because Chartbrew's upstream docker-compose splits the app across two
+    HTTP ports on one container — 4018 (frontend SPA) and 4019 (API), with
+    the frontend's API base URL baked into the client bundle at
+    container-start via VITE_APP_API_HOST — rather than the single-port
+    pattern every existing recipe uses. Fronting this with Traefik on one
+    customer subdomain would need two path-based routes (e.g. `/` to 4018,
+    `/api` to 4019), mechanically possible with Traefik PathPrefix rules
+    but a first for this catalogue and untested against the current
+    Traefik recipe template.
+  usefulness: high
+  usefulness_rationale: >
+    Broad appeal to any customer running their own app/database who wants
+    a self-hosted alternative to Metabase/Grafana-style BI tools with
+    self-service signup and no coding required to build a chart. AI
+    assistant is a genuine differentiator versus older BI tools in this
+    space.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CB_ENCRYPTION_KEY, CB_DB_PASSWORD, CB_REDIS_PASSWORD, CB_BULLMQ_PASSWORD]
+  secrets_expressible_today:
+    - secret: CB_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CB_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CB_REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CB_BULLMQ_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Upstream license is FSL-1.1-MIT (Functional Source License), not a
+      permissive OSS license. FSL's "Competing Use" restriction forbids
+      making the software available to others as a hosted product or
+      service that substitutes for Chartbrew itself (explicitly calls out
+      "Chartbrew-as-a-Service" resale as prohibited). Each release
+      converts to plain MIT two years after its own publication date, so
+      older tags eventually clear, but the current latest release (5.3.1,
+      2026-07-31) is still under the restricted FSL term. Application
+      Factory hosting per-customer instances is arguably distinguishable
+      from "Chartbrew-as-a-Service" resale (each customer gets their own
+      isolated instance rather than a shared multi-tenant SaaS copy of
+      Chartbrew itself), but this is a legal interpretation call, not a
+      technical one — every other recipe in the catalogue is permissively
+      licensed (MIT/Apache/AGPL-with-precedent); this would be the first
+      FSL app and needs a licensing/legal review before shipping,
+      independent of the /compose mechanism question.
+    - >
+      Two-HTTP-port split (frontend 4018 / API 4019) behind one customer
+      subdomain requires path-based Traefik routing not used by any
+      existing recipe (see differentiation_caveat above) — not a hard
+      blocker, but untested against the current recipe template and
+      should be proven out before committing to build_now.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Chartbrew is an actively maintained (release 5 days ago as of
+  2026-08-05, ~monthly cadence) self-hosted BI/dashboard builder with no
+  overlap in the current 24-recipe catalogue and broad appeal — genuinely
+  useful to any customer who wants to visualize their own database/API
+  data without hiring for it, sweetened by an AI chart-building assistant.
+  It has no built-in admin-password env var to gate (accounts are created
+  via in-app signup, like n8n/Immich), and every other secret it needs at
+  boot (encryption key, DB password, Redis password, BullMQ dashboard
+  basic-auth password) is a random value the server can generate with no
+  customer input — mechanically installable today via
+  server_generated_no_customer_input, no generated_from or Traefik
+  basic_auth gate required. Two things keep this at build_with_caveats
+  rather than build_now: (1) the upstream FSL-1.1-MIT license restricts
+  offering the software "as a service," which is a real legal question for
+  a hosted Application Factory recipe and would be a first for this
+  catalogue's all-permissive license mix; and (2) Chartbrew splits its UI
+  across two HTTP ports (frontend + API) on the container, requiring
+  path-based Traefik routing that no existing recipe currently uses.
+  Recommend a licensing review and a Traefik path-routing proof-of-concept
+  before building the recipe.
+
