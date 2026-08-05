@@ -1,0 +1,78 @@
+slug: bookshelf
+name: Bookshelf
+source_description: "Ebook and audiobook collection manager, a community revival of Readarr"
+
+upstream:
+  url: https://github.com/pennydreadful/bookshelf
+  repo_url: https://github.com/pennydreadful/bookshelf
+  license: GPL-3.0
+  docker_image: ghcr.io/pennydreadful/bookshelf
+
+version_health:
+  latest_version: "hardcover-v0.4.20.129 / softcover-v0.4.20.129"
+  latest_release_date: 2026-02-04
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    No formal GitHub Releases are published (`develop` is the default
+    branch, no tags/changelog page) — the project ships rolling
+    build-numbered image tags instead (e.g. hardcover-v0.4.20.129). Commit
+    history shows heavy activity Aug 2025 through early Feb 2026 (latest
+    commit found: 2026-02-04, "Fixes URLFormatException when adding an
+    author with Hardcover (#116)"), then nothing — a commits-since search
+    for anything after 2026-03-01 returns zero results. As of today
+    (2026-08-05) that is a 6-month gap with no commits, no new image tag,
+    and no archival banner or EOL statement from the maintainer. Not
+    dormant/archived yet, but a project that was clearly active a year ago
+    has gone quiet for half a year; worth re-checking before committing to
+    this app rather than treating "active development" claims (745 stars,
+    10k+ commits historically) at face value.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover automated ebook/audiobook
+    acquisition — the closest neighbors (paperless-ngx, immich, syncthing)
+    manage documents/photos/files a customer already has, not a
+    Sonarr/Radarr-style "monitor RSS feeds, grab and rename new releases"
+    workflow.
+  usefulness: low
+  usefulness_rationale: >
+    Bookshelf is a *arr-family automation tool: to do anything useful it
+    needs at least one indexer (Usenet or BitTorrent tracker) and a
+    download client (SABnzbd/qBittorrent/etc.) configured elsewhere — none
+    of which exist in this catalogue, so on its own it's an empty shell
+    pointed at nothing. It is also explicitly built around Usenet/BitTorrent
+    acquisition of copyrighted ebooks/audiobooks (a Readarr revival whose
+    stated purpose is grabbing releases from indexers), which is a
+    materially different risk profile from the rest of the catalogue and
+    worth a deliberate legal/ToS call before onboarding, independent of the
+    technical fit question.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Bookshelf is mechanically installable today: single container, one HTTP
+  port (8787), no forced login of its own at first boot (Sonarr/Readarr-
+  family apps historically ship with authentication off by default), so a
+  Traefik basic_auth gate covers the only secret it needs — the same
+  pattern already used for n8n/WUD/Open WebUI. The blocker is fit, not
+  mechanism: it duplicates nothing in the current catalogue but is only
+  useful paired with indexer and download-client infrastructure we don't
+  host, and its whole purpose is automating acquisition of copyrighted
+  books via Usenet/BitTorrent — a reputational/legal consideration a
+  general hosting catalogue should weigh deliberately rather than ship by
+  default. Upstream has also gone quiet for 6 months after a very active
+  year, which argues for waiting and re-checking rather than committing to
+  it now.
