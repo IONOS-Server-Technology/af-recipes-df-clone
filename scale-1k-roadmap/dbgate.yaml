@@ -1,0 +1,89 @@
+slug: dbgate
+name: DbGate
+source_description: "Open-source cross-platform SQL and NoSQL database administration tool"
+
+upstream:
+  url: https://dbgate.org/
+  repo_url: https://github.com/dbgate/dbgate
+  license: GPL-3.0
+  docker_image: dbgate/dbgate:7.2.4
+
+version_health:
+  latest_version: "7.2.4"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v7.2.4 shipped 2026-08-04 — one day before today (2026-08-05) — adding
+    built-in PostgreSQL backup/restore, alongside a run of beta/premium-beta
+    tags in the same 2-day window (7.2.4-beta.10, 7.2.4-premium-beta.8/11).
+    v7.2.3 preceded it by only ~16 days. This is a fast-moving, clearly
+    active project with no dormancy signal at all; both the community
+    (dbgate/dbgate) and premium (dbgate/dbgate-premium) Docker Hub images
+    are kept current with each release.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing currently in the 24-recipe catalogue exposes a generic
+    multi-engine database admin UI (n8n/paperless-ngx/gitea/immich each run
+    their own internal Postgres/MySQL but don't surface a browser UI for
+    it). DbGate is a direct analog to Adminer (already gap-analyzed, not
+    yet built — see apps-gaps/adminer.yaml) but broader: single React/Electron-
+    style web app covering MySQL, PostgreSQL, SQL Server, MongoDB, SQLite,
+    CockroachDB, Cassandra and more, plus a visual query designer, schema
+    compare, and data import/export that Adminer's plain PHP forms don't
+    offer. The two are not both "must build" — they'd serve the same
+    customer need (BYO-database browsing/admin) with DbGate as the more
+    feature-rich pick.
+  usefulness: medium
+  usefulness_rationale: >
+    Same audience and same first-boot friction as Adminer: useful to
+    developers/power users who already run their own database (self-hosted
+    or another recipe's internal DB) and want a real GUI instead of a CLI,
+    but it needs a reachable database to be useful at all — an empty shell
+    with nothing to browse until the customer supplies a connection. Rated
+    medium (not high) for the same niche/technical-audience reasoning as
+    Adminer, and not "low" like Datasette because DbGate connects to
+    live, general-purpose databases rather than requiring a bespoke
+    uploaded file.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DbGate is a single-container app (dbgate/dbgate:7.2.4, official image,
+  pinned) listening on one HTTP port (3000 internally) — reverse-proxy
+  compatible on <slug>.<base_domain> with no other raw ports needed.
+  Critically, it ships with NO authentication enabled by default: login is
+  opt-in via either LOGIN_PASSWORD_<login> env vars or a single
+  ADMIN_PASSWORD env var, and the admin path
+  (packages/api/src/controllers/auth.js) checks that password with a plain
+  `adminPassword == password` string comparison, not a hash — so
+  `generated_from` (which only ever projects an argon2/bcrypt hash) cannot
+  drive DbGate's own login the way it does for Vaultwarden. That's not a
+  blocker, though: since DbGate ships unauthenticated by default anyway
+  (same posture as Adminer), the fix is the same as Adminer's — leave
+  DbGate's own login off and gate the whole app behind Traefik
+  `basic_auth: true`, with that gate's password projected from the
+  customer's root password via `generated_from`. Worth flagging for the
+  human reviewer: DbGate had a critical (CVSS 10.0) unauthenticated RCE via
+  its JSON script-runner endpoint (GHSA-8v3q-9vmx-36vc, affecting <=7.1.8,
+  fixed in 7.1.9) that was exploitable specifically because auth is
+  disabled by default — another reason a mandatory (not optional)
+  basic_auth gate is the right call here, and the pinned 7.2.4 tag is
+  comfortably past the fixed version. Upstream is fast-moving and healthy
+  (daily-ish releases as of this week). Recommend build_now, but note in
+  triage that it covers the same customer need as the still-unbuilt
+  Adminer gap — decide whether to build one, the other, or both rather
+  than treating this as a clear net-new category.
