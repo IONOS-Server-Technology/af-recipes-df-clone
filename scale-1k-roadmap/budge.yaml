@@ -1,0 +1,97 @@
+slug: budge
+name: Budge
+source_description: "Personal finance budgeting app for expense tracking and financial planning"
+
+upstream:
+  url: https://github.com/linuxserver/budge
+  repo_url: https://github.com/linuxserver/budge
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/budge:0.0.9
+
+version_health:
+  latest_version: "0.0.9"
+  latest_release_date: "2026-05-27"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    BudgE ("budgie") is developed by LinuxServer.io itself (not a
+    third-party image wrapping someone else's upstream) — repo_url and
+    docker_image both point at the same linuxserver/budge project.
+    Releases were roughly monthly from the first public tag (0.0.1,
+    2026-02-13) through 0.0.9 (2026-05-27): 0.0.1, 0.0.2, 0.0.3, 0.0.4,
+    0.0.5, 0.0.6, 0.0.7, 0.0.8, 0.0.9. As of today (2026-08-05) it has been
+    ~2.3 months since 0.0.9 with no newer tag — a gap wider than the prior
+    monthly rhythm, so "slowing" fits better than "active" pending a
+    tag that restores the cadence. Not archived and not EOL — the repo is
+    under active LinuxServer.io maintenance, but the project explicitly
+    self-describes as "alpha" ("still under active development and
+    considered an 'alpha' version until more tests can be written to
+    ensure functionality is maintained").
+
+catalogue_fit:
+  categories: [finance, budgeting]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No app in the current 24-recipe catalogue covers personal finance or
+    budgeting — this would be a genuinely new category. Budge is an
+    envelope-budgeting tool (in the Aspire Budgeting / YNAB style) letting a
+    customer track spending and plan a budget entirely on infrastructure
+    they control, appealing to the same privacy-conscious audience already
+    served by Vaultwarden (passwords) and Paperless (documents).
+  usefulness: medium
+  usefulness_rationale: >
+    Personal budgeting has broad general-audience appeal and fills a real
+    gap in the catalogue, but the upstream project is explicitly alpha
+    quality, single-maintainer-org, with only 696 GitHub stars and a
+    slowing release cadence — real risk that a customer's financial data
+    sits on top of software still finding its feet.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Budge has its own multi-user account system, not a single fixed
+      admin-login field — there is no ADMIN_TOKEN/ADMIN_PASSWORD-style env
+      var to project a `generated_from: "<algo>:ROOT_PASSWORD"` hash into.
+      Worse, registration is open by default: any visitor to the app's
+      public URL can self-register a new account (see linuxserver/budge
+      issue #6, "Allow disable registration for new users," filed
+      precisely because anyone hitting a publicly exposed instance can
+      create an account). No documented env var or setting to durably
+      disable registration was found in the LSIO docs, README, or image
+      metadata as of this analysis. Left ungated, a customer's Budge
+      instance would let arbitrary internet visitors register and use it.
+    - >
+      A Traefik `basic_auth` gate in front of the whole app (the same
+      pattern used for n8n/WUD/Open WebUI) closes this: it blocks anyone
+      without the root-password-derived basic-auth credential from
+      reaching the app at all, including the registration page. The
+      customer's own in-app account (created after clearing the gate) is
+      then their own chosen credential, which the platform never needs to
+      supply — consistent with how the catalogue already treats
+      first-visitor-claims-the-account apps (e.g. Uptime Kuma has no gate
+      because setup locks after the first admin; Budge needs one because
+      its registration stays open indefinitely).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Budge is a single-container, self-contained (no external DB) envelope
+  budgeting web app with no overlap in the current catalogue — personal
+  finance is a genuinely new category for us, and it's reverse-proxy
+  friendly on a single HTTP port. It clears the installability bar only
+  via a Traefik `basic_auth` gate over the whole app, since Budge's own
+  auth is an open multi-user registration system with no admin-password
+  field to hash-project into and no confirmed way to disable signup.
+  Recommend `build_with_caveats`: mechanically installable today behind a
+  mandatory basic-auth gate, but the upstream project's explicit alpha
+  status, small community, and recently slowing release cadence (last tag
+  2026-05-27, ~2.3 months ago against a prior monthly rhythm) are real
+  reasons to hold off shipping a recipe on top of customer financial data
+  until it matures further.
