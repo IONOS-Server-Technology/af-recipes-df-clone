@@ -1,0 +1,89 @@
+slug: bunkerm
+name: BunkerM
+source_description: "All-in-one Mosquitto MQTT broker with web UI, ACL editor, and live monitoring"
+
+upstream:
+  url: https://bunkeriot.github.io/BunkerM/
+  repo_url: https://github.com/bunkeriot/BunkerM
+  license: "Apache-2.0 (Community edition); Pro/Enterprise AI-credit tiers are a separate commercial offering layered on top, core broker/ACL/monitoring stay Apache-2.0"
+  docker_image: bunkeriot/bunkerm
+
+version_health:
+  latest_version: "v2.1.0"
+  latest_release_date: "2026-03-20"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Docker Hub tag history: v1.0.0/v1.1.0/v1.2.0 all landed within ~2 weeks of
+    each other in late Feb/early Mar 2025, then a roughly one-year gap before
+    v2.0 (2026-03-03) and v2.1.0 (2026-03-20, 17 days later). No numbered tag
+    since v2.1.0 — that's ~4.5 months before today (2026-08-05). The `latest`
+    Docker Hub tag was still rebuilt on 2026-05-03, and GitHub commit history
+    shows activity into early May 2026 (e.g. a "refactor: update subscription
+    plans to Community, Pro, Enterprise" commit on 2026-05-02), so development
+    hasn't stopped — it's just ~3 months since the last visible commit and
+    ~4.5 months since the last version-tagged release, and recent commits skew
+    toward commercial-tier plumbing (subscription plans) rather than core
+    broker features. Calling this "slowing" rather than "active": real but
+    thinning cadence, not dormant/EOL.
+
+catalogue_fit:
+  categories: [networking, iot, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue provides an MQTT broker —
+    closest neighbor by theme is Home Assistant (a common MQTT *consumer*
+    for IoT integrations), but that recipe doesn't ship or manage a broker
+    itself. BunkerM would be a genuinely new category: a managed
+    pub/sub message broker with a web dashboard, useful standalone for IoT
+    telemetry/automation and as a companion to a self-hosted Home Assistant.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (self-hosted MQTT for IoT/home-automation setups)
+    with no cannibalization of an existing recipe, and the web UI + ACL
+    editor lowers the barrier versus hand-configuring raw Mosquitto. Rated
+    medium rather than high because the audience is narrower/more technical
+    (IoT hobbyists, home-automation users) than the general
+    productivity/security apps dominating the catalogue, and the project is
+    small (488 GitHub stars) with a release cadence that has visibly thinned
+    in 2026.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  BunkerM ships a single official image (bunkeriot/bunkerm, pin e.g.
+  "v2.1.0") exposing two ports: 2000 (web dashboard, plain HTTP, reverse-proxy
+  friendly on its own) and 1900 (the actual Mosquitto MQTT broker, a raw TCP
+  protocol port that must stay open to the internet for MQTT clients to
+  connect — not something Traefik/HTTP basic_auth can gate, hence
+  reverse_proxy_compatible: false at the whole-app level even though the
+  dashboard alone would qualify). The web UI ships with a fixed,
+  non-configurable default login (admin@example.com / password123, no env
+  var to preset it and no first-run "create admin" wizard), which per
+  precedent (IF-1312) is fine to ship as long as the exposure window is
+  closed by fronting the dashboard with Traefik basic_auth projected from the
+  customer's root password — the same pattern used for Vaultwarden/n8n-style
+  apps with a fixed or self-service-only login. The MQTT port itself is not a
+  first-boot secret gap the way it was for Ant Media Server's raw streaming
+  ports: BunkerM's dynamic-security plugin requires per-client username/
+  password by default (no anonymous pub/sub out of the box), and those client
+  credentials are created after deployment through the — now
+  basic_auth-gated — web UI, mirroring wg-easy's post-install peer-provisioning
+  model already in the catalogue. Core broker/ACL/monitoring functionality is
+  Apache-2.0 and free forever; paid Pro/Enterprise tiers only gate optional
+  AI features (chat assistant, cloud alert forwarding), so there's no
+  feature-paywall blocking normal use. Net: mechanically installable today
+  with zero hard blockers, but recommended as build_with_caveats rather than
+  a plain build_now given the raw public MQTT port (a real if narrower attack
+  surface than our usual HTTP-only recipes) and a small, recently thinning
+  release cadence worth re-checking before committing engineering time.
