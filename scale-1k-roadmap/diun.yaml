@@ -1,0 +1,79 @@
+slug: diun
+name: Diun
+source_description: "Docker Image Update Notifier to receive notifications when images are updated"
+
+upstream:
+  url: https://crazymax.dev/diun/
+  repo_url: https://github.com/crazy-max/diun
+  license: MIT
+  docker_image: crazymax/diun:4.33.0
+
+version_health:
+  latest_version: v4.33.0
+  latest_release_date: 2026-05-30
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v4.33.0 (2026-05-30, ~2 months before this analysis
+    on 2026-08-05). Commit history shows ongoing activity through
+    2026-07-11 (~1 month before this analysis), including dependency bumps
+    and small feature work (containerd provider, healthcheck command),
+    so the repo is maintained, not dormant. Note there was a large release
+    gap between v4.31.0 (2024-12-24) and v4.32.0 (2026-05-28) — roughly 17
+    months with no tagged release — before cadence picked back up with
+    v4.32.0/v4.33.0 landing two days apart. Treat the project as active
+    today, but flag that it has previously gone quiet for over a year.
+
+catalogue_fit:
+  categories: [infrastructure, monitoring]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [wud]
+  differentiation: >
+    None found. Diun is a headless watcher: it polls Docker Hub/registries
+    (or the local Docker/Swarm/Kubernetes/Nomad/containerd/file provider) for
+    new tags or digest changes and fires an outbound notification (Slack,
+    Discord, Telegram, Gotify, webhook, etc.) — it has no web UI, no API to
+    browse results, and no update-apply mechanism. `recipes/wud/` already
+    covers this exact use case (Docker image update monitoring) plus a web
+    UI and a one-click "apply the update" trigger, which is strictly more
+    capability for the same job. Diun would be a straight subset of an
+    existing recipe.
+  usefulness: low
+  usefulness_rationale: >
+    A customer who wants "tell me when my containers have updates available"
+    already has WUD in the catalogue with more functionality (UI + apply).
+    Diun's only differentiator — being a lighter headless agent — isn't a
+    customer-facing benefit in this catalogue, since WUD is currently
+    shipped `enabled: false` as an auto-injected companion rather than
+    something the customer picks and pays attention to for its footprint.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: [notification_provider_credentials]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Diun has no web UI and no login of its own, so there is nothing to
+      gate with generated_from root-password projection or a meaningful
+      Traefik basic_auth front door (it exposes no HTTP endpoint to guard)."
+    - "Diun is only useful once configured with an outbound notification
+      provider (Slack webhook URL, Discord webhook, Telegram bot
+      token, Gotify URL/token, generic webhook, etc.) — an arbitrary,
+      customer-chosen external credential with no /compose input channel
+      today. Shipping it without one means it runs and finds updates but
+      can never tell the customer, which defeats the app's entire purpose."
+    - "Needs read access to the Docker socket (or Swarm/Kubernetes/Nomad
+      API) to enumerate running containers, same class of privileged mount
+      already accepted for wud, not a new blocker on its own."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Diun is a well-maintained, MIT-licensed headless Docker image update
+  notifier, but it duplicates functionality `recipes/wud/` already provides
+  with a superset of features (web UI, one-click apply) — there's no
+  customer-facing gap it fills. It also has no built-in auth surface to
+  gate and no way to configure its one essential input (an outbound
+  notification-provider credential) through the current /compose mechanism,
+  so even setting overlap aside it can't ship as a working recipe today.
+  Not recommended.
