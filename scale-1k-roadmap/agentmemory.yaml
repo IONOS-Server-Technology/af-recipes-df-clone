@@ -1,0 +1,75 @@
+slug: agentmemory
+name: AgentMemory
+source_description: "Persistent memory for AI coding agents with hybrid BM25 vector and graph search"
+
+upstream:
+  url: https://www.agent-memory.dev/
+  repo_url: https://github.com/rohitg00/agentmemory
+  license: Apache-2.0
+  docker_image: iiidev/iii:0.11.2
+
+version_health:
+  latest_version: "v0.9.28"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.9.28 released 2026-07-19, 17 days before today (2026-08-05). Release
+    history is dense: v0.9.23 (2026-05-29), v0.9.24 (2026-05-29), v0.9.25
+    (2026-06-02), v0.9.26 (2026-06-03), v0.9.27 (2026-06-07), v0.9.28
+    (2026-07-19) — multiple releases per week in bursts, several explicitly
+    bug-fix waves for regressions in the immediately preceding release. 474
+    commits, 26.6k stars, 199 open PRs. Clearly active, pre-1.0, fast-moving
+    project rather than a mature/stable one.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a memory/context layer for AI
+    coding agents (closest neighbors by category are claude-code,
+    hermes-agent, open-webui, ollama — all either the agent/model itself or
+    a chat UI, not a session-memory backend). If it fit our mechanism it
+    would be a genuinely distinct addition.
+  usefulness: low
+  usefulness_rationale: >
+    The value proposition is a memory layer that a developer's coding
+    agent (Claude Code, Cursor, Copilot CLI, etc.) talks to over MCP/REST
+    while that developer is actively coding — i.e. a local dev-machine
+    companion tool, not a multi-user hosted service. Standing up a
+    dedicated cloud VM for it adds a network hop and public-exposure risk
+    for something upstream explicitly designs to bind to localhost. The
+    bundled real-time viewer is a secondary observability aid, not the
+    product's reason to exist, so it does not really benefit from the
+    "give it a domain behind Traefik" model the rest of the catalogue is
+    built around.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LLM_PROVIDER_API_KEY, AGENTMEMORY_SECRET, VIEWER_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: AGENTMEMORY_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: VIEWER_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official, self-contained Docker image for the agentmemory server itself. Upstream's own docker-compose.yml only containerizes the internal 'iii-engine' dependency (iiidev/iii:0.11.2, all ports bound to 127.0.0.1); the actual REST API (3111), MCP server, and web viewer (3113) are shipped as an npm package (@agentmemory/agentmemory) meant to run on the host via `npm install -g` / `npx`, not as a container. Building a recipe would mean writing a custom Dockerfile around an upstream npm CLI, not wrapping an official image — outside what af-create-recipe expects to find."
+    - "Full functionality (auto-compression, graph extraction) requires an LLM provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY). This is an external, customer-chosen credential with no projection channel today (same class of blocker noted for claude-code and hermes-agent)."
+    - "Upstream architecture intentionally binds its ports to localhost for a single local developer, not a multi-tenant public deployment; there is no built-in multi-user access control beyond a single bearer-token secret (AGENTMEMORY_SECRET) and an unauthenticated viewer, both of which assume trusted-localhost access rather than internet-facing exposure."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  AgentMemory is a fast-moving, actively released open-source project, but
+  it is architecturally a local dev-machine companion for AI coding agents
+  (MCP/REST server + viewer), not a containerized hosted web app — upstream
+  ships only an npm CLI plus a helper-engine Docker image bound to
+  localhost. Building a recipe would require authoring a custom Docker
+  image around the npm package rather than pinning an official one, and
+  its core functionality depends on a customer-supplied LLM provider API
+  key that has no projection channel under the current /compose mechanism.
+  Combined with a usage model (agent talks to it from the developer's own
+  machine) that doesn't map well onto "give it a public domain behind
+  Traefik," this is not a good fit for the catalogue today.
