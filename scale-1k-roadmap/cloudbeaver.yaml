@@ -1,0 +1,83 @@
+slug: cloudbeaver
+name: CloudBeaver
+source_description: "Web-based database management tool for comprehensive data administration"
+
+upstream:
+  url: https://dbeaver.com/products/cloudbeaver/
+  repo_url: https://github.com/dbeaver/cloudbeaver
+  license: Apache-2.0
+  docker_image: dbeaver/cloudbeaver
+
+version_health:
+  latest_version: "26.1.4"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest patch (26.1.4) shipped two days before this analysis (2026-08-05),
+    with 26.1.0 -> 26.1.4 all landing within the last ~2 months and an "ea"
+    (early access) tag updated within the last day. 8k+ commits on the devel
+    branch, 5.1k stars, actively triaged issues/PRs. This is a well-maintained,
+    fast-moving project, not a candidate for dormant/EOL flags.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [adminer]
+  differentiation: >
+    Same niche as the existing apps-gaps/adminer.yaml candidate: a generic
+    web UI for browsing/administering databases the customer runs elsewhere
+    (their own MySQL/Postgres, or another recipe's internal DB). CloudBeaver
+    is heavier (Java server, ~400MB image, persistent workspace) and more
+    actively maintained than Adminer, with a richer UI (multi-connection
+    management, SQL editor, ER diagrams) versus Adminer's single-page,
+    per-visit connection form. The two are direct substitutes for the same
+    customer need rather than complementary.
+  usefulness: medium
+  usefulness_rationale: >
+    Same audience as Adminer — developers/power users who self-host a
+    database and want a management UI without installing DBeaver locally —
+    so it doesn't expand the catalogue's addressable use case, just offers a
+    heavier alternative. Worth having only if the product wants two DB-admin
+    options at different weight/feature tiers, not as a first pick.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Unlike Adminer, CloudBeaver has its own persistent admin account: on
+      first visit to a fresh workspace it runs an interactive setup wizard
+      where whoever loads the page first picks the admin username and
+      password and that account persists (stored in the mounted
+      /opt/cloudbeaver/workspace volume), rather than requiring per-visit DB
+      credentials like Adminer. This is a first-visitor-wins race: af-api has
+      no channel to pre-seed that admin username/password (no
+      generated_from-able single field, no documented env var override), so
+      whoever reaches the URL first claims the permanent admin account.
+      Gating the whole app behind Traefik basic_auth before the wizard is
+      reachable closes that race for practical purposes (same pattern used
+      for Adminer/n8n/WUD), but it is worth flagging explicitly since the
+      underlying admin credential itself is still fully customer-chosen and
+      un-provisionable, not merely gated.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  CloudBeaver is a single-container, single-HTTP-port (8978) Java web app
+  with a persistent workspace volume, Apache-2.0 licensed and under active,
+  fast-paced development (26.1.4 shipped 2 days before this analysis). It
+  duplicates the same generic-DB-admin-UI niche already covered by the
+  apps-gaps/adminer.yaml candidate, just with a heavier footprint and richer
+  feature set. Installable today by gating the whole app behind Traefik
+  basic_auth (root-password-derived) the same way as Adminer, since it has
+  no login of its own until an interactive first-run wizard creates one —
+  but that wizard's own admin credential remains entirely customer-chosen at
+  first visit with no af-api input channel, so basic_auth is a mitigation of
+  the first-visitor race, not a substitute for real admin-credential
+  provisioning. Given the overlap with Adminer and the added weight, this is
+  a build-with-caveats rather than a clear pick.
