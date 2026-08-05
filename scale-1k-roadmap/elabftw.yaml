@@ -1,0 +1,76 @@
+slug: elabftw
+name: eLabFTW
+source_description: "Open-source electronic lab notebook for experiments, samples, and protocols"
+
+upstream:
+  url: https://www.elabftw.net/
+  repo_url: https://github.com/elabftw/elabftw
+  license: AGPL-3.0
+  docker_image: elabftw/elabimg
+
+version_health:
+  latest_version: "5.6.12"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.6.12 tagged 2026-08-03, 2 days before today (2026-08-05). Releases
+    are frequent — 5.6.3 through 5.6.12 all shipped between 2026-07-09 and
+    2026-08-03 (roughly one release every 2-4 days over the past month).
+    Main repo (elabftw/elabftw) is not archived and pushed to within the
+    last week. Note: the former companion repo elabftw/elabimg (which used
+    to hold the Dockerfile and docker-compose example) has been archived —
+    that container code was folded into the main elabftw/elabftw repo
+    itself, so the image is still actively built and published under the
+    same elabftw/elabimg name on Docker Hub; this is a repo consolidation,
+    not a sign of abandonment.
+
+catalogue_fit:
+  categories: [productivity, research, documentation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers lab/research record-keeping. Paperless-ngx
+    (existing recipe) is a generic document-archival tool for scanned
+    paper; eLabFTW is a structured electronic lab notebook purpose-built
+    for scientific research — experiments, samples inventory, protocols,
+    and audit-trailed entries with e-signatures. Different job, different
+    audience (research labs vs. general document hoarding).
+  usefulness: medium
+  usefulness_rationale: >
+    Strong, well-regarded tool within its niche (academic/industry
+    research labs), but that niche is narrower than most of the current
+    catalogue's general-purpose self-hosting audience. Useful
+    differentiator for a customer segment we don't currently serve, not a
+    mass-market pick.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD, MYSQL_ROOT_PASSWORD, SECRET_KEY]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  eLabFTW is a single web-container app (elabftw/elabimg) plus a MySQL
+  backing service, fronted cleanly by Traefik with DISABLE_HTTPS=true (the
+  documented reverse-proxy mode). Unlike most recipes here, it needs no
+  root-password projection at all: the app has no env-var-set admin
+  credential — the first visitor to /register.php on a freshly provisioned
+  instance creates their own local account and becomes Sysadmin directly
+  through the normal signup UI, so the customer sets their own password
+  without any platform secret-injection channel involved. The only secrets
+  at boot (DB password, MySQL root password, app SECRET_KEY) are all
+  patternless server-generated values the customer never needs to see.
+  Upstream is very actively released (multiple tags per week) and not at
+  risk of EOL. installable_today, but usefulness is capped at medium since
+  it targets a narrower research-lab audience than the catalogue's typical
+  general-purpose self-hosting user.
