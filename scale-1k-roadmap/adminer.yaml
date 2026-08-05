@@ -11,14 +11,15 @@ upstream:
 version_health:
   latest_version: "5.5.1"
   latest_release_date: "2024-07-21"
-  release_cadence: slowing
+  release_cadence: dormant
   eol_status: active
   notes: >
     Four releases in July 2024 (5.4.4 -> 5.5.1) closing security advisories,
-    then no tagged release in the ~13 months since. Repo is not archived and
-    issues/PRs are still being triaged, but cadence has visibly slowed from
-    the mid-2024 burst. Docker Hub also ships a maintained 4.x track
-    (4.17.1) alongside 5.x for anyone pinned to the older line.
+    then no tagged release in the ~24-25 months since (as of 2026-08-05).
+    Repo is not archived and issues/PRs are still being triaged, but there
+    has been zero release activity for over two years, well past "slowing"
+    into dormant. Docker Hub also ships a maintained 4.x track (4.17.1)
+    alongside 5.x for anyone pinned to the older line.
 
 catalogue_fit:
   categories: [database, developer-tools]
@@ -41,10 +42,10 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: []
+  secrets_required_at_first_boot: [basic_auth_password]
   secrets_expressible_today:
-    - secret: none_needed
-      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
   blocking_issues: []
   installable_today: true
   recommendation: build_now
@@ -55,8 +56,10 @@ summary: >
   DB credential form the end user fills in interactively at each visit, not
   a secret af-api needs to provision. That makes it directly installable
   today: front it with the domain param plus a Traefik basic_auth:true
-  gate (same pattern as n8n/WUD) to keep the unauthenticated login page from
-  being open to the internet, and no root-password projection is needed.
-  Release cadence has cooled since mid-2024 but the project is still active,
-  not EOL. Recommend building the recipe, with basic_auth as a required
-  (not optional) gate given the app has zero auth of its own.
+  gate (same pattern as n8n/WUD), with the basic-auth password itself
+  projected from the customer's root password via `generated_from`, to
+  keep the unauthenticated login page from being open to the internet.
+  Release cadence has gone dormant (no tag since mid-2024, ~2 years now) but
+  the project is still active/triaged, not EOL. Recommend building the
+  recipe, with basic_auth as a required (not optional) gate given the app
+  has zero auth of its own.
