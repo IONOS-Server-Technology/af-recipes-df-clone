@@ -1,0 +1,87 @@
+slug: corecontrol
+name: CoreControl
+source_description: "Self-hosted dashboard for managing servers, uptime, and network infrastructure"
+
+upstream:
+  url: https://github.com/crocofied/CoreObs
+  repo_url: https://github.com/crocofied/CoreObs
+  license: MIT
+  docker_image: haedlessdev/corecontrol
+
+version_health:
+  latest_version: "v1.0.1"
+  latest_release_date: "2025-04-30"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    No tagged release in ~15 months as of 2026-08-05 (last tag v1.0.1 on
+    2025-04-30), but the main branch has ongoing commits as recent as
+    2026-02-13 (e.g. "Team and Role models", "Prisma ORM setup", "Bun +
+    Elysia setup"). This reads as an in-progress rewrite of the stack
+    (moving off the Next.js/Go/Prisma-on-Postgres combo shipped in v1.0.1
+    toward a Bun+Elysia backend) that has not yet been cut into a release.
+    The only Docker images that exist (haedlessdev/corecontrol,
+    haedlessdev/corecontrol-agent, both tag 1.0.1 and latest) are frozen at
+    the pre-rewrite state and have not been pushed in over a year. Any
+    recipe built today would pin to a version that upstream itself appears
+    to be in the process of superseding, with no visibility into the
+    rewrite's timeline or whether it will keep the same compose shape.
+
+catalogue_fit:
+  categories: [infrastructure, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma, portainer]
+  differentiation: >
+    CoreControl is a homelab "mission control" page: it combines a server
+    inventory (hardware specs, quick links to each server's own admin
+    panel), a network/topology visualization, and basic uptime pinging for
+    registered apps/services. Uptime-kuma covers only the uptime-monitoring
+    slice and Portainer covers only Docker container management — neither
+    provides the server ledger + quick-launcher dashboard experience
+    CoreControl is built around. The overlap is real but partial; a
+    customer running both uptime-kuma and portainer today still lacks the
+    single "here are all my boxes and links to them" home page CoreControl
+    provides.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for customers running several servers/apps who want one landing
+    page, but it's a nice-to-have convenience layer rather than something
+    that unlocks new capability the catalogue lacks — most of its value is
+    additive on top of monitoring/management tools we already ship, and the
+    upstream instability (see version_health) makes it a riskier bet than a
+    typical medium-value app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_gate_credential
+    - JWT_SECRET
+    - POSTGRES_PASSWORD
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  CoreControl is mechanically installable today: it's a single public HTTP
+  port (3000) behind a Postgres-backed Next.js/Go app, its only in-app login
+  is a hardcoded default (admin@example.com / admin) with no env var to set
+  it at deploy time, so the correct move is to gate the whole app behind
+  Traefik basic_auth rather than try to project a root-password hash into a
+  credential the app can't be configured with — the DB password and JWT
+  secret are ordinary server-generated secrets with no customer-facing
+  channel needed. The bigger concern is upstream health: the repo (originally
+  "corecontrol", now redirects to "crocofied/CoreObs" though the README still
+  brands it CoreControl — same project, renamed, not a fork to worry about)
+  has had no tagged release in about 15 months while active commits suggest
+  an unreleased rewrite is underway. Given partial overlap with uptime-kuma
+  and portainer and only medium differentiation, this is a build-with-caveats
+  candidate: worth revisiting once upstream either ships a new release or the
+  rewrite stabilizes, rather than building against the stale v1.0.1 images now.
