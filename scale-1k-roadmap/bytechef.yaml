@@ -1,0 +1,90 @@
+slug: bytechef
+name: ByteChef
+source_description: "Open-source low-code API integration and workflow automation platform"
+
+upstream:
+  url: https://www.bytechef.io/
+  repo_url: https://github.com/bytechefhq/bytechef
+  license: Apache-2.0 (core); separate proprietary Enterprise Edition license under the repo's ee/ directory (not used by the self-hosted community deployment)
+  docker_image: docker.bytechef.io/bytechef/bytechef (also mirrored as bytechef/bytechef on Docker Hub)
+
+version_health:
+  latest_version: "v0.31.3"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v0.31.3 published 2026-07-29, one week before
+    today (2026-08-05). Docker Hub also carries date-stamped builds
+    (20260729, 20260720, 20260713, 20260626) landing roughly weekly,
+    confirming continuous shipping rather than a one-off tag. Repo shows
+    ~18.6k commits and ongoing PR activity. Clearly an active project, not
+    in maintenance mode.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Same product category as n8n: a self-hosted, low-code workflow/API
+    integration builder with a visual editor and a connector library,
+    backed by Postgres, exposing a single web port (8080) that sits fine
+    behind Traefik. ByteChef's marketing leans into unifying "AI agent
+    orchestration" with workflow automation and a large (180+) connector
+    count, which could appeal to a customer specifically wanting an
+    AI-agent-flavored builder — but for a customer who just wants generic
+    workflow/API automation, n8n already covers that job in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, actively developed tool with a distinct AI-agent angle, but it is
+    a close functional duplicate of the n8n recipe already shipped (same
+    Postgres + single-web-port shape, same "connect apps without code"
+    pitch). Value add is mostly "a different brand of low-code automation,"
+    which caps usefulness at medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, POSTGRES_PASSWORD, BYTECHEF_SECURITY_REMEMBER_ME_KEY]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BYTECHEF_SECURITY_REMEMBER_ME_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the upstream docker-compose.yml and quickstart docs:
+      there is no admin-username/admin-password environment variable at
+      boot. The app starts with zero users; the first visitor to
+      http://<host>:8080/login clicks "Create Account" and that submission
+      becomes the platform's sole admin. This is the identical shape of
+      problem already documented for Activepieces (apps-gaps/activepieces.yaml)
+      and 2FAuth (apps-gaps/2fauth.yaml) — no `type: password` parameter on
+      the app's own login exists to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential is
+      created client-side via self-registration rather than injected via
+      env var.
+    - >
+      A Traefik `basic_auth: true` gate in front of the app would close the
+      "stranger races to register first" race, but per the same precedent
+      it does not resolve the underlying gap: today's basic_auth mechanism
+      only carries the single root-password projection used for the gate
+      itself, with no second channel to also hand the customer a distinct
+      credential for the in-app signup form.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  ByteChef is an active, weekly-shipping, Apache-2.0-licensed low-code
+  automation platform, but it duplicates the job the existing n8n recipe
+  already does — both are Postgres-backed, single-web-port automation
+  builders behind Traefik. It also fails the installability test for the
+  same structural reason already seen with Activepieces and 2FAuth: there
+  is no environment variable to preset the sole admin account, so the app
+  relies on an open, first-visitor self-registration screen that neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  provision. The internal Postgres password and remember-me signing key are
+  trivially server-generated and not blocking on their own. Revisit only if
+  upstream adds an env-var-driven initial-admin flow or the platform gains a
+  second customer-facing credential channel — and even then, weigh it
+  against the n8n recipe already in the catalogue before prioritizing.
