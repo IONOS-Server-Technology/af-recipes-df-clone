@@ -1,0 +1,84 @@
+slug: crucix
+name: Crucix
+source_description: "OSINT platform aggregating 27 real-time global data sources into a unified dashboard"
+
+upstream:
+  url: https://crucix.live
+  repo_url: https://github.com/calesthio/Crucix
+  license: AGPL-3.0
+  docker_image: null # no official image on Docker Hub; repo ships a Dockerfile + docker-compose.yml to build locally
+
+version_health:
+  latest_version: "2.0.0 (package.json; no tagged GitHub releases exist)"
+  latest_release_date: null
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    No GitHub Releases have ever been cut for this repo — version is tracked
+    only via package.json ("2.0.0"). Commit history shows a burst of feature
+    work through spring 2026 (merges on 2026-03-29, 2026-04-03, and a cluster
+    on 2026-04-20 and 2026-05-20), then nothing visible since the 2026-05-20
+    merge — roughly 2.5 months of silence as of this analysis (2026-08-05).
+    The project rode a hype wave (11.2k stars, a March 2026 "GitHub's
+    hottest OSINT project" writeup, multiple copy/fork repos reposting the
+    identical README under different accounts) typical of an AI-assisted
+    show-and-tell project rather than a long-running maintained product.
+    Not archived or announced-EOL, but the drop-off from active weekly
+    merges to a 2.5-month quiet stretch is a real slowdown signal worth
+    flagging, not just diplomatic caution.
+
+catalogue_fit:
+  categories: [security, monitoring, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue does OSINT/situational-awareness
+    aggregation (satellite fire detection, flight/maritime tracking, conflict
+    and sanctions data, market feeds correlated on one dashboard). uptime-kuma
+    is the closest existing recipe by shape (single self-contained container,
+    own web dashboard, no external DB) but monitors service uptime, not world
+    events — a genuinely different use case. Crucix would add a new capability,
+    not duplicate one.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real niche audience (OSINT analysts, journalists, traders) and the
+    zero-API-key startup path (18+ of 27 sources need no auth) means it's
+    usable out of the box. Usefulness is capped by hype-driven provenance
+    (see version_health) and because the three most commonly cited "unlock
+    more sources" keys (FRED, FIRMS, EIA) have no channel for a customer to
+    supply them under the current recipe mechanism, so a deployed instance
+    is permanently stuck at reduced-source mode unless we hardcode
+    operator-owned keys, which isn't appropriate for a per-customer secret.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      No official Docker Hub image — a recipe would need to build from the
+      upstream Dockerfile, which is workable but a departure from our other
+      recipes' pinned-published-image pattern and adds an upstream-source-drift
+      risk (no immutable tag to pin to, since there are no GitHub releases either).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Crucix is mechanically installable today: it's a single container on one
+  HTTP port (3117), ships its own Dockerfile/docker-compose.yml, needs no
+  external database, and boots with zero configuration (most of its 27
+  sources work with no API key at all). Because it has no built-in login,
+  it needs a Traefik basic_auth gate at deploy time — the same pattern used
+  for n8n and Open WebUI — which our root-password-projection mechanism
+  already covers, so there's no hard blocker there. The caveats are about
+  quality, not mechanism: there's no official published image or tagged
+  release to pin (recipe would build from a moving Dockerfile HEAD), the
+  project shows a hype-driven adoption curve (11.2k stars, viral coverage
+  in March 2026) that has gone quiet for ~2.5 months as of this analysis,
+  and the handful of "premium" data-source API keys a customer would want
+  to add have no input channel today. Worth a build if the catalogue wants
+  an OSINT-dashboard category filled, but flag the pin-to-HEAD risk and
+  recent inactivity to a reviewer before committing to it.
