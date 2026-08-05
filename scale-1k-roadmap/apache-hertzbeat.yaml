@@ -1,0 +1,96 @@
+slug: apache-hertzbeat
+name: Apache HertzBeat
+source_description: "Agentless real-time observability platform with alerting and public status pages"
+
+upstream:
+  url: https://hertzbeat.apache.org
+  repo_url: https://github.com/apache/hertzbeat
+  license: Apache-2.0
+  docker_image: apache/hertzbeat
+
+version_health:
+  latest_version: "1.8.0"
+  latest_release_date: "2026-01-31"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    1.8.0 (GitHub-tagged 2026-01-31, pushed to Docker Hub 2026-02-06) is the
+    latest stable image tag — about 6 months before today (2026-08-05). A
+    v1.9.0-rc1 GitHub release landed 2026-07-28 (~1 week before today), but
+    no matching `1.9.0` tag exists on Docker Hub yet — the release is still
+    in candidate/testing stage. A `nightly` image tag was rebuilt today
+    (2026-08-05), so development is continuous even though the stable line
+    has a ~6-month gap. Historical stable cadence (1.6.0 -> 1.6.1 -> 1.7.0
+    -> 1.7.1 -> 1.7.2 -> 1.7.3 -> 1.8.0) has run every 1-6 months since
+    mid-2024 with no long stall, and the project is a full Apache Software
+    Foundation project (~7.3k GitHub stars, ~2,900 commits, active issue
+    triage) — this reads as active, not slowing.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >-
+    Uptime Kuma is the only existing "monitoring" recipe, and it is scoped
+    to external up/down + latency checks on URLs and TCP ports. HertzBeat
+    is agentless infrastructure/service observability: it polls hosts, DBs,
+    middleware, cloud services, and custom protocols for real metrics
+    (CPU/memory/disk, DB stats, JVM, etc.), stores them in a time-series
+    backend, and layers alerting rules and public status pages on top —
+    closer to a lightweight Zabbix/Prometheus+Grafana than a ping checker.
+    Some conceptual overlap with Uptime Kuma at the "status page" surface,
+    but the underlying data model and use case (deep host/service metrics
+    vs. simple availability pings) are different enough to be additive
+    rather than duplicative.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real value for a technical customer who already self-hosts several
+    servers/services and wants one dashboard for metrics + alerting without
+    standing up Prometheus/Grafana/Alertmanager by hand. Narrower appeal
+    than consumer-facing recipes in the catalogue (media, notes, VPN), and
+    it needs the customer to add monitors for their own infrastructure
+    after deployment — the app is an empty dashboard on first boot until
+    they do, similar to the DevLake/Adminer "bring your own thing to
+    manage" pattern already flagged in this catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      HertzBeat's own admin login (default admin/hertzbeat) is not a
+      database row — it is a static entry in a mounted `sureness.yml` file,
+      and the only supported way to set a non-default password there is
+      `credential: MD5(password + salt)`. `generated_from` today only
+      supports `argon2`/`bcrypt`, so there is no channel to project the
+      customer's root-password hash into HertzBeat's own login in the
+      supported MD5(salt) form. Not a hard blocker per se (same
+      "unsupported algorithm" case as any pbkdf2-only app) — it only blocks
+      wiring the customer's password into HertzBeat's *own* login
+      specifically.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  The official stack is a Postgres (or MySQL) database plus a time-series
+  store (VictoriaMetrics/IoTDB/TDengine) plus the `apache/hertzbeat` app
+  container, exposing port 1157 for the web UI/API and 1158 for
+  manager-collector cluster traffic — a 3-container stack structurally
+  similar to `immich`/`anytype-server`, with only 1157 needing to be public
+  (1158 is only relevant for multi-collector clustering, not a single-node
+  deploy). Rather than trying to feed the customer's root password into
+  HertzBeat's own MD5(salt)-based `sureness.yml` login (no supported
+  `generated_from` algorithm reaches that format today), the same pattern
+  already used for Adminer/DevLake's config-ui applies: gate the whole app
+  behind a mandatory Traefik `basic_auth` credential projected from the
+  customer's root password, and leave HertzBeat's internal admin/hertzbeat
+  login as an unexposed second factor behind that gate. That makes it
+  mechanically installable today. The open question is value versus
+  complexity: it is a genuinely new capability (real infrastructure metrics
+  + alerting + status pages, not just uptime pings), but it targets a more
+  technical customer segment and ships an empty dashboard until they
+  configure monitors themselves. Recommend build_with_caveats.
