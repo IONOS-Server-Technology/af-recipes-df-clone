@@ -10,23 +10,33 @@ upstream:
 
 version_health:
   latest_version: "0.0.9"
-  latest_release_date: "2026-05-27"
-  release_cadence: slowing
-  eol_status: active
+  latest_release_date: "2022-05-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
   notes: >
     BudgE ("budgie") is developed by LinuxServer.io itself (not a
     third-party image wrapping someone else's upstream) — repo_url and
     docker_image both point at the same linuxserver/budge project.
     Releases were roughly monthly from the first public tag (0.0.1,
-    2026-02-13) through 0.0.9 (2026-05-27): 0.0.1, 0.0.2, 0.0.3, 0.0.4,
-    0.0.5, 0.0.6, 0.0.7, 0.0.8, 0.0.9. As of today (2026-08-05) it has been
-    ~2.3 months since 0.0.9 with no newer tag — a gap wider than the prior
-    monthly rhythm, so "slowing" fits better than "active" pending a
-    tag that restores the cadence. Not archived and not EOL — the repo is
-    under active LinuxServer.io maintenance, but the project explicitly
-    self-describes as "alpha" ("still under active development and
-    considered an 'alpha' version until more tests can be written to
-    ensure functionality is maintained").
+    2022-02-13, per tags.atom) through 0.0.9 (2022-05-27T14:12:38Z, per
+    tags.atom — confirmed against raw ISO timestamps, not GitHub's
+    rendered relative-time text): 0.0.1, 0.0.2, 0.0.3, 0.0.4, 0.0.5, 0.0.6,
+    0.0.7, 0.0.8, 0.0.9. No app-version tag has shipped since — as of
+    today (2026-08-05) that is ~4 years and 2 months of silence on the app
+    code itself, so "dormant" fits, not "slowing" (which would imply a
+    recent monthly rhythm only now tailing off). The `lscr.io/linuxserver
+    /budge` Docker Hub tag list shows the image is still being rebuilt
+    periodically (0.0.9-ls184 through -ls189, most recently 2026-06-28)
+    but these are LinuxServer.io base-layer/security rebuilds against the
+    unchanged 0.0.9 app code, not new releases — the app version itself
+    has been frozen since 2022. That base-layer rebuild activity is why
+    "maintenance-only" fits better than "archived": the repo isn't
+    abandoned outright, but no app-level development has happened in
+    years. The project still self-describes as "alpha" ("still under
+    active development and considered an 'alpha' version until more
+    tests can be written to ensure functionality is maintained"), which
+    given the ~4-year gap since the last release reads as aspirational
+    rather than current.
 
 catalogue_fit:
   categories: [finance, budgeting]
@@ -44,9 +54,11 @@ catalogue_fit:
   usefulness_rationale: >
     Personal budgeting has broad general-audience appeal and fills a real
     gap in the catalogue, but the upstream project is explicitly alpha
-    quality, single-maintainer-org, with only 696 GitHub stars and a
-    slowing release cadence — real risk that a customer's financial data
-    sits on top of software still finding its feet.
+    quality, single-maintainer-org, with only 696 GitHub stars, and its
+    app code has not shipped a new version in ~4 years (frozen at 0.0.9
+    since 2022-05-27) — real risk that a customer's financial data sits
+    on top of software that has effectively stalled while still labeled
+    "alpha."
 
 installability:
   recipe_type_guess: docker-compose
@@ -79,7 +91,7 @@ installability:
       because setup locks after the first admin; Budge needs one because
       its registration stays open indefinitely).
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: not_recommended
 
 summary: >
   Budge is a single-container, self-contained (no external DB) envelope
@@ -89,9 +101,11 @@ summary: >
   via a Traefik `basic_auth` gate over the whole app, since Budge's own
   auth is an open multi-user registration system with no admin-password
   field to hash-project into and no confirmed way to disable signup.
-  Recommend `build_with_caveats`: mechanically installable today behind a
-  mandatory basic-auth gate, but the upstream project's explicit alpha
-  status, small community, and recently slowing release cadence (last tag
-  2026-05-27, ~2.3 months ago against a prior monthly rhythm) are real
-  reasons to hold off shipping a recipe on top of customer financial data
-  until it matures further.
+  Despite being mechanically installable today behind a mandatory
+  basic-auth gate, recommend `not_recommended`: the app's own version has
+  been frozen at 0.0.9 since 2022-05-27 — nearly 4 years of no app-level
+  releases, with only the underlying LinuxServer.io base image getting
+  periodic security rebuilds (most recently 2026-06-28) on top of the
+  same unchanged code. Shipping customer financial data on top of a
+  project this dormant, still self-labeled "alpha," is not worth the
+  risk regardless of the category gap it would fill.
