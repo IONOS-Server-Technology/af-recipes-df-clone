@@ -1,0 +1,78 @@
+slug: donetick
+name: Donetick
+source_description: "Collaborative task management for organizing household chores and recurring responsibilities"
+
+upstream:
+  url: https://donetick.com/
+  repo_url: https://github.com/donetick/donetick
+  license: AGPL-3.0
+  docker_image: donetick/donetick
+
+version_health:
+  latest_version: "v0.1.76"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag v0.1.76 landed 2026-07-26, 10 days before today
+    (2026-08-05); a newer beta channel (v0.1.77-beta.1 on 2026-07-27,
+    v0.1.77-beta.2 on 2026-08-05, the day of this analysis) is shipping
+    in parallel, so the project is clearly under active development with
+    a roughly weekly cadence between beta and stable cuts. Previous
+    stable v0.1.75 was pushed about 4 months earlier. Repo is not
+    archived, README and Docker Hub pushes are current, and there's an
+    official companion hosted SaaS (donetick.com) plus published mobile
+    apps (iOS/Android), all signs of an actively maintained, growing
+    project rather than a hobby repo on life support.
+
+catalogue_fit:
+  categories: [productivity, task-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue addresses household/chore
+    task management — n8n is workflow automation, and the rest of the
+    catalogue skews toward monitoring, dev tooling, and file/document
+    management. Donetick fills a genuinely distinct, consumer-facing
+    niche: shared task lists for families/roommates with natural-language
+    scheduling, rotation/fairness-based assignment, gamification, and
+    push notifications (mobile app, Telegram, Discord, Pushover), which
+    is a different audience than the current mostly technical/ops-focused
+    catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Single lightweight container (SQLite, no external DB needed), one
+    HTTP port, official companion mobile apps that make the self-hosted
+    backend immediately useful day one, and it targets a consumer
+    use case (household chore management) that broadens the catalogue's
+    appeal beyond IT/ops tooling.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Donetick is a single-container Go app (official image
+  donetick/donetick, pin e.g. v0.1.76) serving its web UI on one HTTP
+  port (2021), backed by SQLite on a bind-mounted volume with no
+  external database service required — a clean fit behind Traefik on
+  <slug>.<base_domain>. The only boot-time secret is JWT_SECRET, a
+  patternless 32+ character signing key that nothing customer-facing
+  ever reads, so it can be generated server-side with zero customer
+  input (same pattern as n8n's N8N_ENCRYPTION_KEY). Authentication is
+  Donetick's own built-in system (local accounts plus optional
+  OAuth2/OIDC and TOTP MFA) with open self-registration enabled by
+  default (is_user_creation_disabled: false) — the customer creates
+  their own account through the app's web UI after first boot, exactly
+  like the already-shipped n8n recipe's flow, so no admin-credential
+  projection channel is needed. Combined with an active, currently
+  weekly release cadence and a task-management niche the catalogue
+  doesn't otherwise cover, this is installable today with no blocking
+  issues and a build_now recommendation.
