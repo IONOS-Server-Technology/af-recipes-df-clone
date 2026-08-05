@@ -44,26 +44,18 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_required_at_first_boot:
+    - CB_ADMIN_NAME
+    - CB_ADMIN_PASSWORD
+    - basic_auth_password
   secrets_expressible_today:
+    - secret: CB_ADMIN_NAME
+      mechanism: server_generated_no_customer_input
+    - secret: CB_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
     - secret: basic_auth_password
       mechanism: traefik_basic_auth
-  blocking_issues:
-    - >
-      Unlike Adminer, CloudBeaver has its own persistent admin account: on
-      first visit to a fresh workspace it runs an interactive setup wizard
-      where whoever loads the page first picks the admin username and
-      password and that account persists (stored in the mounted
-      /opt/cloudbeaver/workspace volume), rather than requiring per-visit DB
-      credentials like Adminer. This is a first-visitor-wins race: af-api has
-      no channel to pre-seed that admin username/password (no
-      generated_from-able single field, no documented env var override), so
-      whoever reaches the URL first claims the permanent admin account.
-      Gating the whole app behind Traefik basic_auth before the wizard is
-      reachable closes that race for practical purposes (same pattern used
-      for Adminer/n8n/WUD), but it is worth flagging explicitly since the
-      underlying admin credential itself is still fully customer-chosen and
-      un-provisionable, not merely gated.
+  blocking_issues: []
   installable_today: true
   recommendation: build_with_caveats
 
@@ -73,11 +65,18 @@ summary: >
   fast-paced development (26.1.4 shipped 2 days before this analysis). It
   duplicates the same generic-DB-admin-UI niche already covered by the
   apps-gaps/adminer.yaml candidate, just with a heavier footprint and richer
-  feature set. Installable today by gating the whole app behind Traefik
-  basic_auth (root-password-derived) the same way as Adminer, since it has
-  no login of its own until an interactive first-run wizard creates one —
-  but that wizard's own admin credential remains entirely customer-chosen at
-  first visit with no af-api input channel, so basic_auth is a mitigation of
-  the first-visitor race, not a substitute for real admin-credential
-  provisioning. Given the overlap with Adminer and the added weight, this is
-  a build-with-caveats rather than a clear pick.
+  feature set. Unlike Adminer, CloudBeaver has its own persistent admin
+  account, but it is not un-provisionable: CloudBeaver officially supports
+  presetting the admin username/password via
+  {WORKSPACE}/conf/initial-data.conf (adminName/adminPassword keys),
+  applied at first server initialization in place of the interactive setup
+  wizard (https://dbeaver.com/docs/cloudbeaver/Initial-data-configuration/).
+  That file only accepts plaintext, not a hash, so generated_from can't
+  project the customer's root password into it directly, but a
+  server-generated random value written to initial-data.conf at container
+  start works the same way CKAN's CKAN_SYSADMIN_NAME/PASSWORD do, with the
+  whole app additionally gated behind Traefik basic_auth
+  (root-password-derived) so the admin account is never customer-facing
+  either way. Installable today with no blocking issues; given the overlap
+  with Adminer and the added weight, this is a build-with-caveats on
+  differentiation grounds, not on any provisioning gap.
