@@ -1,0 +1,90 @@
+slug: copyparty
+name: Copyparty
+source_description: "File server with WebDAV, SFTP, resumable uploads, and a built-in media library"
+
+upstream:
+  url: https://github.com/9001/copyparty
+  repo_url: https://github.com/9001/copyparty
+  license: MIT
+  docker_image: copyparty/ac
+
+version_health:
+  latest_version: "v1.20.20"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.20.20 ("more wopi") landed 2026-08-03, two days before this
+    analysis. Prior releases v1.20.19 (2026-07-27), v1.20.18 (2026-07-09) and
+    v1.20.17 (2026-07-06) show a sub-monthly cadence, including two
+    security-driven patches (GHSA-phv8-wgjp-g4p9 FTP path-traversal,
+    GHSA-x5pq-m9p8-f4vx dirkey/filekey leak) fixed within days of disclosure.
+    Single maintainer (9001) but very active commit history (4700+ commits).
+    No archival notice, no EOL signal.
+
+catalogue_fit:
+  categories: [file-storage, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose browsable file
+    server. Syncthing is device-to-device sync, not a shared upload/download
+    hub with a browser UI; Immich and Paperless-ngx are domain-specific
+    (photos, documents). Copyparty fills a distinct "personal cloud drive /
+    drop server" niche: drag-drop uploads with resume, in-browser media
+    playback/thumbnails, and WebDAV mounting from any OS, all from a single
+    lightweight container.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, common self-hoster use case (ad-hoc file sharing, WebDAV drive,
+    LAN media browser) with low resource needs and a single official image,
+    but it's a narrower audience than general productivity/AI tools already
+    in the catalogue, and FTP/SFTP/SMB — part of its headline pitch — aren't
+    usable behind our Traefik-only exposure model.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Copyparty ships with no accounts configured by default (anonymous
+      read-write to the served folder), so a login gate is required at
+      first boot, not optional hardening.
+    - >
+      Copyparty's own account system is not usable as the login gate today:
+      its "ah-alg argon2" password hashing salts every hash with a
+      server-local, auto-generated salt value ($XDG_CONFIG_HOME), so a
+      standard argon2/bcrypt hash computed elsewhere (as generated_from
+      would produce) will not verify against it — there is no plaintext
+      channel to feed copyparty's own hasher. Gating the whole app behind
+      Traefik basic_auth instead (rather than trying to project into
+      copyparty's accounts.txt) sidesteps this and is fully expressible
+      today.
+    - >
+      WebDAV, SFTP, FTP/FTPs, TFTP and SMB — the multi-protocol pitch this
+      app is chosen for — all need their own raw TCP ports exposed
+      directly, which our recipes don't currently open (Traefik-only HTTP
+      ingress). Only the HTTP/WebDAV-over-HTTP path and the web UI would
+      work through the reverse proxy; SFTP and the other protocols would
+      need additional port exposure this catalogue's recipes don't do
+      today. Not a hard blocker (the web UI + WebDAV-over-HTTP alone is a
+      usable recipe) but a real scope reduction from the Hostinger
+      description.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Copyparty is an active, single-maintainer project (releases roughly
+  monthly, security patches within days) with an official Docker image and
+  no overlap in our current catalogue. It can ship as a recipe today by
+  gating the whole app behind Traefik basic_auth rather than trying to wire
+  a customer credential into copyparty's own salted account system, which
+  has no external input channel. The caveat: only the web UI and
+  WebDAV-over-HTTP would work behind our Traefik-only exposure — the
+  SFTP/FTP/SMB protocols central to Hostinger's description would need raw
+  port exposure this catalogue doesn't support today, so a recipe would
+  ship a reduced-scope version of the app.
