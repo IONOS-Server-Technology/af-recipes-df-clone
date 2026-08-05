@@ -1,0 +1,75 @@
+slug: bichon
+name: Bichon
+source_description: "Self-hosted Rust email archiver with IMAP, OAuth2, and full-text search"
+
+upstream:
+  url: https://github.com/rustmailer/bichon
+  repo_url: https://github.com/rustmailer/bichon
+  license: AGPL-3.0
+  docker_image: rustmailer/bichon
+
+version_health:
+  latest_version: "2.0.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Repo created 2025-11-18, latest tag 2.0.0 published today (2026-08-05).
+    15+ releases since May 2026 (roughly one every 1-2 weeks: 1.3.0 on
+    2026-05-24 through 2.0.0 on 2026-08-05), including two 2.0.0 alpha
+    pre-releases in the week before the stable cut. Not archived, 1885
+    stars, 54 open issues, actively triaged. This is a young, fast-moving
+    project rather than a mature/stable one — worth flagging for a
+    follow-up check in a few months to confirm the pace holds and the API
+    doesn't churn.
+
+catalogue_fit:
+  categories: [productivity, email, archiving, search]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does IMAP-based email
+    archiving with full-text search. paperless-ngx/paperless-ai cover
+    document/PDF archiving, not email. Bichon is a single Rust binary with
+    zero external DB dependency (embedded Tantivy + memdb + blob storage),
+    serving one HTTP port with an embedded WebUI — a clean fit for a
+    reverse-proxied recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Email archiving/e-discovery is a real, distinct use case with no
+    catalogue overlap, and the single-binary/single-port design is about
+    as simple to operate as our existing single-container recipes. Rated
+    medium rather than high because the project is very new (9 months old)
+    with no long-term track record, and the target audience (people
+    wanting a self-hosted IMAP archiver) is narrower than general-purpose
+    apps already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BICHON_ENCRYPT_PASSWORD
+    - basic_auth gate credential (admin login has a fixed, non-configurable-at-boot default)
+  secrets_expressible_today:
+    - secret: BICHON_ENCRYPT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Bichon is a genuinely new use case for the catalogue (self-hosted IMAP
+  email archiving with full-text search, no overlap with existing
+  recipes) and is architecturally simple to run behind Traefik: one
+  container, one HTTP port, embedded WebUI, no external DB. Its admin
+  account always starts with a fixed default login (admin / admin@bichon)
+  with no env var to set it at boot — that's not a blocker on its own
+  (SCHEMA.md), it just means the app must sit behind a required Traefik
+  basic_auth gate so the real auth boundary is the customer's
+  root-password-derived credential rather than the app's known default.
+  Recommend build_with_caveats rather than build_now given the project is
+  only 9 months old with a very fast, still-settling release cadence
+  (15+ releases since May 2026) — worth a re-check on stability before
+  committing to a recipe.
