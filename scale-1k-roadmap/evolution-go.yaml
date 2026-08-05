@@ -1,0 +1,94 @@
+slug: evolution-go
+name: Evolution Go
+source_description: "High-performance WhatsApp API gateway written in Go for messaging automation"
+
+upstream:
+  url: https://github.com/evolution-foundation/evolution-go
+  repo_url: https://github.com/evolution-foundation/evolution-go
+  license: "Apache-2.0 (with additional brand-protection terms: logo preservation + usage notification requirements)"
+  docker_image: evoapicloud/evolution-go
+
+version_health:
+  latest_version: "v0.7.2"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v0.7.2 shipped 2026-07-03, about 5 weeks before today
+    (2026-08-05). Recent release history: 0.6.1 (2026-03-25), 0.7.0
+    (2026-04-17), 0.7.1 and 0.7.2 (both 2026-07-03) — roughly monthly to
+    bimonthly cadence with no long gaps. Repo shows 594 stars, 323 forks,
+    49 open issues, 42 open PRs — an actively developed project backed by
+    a commercial foundation (Evolution Foundation), not a solo/abandoned
+    effort. This is a newer Go rewrite of the older, more established
+    Node.js "Evolution API" project from the same foundation; the Go
+    version is younger but shipping regularly.
+
+catalogue_fit:
+  categories: [messaging, automation, api-gateway]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue provides WhatsApp
+    messaging/automation connectivity — this would be net-new ground for
+    a customer segment doing WhatsApp-based customer support, chatbot, or
+    notification automation (e.g. paired with n8n or a CRM). It has a
+    "Manager" web UI (login + Swagger docs) so it is reverse-proxy
+    friendly on a single HTTP port, similar in shape to n8n.
+  usefulness: medium
+  usefulness_rationale: >
+    Would be genuinely useful to customers building WhatsApp automation,
+    a real and growing self-hosting use case with no existing catalogue
+    coverage. Capped at medium (not high) because it is a narrower,
+    single-purpose integration tool rather than broad general-audience
+    software, and — independent of demand — the licensing mechanism below
+    makes it non-trivial to install without human interaction regardless
+    of usefulness.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "GLOBAL_API_KEY (server-side API auth key, no customer-facing login of its own)"
+    - "vendor license activation (either interactive browser registration at the Evolution Foundation licensing server, or headless auto-activation via EVOLUTION_OPERATOR_EMAIL tied to a pre-registered account at evofoundation.com.br)"
+  secrets_expressible_today:
+    - secret: "GLOBAL_API_KEY (server-side API auth key, no customer-facing login of its own)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The app enforces mandatory license activation before it will serve
+      any request: it returns HTTP 503 on every endpoint until activated.
+      Activation requires either (a) a human interactively visiting
+      /manager/login and completing registration on the Evolution
+      Foundation's external licensing server, or (b) setting
+      EVOLUTION_OPERATOR_EMAIL to an email address the customer must have
+      already manually registered with that same external service ahead
+      of time. Both paths require a customer-supplied value (an email
+      tied to an external vendor account, or direct interactive action)
+      that /compose has no channel to carry — this is the same class of
+      blocker as OAuth app registration, not a password we can hash and
+      project.
+    - >
+      Even setting aside the missing input channel, upstream's own
+      community has flagged this activation gate as actively hostile to
+      automated/headless deployments (see evolution-foundation/evolution-api
+      issue #2534: "mandatory license activation... breaks automated and
+      self-hosted deployments" for Docker Compose auto-restarts, k8s pod
+      recreation, and CI/CD) — a concern that applies equally to
+      evolution-go's identical activation flow, and one upstream itself
+      has not resolved with a non-interactive env-var-only path.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Evolution Go fills a real gap (WhatsApp automation/messaging), is
+  actively maintained, and is technically reverse-proxy compatible with a
+  single web UI port — but it cannot be installed today because it
+  enforces mandatory license activation against an external vendor
+  service (evofoundation.com.br) that needs either interactive browser
+  signup or a pre-registered customer email, neither of which our
+  /compose flow has any way to supply. This is blocked_on_platform rather
+  than not_recommended: if a future input channel exists for a single
+  customer-supplied value (e.g. an operator email) passed through at
+  provisioning time, or if upstream adds a fully non-interactive
+  activation path, this would be worth revisiting.
