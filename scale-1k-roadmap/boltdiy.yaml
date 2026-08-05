@@ -1,0 +1,75 @@
+slug: boltdiy
+name: bolt.diy
+source_description: "Self-hosted AI coding assistant for full-stack app generation in the browser"
+
+upstream:
+  url: https://stackblitz-labs.github.io/bolt.diy/
+  repo_url: https://github.com/stackblitz-labs/bolt.diy
+  license: MIT (source); WebContainer API it depends on requires a separate StackBlitz commercial license for for-profit production use
+  docker_image: ghcr.io/stackblitz-labs/bolt.diy
+
+version_health:
+  latest_version: "v1.0.0"
+  latest_release_date: "2025-05-12"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    Last tagged release is v1.0.0 (2025-05-12), ~15 months before today
+    (2026-08-05) — no semver tag since. Commit activity on main is real and
+    recent (last commit 2026-02-07, "feat: add web URL content fetcher for
+    chat context"), but the project has stopped cutting releases and now
+    only publishes untagged `sha-<commit>`/`latest` images off main via
+    GHCR. That's release-process dormancy, not project abandonment: no
+    pinned, versioned artifact exists newer than 15 months old, so a recipe
+    pinned to a real tag would ship stale, while pinning to `latest`/a sha
+    tag violates the "never :latest, always a pinned stable tag" rule.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Distinct from claude-code and gemini-cli (native CLI agents that edit a
+    repo on disk from a terminal) and from open-webui/ollama/openclaw
+    (chat-only interfaces). bolt.diy is a browser IDE that scaffolds and
+    runs whole full-stack apps client-side via WebContainers, prompting an
+    LLM of the customer's choice (OpenAI, Anthropic, local Ollama, 15+
+    others) to write/edit/run the code in-browser. No existing recipe covers
+    this "AI app builder in a tab" category.
+  usefulness: medium
+  usefulness_rationale: >
+    Appealing demo/prosumer value ("build an app by chatting"), but the
+    core execution engine (WebContainers, a WASM Node runtime in the
+    browser) runs client-side in the visitor's browser, not on the server —
+    the recipe's docker-compose service is really just a static/SSR web
+    frontend. Combined with the commercial WebContainer licensing question
+    below, usefulness is real but capped until that's resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No pinned stable version tag younger than 15 months exists upstream (see version_health) — only latest/sha-<commit> GHCR tags track ongoing main development."
+    - "WebContainers (the in-browser execution engine bolt.diy depends on) requires a separate commercial license from StackBlitz for production use in a for-profit setting per their Terms of Service — this is an IONOS/StackBlitz business-licensing question independent of the af-recipes secret-projection mechanism, and should be resolved before shipping this as a hosted recipe."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mechanically, bolt.diy is simple to gate: single container, single HTTP
+  port (5173), no built-in login of its own (LLM provider API keys are
+  either optional env vars or entered client-side into browser local
+  storage post-boot, never needed at `/compose` time), so a domain param
+  plus a Traefik basic_auth gate (password projected from the customer's
+  root password) would satisfy the app's only first-boot secret need — the
+  same pattern as n8n/Adminer. What blocks shipping today is upstream
+  version hygiene (no real release in 15 months, would have to pin to an
+  untagged sha) and, more importantly, the StackBlitz WebContainer API's
+  commercial-use licensing requirement, which is a legal/business question
+  for IONOS to clear before this becomes a recipe, not something the
+  af-recipes secret mechanism can route around. Recommend holding as
+  blocked_on_platform pending both a fresh upstream tag and a licensing
+  answer, not building now.
