@@ -1,0 +1,77 @@
+slug: eclipse-kura
+name: Eclipse Kura
+source_description: "Open-source Java IoT edge framework for industrial field gateways"
+
+upstream:
+  url: https://eclipse.dev/kura/
+  repo_url: https://github.com/eclipse-kura/kura
+  license: EPL-2.0
+  docker_image: eclipsekura/kura
+
+version_health:
+  latest_version: "5.6.2"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag KURA_5.6.2_RELEASE published 2026-07-08 (~4 weeks before
+    today, 2026-08-05); repo pushed_at 2026-07-31, i.e. commits landed 5
+    days before today. 569 GitHub stars, 16 open issues, not archived.
+    Maintainers concurrently patch multiple branches (5.6.x and legacy
+    4.1.x both received releases in Dec 2025), and a "nightly" Docker tag
+    is rebuilt weekly from `develop`. This is an actively maintained
+    Eclipse Foundation project, not dormant or in maintenance-only mode.
+
+catalogue_fit:
+  categories: [iot, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [home-assistant]
+  differentiation: >
+    Home Assistant targets consumer smart-home automation; Kura is an
+    industrial IoT edge-gateway framework (OSGi/Java) aimed at connecting
+    field-protocol devices (Modbus, OPC-UA, S7) and physical I/O (serial
+    ports, GPS, GPIOs, I2C, watchdog) to cloud IoT platforms via MQTT. The
+    categories nominally overlap ("IoT") but the audiences and core value
+    proposition differ — Kura's value is almost entirely in bridging
+    physical field hardware, which a generic cloud VM does not have.
+  usefulness: low
+  usefulness_rationale: >
+    Kura's headline features (serial/GPIO/I2C access, Modbus/OPC-UA/S7
+    field-protocol drivers) require physical edge hardware that does not
+    exist on a hosted VPS/cloud VM. Deployed as a plain container on an AF
+    customer's server, it reduces to an empty OSGi shell with a web
+    console and no field devices to manage — the reason anyone adopts Kura
+    in the first place is absent in this hosting context.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "gate credential for Kura's own fixed admin/admin web login"
+  secrets_expressible_today:
+    - secret: "gate credential for Kura's own fixed admin/admin web login"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Kura's web console is HTTPS-only (self-signed cert on :443) with no
+      plain-HTTP listener and no documented env var, volume, or build arg
+      to set/override the admin password at container start (confirmed
+      against the kura-metapackage docker README) — admin/admin is fixed,
+      so a Traefik basic_auth gate is the only way to avoid an
+      unauthenticated-by-us front door, per the fixed-default-credential
+      rule in SCHEMA.md."
+    - "No recipe in the current catalogue fronts an HTTPS-only backend
+      through Traefik; this would need new TLS-backend/insecure-skip-verify
+      proxy plumbing that doesn't exist yet as a template to copy from."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Eclipse Kura is an actively maintained (release 4 weeks ago), EPL-2.0
+  industrial IoT edge framework with an official Docker image and a
+  mechanically viable install path (Traefik basic_auth gating its fixed
+  admin/admin login). It is not recommended for the catalogue: its core
+  value depends on physical field hardware (serial, GPIO, I2C, Modbus/OPC-UA
+  devices) that a hosted VM cannot provide, and its HTTPS-only web console
+  would require new reverse-proxy plumbing not present in any existing
+  recipe. Low customer value in this hosting context outweighs its
+  mechanical installability.
