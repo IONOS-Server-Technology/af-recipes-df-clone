@@ -1,0 +1,81 @@
+slug: apache-zeppelin
+name: Apache Zeppelin
+source_description: "Web-based notebook for interactive Spark, SQL, Scala, and Python data analytics"
+
+upstream:
+  url: https://zeppelin.apache.org
+  repo_url: https://github.com/apache/zeppelin
+  license: Apache-2.0
+  docker_image: apache/zeppelin
+
+version_health:
+  latest_version: "0.12.1"
+  latest_release_date: "2026-06-12"
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    0.12.1 (2026-06-12, ~2 months old as of today 2026-08-05) is a
+    security-fix release (JWT validation, path traversal hardening, WebSocket
+    memory leak) over 0.12.0 (2025-01-31) — a 17-month gap between those two
+    releases. Earlier cadence was tighter (0.11.0 Feb-2024, 0.11.1 Apr-2024,
+    0.11.2 Sep-2024), so the pace has clearly slowed since the 0.12.0 line
+    started. The project is still under normal ASF governance (27 committers,
+    13 PMC per the most recent board report, 2026-04-15) with "moderate"
+    ongoing activity — UI modernization (Angular→React migration), Playwright
+    E2E test work, and a 2026 OSSCA cohort bringing in new contributors from
+    July 2026 — so this reads as a slow-but-real project, not dormant or
+    abandoned. Docker Hub `apache/zeppelin` tags are current (0.12.1 pushed
+    at release time, not stale) and go back to 0.7.2. Name is unambiguous —
+    no other notable project shares "Apache Zeppelin"; this is the one
+    top-level ASF project by that name.
+
+catalogue_fit:
+  categories: [developer-tools, data]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Zeppelin is a browser-based notebook (paragraphs of Scala/Spark, SQL,
+    Python, shell, markdown) for interactive data analysis and
+    visualization, similar in spirit to Jupyter but built around Spark
+    interpreters and pluggable backends. Nothing in the current 24-recipe
+    catalogue covers this — n8n and activepieces are workflow/automation
+    tools, not analyst notebooks, and paperless-ngx/immich are
+    document/media management, not general-purpose data analytics. This
+    would be a genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >-
+    A notebook UI is immediately usable out of the box (unlike a bare search
+    engine or DB admin tool) — a customer can open the browser UI and start
+    writing/running paragraphs with zero setup beyond the container coming
+    up, and the built-in interpreters (shell, markdown, Python if the image
+    has it) work without any external cluster. But the headline value —
+    Spark-based big-data analytics — needs a Spark cluster the recipe
+    doesn't provide; without one, Zeppelin is a smaller, less mainstream
+    notebook than Jupyter. Audience is narrower (data engineers/analysts)
+    than most of the existing catalogue's audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Apache Zeppelin is a slow-but-actively-maintained ASF project (latest
+  0.12.1, 2026-06-12, ~2 months old; 17-month gap before that but moderate
+  ongoing committer activity and a new 2026 contributor cohort, so not
+  dormant) with an official Docker image (`apache/zeppelin:0.12.1`) exposing
+  a single HTTP port (8080) with no path-prefix quirks — reverse-proxy
+  compatible behind Traefik on `<slug>.<base_domain>`. Like Apache Solr, it
+  ships with anonymous access enabled by default (no login, Shiro auth is
+  opt-in and requires hand-editing a config file), so it's mechanically
+  installable today only by gating the whole app behind Traefik
+  `basic_auth`, same pattern as Adminer/Apache Solr. It's a genuinely new
+  category for the catalogue (no existing recipe offers an interactive
+  data-analytics notebook), giving it a real, if narrower and
+  developer-leaning, audience — `build_with_caveats`.
