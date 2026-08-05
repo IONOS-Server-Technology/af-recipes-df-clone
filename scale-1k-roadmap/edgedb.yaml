@@ -1,0 +1,97 @@
+slug: edgedb
+name: EdgeDB
+source_description: "Next-generation graph-relational database built on PostgreSQL"
+
+upstream:
+  url: https://www.geldata.com/
+  repo_url: https://github.com/geldata/gel
+  license: Apache-2.0
+  docker_image: geldata/gel
+
+version_health:
+  latest_version: "7.1"
+  latest_release_date: "2025-12-05"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    EdgeDB rebranded to "Gel" in Feb 2025 (same product, same repo,
+    github.com/geldata/gel). On 2025-12-02 the company (Gel Data Inc.)
+    announced it is shutting down and the entire team is joining Vercel to
+    work on unrelated Python infrastructure ("Gel joins Vercel" blog post).
+    Gel Cloud (the managed offering) stopped accepting new signups
+    immediately and was fully shut down 2026-01-31. The post says the
+    open-source project "remains fully open source and available on
+    GitHub," but there is no committed maintainer named. Docker Hub
+    (geldata/gel) and the GitHub default branch both went completely silent
+    after 2025-12-24/25 — no commits, no nightly builds, no releases since
+    (confirmed via GitHub commits/tags API and Docker Hub tags API,
+    checked 2026-08-05, ~7 months of zero activity). A community member
+    opened geldata/gel#9138 on 2026-05-16 ("Enhance documentation:
+    Explicitly state that repository is no longer actively maintained"),
+    still open with no maintainer response as of 2026-08-05. Prior to the
+    shutdown, release cadence was roughly every 4-8 weeks (5.3 May-2024,
+    5.7 Dec-2024, 6.0 Feb-2025, 6.3 Mar-2025, 6.7 May-2025, 7.0 Nov-2025,
+    7.1 Dec-2025) — this is a hard stop, not a gradual slowdown.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe is a standalone database product — n8n, paperless-ngx,
+    immich etc. all embed Postgres as an internal dependency, never expose it
+    as the customer-facing service. EdgeDB/Gel would be the first
+    "database-as-a-product" recipe, aimed at developers who want a hosted
+    graph-relational/EdgeQL+SQL layer over Postgres for their own apps.
+  usefulness: low
+  usefulness_rationale: >
+    Even setting the abandonment aside, this targets a narrow
+    developer-infrastructure audience rather than the end-user/business-app
+    audience the rest of the catalogue serves, and it is consumed via CLI/SDK
+    (psql-style), not day-to-day through the web UI the way our other
+    recipes are. Combined with the vendor shutdown, there's no case for
+    building this now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root database credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Vendor shutdown: Gel Data Inc. is dissolving and the team has moved to
+      Vercel; no committed open-source maintainer, zero repo/image activity
+      for ~7 months, and a community request to officially label the
+      project unmaintained is open. Shipping a new recipe on top of an
+      abandoned database is a support liability regardless of mechanism
+      fit."
+    - "Protocol/proxy mismatch: Gel multiplexes its own binary protocol and
+      HTTP over a single TCP port using ALPN, with TLS terminated by the
+      Gel server itself (self-signed by default). This does not fit the
+      plain-HTTP-behind-Traefik model our recipes use; it would need TCP/SNI
+      passthrough instead of a normal reverse-proxy vhost, unlike every
+      current recipe."
+    - "Credential channel: the root credential (GEL_SERVER_PASSWORD /
+      GEL_SERVER_PASSWORD_HASH) is a SCRAM-SHA-256 verifier, not an
+      argon2/bcrypt hash, so it doesn't fit generated_from today even if
+      that mechanism were live. More fundamentally, unlike an
+      internal-only DB password, this credential IS the product the
+      customer needs to read and use to connect their own apps — there is
+      no dashboard channel today for surfacing a server-generated secret
+      back to the customer for actual use, so server_generated_no_customer_input
+      does not really apply either."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  EdgeDB (now "Gel") is a Postgres-backed graph-relational database with an
+  EdgeQL/SQL query layer — it would be our first standalone
+  "database-as-a-product" recipe rather than an end-user web app, which is
+  already a fit stretch for the catalogue. More decisively, the vendor
+  (Gel Data Inc.) announced on 2025-12-02 that it is shutting down and its
+  team has joined Vercel; Gel Cloud closed 2026-01-31, and both the GitHub
+  repo and Docker Hub image have had zero activity since late December 2025
+  (~7 months as of 2026-08-05), with a community issue already asking that
+  the project be labeled unmaintained. On top of that, its TLS-multiplexed
+  binary/HTTP protocol doesn't fit our Traefik-fronted reverse-proxy model,
+  and its root credential has no expressible delivery channel under the
+  current recipe mechanism. Recommendation: not_recommended.
