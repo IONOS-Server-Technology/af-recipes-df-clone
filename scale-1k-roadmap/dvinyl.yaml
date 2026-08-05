@@ -1,0 +1,69 @@
+slug: dvinyl
+name: DVinyl
+source_description: "Self-hosted collection manager for vinyl, CDs, books, movies, and video games"
+
+upstream:
+  url: https://github.com/Kyonew/DVinyl
+  repo_url: https://github.com/Kyonew/DVinyl
+  license: MIT
+  docker_image: ghcr.io/kyonew/dvinyl
+
+version_health:
+  latest_version: v3.1.0
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v3.1.0) landed 2026-08-02, 3 days before this analysis
+    (2026-08-05). Ten releases since 2026-03-29 (roughly one every 2-3
+    weeks), including a full TypeScript rewrite (v3.0.0, 2026-07-23) and an
+    SSO/admin-safeguards release the same day. Single-maintainer project
+    (173 stars, 193 commits) but clearly under active, fast-moving
+    development with no signs of stalling.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal physical-media collection
+    cataloguing (vinyl/CD/books/movies/games with barcode scanning, market
+    value lookups via Discogs/TMDB/Hardcover/Twitch/Rebrickable, and a
+    wishlist). Closest adjacent recipes (Immich for photos, paperless-ngx for
+    documents) serve a different use case entirely.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche hobbyist tool (physical collectors) rather than broad
+    productivity/infrastructure software, but it's a genuinely distinct
+    category for the catalogue and the kind of low-stakes, high-delight app
+    that showcases self-hosting to a non-technical audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_SETUP_GATE, SESSION_SECRET, PASSJWT]
+  secrets_expressible_today:
+    - secret: ADMIN_SETUP_GATE
+      mechanism: traefik_basic_auth
+    - secret: SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: PASSJWT
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DVinyl is a single-container app (plus an internal-only MongoDB) behind
+  one HTTP port, actively developed, MIT-licensed, and fills a real gap in
+  the catalogue (no existing recipe covers personal media-collection
+  cataloguing). Its admin account is created through a first-run web setup
+  wizard with no env-var injection point, so root-password hash projection
+  doesn't apply directly to the app's own login — but gating the whole app
+  behind Traefik basic_auth (using the root-password hash) closes the
+  race-to-claim-admin window until the customer completes the wizard
+  themselves, the same pattern already used for n8n/WUD/Open WebUI. Optional
+  third-party API keys (Discogs, TMDB, Hardcover, Twitch, Rebrickable) have
+  no input channel today, but the app functions without them (manual entry
+  instead of auto-lookup), so they're a documented limitation rather than a
+  blocker. Recommend building now.
