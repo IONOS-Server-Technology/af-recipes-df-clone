@@ -10,20 +10,18 @@ upstream:
 
 version_health:
   latest_version: v2.2
-  latest_release_date: 2025-07-09
-  release_cadence: slowing
+  latest_release_date: 2026-07-09
+  release_cadence: active
   eol_status: active
   notes: >
-    No new GitHub semver release has been tagged since v2.2 (2025-07-09) —
-    about 13 months as of 2026-08-05, versus a roughly monthly cadence for
-    v2.0/v2.1/v2.2 in the months before that. However the project ships
-    continuously via a rolling `release` Docker tag that was rebuilt within
-    the last 9 hours at time of research and carries 2026-dated CVE fixes
-    (handlebars, joi, spring-security, postgresql-jdbc, netty). Repo has
-    40.6k stars, no archive notice, and active issue/commit traffic. Read
-    as "engineering is active, semver tagging has stalled" rather than a
-    dormant or abandoned project — do not read the 13-month tag gap alone
-    as an EOL signal.
+    v2.2 was tagged ~2026-07-07/09 (Docker Hub shows the v2.2 image pushed
+    about 28 days ago as of 2026-08-05, with the rolling `release` tag
+    rebuilt as recently as 9 hours ago). Prior tags show a consistent,
+    ongoing roughly-monthly semver cadence right up to the present: v2.1
+    (~2026-05-28), v2.0 (~2026-05), v1.99 (~2026-04), v1.98/v1.97
+    (~2026-03), v1.96 (~2026-02), v1.95 (~2026-01), v1.94 (~2025-12). Repo
+    has 40.6k stars, no archive notice, and active issue/commit traffic.
+    Both semver tagging and engineering are active — no cadence concern.
 
 catalogue_fit:
   categories: [low-code, developer-tools, internal-tools]
@@ -53,30 +51,31 @@ installability:
   secrets_expressible_today:
     - secret: traefik basic-auth gate credential
       mechanism: traefik_basic_auth
-  blocking_issues:
-    - "Appsmith has no env var to preset an admin password at boot — the
-      account (email + password) is always created interactively through
-      the app's own web signup form, so generated_from projection has no
-      field to target."
-    - "Instance Administrator rights are not granted to the first signed-up
-      user automatically (see appsmithorg/appsmith#36699) — they require
-      APPSMITH_ADMIN_EMAILS to name the customer's email at boot. That is an
-      arbitrary customer-supplied value with no input channel in the
-      current /compose mechanism, so the customer would sign up as a
-      workspace user but never reach the instance-wide Admin Settings panel
-      through our provisioning flow alone."
+  blocking_issues: []
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: build_now
 
 summary: >
   Appsmith is mechanically installable today as a single-container
-  docker-compose recipe behind Traefik basic_auth (closing the open-signup
-  race; internal Mongo/Redis/Postgres passwords are all server-generated,
-  no customer input needed). It fills a genuine gap versus the current
-  24-recipe catalogue. The catch: without a channel for the customer's
-  admin email, they get a normal signed-up user, not an Instance
-  Administrator, inside their own instance — workable for solo use but a
-  real caveat worth calling out in the recipe README. Combined with the
-  ~8GB RAM floor and a release-tagging cadence that has stalled for over a
-  year (even though upstream engineering is still active), this is a
-  build-with-caveats candidate rather than an immediate build_now.
+  docker-compose recipe behind Traefik basic_auth: internal Mongo/Redis/
+  Postgres passwords are all server-generated with no customer input
+  needed. Appsmith has no env var to preset an admin account at boot
+  (email + password are always created interactively through the app's
+  own signup form), but that is not a blocker — the normal first-boot
+  flow (visiting the base URL redirects to /setup/welcome, which calls
+  the one-shot /api/v1/users/super endpoint) automatically grants
+  Instance Administrator rights to whoever completes that wizard first,
+  so no admin-email input channel is actually needed.
+  appsmithorg/appsmith#36699 describes a bug only reachable by bypassing
+  the wizard via a direct /user/signup call, not the normal flow. The
+  real risk is the open-signup race itself — an anonymous visitor could
+  reach /setup/welcome before the customer and claim admin rights
+  (related to the super-user creation issue tracked as
+  GHSA-9wcp-79g5-5c3c, fixed in 1.99+) — and gating the app behind
+  Traefik basic_auth closes that race entirely. It fills a genuine gap
+  versus the current 24-recipe catalogue, and upstream is actively
+  maintained with an ongoing ~monthly release cadence as of 2026-08-05.
+  The main caveat is operational: the all-in-one image's ~8GB RAM
+  footprint raises the effective hosting-plan floor versus most of the
+  catalogue. Recommend build_now, with that RAM footprint called out in
+  the recipe README.
