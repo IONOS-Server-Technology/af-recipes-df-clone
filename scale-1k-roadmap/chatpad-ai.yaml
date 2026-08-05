@@ -1,0 +1,85 @@
+slug: chatpad-ai
+name: Chatpad AI
+source_description: "Privacy-focused ChatGPT web interface with local data storage and conversation management"
+
+upstream:
+  url: https://chatpad.ai/
+  repo_url: https://github.com/deiucanta/chatpad
+  license: AGPL-3.0
+  docker_image: ghcr.io/deiucanta/chatpad
+
+version_health:
+  latest_version: "no semver releases; ghcr image tags are git commit SHAs, latest = bb5f4ab (2024-06-13)"
+  latest_release_date: "2024-06-13"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Repo has never published a GitHub Release or version tag — the only
+    artifacts are git-SHA-tagged ghcr.io images. Last code push was
+    2024-06-13, i.e. just over 26 months before today (2026-08-05); no
+    commits since. Repo is not formally archived (archived: false on the
+    GitHub API) and the issue tracker still gets occasional maintainer
+    interaction (issue #125 "Add deployment badge for Hostinger" was
+    updated 2025-11-20), but there has been zero code activity for over two
+    years. Effectively a single-maintainer, feature-frozen project — treat
+    as dormant rather than actively maintained, even though it isn't
+    officially EOL'd.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Chatpad is a static React/Nginx front end that talks directly to the
+    customer's own OpenAI (or Azure OpenAI) account — no bundled inference,
+    no server-side database; every conversation is stored client-side in
+    the visitor's browser (IndexedDB). This is a much lighter deployment
+    than open-webui (which bundles Ollama for fully local/private
+    inference), but it depends entirely on the customer bringing an
+    external OpenAI API key and trusting OpenAI with their prompts. It does
+    not offer the "no cloud, no data leaves your server" story that
+    open-webui already covers in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    A thin wrapper around a third-party paid API, with the core value
+    proposition (privacy) already better served in-catalogue by open-webui's
+    fully local model. Upstream has been feature-frozen for two-plus years,
+    so shipping it now means shipping an unmaintained dependency for
+    marginal differentiation.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app itself has no login and requires no secret at container boot
+      — it serves static Nginx content, and the customer's OpenAI API key
+      is entered later, client-side, inside the running web UI (stored in
+      browser IndexedDB, never passed through /compose or any env var).
+      This isn't a structural blocker for /compose, but it does mean the
+      app's actual usefulness depends entirely on a credential our
+      mechanism has no visibility into or responsibility for.
+    - >
+      Because the app has no built-in auth, leaving it ungated on the
+      public internet lets any visitor open the chat UI and use their own
+      (or, if left logged in, the deploying customer's) OpenAI key through
+      it — mitigated by requiring the Traefik basic_auth gate, listed above.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Chatpad AI is mechanically installable today — it needs only a domain and
+  a Traefik basic_auth gate (it has no login of its own), both expressible
+  via existing mechanisms, and the customer's OpenAI API key is supplied
+  entirely inside the browser after deploy rather than through /compose. But
+  it's a thin, single-maintainer client for a paid third-party API that has
+  seen no code activity in over two years, and open-webui already covers the
+  "private self-hosted chat UI" niche in the catalogue with a stronger
+  privacy story (bundled local inference vs. Chatpad's dependency on
+  OpenAI's cloud). Recommend build_with_caveats: technically buildable, but
+  low differentiation and an unmaintained upstream make it a weak addition
+  relative to the effort.
