@@ -1,0 +1,96 @@
+slug: cheshire-cat-ai
+name: Cheshire Cat AI
+source_description: "Production AI agent framework with built-in RAG, plugins, and function calling"
+
+upstream:
+  url: https://cheshirecat.ai/
+  repo_url: https://github.com/cheshire-cat-ai/core
+  license: GPL-3.0
+  docker_image: ghcr.io/cheshire-cat-ai/core
+
+version_health:
+  latest_version: "2.0.23"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    The upstream repo itself is active: releases 2.0.19 through 2.0.23
+    shipped within a ~2.5 week window (2026-06-21 to 2026-07-08, confirmed
+    via the GitHub Releases API), and the repo was pushed to as recently as
+    2026-07-29 — under a month before today (2026-08-05). However, that
+    activity is PyPI/uv-package-only: the project switched its primary
+    quickstart to `uv add cheshire-cat-ai` / `uv run ccat`, and the official
+    `ghcr.io/cheshire-cat-ai/core` Docker image has not been rebuilt since
+    tag `1.9.2`, whose underlying commit is dated 2025-06-30 — over 13
+    months before today. No release since 1.9.2 (i.e. none of the 2.0.x
+    line) has a corresponding container image. Separately, the project's
+    own README flags the 2.x line itself as "unstable alpha" with "breaking
+    changes, rough edges, and incomplete features" and "not recommended for
+    production use yet" — so even the source distribution that IS current
+    is self-described as pre-production.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Positions itself as an agent framework rather than a chat frontend:
+    plugin system for custom tools/function calling, built-in RAG over
+    uploaded documents, and a REST/WebSocket API meant to be embedded into
+    other apps, versus open-webui's browser chat UI over Ollama models.
+    Conceptually closer to anythingllm (agents + RAG + any LLM provider)
+    than to plain open-webui + ollama.
+  usefulness: medium
+  usefulness_rationale: >-
+    The agent/plugin/RAG feature set is a real gap relative to open-webui +
+    ollama, but it lands in the same niche anythingllm would fill if that
+    were ever built, and the project's own maturity signals (alpha-labeled
+    current release line, stale Docker packaging) undercut the case for
+    shipping it as a production recipe right now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_GATE, CCAT_API_KEY, CCAT_JWT_SECRET]
+  secrets_expressible_today:
+    - secret: ADMIN_GATE
+      mechanism: traefik_basic_auth
+    - secret: CCAT_API_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CCAT_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >-
+      No current official Docker image to pin against. `ghcr.io/cheshire-cat-ai/core`'s
+      newest published tag is `1.9.2` (image built ~2025-06-30, ~13 months
+      stale as of 2026-08-05); every release since — up through the current
+      `2.0.23` (2026-07-08) — is PyPI/uv-only with no matching container
+      build. RFC-002 requires pinning to a current, official image tag, and
+      there is no tag that is both official and current here: `1.9.2` is
+      official but abandoned relative to upstream's own release line, and
+      the current `2.x` line has no official image at all.
+    - >-
+      The `1.9.2` image predates the 2.x rewrite the Hostinger description
+      is actually referring to ("production AI agent framework... plugins,
+      and function calling"), and upstream's own README calls 2.x "unstable
+      alpha... not recommended for production use yet" — so even setting the
+      image problem aside, the current source is self-described as
+      pre-production.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >-
+  Cheshire Cat AI's own upstream activity is healthy (frequent 2.0.x
+  releases through July 2026, commits into late July), but that activity
+  lives entirely in the PyPI/uv package, not in the Docker image: the
+  official `ghcr.io/cheshire-cat-ai/core` container is frozen at `1.9.2`,
+  built roughly 13 months before today, and no release since then has
+  shipped a matching image. Mechanically, the wide-open-by-default admin/API
+  surface (no auth at all unless `CCAT_API_KEY`/`CCAT_JWT_SECRET` are set)
+  would be gateable with a Traefik `basic_auth` front, same pattern as other
+  no-login apps in the catalogue — so the secrets story alone would not
+  block this. But with no current official image to pin and the project's
+  own README labeling the actively-released 2.x line "unstable alpha... not
+  recommended for production use," this doesn't clear the bar for a
+  production recipe today. Revisit if upstream resumes publishing container
+  images alongside its PyPI releases and 2.x graduates out of alpha.
