@@ -25,7 +25,7 @@ version_health:
 catalogue_fit:
   categories: [iot, automation]
   has_web_ui: true
-  reverse_proxy_compatible: false
+  reverse_proxy_compatible: true
   overlaps_with: [home-assistant]
   differentiation: >
     Home Assistant targets consumer smart-home automation; Kura is an
@@ -34,7 +34,12 @@ catalogue_fit:
     ports, GPS, GPIOs, I2C, watchdog) to cloud IoT platforms via MQTT. The
     categories nominally overlap ("IoT") but the audiences and core value
     proposition differ — Kura's value is almost entirely in bridging
-    physical field hardware, which a generic cloud VM does not have.
+    physical field hardware, which a generic cloud VM does not have. (Note:
+    Kura's web console is HTTPS-only on a self-signed cert, the same
+    pattern analyzed in apps-gaps/crafty-controller.yaml — workable behind
+    Traefik with backend TLS and certificate verification disabled, same
+    precedent. It's a proxy-config caveat, not a blocker, which is why
+    reverse_proxy_compatible is true here despite the HTTPS-only backend.)
   usefulness: low
   usefulness_rationale: >
     Kura's headline features (serial/GPIO/I2C access, Modbus/OPC-UA/S7
@@ -59,9 +64,6 @@ installability:
       so a Traefik basic_auth gate is the only way to avoid an
       unauthenticated-by-us front door, per the fixed-default-credential
       rule in SCHEMA.md."
-    - "No recipe in the current catalogue fronts an HTTPS-only backend
-      through Traefik; this would need new TLS-backend/insecure-skip-verify
-      proxy plumbing that doesn't exist yet as a template to copy from."
   installable_today: true
   recommendation: not_recommended
 
@@ -69,9 +71,11 @@ summary: >
   Eclipse Kura is an actively maintained (release 4 weeks ago), EPL-2.0
   industrial IoT edge framework with an official Docker image and a
   mechanically viable install path (Traefik basic_auth gating its fixed
-  admin/admin login). It is not recommended for the catalogue: its core
-  value depends on physical field hardware (serial, GPIO, I2C, Modbus/OPC-UA
-  devices) that a hosted VM cannot provide, and its HTTPS-only web console
-  would require new reverse-proxy plumbing not present in any existing
-  recipe. Low customer value in this hosting context outweighs its
-  mechanical installability.
+  admin/admin login, with backend TLS/cert-verification-disabled proxying
+  the HTTPS-only console — the same pattern already analyzed for Crafty
+  Controller). It is not recommended for the catalogue for a usefulness
+  reason, not a mechanical one: its core value depends on physical field
+  hardware (serial, GPIO, I2C, Modbus/OPC-UA devices) that a hosted VM
+  cannot provide, so deployed here it reduces to an empty shell with no
+  field devices to manage. Low customer value in this hosting context
+  outweighs its mechanical installability.
