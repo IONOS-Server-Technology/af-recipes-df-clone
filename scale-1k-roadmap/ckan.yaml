@@ -1,0 +1,99 @@
+slug: ckan
+name: CKAN
+source_description: "Open-source data portal for publishing and discovering research datasets"
+
+upstream:
+  url: https://ckan.org
+  repo_url: https://github.com/ckan/ckan
+  license: AGPL-3.0
+  docker_image: ckan/ckan-base:2.11.5
+
+version_health:
+  latest_version: "2.11.5"
+  latest_release_date: "2026-04-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Parallel-maintained 2.11.x/2.10.x release trains, both patched together
+    on the same date each cycle: 2.11.1/2.10.6 (2024-12-11), 2.11.2/2.10.7
+    (2025-02-05), 2.11.3/2.10.8 (2025-05-07), 2.11.4/2.10.9 (2025-10-29),
+    2.11.5/2.10.10 (2026-04-29) — about 3 months, 9 months ago, before this
+    2026-08-05 analysis. Gaps between cycles have widened somewhat (2, 3,
+    5, 6 months), but this reads as a mature, deliberately-paced LTS-style
+    cadence rather than stagnation: upstream is actively developing CKAN
+    2.12 (roadmap blog posts and "CKAN Monthly Live" streams through 2026,
+    positioned as the final 2.x release and a bridge to a CKAN 3.0 effort)
+    and still ships coordinated security/patch releases across two
+    branches. No archival, no announced EOL.
+
+catalogue_fit:
+  categories: [data-management, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers an open-data catalogue /
+    research-dataset publishing portal (dataset metadata, search/discovery,
+    organizations, API access to published data) — closest neighbors by
+    shape are Gitea (developer-tools, also Postgres-backed) but with no
+    domain overlap. This would be a genuinely new category: CKAN powers
+    government/NGO/research open-data sites (e.g. catalog.data.gov-style
+    deployments) rather than anything currently represented.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-established demand among government agencies, universities,
+    and NGOs that want a self-hosted open-data portal, and CKAN is the
+    dominant open-source option in that niche. It's a heavier, more
+    vertical-specific stack than most of our current recipes, so the
+    addressable audience is narrower than a general-purpose tool, but it
+    would be a distinctive, non-duplicative addition if installable.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - CKAN_SYSADMIN_NAME
+    - CKAN_SYSADMIN_PASSWORD
+    - POSTGRES_PASSWORD
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The official ckan/ckan-docker compose stack (ckan-base image +
+      Postgres + Solr + Redis + DataPusher, fronted by nginx) provisions
+      the initial sysadmin account at container start from
+      CKAN_SYSADMIN_NAME / CKAN_SYSADMIN_PASSWORD (upstream defaults:
+      ckan_admin / test1234, "must be changed before running this as a
+      public instance"). CKAN stores only a hash internally, but the env
+      var it reads is a literal plaintext password — the same class of
+      requirement as CiviCRM's CIVICRM_ADMIN_PASS. Our only supported
+      per-customer secret mechanism, `generated_from: "<algo>:ROOT_
+      PASSWORD"`, only ever yields a hash, so it cannot supply this field.
+    - >
+      Unlike Adminer/Chroma/WUD, CKAN has a real login system of its own
+      (sysadmin + editor/member roles) that customers must authenticate
+      into to actually publish or manage datasets — the app's core
+      function. Gating the reverse-proxied port with Traefik
+      `basic_auth: true` (as done for apps with no login of their own)
+      would only add a network-level gate in front of an nginx/CKAN stack
+      whose application-level sysadmin credential the customer still has
+      no way to learn or set; it does not substitute for the missing
+      plaintext-password channel, so the instance would ship functionally
+      admin-locked.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  CKAN is an actively maintained (2.12 in active development, roadmap
+  toward 3.0), non-duplicative addition that would open a genuinely new
+  open-data-portal category for the catalogue, with a reverse-proxy-
+  friendly single web UI port. It is not installable today: the official
+  Docker Compose stack requires a plaintext CKAN_SYSADMIN_PASSWORD at
+  container start to create the account customers need to actually manage
+  their data portal, and our platform's only per-customer secret channel
+  (`generated_from` root-password hash) cannot supply a plaintext value.
+  A Traefik basic_auth gate doesn't close the gap either, since it would
+  sit in front of CKAN's own separate login system rather than replace it.
+  Revisit once the recipe mechanism supports projecting a customer-chosen
+  plaintext credential (or a post-boot exec step to set one), not just a
+  root-password hash.
