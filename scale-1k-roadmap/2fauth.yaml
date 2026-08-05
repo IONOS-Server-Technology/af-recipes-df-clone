@@ -1,0 +1,81 @@
+slug: 2fauth
+name: 2FAuth
+source_description: "Self-hosted two-factor authentication code manager for web and mobile"
+
+upstream:
+  url: https://2fauth.app/
+  repo_url: https://github.com/Bubka/2FAuth
+  license: AGPL-3.0
+  docker_image: 2fauth/2fauth
+
+version_health:
+  latest_version: "v8.0.1"
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Nine releases in 2026 alone (v6.0.0 on 2026-01-14 through v8.0.1 on
+    2026-07-05), roughly monthly cadence. Latest release v8.0.1 is about
+    one month old as of 2026-08-05. Repo is not archived, issues/PRs are
+    actively triaged — clearly active, well-maintained project.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers TOTP/HOTP code management.
+    Vaultwarden (password manager) is the closest neighbor conceptually —
+    both are personal-security vaults — but 2FAuth specifically replaces a
+    phone-based authenticator app (Google Authenticator/Authy-style) with a
+    self-hosted, browser/PWA-accessible one, which is a distinct use case
+    customers search for separately from password management.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, well-understood single-purpose app with broad appeal to anyone
+    self-hosting security tools, and it is lightweight (single container,
+    SQLite by default, no external DB dependency). Usefulness is capped at
+    medium rather than high because it stores a customer's live 2FA seeds —
+    a single-user account signup with no built-in way for the platform to
+    pre-provision or gate that first-run signup is a materially higher-risk
+    exposure window than, say, a monitoring dashboard.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      2FAuth has no admin-credential environment variables at all (confirmed
+      against upstream .env.example and the official docker-compose install
+      docs). The app boots with zero users and the first visitor to the
+      public URL is presented with an open registration form; whoever
+      submits it first becomes the sole account owner. There is no
+      `type: password` parameter on the app's own login to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"` — the credential is created
+      client-side via self-registration, not injected via env var, so the
+      root-password-projection mechanism has nothing to attach to.
+    - >
+      A Traefik `basic_auth: true` gate could be placed in front of the
+      whole app to close the open-registration race, but that only delays
+      the same problem one layer out: the customer still needs a way to
+      register the in-app account themselves before anyone else reaches the
+      registration form, and today's basic_auth mechanism has no channel to
+      hand the customer a *second*, distinct credential beyond the single
+      root-password projection already used for the gate itself.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  2FAuth is an active, well-maintained, single-container app (SQLite by
+  default, no external DB required) that would fill a real gap in the
+  catalogue — self-hosted 2FA code management, distinct from Vaultwarden's
+  password-manager scope. It fails the installability test purely on the
+  platform mechanism: the app provisions its one admin account via an open
+  self-registration form with no env-var hook, so neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  hand the customer their own exclusive first-run credential. Revisit once
+  the platform supports either injecting a preset admin login via env var
+  (upstream would need to add that) or a customer-facing second credential
+  channel beyond the single root-password projection.
