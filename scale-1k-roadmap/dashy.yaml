@@ -1,0 +1,62 @@
+slug: dashy
+name: Dashy
+source_description: "A self-hostable personal dashboard with widgets, themes and status-checking"
+
+upstream:
+  url: https://dashy.to
+  repo_url: https://github.com/Lissy93/dashy
+  license: MIT
+  docker_image: lissy93/dashy:4.5.6
+
+version_health:
+  latest_version: "4.5.6"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged releases land nearly daily (4.5.0 on 2026-07-26 through 4.5.6 on
+    2026-08-05, the day this analysis was written); repo has 26.1k stars, no
+    archived flag, no deprecation banner. Clearly under active maintenance.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 existing recipes provide a personal service-launcher
+    dashboard (bookmark/link grid with icons, widgets, per-item status
+    pings, themeable UI). Uptime Kuma covers uptime *monitoring* with
+    alerting, and Portainer covers container *management* — neither
+    substitutes for a homepage-style landing page in front of a customer's
+    other self-hosted apps, which is Dashy's actual use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Natural pairing for customers already running multiple AF recipes
+    (a single landing page listing them), but it is a convenience layer
+    rather than something customers seek out on its own — lower pull than
+    an app that solves a standalone job (backups, password management,
+    monitoring).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dashy is a single-container, actively-maintained (near-daily releases),
+  MIT-licensed dashboard app with an official Docker image and no raw ports
+  beyond its one HTTP port (8080), so it's reverse-proxy-compatible as-is.
+  It ships with no auth enabled by default; rather than wiring up its
+  built-in SHA256-hashed login (an algorithm our generated_from mechanism
+  doesn't support yet), the pragmatic path is to leave Dashy's own auth off
+  and gate the whole app behind Traefik basic_auth using the customer's
+  root-password hash — the same pattern used for Adminer and other
+  no-native-login apps. That makes it installable today with no platform
+  changes needed. It doesn't duplicate any of the current 24 recipes, though
+  its value is more "nice landing page" than "must-have app."
