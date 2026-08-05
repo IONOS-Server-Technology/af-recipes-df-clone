@@ -1,0 +1,115 @@
+slug: alexandrie
+name: Alexandrie
+source_description: "Self-hosted knowledge base with extended Markdown and per-document permissions"
+
+upstream:
+  url: https://github.com/Smaug6739/Alexandrie
+  repo_url: https://github.com/Smaug6739/Alexandrie
+  license: MIT
+  docker_image: ghcr.io/smaug6739/alexandrie-backend, ghcr.io/smaug6739/alexandrie-frontend (both pinned tags available, e.g. v8.11.0 — no single "the" image, it's a two-image stack)
+
+version_health:
+  latest_version: "v8.11.0"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v8.11.0 shipped 2026-07-23, 13 days before this analysis
+    (2026-08-05). Release history over the prior ~6 months (v8.6.0 on
+    2026-02-16 through v8.11.0) shows a new tag roughly every 2-4 weeks,
+    with two point releases in the same week when a Docker packaging bug
+    needed a same-day fix (v8.9.0-preview.1/2 on 2026-05-12). No archival
+    notice, no EOL announcement; repo shows continuous commit activity.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [anytype-server]
+  differentiation: >
+    None of the 24 shipping recipes is a general-purpose Markdown wiki/notes
+    tool with a browser UI. anytype-server is the closest conceptual
+    neighbour (self-hosted knowledge base) but it is a headless sync
+    backend only — it has no web UI of its own and requires the customer to
+    install the separate AnyType native app to see anything, and it ships
+    disabled. Alexandrie would be the first fully browser-based
+    Notion/Confluence-style knowledge base in the catalogue, with
+    LaTeX/Mermaid/diagram-flavoured Markdown and 5-level per-document ACLs
+    that plain wiki tools (Wiki.js, BookStack) don't offer.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, non-duplicated demand exists (self-hosted Notion/Confluence
+    alternative is a common ask), but the app's own deployment topology
+    fights our current single-public-port-per-recipe convention (see
+    installability), which caps usefulness until that's resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, JWT_SECRET, MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, RUSTFS_ACCESS_KEY, RUSTFS_SECRET_KEY]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: RUSTFS_ACCESS_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: RUSTFS_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Alexandrie has no admin-credential environment variable at all
+      (confirmed against upstream's .env.example and README onboarding
+      flow). The app boots with zero users, and the first visitor to the
+      public frontend URL is presented with an open registration form;
+      whoever submits it first becomes the "primary owner" account. There
+      is no `type: password` parameter on the app's own login to target
+      with `generated_from: "<algo>:ROOT_PASSWORD"` — the credential is
+      created client-side via self-registration, not injected via env var.
+      This is the same shape of problem already documented in
+      apps-gaps/2fauth.yaml, apps-gaps/activepieces.yaml, and
+      apps-gaps/airtrail.yaml.
+    - >
+      A Traefik `basic_auth: true` gate in front of the app would close the
+      "random internet stranger races to register first" version of this
+      problem, but per the 2FAuth/AirTrail precedent it only delays the
+      same problem one layer out: the customer still needs to reach the
+      in-app registration form and claim the owner account themselves
+      before anyone else does, and today's basic_auth mechanism has no
+      channel to hand the customer a *second*, distinct credential for
+      that in-app form beyond the single root-password projection already
+      used for the gate itself.
+    - >
+      Independent of the above, Alexandrie ships as three separately
+      addressed HTTP endpoints — FRONTEND_URL (Nuxt UI, port 8200),
+      API_URL (backend, port 8201), and CDN_URL (RustFS S3-compatible
+      object storage, port 9000) — with the frontend calling the API
+      cross-origin and relying on a shared COOKIE_DOMAIN for session
+      cookies. Every recipe currently in the catalogue exposes exactly one
+      public HTTP port routed to <slug>.<base_domain> via Traefik; any
+      additional public ports are non-HTTP (SSH, raw TCP/UDP). There is no
+      established pattern in this repo for wiring three separate public
+      HTTP hosts (or path-based Traefik routing to fold them under one
+      host) into a single recipe — a second, independent blocker on top of
+      the registration-race problem above.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Alexandrie is a genuinely differentiated, actively maintained (MIT,
+  releases every 2-4 weeks, latest 13 days old) Markdown knowledge base
+  with no equivalent already in the 24-recipe catalogue. Its
+  infrastructure secrets (JWT signing key, DB password, object-storage
+  keys) are all happily server-generated with no customer input needed.
+  It fails installability for the same structural reason already seen in
+  2FAuth, Activepieces, and AirTrail: there is no env var to preset the
+  admin account, so the app relies on an open, first-visitor
+  self-registration screen that neither `generated_from:ROOT_PASSWORD` nor
+  a `basic_auth` gate alone can safely hand to the customer exclusively.
+  On top of that, its three-endpoint (frontend/API/CDN) cross-origin
+  deployment topology doesn't fit the one-public-HTTP-port-per-recipe
+  convention every other recipe here follows. Revisit once the platform
+  gains a second customer-facing credential channel beyond root-password
+  projection, and once multi-endpoint HTTP recipes have a proven Traefik
+  pattern.
