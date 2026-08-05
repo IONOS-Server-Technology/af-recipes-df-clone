@@ -1,0 +1,90 @@
+slug: bigcapital
+name: Bigcapital
+source_description: "Self-hosted financial accounting platform with intelligent reporting and multi-currency support"
+
+upstream:
+  url: https://bigcapital.app
+  repo_url: https://github.com/bigcapitalhq/bigcapital
+  license: AGPL-3.0
+  docker_image: bigcapitalhq/server
+
+version_health:
+  latest_version: "v0.25.25"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v0.25.25 published 2026-08-04, 1 day before today
+    (2026-08-05); v0.25.24 shipped the day before that (2026-08-03).
+    Recent release history: v0.25.23 (2026-06-22), v0.25.21/22
+    (2026-06-20), v0.25.20 (2026-03-28), v0.25.19 (2026-03-16), v0.25.18
+    (2026-03-08), v0.25.17 (2026-03-07), v0.25.16 (2026-03-01). Cadence is
+    uneven (a burst in March, a gap through April-May, another burst in
+    June, then quiet until early August) but the repo itself is not
+    dormant: GitHub reports a push as recent as 2026-08-05 and the repo is
+    not archived. Treat as active with a bursty rather than strictly
+    periodic cadence.
+
+catalogue_fit:
+  categories: [finance, accounting, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches accounting, invoicing, or
+    bookkeeping — this would be the first finance-category app in the
+    catalogue. It positions itself as a self-hosted QuickBooks/Xero/Wave
+    alternative with double-entry accounting, multi-currency support, and
+    financial reporting, a distinct and commonly-requested SMB use case
+    with no adjacent recipe today.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted accounting is a strong, differentiated addition for SMB
+    customers who want to keep financial data off third-party SaaS. No
+    competing option exists in the catalogue, and the app has an active
+    upstream and an official Docker image.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+    - secret: "MySQL/JWT/session secrets"
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Bigcapital ships an official pinned server image (bigcapitalhq/server:
+  v0.25.25) plus a separate webapp image, fronted in upstream's own compose
+  by an Envoy proxy on 80/443 — reverse-proxy-compatible behind Traefik on
+  a single domain. There is no admin-credential env var: like Uptime Kuma
+  and bewCloud, the first person to sign in through the web wizard becomes
+  the org admin, so DB passwords and JWT_SECRET can all be generated
+  server-side with no customer input needed to boot. However, unlike
+  bewCloud's documented "first signup always wins even if signups are
+  disabled" exception, Bigcapital's SIGNUP_DISABLED flag's interaction with
+  the very first (uninvited) signup is undocumented and could plausibly
+  block bootstrapping the first admin if set from the start — so leaving
+  registration open by default means anyone reaching the domain can create
+  their own org on the customer's server. Recommend fronting the whole app
+  with a mandatory Traefik basic_auth gate (root-password-derived
+  credential) rather than relying on the app's own signup flow as the
+  security boundary, the same treatment already planned for n8n/Open WebUI
+  in this catalogue. Upstream's production stack is heavier than most
+  current recipes: server, webapp, Envoy proxy, MariaDB, Redis, a one-shot
+  DB-migration container, and an optional Gotenberg PDF sidecar — six
+  containers versus the 1-3 typical of existing single-purpose recipes.
+  The upstream MariaDB/Redis services are built from thin custom
+  Dockerfiles (FROM mariadb:10.2 / redis:6.2.21 with extra config), not
+  pulled as-is, but these are trivially replaceable with the vanilla
+  official images plus a mounted config/init file, the same pattern already
+  used in n8n and paperless-ngx. Mail, S3, Plaid, Stripe, LemonSqueezy, and
+  New Relic env vars are all optional integrations that can be left unset.
+  No overlap with the existing catalogue and clear differentiation as the
+  first finance/accounting recipe; recommend building it, but budget extra
+  authoring time for the multi-container migration/proxy plumbing and
+  verify the SIGNUP_DISABLED-vs-first-signup behavior directly against a
+  test deployment before shipping.
