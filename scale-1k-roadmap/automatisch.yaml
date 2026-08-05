@@ -1,0 +1,88 @@
+slug: automatisch
+name: Automatisch
+source_description: "Open-source Zapier alternative for connecting applications and automating workflows"
+
+upstream:
+  url: https://automatisch.io/
+  repo_url: https://github.com/automatisch/automatisch
+  license: AGPL-3.0 (Community Edition); files with an ".ee." marker in the filename fall under a separate Enterprise license
+  docker_image: automatischio/automatisch
+
+version_health:
+  latest_version: "0.15.0"
+  latest_release_date: "2025-08-08"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    As of today, 2026-08-05, it has been just under 12 months (~11 months,
+    28 days) since the last tagged release (v0.15.0, 2025-08-08), and the
+    `automatischio/automatisch` Docker Hub image (`latest` and `0.15.0`
+    tags) was last pushed the same day — no image update since. This breaks
+    a 2023-2024 cadence of a release roughly every 2-3 months (0.11.0 Apr
+    2024, 0.12.0 May 2024, 0.13.0/0.13.1 Aug 2024, 0.14.0 Nov 2024, 0.15.0
+    Aug 2025). The repo itself is not dormant — `main` has commits as
+    recent as January 2026 (e.g. PR #2686) and 214 open issues are still
+    being triaged, 13.9k stars, not archived — but whoever self-hosts via
+    the published Docker image is frozen on code from August 2025 while
+    development continues unreleased on `main`. Classified `active` rather
+    than `maintenance-only`/`archived` because feature commits are still
+    landing, but the release/packaging pipeline has visibly slowed and this
+    is worth re-checking before shipping a recipe.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Same pitch and same job as n8n, already in the catalogue: both are
+    self-hosted, open-source, no-code/low-code "Zapier alternative" workflow
+    automation tools, both need Postgres (Automatisch also needs Redis for
+    its job queue), both expose one HTTP port (3000) that sits fine behind
+    Traefik. Automatisch's integration catalogue and community are smaller
+    than n8n's (13.9k vs a much larger n8n following), and its release
+    cadence has visibly slowed in the last year where n8n's has not. No
+    concrete capability here that n8n doesn't already cover for a customer
+    who just wants "workflow automation."
+  usefulness: low
+  usefulness_rationale: >
+    Duplicates a job the catalogue already does well with n8n, and does so
+    with a smaller integration set and a stalled release/image cadence.
+    Would mostly serve a customer who specifically wants Automatisch by
+    name (e.g. migrating an existing flow set) rather than filling a gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_basic_auth_gate, AUTOMATISCH_POSTGRES_PASSWORD, AUTOMATISCH_ENCRYPTION_KEY, AUTOMATISCH_WEBHOOK_SECRET_KEY, AUTOMATISCH_APP_SECRET_KEY]
+  secrets_expressible_today:
+    - secret: admin_basic_auth_gate
+      mechanism: traefik_basic_auth
+    - secret: AUTOMATISCH_POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: AUTOMATISCH_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AUTOMATISCH_WEBHOOK_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AUTOMATISCH_APP_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Automatisch is mechanically installable today: it has no env-var-driven
+  admin account, only a fixed, documented default login
+  (`user@automatisch.io` / `sample`) seeded at first boot with no
+  environment variable to change it, so per the SCHEMA.md precedent for a
+  hardcoded/unchangeable default credential, a Traefik `basic_auth` gate in
+  front of the whole app is the correct and sufficient fix — it becomes the
+  real auth boundary, and the app's own fixed weak password behind it is no
+  longer customer-facing risk. All internal secrets (Postgres password,
+  encryption key, webhook secret, app secret) are patternless values the
+  app never surfaces to the customer, so they're trivially server-generated.
+  The blocker to prioritizing this isn't installability, it's fit: it
+  duplicates n8n's job in the catalogue with a smaller integration set, and
+  its release/image pipeline has been stalled for nearly a year even though
+  `main` is still getting commits. Recommend `build_with_caveats` — buildable
+  now if a customer specifically wants Automatisch, but not a gap-filling
+  priority over the existing n8n recipe.
