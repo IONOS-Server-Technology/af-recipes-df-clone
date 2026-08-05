@@ -1,0 +1,138 @@
+slug: agenta
+name: Agenta
+source_description: "Open-source LLMOps platform for prompts, evaluation, and LLM observability"
+
+upstream:
+  url: https://www.agenta.ai/
+  repo_url: https://github.com/Agenta-AI/agenta
+  license: MIT (root of repo, per LICENSE file); any `ee/` directory content is licensed separately under its own `ee/LICENSE`
+  docker_image: ghcr.io/agenta-ai/agenta-web (paired with ghcr.io/agenta-ai/agenta-api, agenta-services, agenta-runner — multi-image stack, no single "the" image)
+
+version_health:
+  latest_version: "v0.109.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v0.109.1 published today (2026-08-05); the prior nine
+    releases (v0.105.9 through v0.109.0) span 2026-07-23 through 2026-08-04,
+    i.e. near-daily shipping for the last two weeks. Repo is not archived,
+    pushed_at is today, 4.4k stars. Unambiguously active — but see
+    catalogue_fit below: the project shipping this fast is also the one
+    that pivoted away from the LLMOps positioning Hostinger's blurb
+    describes.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [hermes-agent, openclaw]
+  differentiation: >
+    Hostinger's source_description ("LLMOps platform for prompts,
+    evaluation, and LLM observability") is stale. Reading the current
+    upstream README and root docker-compose (both confirmed live today)
+    shows the project has pivoted: it now describes itself as "the
+    open-source workspace for building and running agents" — you chat with
+    an agent to build it, connect it to apps via MCP/Composio (1000+ apps),
+    run it in the foreground or on a schedule/webhook trigger in the
+    background, and inspect traces/cost. There is no prompt-versioning or
+    offline-evaluation UI surfaced anywhere in the current README, roadmap,
+    or compose stack — that appears to have been the old product. In its
+    current form it competes directly with recipes/hermes-agent and
+    recipes/openclaw (self-hosted AI-agent runtimes that act on your
+    behalf), not with anything else in the catalogue. It adds team
+    workspaces/RBAC and a much larger "connect to 1000+ apps" integration
+    surface (via Composio) versus hermes-agent's Telegram-only interface,
+    but at a dramatically heavier infrastructure cost (see installability).
+  usefulness: low
+  usefulness_rationale: >
+    As currently shipped, Agenta is a heavier, more complex reimplementation
+    of a niche (self-hosted AI agent runtime) the catalogue already covers
+    with hermes-agent and openclaw at a fraction of the resource footprint.
+    It brings no capability those two lack that would justify a 13-service
+    stack, and it does not deliver the LLMOps/prompt-eval capability its
+    Hostinger listing promises, which is what would have differentiated it
+    from the existing agent-runtime recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin_signup_credential
+    - AGENTA_AUTH_KEY
+    - AGENTA_CRYPT_KEY
+    - AGENTA_RUNNER_TOKEN
+    - AGENTA_STORE_ACCESS_KEY
+    - AGENTA_STORE_SECRET_KEY
+    - AGENTA_STORE_SIGNING_KEY
+    - POSTGRES_PASSWORD
+    - llm_provider_api_key_or_oauth_login
+  secrets_expressible_today:
+    - secret: AGENTA_AUTH_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AGENTA_CRYPT_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AGENTA_RUNNER_TOKEN
+      mechanism: server_generated_no_customer_input
+    - secret: AGENTA_STORE_ACCESS_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AGENTA_STORE_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AGENTA_STORE_SIGNING_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the upstream env.oss.gh.example and compose file:
+      there is no admin-username/admin-password environment variable at
+      all. Sign-ups are open by default per the self-hosting docs — the
+      first visitor to the public URL registers the sole admin account.
+      Same structural gap already documented for Activepieces and 2FAuth:
+      no `type: password` parameter on an app-owned login exists to target
+      with `generated_from: "<algo>:ROOT_PASSWORD"`, and a Traefik
+      `basic_auth` gate would only add a second, unrelated credential in
+      front of the app rather than provisioning the in-app signup itself.
+    - >
+      The product is now fundamentally an agent-execution platform: to do
+      anything beyond sign up, it needs either a model-provider API key
+      (ANTHROPIC_API_KEY / OPENAI_API_KEY / etc., all blank in the shipped
+      env template) or an interactive OAuth login to a Claude/ChatGPT/Pi
+      subscription mounted into the runner container. Both are
+      customer-supplied external credentials with no projection channel
+      under the current `/compose` mechanism — this is the same class of
+      blocker as an external API key or OAuth registration described in
+      apps-gaps/SCHEMA.md, and it is not optional: without it the app has
+      no functional agent to run.
+    - >
+      The `runner` service (which actually executes agent turns) requires
+      `cap_add: SYS_ADMIN`, a mounted `/dev/fuse` device, and
+      `security_opt: apparmor:unconfined` for its local FUSE-mounted
+      sandbox. That is a materially more privileged container than any
+      current recipe requests, independent of the secrets problem above.
+    - >
+      The full oss compose stack is 13 services (web, api, worker-streams,
+      worker-queues, cron, alembic migrator, services, runner, postgres,
+      redis-volatile, redis-durable, seaweedfs object store, supertokens,
+      plus an optional composio sidecar and traefik/nginx) — far heavier
+      than any recipe in the catalogue today, raising the resource floor
+      and operational surface for a use case two existing recipes already
+      cover more simply.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Hostinger's catalogue description of Agenta as an "LLMOps platform for
+  prompts, evaluation, and observability" is out of date: the live upstream
+  repo (checked today, 2026-08-05, with a same-day release) has pivoted to
+  "the open-source workspace for building and running agents," putting it
+  in direct conceptual competition with the catalogue's existing
+  hermes-agent and openclaw recipes rather than filling a distinct niche.
+  It fails installability on multiple independent grounds: no admin-account
+  environment variable (open self-registration, same gap as Activepieces
+  and 2FAuth), a mandatory external LLM-provider API key or OAuth
+  subscription login with no customer-input channel today, a runner
+  container that demands SYS_ADMIN/FUSE/apparmor-unconfined privileges, and
+  a 13-service stack that is far heavier than the job requires. Not
+  recommended — revisit only if a future dark-factory version targets a
+  genuinely distinct LLMOps/prompt-eval product, since that would no longer
+  describe what this repository ships.
