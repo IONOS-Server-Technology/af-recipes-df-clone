@@ -1,0 +1,85 @@
+slug: domain-locker
+name: Domain Locker
+source_description: "Unified platform for managing and monitoring domain name portfolios"
+
+upstream:
+  url: https://domain-locker.com/
+  repo_url: https://github.com/lissy93/domain-locker
+  license: MIT
+  docker_image: lissy93/domain-locker:0.2.2
+
+version_health:
+  latest_version: "0.2.2"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Young, pre-1.0 project (all releases are 0.x, first self-hosting support
+    landed at 0.0.6). GitHub Releases show a steady cadence through 2026
+    (v0.1.0 through v0.2.0), and the Docker Hub tag list goes further —
+    0.2.1 and 0.2.2 were pushed about 1 month ago and ~8 days ago
+    respectively (relative to today, 2026-08-05), meaning patch releases
+    are shipping faster than formal GitHub Release notes are written.
+    1.5k GitHub stars, not archived, MIT-licensed, single primary author
+    (Alicia Sykes / lissy93) with a growing contributor list on the last
+    few releases. Solidly active, no EOL signal.
+
+catalogue_fit:
+  categories: [monitoring, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma monitors reachability/uptime and can alert on SSL cert
+    expiry for URLs you individually add as monitors. Domain Locker is
+    portfolio-first: point it at your domains and it pulls WHOIS
+    registration/expiry data, DNS records, subdomains, hosting/registrar
+    info and SSL cert state for the whole set, with dedicated
+    expiry/config-change alerting per domain. It answers "which of my 30
+    domains expires next / changed registrar / lost its SSL cert" in one
+    place — a job none of the current 24 recipes (including Uptime Kuma
+    and the DNS-adjacent AdGuard Home / Pi-hole ad-blockers) cover today.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for any customer managing more than a handful of
+    domains — expired-domain loss is a common, painful failure mode this
+    directly guards against. Capped at medium rather than high because it
+    is a narrow, single-purpose tool (unlike broader monitoring or
+    security suites) and is still an early, actively-changing pre-1.0
+    project, so upstream breaking changes are more likely than in a
+    mature recipe candidate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, TRAEFIK_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Domain Locker's official self-hosted docker-compose ships three services:
+  a Postgres 15 database, the app itself (single HTTP port 3000, Traefik
+  labels already present in the upstream compose file, directly usable on
+  domain-locker.<base_domain>), and a lightweight Alpine cron container
+  that periodically triggers domain-refresh/expiry-check/cleanup jobs
+  against the app's own API — no privileged mounts or extra raw ports
+  needed. Critically, the self-hosted edition ships with no built-in
+  multi-user authentication of its own; upstream's own docs recommend
+  gating it with a reverse proxy (Authelia/Authentik/oauth2-proxy) or
+  network isolation, which maps cleanly onto our Traefik `basic_auth: true`
+  toggle — the same pattern already used for WUD, n8n and Open WebUI. The
+  Postgres password is a server-generated internal secret with no customer
+  input required. Optional integrations (DNS Dumpster reconnaissance token,
+  Cloudflare Turnstile CAPTCHA key, Glitchtip error tracking DSN) are
+  documented but not required for the core WHOIS/DNS/SSL monitoring
+  features to work at first boot, so nothing here blocks installability.
+  Net: mechanically installable today with zero blocking issues, fills a
+  real gap (portfolio-wide domain/SSL/DNS expiry monitoring) not covered
+  by any existing recipe, but recommend build_with_caveats given the
+  three-service stack (vs. our usual single-container pattern) and the
+  project's still-early pre-1.0 status with fast-moving patch releases.
