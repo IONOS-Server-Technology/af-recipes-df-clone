@@ -26,7 +26,7 @@ version_health:
 
 catalogue_fit:
   categories: [developer-tools, automation, web-scraping]
-  has_web_ui: false
+  has_web_ui: true
   reverse_proxy_compatible: true
   overlaps_with: []
   differentiation: >
@@ -42,10 +42,11 @@ catalogue_fit:
   usefulness_rationale: >
     Real, distinct capability with no catalogue overlap, but the target
     user is a developer wiring their own Puppeteer/Playwright code against
-    the API — there is no interactive web UI, so it delivers no value to a
-    customer who just clicks around a dashboard. It is infrastructure for
-    another project, similar in audience to bknd, not a standalone
-    consumer-facing app.
+    the API. The container does serve a /docs page and a live-session
+    "Debug Viewer" over HTTP, but neither is a management dashboard — there
+    is no admin login, no settings, nothing for a customer to configure.
+    It is infrastructure for another project, similar in audience to
+    bknd, not a standalone consumer-facing app.
 
 installability:
   recipe_type_guess: docker-compose
@@ -55,22 +56,22 @@ installability:
       mechanism: generated_from_root_password
   blocking_issues:
     - "Upstream license is dual SSPL-1.0 / Browserless Commercial License, not a permissive OSS license. SSPL's core term requires that if the software is offered 'as a service' to third parties, the full source of the service (including management/orchestration layers) be released under SSPL, or a commercial license be purchased instead. Application Factory hosting this recipe for customers is squarely the kind of 'offer as a service' use case SSPL targets, and every other recipe in the catalogue is permissively licensed (MIT/Apache/AGPL-with-precedent) — this would be the first dual-commercial/SSPL app. Needs a legal/licensing review (or a Browserless Commercial License) before shipping, independent of the /compose mechanism question."
-  installable_today: false
-  recommendation: blocked_on_platform
+  installable_today: true
+  recommendation: build_with_caveats
 
 summary: >
   Browserless is technically simple to install via our current mechanism —
-  a single container on port 3000, no web UI to gate, and its one required
-  secret (the API TOKEN env var that guards all requests) can be projected
-  from the customer's root password the same way Vaultwarden's ADMIN_TOKEN
-  is, via generated_from. Upstream is clearly active, releasing multiple
-  times a week with no EOL signal. The blocker is not the secrets mechanism
-  but licensing: Browserless ships under a dual SSPL-1.0/commercial license,
+  a single container on port 3000, no admin web UI to gate, and its one
+  required secret (the API TOKEN env var that guards all requests) can be
+  projected from the customer's root password the same way Vaultwarden's
+  ADMIN_TOKEN is, via generated_from. Upstream is clearly active, releasing
+  multiple times a week with no EOL signal. Mechanically installable today
+  via generated_from; the open question is licensing, not the secrets
+  mechanism: Browserless ships under a dual SSPL-1.0/commercial license,
   and SSPL's "offered as a service" clause is a real concern for a hosted
   Application Factory recipe — no existing recipe in the catalogue carries
-  this kind of license, and shipping it would need a legal review or a
-  purchased commercial license first. It also has no interactive web UI,
-  so its value is limited to developers wiring their own scraping/
-  automation code against the API rather than a broad customer audience.
-  Recommend blocked_on_platform pending a licensing decision, not a
-  mechanism fix.
+  this kind of license. It also has no interactive management dashboard
+  (only a /docs page and a live-session debug viewer), so its value is
+  limited to developers wiring their own scraping/automation code against
+  the API rather than a broad customer audience. Recommend
+  build_with_caveats pending a licensing/legal review before shipping.
