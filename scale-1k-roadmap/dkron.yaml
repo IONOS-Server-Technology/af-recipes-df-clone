@@ -1,0 +1,78 @@
+slug: dkron
+name: Dkron
+source_description: "Distributed, fault-tolerant cron-style job scheduler with web UI and REST API"
+
+upstream:
+  url: https://dkron.io
+  repo_url: https://github.com/distribworks/dkron
+  license: LGPL-3.0 (core/free edition; "Dkron Pro" auth/ACL/executor add-ons are commercial)
+  docker_image: dkron/dkron:4.1.2
+
+version_health:
+  latest_version: "v4.1.2"
+  latest_release_date: 2026-07-22
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~2 weeks since v4.1.2 (2026-07-22) as of today (2026-08-05). Release
+    history is regular: v4.1.0 (2026-03-30) → v4.1.1 (2026-05-12) → v4.1.2
+    (2026-07-22), roughly every 6-8 weeks, with active dependency-bump and
+    bugfix commits in between. No signs of archival, maintenance-only mode,
+    or EOL — this is a healthy, actively developed project.
+
+catalogue_fit:
+  categories: [automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Dkron is a standalone distributed job scheduler (cron replacement) with
+    a web dashboard and REST API for defining, scheduling, and monitoring
+    recurring jobs/commands across one or more nodes. n8n covers workflow
+    automation triggered by events/integrations, but nothing in the current
+    catalogue provides a dedicated cron/job-scheduling UI. It would be a
+    genuinely new capability rather than a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for customers who want a reliable, UI-driven replacement for
+    server cron jobs (retries, execution history, alerting on failure), but
+    it's a narrower, more technical audience than general-purpose apps in
+    the catalogue — most customers who need scheduling already get it via
+    n8n triggers or their own crontab. Single-node deployment (no real
+    cluster) also gives up most of Dkron's headline fault-tolerance value,
+    so the pitch is closer to "cron with a nice UI" than the full
+    distributed-system use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DKRON_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: DKRON_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The free/open-source edition of Dkron (LGPL) ships with no
+      authentication of its own — the web UI and REST API are open to
+      anyone who can reach the port. Web UI auth, API auth, and ACLs are
+      "Dkron Pro" commercial features (~$450/year), not available in the
+      image we'd ship. This is mechanically solvable today via a mandatory
+      Traefik `basic_auth: true` gate in front of the app (same pattern as
+      n8n/WUD/Open WebUI), so it is not a hard blocker, but the recipe MUST
+      NOT expose Dkron's own port without that gate given it has zero
+      built-in access control.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Dkron is an actively maintained (v4.1.2, 2026-07-22), LGPL-licensed
+  distributed job scheduler with an official Docker image and a proper web
+  UI + REST API — no overlap with anything currently in the catalogue. The
+  free edition has zero built-in authentication (auth/ACLs are a paid
+  "Dkron Pro" add-on), so it must ship behind a mandatory Traefik
+  `basic_auth` gate to avoid an open-to-the-internet job scheduler; that
+  mechanism is already supported today, so it is installable, just with the
+  caveat that the whole app, not just an admin panel, sits behind the gate.
+  Clustering (its main fault-tolerance selling point) needs multiple nodes
+  and isn't practical in a single-instance recipe, so the value proposition
+  narrows to "cron replacement with a UI and retry/history tracking" —
+  reasonable to build, but medium rather than high priority.
