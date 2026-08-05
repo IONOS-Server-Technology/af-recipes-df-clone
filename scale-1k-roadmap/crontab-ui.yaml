@@ -1,0 +1,79 @@
+slug: crontab-ui
+name: Crontab UI
+source_description: "Web UI for managing cron jobs with import, export, backups and error logs"
+
+upstream:
+  url: https://github.com/alseambusher/crontab-ui
+  repo_url: https://github.com/alseambusher/crontab-ui
+  license: MIT
+  docker_image: alseambusher/crontab-ui
+
+version_health:
+  latest_version: "0.4.2"
+  latest_release_date: "2026-04-20"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the last tagged release (0.4.2) is ~3.5
+    months old. Full recent history: 0.3.11 (2024-06-08), 0.3.13
+    (2024-07-10), then an ~10-month gap to 0.3.14 (2025-05-20) and 0.3.15
+    (2025-05-22), then an ~11-month gap to 0.3.16 (2026-04-04), followed
+    immediately by a burst of three releases in under three weeks — 0.4.0
+    (2026-04-19, a real modernization: Bootstrap 3 to 5, Helmet + rate
+    limiting, moment.js to day.js, nedb fork, Vitest, requires Node 20+),
+    0.4.1 (2026-04-19), 0.4.2 (2026-04-20). Pattern is long quiet stretches
+    (10-11 months) punctuated by short maintenance bursts, not a steady
+    cadence — hence "sporadic" rather than "active". Not archived, no EOL
+    notice; the April 2026 burst (including a security-hardening pass) is
+    recent enough that "dormant" would be too harsh. 3.3k GitHub stars.
+
+catalogue_fit:
+  categories: [automation, devops, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue manages cron/scheduled-job
+    execution. WUD (image-update automation) and n8n (workflow automation)
+    are the closest by "automation" category but neither edits a crontab —
+    Crontab UI is a narrow, single-purpose tool: a safe web form over
+    editing/importing/exporting a crontab file plus per-job error logs and
+    backups. Distinct niche, no functional overlap.
+  usefulness: low
+  usefulness_rationale: >
+    The crontab it edits is local to its own container, not the customer's
+    host or other containers/recipes — so on IONOS's platform it only lets
+    a customer schedule jobs *inside this one isolated container*, which
+    has no other services or files to act on unless the customer also
+    mounts/wires something in manually. That materially narrows the
+    "manage my server's cron jobs" value proposition Hostinger's
+    description implies. Combined with a small, single-maintainer project
+    and sporadic releases, ceiling is low relative to the rest of the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Crontab UI is a single-container, single-HTTP-port (8000) Node app with
+  no built-in login screen by default — it can optionally check
+  BASIC_AUTH_USER/BASIC_AUTH_PWD via express-basic-auth, but that comparison
+  is plaintext-only (no hashing in the code path), so the app's own auth
+  var is not expressible through `generated_from` (which only ever carries
+  a hash). The mechanically sound path is to leave BASIC_AUTH_* unset and
+  gate the whole app behind a Traefik `basic_auth:true` credential instead
+  (same pattern as Adminer/WUD), which makes it installable_today under the
+  current mechanism once IF-1312 lands. However, the crontab it manages is
+  scoped to its own container, not the customer's host or other services,
+  which undercuts the "manage your server's cron jobs" value customers
+  would expect from the Hostinger description. Combined with a small
+  single-maintainer project and sporadic release history (multi-month
+  gaps between bursts), this is mechanically buildable but low enough
+  value that it is not recommended for the catalogue right now.
