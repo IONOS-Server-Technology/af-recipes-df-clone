@@ -1,0 +1,93 @@
+slug: cap
+name: Cap
+source_description: "Privacy-first proof-of-work CAPTCHA alternative with zero tracking"
+
+upstream:
+  url: https://trycap.dev/
+  repo_url: https://github.com/tiagozip/cap
+  license: Apache-2.0
+  docker_image: tiago2/cap (Docker Hub; latest numbered tag 3.1.9)
+
+version_health:
+  latest_version: "3.1.9"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub tag history shows 3.1.9 published the same day this analysis
+    was written (2026-08-05), with a steady cadence before it: 3.1.8 (~14
+    days prior), 3.1.7 (~21 days prior), 3.1.5 (~2 months prior), working
+    back through the 3.0.x and 2.x lines over roughly the last 5 months.
+    Repo is not archived, has ~7.4k GitHub stars and very few open issues.
+    This is an actively maintained, fast-moving project, not slowing or
+    dormant.
+
+catalogue_fit:
+  categories: [security, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides bot/spam mitigation for a
+    customer's own website or app. Cap is a self-hosted CAPTCHA backend
+    (proof-of-work challenge issuance + a reCAPTCHA-compatible siteverify
+    API) that a customer would embed in their own separately-hosted
+    site/form, not a consumer app used directly. It's a genuinely different
+    category (developer/security infrastructure) rather than an overlap
+    with any existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to a technical customer who runs their own website and wants a
+    privacy-respecting, self-hosted CAPTCHA instead of reCAPTCHA/hCaptcha,
+    but it's a narrow, integration-requiring tool (the customer must wire
+    Cap's widget/API into their own site's code) rather than a
+    ready-to-use product on its own — closer to Adminer/WUD in audience
+    than to a broad-appeal app like Vaultwarden or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_key, redis_password]
+  secrets_expressible_today:
+    - secret: redis_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Cap's single container serves two distinct things on the same public
+      port (3000): the admin dashboard (login-gated) and the public
+      CAPTCHA API (challenge issuance + siteverify) that the customer's
+      *own separately-hosted site* must be able to call unauthenticated
+      from anywhere on the internet — that's the entire point of the
+      product. `ADMIN_KEY` is compared as a plaintext string against
+      whatever the customer types into the dashboard login form (per
+      upstream docs: "ADMIN_KEY is your dashboard's login... log in with
+      your admin key"); Cap does no hashing of it itself. `generated_from`
+      only ever projects a hash of the customer's root password, never the
+      plaintext, so it cannot populate `ADMIN_KEY` — this is the genuine
+      "requires the plaintext, not any hash" case SCHEMA.md calls a hard
+      structural blocker, not a `generated_from`-extensibility gap.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (our other
+      supported mechanism) is not a viable substitute here, unlike for
+      Adminer/WUD: `basic_auth` gates the app's one declared public port
+      entirely, but Cap's public CAPTCHA-verification endpoints must stay
+      reachable by anonymous third-party browsers hitting the customer's
+      own site — putting basic_auth on the whole port would break the
+      product's core function, not just mask an unrelated admin login the
+      way it does for a no-auth CRUD tool.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Cap is an actively maintained (release ~today, 2026-08-05), single-purpose
+  self-hosted CAPTCHA backend with no overlap in the current catalogue, and
+  would be a reasonable addition in principle. It fails installability
+  today because its one public port carries both the admin dashboard
+  (gated by a plaintext-only `ADMIN_KEY` that `generated_from` cannot
+  supply, since that mechanism only ever projects a hash) and the public
+  CAPTCHA-verification API, which must stay open to the whole internet for
+  the app to function — so neither of our two customer-secret mechanisms
+  (root-password hash projection, or a whole-port Traefik `basic_auth`
+  gate) can be applied without either leaving the dashboard's fixed login
+  unset or breaking the CAPTCHA API itself. Revisit if upstream adds a way
+  to set `ADMIN_KEY` via a supported hash, or if the platform gains
+  path-scoped (rather than whole-port) basic_auth.
