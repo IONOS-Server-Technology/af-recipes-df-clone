@@ -1,0 +1,67 @@
+slug: etherpad
+name: Etherpad
+source_description: "Real-time collaborative document editor with live editing and version history"
+
+upstream:
+  url: https://etherpad.org
+  repo_url: https://github.com/ether/etherpad
+  license: Apache-2.0
+  docker_image: etherpad/etherpad
+
+version_health:
+  latest_version: "3.3.3"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (3.3.3) shipped 2026-07-29, about a week before today
+    (2026-08-05). Releases have landed roughly every 1-4 weeks through 2026
+    (2.7.0 on 2026-04-22 through 3.3.3), including a security-fix release
+    (3.3.3 fixed an unauthenticated arbitrary-file-read bug). Project is
+    clearly actively maintained by The Etherpad Foundation, not in
+    maintenance-only mode.
+
+catalogue_fit:
+  categories: [productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover real-time collaborative text
+    editing (closest neighbors are document-management/storage tools like
+    Paperless-ngx, or code-hosting like Gitea/Opengist, none of which do
+    live multi-cursor co-editing). Etherpad fills a distinct
+    "shared scratchpad / meeting notes" use case a customer would
+    otherwise reach for a third-party SaaS (Google Docs, HackMD) for.
+  usefulness: medium
+  usefulness_rationale: >
+    Real-time collaborative editing is a common, recognizable need and
+    Etherpad is the standard self-hosted option for it, but it's a
+    narrower, more occasional-use tool than e.g. n8n or Vaultwarden — most
+    customers won't self-host it as their primary daily-driver app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, ADMIN_PASSWORD, DB_PASS]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Etherpad ships as a single official Docker image (etherpad/etherpad,
+  Apache-2.0) fronting one HTTP+WebSocket port (9001), pairs cleanly with a
+  Postgres sidecar the same way n8n does, and is under active development
+  (weekly-to-monthly releases, latest 3.3.3 on 2026-07-29). Its main
+  pad-editing UI has no built-in login by default, so the whole app can sit
+  behind a Traefik basic_auth gate exactly like n8n/Open WebUI/Immich do
+  today; the separate /admin plugin-management panel needs a mandatory
+  ADMIN_PASSWORD env var, but that can be a server-generated secret the
+  customer never needs since the basic_auth gate is the real access
+  boundary. No blocking secrets — recommend building this recipe now.
