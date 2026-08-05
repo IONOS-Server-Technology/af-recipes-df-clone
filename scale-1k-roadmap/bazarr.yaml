@@ -1,0 +1,81 @@
+slug: bazarr
+name: Bazarr
+source_description: "Automated subtitle management and download companion for Sonarr and Radarr"
+
+upstream:
+  url: https://www.bazarr.media/
+  repo_url: https://github.com/morpheus65535/bazarr
+  license: GPL-3.0
+  docker_image: linuxserver/bazarr
+
+version_health:
+  latest_version: "v1.6.0"
+  latest_release_date: "2026-07-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.6.0 (the latest full stable, non-beta, release) shipped 2026-07-04,
+    about one month before today (2026-08-05). Since then the project has
+    been cutting near-daily development betas toward v1.6.1
+    (v1.6.1-beta.8 through v1.6.1-beta.17 in the eight days up to
+    2026-08-05 alone), so upstream development is clearly active and
+    ongoing, not stalled between stable cuts. The community-maintained
+    `linuxserver/bazarr` image tracks this closely: its latest stable build
+    tag `v1.6.0-ls357` shipped 2026-08-04, one day before today, with its
+    own matching development-tag betas following the same daily cadence.
+    Repo is not archived; issues and PRs are actively triaged.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media-library
+    automation or subtitle management. Bazarr fills a distinct niche:
+    automatically finding, downloading, and upgrading subtitles for a
+    user's TV/movie library. However, Bazarr has zero standalone
+    functionality of its own — by design it is only a companion to Sonarr
+    and/or Radarr, which it must be pointed at (via their API keys, entered
+    through Bazarr's own UI after boot) before it does anything useful.
+    Neither Sonarr nor Radarr exists as an AF recipe today, so a customer
+    installing Bazarr alone gets an empty subtitle manager with nothing to
+    manage until they separately stand up (or already run) Sonarr/Radarr
+    themselves.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, actively used tool in the self-hosted media-server
+    community, but its value is entirely conditional on Sonarr/Radarr,
+    which AF does not offer as recipes either — more tightly coupled to an
+    absent dependency than autobrr (which can still add value against a
+    download client alone). Recommend treating any Bazarr recipe as part of
+    a future "media automation stack" decision alongside Sonarr/Radarr
+    rather than shipping it in isolation.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Bazarr is a single-container app (linuxserver/bazarr, port 6767, no
+  separate database service) that is mechanically simple to deploy behind
+  Traefik — structurally close to uptime-kuma/vaultwarden in the
+  catalogue. Unlike autobrr or Baby Buddy, it ships with authentication set
+  to "None" by default (Form/Basic login must be turned on manually inside
+  Settings > General > Security, with no env var to preconfigure it), so it
+  would sit open on the internet unless gated by a required Traefik
+  basic_auth in front (password projected from the customer's root
+  password via generated_from) — the same pattern used for Adminer/WUD.
+  Sonarr/Radarr API keys are entered through Bazarr's own UI after login,
+  not needed to boot, so they don't block installability under today's
+  mechanism. The real blocker to recommending this is usefulness, not
+  mechanics: Bazarr does nothing without Sonarr and/or Radarr, and neither
+  exists in our catalogue, so shipping it alone would hand customers a
+  dead-end app. installable_today is true, but recommend build_with_caveats
+  pending a decision on whether Sonarr/Radarr get added alongside it.
