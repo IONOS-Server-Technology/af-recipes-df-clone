@@ -1,0 +1,75 @@
+slug: db-browser-for-sqlite
+name: DB Browser for SQLite
+source_description: "DB Browser for SQLite is a visual tool for creating, designing, and editing SQLite database files"
+
+upstream:
+  url: https://sqlitebrowser.org/
+  repo_url: https://github.com/sqlitebrowser/sqlitebrowser
+  license: MPL-2.0 / GPL-3.0 (dual-licensed)
+  docker_image: linuxserver/sqlitebrowser  # third-party (LinuxServer.io) — upstream ships no official Docker image at all; DB4S is a desktop Qt app
+
+version_health:
+  latest_version: "3.13.1"
+  latest_release_date: "2024-10-16"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Release history is bursty: 3.12.2 (2022-05-17) sat for over two years
+    before 3.13.0 (2024-07-23) and 3.13.1 (2024-10-16) shipped within the
+    same quarter. As of 2026-08-05 it has been ~9.6 months since 3.13.0 and
+    ~9.7 months since 3.13.1 — under a year, so not yet "dormant" the way
+    the 2022-2024 gap was, but the historical pattern (long silences, then a
+    cluster of releases) makes this worth re-checking before committing.
+    Repo is not archived, has 800+ open issues still being triaged, and the
+    LinuxServer.io container image is actively rebuilt on top of 3.13.1
+    (patch revisions as recently as ~5 days before this analysis), so the
+    packaging side is more actively maintained than the upstream app itself.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes give customers a way to inspect/edit a
+    raw SQLite file. Conceptually adjacent to the not-yet-built Adminer gap
+    (apps-gaps/adminer.yaml) in that both are generic "database browser"
+    tools, but DB4S targets local SQLite files rather than a
+    network-reachable MySQL/Postgres server, so it wouldn't actually
+    duplicate an Adminer recipe if one existed.
+  usefulness: low
+  usefulness_rationale: >
+    DB4S is a single-user desktop GUI app, not a web app — the LinuxServer
+    image works by streaming the whole Linux desktop into the browser via a
+    VNC-in-browser layer (Selkies, formerly KasmVNC), not by serving an
+    HTTP application. There's no session/multi-tenant model, no way to
+    "share" a link into a specific database, and no built-in mechanism to
+    get a customer's own .sqlite file into the container beyond mounting a
+    volume and using the in-desktop file browser. It's a narrow
+    power-user/developer convenience, not a broad-appeal catalogue app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official upstream Docker image exists — the only viable image is the third-party LinuxServer.io 'webtop' build, which is a remote-desktop stream of the native GUI app rather than a purpose-built web app. No existing recipe in the catalogue currently ships on a linuxserver/* base image; this would be a first and a departure from the 'official image' norm followed elsewhere."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  DB Browser for SQLite has no official Docker image of its own — the only
+  practical option is LinuxServer.io's unofficial "webtop" container, which
+  streams the native desktop GUI into the browser over VNC-in-browser
+  (Selkies) rather than serving a real web app. That container has no
+  built-in login, so a Traefik basic_auth gate (projected from the
+  customer's root password) is expressible and would make it mechanically
+  installable today. However, it's a single-user, non-multi-tenant desktop
+  stream with no built-in way to load a customer's own SQLite file besides
+  manual upload through the in-browser desktop, upstream release cadence is
+  sporadic (long multi-year gaps have happened before), and it would be the
+  first recipe built on an unofficial third-party base image. Recommend not
+  building this one: mechanically possible but low value and off-pattern
+  for the catalogue.
