@@ -1,0 +1,78 @@
+slug: baby-buddy
+name: Baby Buddy
+source_description: "Baby tracking app helping parents monitor daily activities and health"
+
+upstream:
+  url: https://baby-buddy.net/
+  repo_url: https://github.com/babybuddy/babybuddy
+  license: BSD-2-Clause
+  docker_image: lscr.io/linuxserver/babybuddy
+
+version_health:
+  latest_version: "v2.10.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag (v2.10.0) shipped today (2026-08-05), verified against the
+    repo's own release timestamps. Recent history: v2.9.2/v2.9.1 on
+    2026-05-25, v2.9.0 on 2026-05-17, v2.8.0 on 2026-03-30 — four releases
+    in under five months. But before that there's a ~13-month gap back to
+    v2.7.1 (2025-02-22), so the project went quiet for over a year and has
+    only picked back up in 2026. Not archived, not maintenance-only — active
+    development, just with an uneven cadence historically. Separately: the
+    upstream org's own Docker Hub image (`babybuddy/babybuddy`) has not been
+    pushed since 2021-07-08 and is effectively abandoned; the project's own
+    docs now point users to the community-maintained
+    `lscr.io/linuxserver/babybuddy` image instead, which tracks app releases
+    closely (rebuilt same-day as v2.10.0). A recipe would need to depend on
+    that third-party-maintained image, not an "official" one from the app's
+    own org.
+
+catalogue_fit:
+  categories: [lifestyle, health]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal/family life-tracking.
+    Baby Buddy is a single-purpose app for logging infant sleep, feedings,
+    diaper changes, tummy time, growth, etc., with multi-caregiver support
+    and companion mobile/Home Assistant integrations — a distinct
+    consumer/family use case with no functional overlap to any existing
+    monitoring, productivity, or media recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-known niche (large community, Home Assistant/Alexa
+    integrations, 20+ languages) but narrow audience — useful only to
+    households with a young baby, unlike broad-appeal tools (password
+    managers, monitoring, note-taking) elsewhere in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Baby Buddy is a single-container Django web app on one HTTP port (8000),
+  with documented Traefik support (CSRF_TRUSTED_ORIGINS,
+  SECURE_PROXY_SSL_HEADER are plain server-side env vars, no customer input
+  needed) — mechanically straightforward to front with our existing
+  Traefik setup. It ships a hardcoded `admin`/`admin` account with no env
+  var to set a different password at boot (users are expected to log in
+  and change it manually afterward), so per the schema's fixed-default-
+  credential case it's installable today by gating the whole app behind a
+  required Traefik `basic_auth` (password projected from the customer's
+  root password via `generated_from`), the same pattern used for n8n/WUD.
+  The bigger caveat is the upstream image supply chain: the app's own org
+  abandoned its Docker Hub image in 2021, so any recipe would depend on the
+  third-party `linuxserver/babybuddy` build rather than an image maintained
+  by the app's own maintainers — worth flagging even though that image is
+  actively kept in sync today. Given the narrow audience and this
+  dependency on a non-upstream image, recommend building only with those
+  caveats accepted rather than as a top-priority addition.
