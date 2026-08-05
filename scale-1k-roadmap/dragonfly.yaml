@@ -1,0 +1,77 @@
+slug: dragonfly
+name: Dragonfly
+source_description: "High-performance Redis-compatible in-memory data store for modern hardware"
+
+upstream:
+  url: https://www.dragonflydb.io/
+  repo_url: https://github.com/dragonflydb/dragonfly
+  license: BUSL-1.1 (converts to Apache-2.0 on 2029-03-01) — source-available, not OSI open source
+  docker_image: docker.dragonflydb.io/dragonflydb/dragonfly
+
+version_health:
+  latest_version: "v1.40.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.40.0 landed 2026-08-03, 2 days before today (2026-08-05).
+    The `i1.39.x` incremental line (i1.39.3 through i1.39.11) shipped
+    roughly every few days through June-July 2026, so cadence between
+    minor/patch cuts is close to weekly. Repo is not archived, commits and
+    releases are current as of this week — clearly active development.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Dragonfly is not an end-user application — it is a Redis/Memcached
+    protocol-compatible in-memory data store with no admin UI, meant to be
+    a backend dependency for other software. The catalogue already
+    consumes Redis internally as a bundled, non-customer-facing dependency
+    inside recipes/paperless-ngx and recipes/immich, but no existing recipe
+    offers a standalone key-value store as a customer-facing product, so
+    there's no direct recipe-to-recipe duplication. The gap it would fill
+    is a raw infra primitive (a cache/datastore for the customer's own
+    external applications), not a turnkey self-hosted app like the rest of
+    the 24-recipe catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Useful only to a developer audience that wants a managed Redis-
+    compatible cache/store for their own external code — it has no web UI,
+    no built-in account system, and nothing to click into after install.
+    That's a fundamentally different shape of product than the rest of the
+    catalogue (turnkey apps end users interact with directly), and it
+    conflicts with the platform's HTTP-first, Traefik-fronted install
+    model (see installability below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DFLY_REQUIREPASS]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Dragonfly speaks the raw Redis wire protocol over a single TCP port (6379) — it is not HTTP, so it cannot sit behind Traefik on <slug>.<base_domain> the way every other recipe does, and Traefik's basic_auth middleware (HTTP-layer only) cannot gate it."
+    - "Dragonfly has no admin login or web UI of its own, so there is no metadata parameter to project a `generated_from: \"<algo>:ROOT_PASSWORD\"` hash into — its auth (--requirepass / DFLY_requirepass) expects a literal plaintext credential compared directly against client connections, which af-api never forwards (only hashes)."
+    - "A server-generated random password (mechanism: server_generated_no_customer_input) would satisfy 'don't ship it wide open,' but defeats the app's purpose: the whole point of a customer installing a data store is to hand that credential to their own external client code, and there is no channel today for the customer to ever retrieve a server-generated secret post-install."
+    - "Net effect: either the port ships open with no auth (unacceptable for a raw TCP service reachable from the internet), or it ships with a password the customer can never learn and therefore can never use — both are blockers under the current mechanism."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Dragonfly (docker.dragonflydb.io/dragonflydb/dragonfly, latest v1.40.0,
+  actively released as of 2026-08-03) is a fast, Redis/Memcached-wire-
+  compatible in-memory store, not a customer-facing application — it has
+  no web UI and speaks a raw TCP protocol rather than HTTP, so it cannot
+  be fronted by Traefik the way the rest of the catalogue is, and there is
+  no channel today (no admin login to project a root-password hash into,
+  no HTTP layer for basic_auth) to give the customer a usable connection
+  credential without either leaving the port open or generating a secret
+  they can never retrieve. Redis-compatible caching is already consumed
+  internally, out of customer sight, by recipes/paperless-ngx and
+  recipes/immich, so the practical need this would serve is already met
+  where it matters. Not recommended as a standalone catalogue recipe under
+  the current mechanism, and even setting the mechanism aside, a headless
+  data-store primitive is a poor fit for a catalogue of turnkey self-
+  hosted apps aimed at end users rather than developers standing up their
+  own backend infrastructure.
