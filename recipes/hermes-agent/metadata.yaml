@@ -55,33 +55,28 @@ parameters:
   - name: OPENROUTER_API_KEY
     display_name: OpenRouter API Key
     type: string
-    required: false
     description: Universal LLM provider key. Hermes routes all models (Anthropic, OpenAI, etc.) through OpenRouter — no direct provider keys are used. Get one at https://openrouter.ai.
 
-  # Migration candidate: IF-1312 plans to deliver a bcrypt-hashed copy of the
-  # customer's root password through the JWE bootstrap token. If that lands
-  # generically (not just for recipes opting into the basic_auth:true Traefik
-  # toggle — open question asked on IF-1312), switch this from auto_generate
-  # to that value so the customer reuses their existing password instead of
-  # getting a second generated one to look up.
+  # Migration candidate for generated_from (IF-1420), but not yet expressible:
+  # the container consumes this as a plaintext password, and generated_from only
+  # projects a *hash* of the root password. So it cannot be declared here without
+  # putting the plaintext in the JWE, which IF-1420 rules out. Either this frontend
+  # moves behind Traefik basic-auth (IF-1312), which takes the bcrypt hash and
+  # leaves the app out of it, or IF-1420 grows a plaintext mode. Decision pending
+  # on IF-1437, which currently lists hermes under projection.
   - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
     display_name: Dashboard Password
     type: password
-    required: false
-    auto_generate: true
-    description: Password for the dashboard basic-auth login (auto-generated if not provided). Log in at the dashboard with username "admin".
+    description: Password for the dashboard basic-auth login. Log in at the dashboard with username "admin".
 
   - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
     display_name: Dashboard Session Secret
     type: password
-    required: false
-    auto_generate: true
-    description: Secret used to sign dashboard session cookies (auto-generated if not provided).
+    description: Secret used to sign dashboard session cookies.
 
   - name: TELEGRAM_BOT_TOKEN
     display_name: Telegram Bot Token
     type: string
-    required: false
     description: Telegram bot token for receiving messages (create via @BotFather).
 
 # NOTE: the enforced af-core metadata.schema.json uses additionalProperties:false

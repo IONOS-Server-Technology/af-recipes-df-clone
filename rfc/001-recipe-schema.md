@@ -104,9 +104,8 @@ af-recipes/
 | `name` | string | yes | Machine-readable parameter name (UPPER_SNAKE_CASE). |
 | `display_name` | string | yes | Human-readable label for UI. |
 | `type` | enum | yes | `string`, `email`, `domain`, `password`, `boolean`, `integer`. |
-| `required` | boolean | yes | Whether the customer must provide this value. |
 | `default` | any | no | Default value if not provided. |
-| `auto_generate` | boolean | no | If true, AF API generates a cryptographically secure value. Used for passwords/secrets. |
+| `generated_from` | string | no | Derive this value from an existing secret, as `<algo>:<source>` (IF-1420). `<algo>` is `argon2` or `bcrypt`; `<source>` is `ROOT_PASSWORD`, the customer's server password. The hash is computed at compose time, so the plaintext never enters the bootstrap token. Only valid on `type: password`. |
 | `description` | string | no | Help text for the customer. |
 | `validation` | string | no | Regex pattern for validation. |
 
