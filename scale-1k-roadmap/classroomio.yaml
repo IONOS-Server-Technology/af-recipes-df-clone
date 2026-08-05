@@ -1,0 +1,90 @@
+slug: classroomio
+name: ClassroomIO
+source_description: "Open-source LMS for compliance, customer education, and partner certification"
+
+upstream:
+  url: https://www.classroomio.com
+  repo_url: https://github.com/classroomio/classroomio
+  license: AGPL-3.0 (self-hosted core is fully open; a few enterprise-only features — SSO, token-auth, no-tracking — are gated behind an optional LICENSE_KEY, i.e. open-core)
+  docker_image: classroomio/dashboard (paired with classroomio/api and classroomio/jobs — see notes)
+
+version_health:
+  latest_version: "1.0.0"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    No formal GitHub Releases exist for this repo (Releases tab is empty),
+    so version history comes from Docker Hub tag timestamps instead:
+    0.1.10 (2025-10-11) through 0.1.13, then 0.2.0-0.2.8 (2025-12-03 to
+    2025-12-05), then 0.3.0-0.3.2 (2026-03-16/17), then a jump to the 1.0.0
+    stable tag on 2026-07-07 — about 4 weeks before this analysis (2026-08-05).
+    A `latest` tag is also pushed continuously, including a build on
+    2026-08-05 itself (the day of this analysis), tracking `main` directly.
+    Repo shows steady ongoing feature work (AI course assistant/tutor
+    features referenced in current docs). No archival or EOL signals.
+
+catalogue_fit:
+  categories: [education, compliance, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers learning-management /
+    course-delivery / certification workflows — closest neighbors (Gitea,
+    n8n, paperless-ngx) are dev-tool or document-management, not training
+    delivery. ClassroomIO would open a genuinely new category: internal
+    compliance training, customer onboarding education, or partner
+    certification programs delivered by a company to its own learners.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct B2B demand (companies wanting a self-hosted Moodle/
+    Thinkific alternative for compliance or partner training) but a more
+    specialized audience than general-purpose infra/productivity tools
+    already in the catalogue, and the app is young relative to established
+    LMS incumbents (Moodle).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BETTER_AUTH_SECRET (session-signing key; app refuses to start if empty)
+    - PRIVATE_SERVER_KEY (dashboard-to-API internal auth token)
+    - POSTGRES_PASSWORD
+    - MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (bundled object storage for uploads)
+  secrets_expressible_today:
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: PRIVATE_SERVER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ClassroomIO fills a genuinely new category (LMS/compliance training) with
+  no overlap in the current catalogue, has an active upstream (1.0.0 tag
+  four weeks old, continuous `latest` builds, no EOL signals), and ships
+  official pinnable images (classroomio/api, classroomio/dashboard,
+  classroomio/jobs, all tagged 1.0.0 on Docker Hub). All secrets needed at
+  first boot (auth signing key, internal dashboard-API token, DB password,
+  bundled MinIO credentials) are random values the platform can generate
+  server-side with no customer input required — none of them are a
+  customer-facing login. The initial admin/org-owner account is created
+  through the app's own web signup form (Better Auth) the first time a
+  browser hits the domain, the same no-channel-needed pattern already used
+  for Immich and Apache Answer. Reverse-proxy fit is single-domain-friendly
+  in production deployments (per upstream's Coolify guide, the dashboard
+  server-side-proxies all API calls, so only the dashboard's HTTP port needs
+  to be public — the api and jobs containers, and MinIO, stay internal),
+  which matches our one-HTTP-router-per-recipe constraint. The stack is
+  heavier than a single-container app (postgres, redis, minio, api,
+  dashboard, jobs — six containers) but comparable to already-shipped
+  multi-service recipes like Immich and Anytype. Recommend building this
+  recipe now; the main open question for the actual build is confirming
+  media/upload delivery works fully proxied through the dashboard/API
+  without needing a second public MinIO domain, which upstream's default
+  local-MinIO docs treat as optional rather than required.
