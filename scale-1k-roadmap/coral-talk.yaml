@@ -1,0 +1,75 @@
+slug: coral-talk
+name: Coral Talk
+source_description: "Open-source commenting platform from Vox Media with deep moderation tools"
+
+upstream:
+  url: https://coralproject.net/
+  repo_url: https://github.com/coralproject/talk
+  license: Apache-2.0
+  docker_image: coralproject/talk:9.11.8
+
+version_health:
+  latest_version: "9.11.8"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tag history shows a steady monthly-ish cadence through 2026 (9.11.8 on
+    2026-07-07, 9.11.7 on 2026-06-24, 9.11.6 on 2026-06-22, 9.11.5 on
+    2026-06-03, 9.11.4 on 2026-05-06, 9.11.3 on 2026-04-09, 9.11.2 on
+    2026-01-13). Most recent release is ~1 month before today (2026-08-05).
+    Repo is not archived, commit history on `main` runs up to the 9.11.8
+    release merge, and issues/PRs are actively triaged by Vox Media staff
+    (kabeaty). This is a healthy, actively maintained project.
+
+catalogue_fit:
+  categories: [community, moderation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers embeddable comment/discussion
+    widgets with moderation tooling. Coral would let a customer running a
+    blog, news site, or content platform (hosted with us or elsewhere) drop
+    in a self-hosted commenting system with built-in moderation, instead of
+    a third-party SaaS (Disqus, etc.). It's a genuinely new category, not a
+    variant of anything already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for anyone running a content site who wants comments without
+    ad-driven SaaS embeds, and the moderation tooling is a genuine
+    differentiator versus rolling your own. Audience is narrower than
+    general-purpose tools like n8n or Vaultwarden though — it only matters
+    to customers who also run a separate site to embed the widget on.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MONGODB_URI, REDIS_URI, SIGNING_SECRET, install_wizard_basic_auth_password]
+  secrets_expressible_today:
+    - secret: MONGODB_URI
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_URI
+      mechanism: server_generated_no_customer_input
+    - secret: SIGNING_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: install_wizard_basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Coral is a single-HTTP-port (5000) Node.js app backed by MongoDB and
+  Redis (docker-compose stack, similar shape to n8n/paperless-ngx), and it's
+  actively maintained with a ~1-month-old release. It has no env var or CLI
+  path to seed an admin account at boot — the first admin is created purely
+  through an unauthenticated `/install` web wizard on first visit, meaning
+  whoever reaches the domain first claims admin. That's a real risk but not
+  a structural blocker: gating the whole app behind a Traefik
+  basic_auth:true (projected from the customer's root password via
+  `generated_from`, same pattern used for n8n/WUD) closes the race window,
+  and the customer then completes Coral's own wizard themselves once past
+  the gate. MongoDB/Redis URIs and the signing secret are all internal,
+  server-generated values with no customer-facing input needed. Recommend
+  building the recipe, with the basic_auth gate treated as mandatory (not
+  optional) given the open install wizard.
