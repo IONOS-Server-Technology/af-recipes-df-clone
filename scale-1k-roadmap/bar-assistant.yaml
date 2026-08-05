@@ -1,0 +1,95 @@
+slug: bar-assistant
+name: Bar Assistant
+source_description: "Self-hosted cocktail recipe manager and home bar inventory tracker"
+
+upstream:
+  url: https://barassistant.app
+  repo_url: https://github.com/karlomikus/bar-assistant
+  license: MIT
+  docker_image: barassistant/server
+  # Full self-hosted deployment is three images, not one: barassistant/server
+  # (API), barassistant/salt-rim (web frontend), getmeili/meilisearch (search
+  # index, mandatory). Redis is optional but recommended for cache/sessions.
+
+version_health:
+  latest_version: v5.15.3
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 1-2 weeks through 2026 (v5.11.2 on 2025-12-29 up to
+    v5.15.3 on 2026-07-09, ~4 weeks before today, 2026-08-05). No archival or
+    EOL signal; actively maintained by a single core maintainer (karlomikus)
+    with a companion frontend repo (vue-salt-rim / bar-assistant/salt-rim)
+    kept in lockstep.
+
+catalogue_fit:
+  categories: [lifestyle]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers home/lifestyle inventory or recipe management —
+    the 24-recipe catalogue is developer tooling, media, security,
+    infrastructure, monitoring, automation, and AI. This would be a genuinely
+    new category rather than a competitor to anything already shipped.
+  usefulness: low
+  usefulness_rationale: >
+    Real demand exists (active project, dedicated community, mobile client),
+    but it's a niche hobbyist tool compared to the productivity/security/dev
+    focus of the current catalogue, and the deployment shape below adds
+    real integration cost for a single-user niche win.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MEILISEARCH_MASTER_KEY (server-generated, not customer-facing)
+    - traefik_basic_auth gate credential (app has no built-in admin
+      provisioning — see blocking_issues)
+  secrets_expressible_today:
+    - secret: MEILISEARCH_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No admin-account provisioning channel: Bar Assistant has no
+      ADMIN_TOKEN/ADMIN_PASSWORD-style env var. The only way to create the
+      first account is the app's own "Register" web form
+      (default demo creds admin@example.com / password only apply if you
+      never register), gated by ALLOW_REGISTRATION=true. Because
+      `generated_from` only projects into a parameter that IS the app's own
+      login, and this app doesn't expose one, the fallback is a Traefik
+      `basic_auth: true` gate (root-password projected) in front of the
+      whole app so only the customer can reach the register form — the same
+      pattern used for n8n/WUD. That fallback is workable in isolation, but
+      collides with the next issue.
+    - >
+      Not reverse-proxy compatible under the current recipe mechanism.
+      Production Bar Assistant is three HTTP-facing components — the
+      salt-rim frontend, the barassistant/server API, and Meilisearch — each
+      served on its own port/origin, with the browser calling the API and
+      Meilisearch directly (not proxied through the frontend by default).
+      Upstream docs do support path-prefix reverse-proxying all three under
+      one domain (Traefik/Nginx/Caddy examples with StripPrefix
+      middleware), but that requires per-service path-based routing rules
+      within a single recipe. `rfc/001-recipe-schema.md` allows only one
+      HTTP port per recipe ("Declare at most one HTTP port per recipe: only
+      the first gets a router") — there is no path-based multi-router
+      primitive today. A single basic_auth gate at the domain level would
+      also need to cover all three path-routed services consistently, which
+      the current one-router-per-recipe model can't express either.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Bar Assistant is a small, actively maintained, well-liked cocktail/home-bar
+  manager (MIT, weekly-ish releases, no EOL risk) that would fill a genuinely
+  new category rather than duplicate anything in the current 24-recipe
+  catalogue. It fails on mechanism, not just secrets: its production
+  deployment needs three separately-routed HTTP origins (frontend, API,
+  Meilisearch) and our recipe schema supports only one HTTP router per
+  recipe, so it can't be expressed as a single reverse-proxied recipe today
+  regardless of the IF-1420/1312 root-password/basic-auth work. It also has
+  no admin-credential provisioning channel of its own (self-registration via
+  web form only). Given the niche usefulness and the multi-origin routing
+  gap being a schema-level limitation rather than a missing feature,
+  `not_recommended` rather than `blocked_on_platform`.
