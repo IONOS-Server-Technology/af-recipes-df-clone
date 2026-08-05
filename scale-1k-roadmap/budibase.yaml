@@ -1,0 +1,102 @@
+slug: budibase
+name: Budibase
+source_description: "Low-code platform for building business apps and workflows in minutes"
+
+upstream:
+  url: https://budibase.com/
+  repo_url: https://github.com/Budibase/budibase
+  license: "GPL-3.0 (server), MPL-2.0 (client/component libraries); premium tier features under Business Source License"
+  docker_image: budibase/budibase
+
+version_health:
+  latest_version: "3.41.3"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.41.3 shipped 2026-08-04 — 1 day before today (2026-08-05). Preceding
+    history is dense: 3.41.2 (2026-08-04), 3.41.1 (2026-07-29),
+    3.41.0 (2026-07-28), 3.40.1 (2026-07-22), 3.40.0 (2026-07-21),
+    3.39.32 (2026-07-21) — multiple releases most weeks, no meaningful gap
+    anywhere in recent history. Clearly active; the project has also
+    recently pivoted its GitHub tagline toward "AI agents, automations and
+    apps" (bundling a LiteLLM proxy into the hosting stack), indicating
+    ongoing feature investment, not maintenance-only coasting.
+
+catalogue_fit:
+  categories: [low-code, business-apps, workflow-automation, internal-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    n8n is the closest existing recipe (both are "build internal
+    tooling/automation without a full dev team" products, both need a
+    Postgres/CouchDB-class datastore sidecar), but they solve different
+    problems: n8n is a workflow/automation orchestrator (trigger → chain
+    of API calls), while Budibase is a low-code *application builder* —
+    drag-and-drop UI screens, forms, tables, and role-based internal apps
+    backed by its own database. No recipe in the current 24-app catalogue
+    lets a customer build a custom internal CRUD app/admin panel; Budibase
+    fills that gap and is one of the best-known open-source Retool
+    alternatives, which matters for name recognition in a customer-facing
+    catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Low-code internal-app builders are a very common self-hosting ask
+    (Retool/Appsmith/Budibase category) and Budibase is one of the most
+    recognized open-source options in that space (28k+ GitHub stars),
+    with a genuinely free-forever self-hosted tier (up to 20 users, no
+    feature paywall on core RBAC/SSO/embeds). Distinct enough from n8n
+    to be worth adding rather than redundant.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, INTERNAL_API_KEY, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, REDIS_PASSWORD, COUCHDB_USER, COUCHDB_PASSWORD, basic_auth_password]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: INTERNAL_API_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_ACCESS_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: COUCHDB_USER
+      mechanism: server_generated_no_customer_input
+    - secret: COUCHDB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Upstream ships an official single-container image (budibase/budibase,
+  pinned e.g. "3.41.3") that bundles the builder, worker, embedded
+  CouchDB, MinIO, and Redis behind an internal Nginx proxy on port 80 —
+  much closer to our uptime-kuma/vaultwarden single-container pattern
+  than the full 8-service reference docker-compose upstream also
+  publishes (which additionally wires in a LiteLLM proxy + Postgres for
+  AI-agent features — skippable for a base recipe). Every secret the
+  all-in-one image needs (JWT_SECRET, INTERNAL_API_KEY, MinIO/Redis/
+  CouchDB credentials) is a patternless internal secret nothing
+  customer-facing reads, so all of it is server-generatable with zero
+  customer input. The app itself has no admin-provisioning env var —
+  BB_ADMIN_USER_EMAIL/BB_ADMIN_USER_PASSWORD are empty by default and the
+  first visitor is walked through an in-app "create the first admin
+  account" wizard, the same shape as n8n's owner-setup flow already in
+  the catalogue. Per that precedent, gating the app behind Traefik
+  basic_auth (projected from the customer's root password via
+  generated_from) covers the exposure window before the customer
+  completes that wizard, clearing the /compose constraint with zero hard
+  blocking issues. Release cadence is unambiguously active (releases most
+  weeks) and the free self-hosted tier has no user-count or feature
+  paywall blocking normal use, so this is a strong high-value candidate —
+  build_with_caveats rather than a plain build_now only because the
+  reference compose stack is heavier than our other single-container
+  recipes (embedded CouchDB/MinIO/Redis inside one image) and the newer
+  LiteLLM-proxy pathway should be scoped out of a first recipe pass to
+  keep the footprint aligned with the all-in-one image's intended use.
