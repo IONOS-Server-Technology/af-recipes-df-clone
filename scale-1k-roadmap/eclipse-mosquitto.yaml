@@ -1,0 +1,95 @@
+slug: eclipse-mosquitto
+name: Eclipse Mosquitto
+source_description: "Lightweight MQTT broker for IoT and messaging applications"
+
+upstream:
+  url: https://mosquitto.org/
+  repo_url: https://github.com/eclipse-mosquitto/mosquitto
+  license: EPL-2.0 OR EDL-1.0
+  docker_image: eclipse-mosquitto
+
+version_health:
+  latest_version: "2.1.2"
+  latest_release_date: "2026-02-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.1.2 tagged 2026-02-09, about 6 months before today (2026-08-05).
+    2.1.0 (a feature release adding broker-created topic aliases, built-in
+    websockets, TLS improvements, and a new plugin interface) shipped
+    2026-01-29, followed by two bugfix releases (2.1.1 on 2026-02-04,
+    2.1.2 on 2026-02-09) within two weeks — active triage cadence. The
+    older 2.0.x line still received bugfix/security releases as recently
+    as 2025-07-11 (2.0.22). Project is an Eclipse Foundation top-level
+    project, not archived, 11k+ GitHub stars. Clearly active, not
+    maintenance-only, despite no release in the ~6 months since 2.1.2 —
+    that gap is in line with the project's historical cadence (multiple
+    months between minor/patch releases) rather than a sign of stalling.
+
+catalogue_fit:
+  categories: [iot, messaging, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker. Mosquitto is a
+    standalone MQTT broker (pub/sub messaging for IoT devices, sensors,
+    and home-automation integrations) — a natural companion to the
+    existing Home Assistant recipe (which commonly integrates with MQTT
+    for device communication) but a distinct piece of infrastructure, not
+    a duplicate of it. It speaks the raw MQTT protocol (TCP 1883 / TLS
+    8883), not HTTP, so it has no admin web UI at all — closer in shape to
+    wg-easy's raw VPN port than to any HTTP-fronted recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    MQTT brokers are foundational infrastructure for IoT/home-automation
+    setups and pair naturally with the existing Home Assistant recipe, but
+    Mosquitto itself has no UI and is a narrower, more technical audience
+    (people wiring up their own MQTT clients/sensors) than most of the
+    catalogue's end-user-facing apps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MQTT broker login (username + password in mosquitto's password_file)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Mosquitto ships with no authentication configured out of the box —
+      an unmodified mosquitto.conf allows anonymous connections on 1883.
+      Exposing that publicly (port: 1883/8883, protocol: tcp, no HTTP)
+      would mean anyone on the internet can publish/subscribe to every
+      topic, so a recipe needs to force password auth via a
+      `password_file` entry at first boot; this isn't optional the way it
+      might be for an app with a login-less admin tool.
+    - >
+      There is no HTTP layer to gate with Traefik `basic_auth` — MQTT is a
+      raw TCP protocol (optionally TLS on 8883), not a web UI request the
+      Traefik middleware chain intercepts. The `basic_auth` mechanism this
+      catalogue relies on for login-less apps (Adminer, etc.) does not
+      apply here, so a broker credential is the only viable gate.
+    - >
+      Mosquitto's password file format (`mosquitto_passwd`) stores
+      credentials as PBKDF2-HMAC-SHA512 with a broker-specific iteration
+      count and salt (`username:$7$<iterations>$<salt>$<hash>`) — not
+      argon2 or bcrypt, the two algorithms `generated_from` currently
+      supports. This is not a fundamental blocker (the customer's root
+      password could in principle be hashed with PBKDF2 and written
+      straight into that file format, without ever needing the plaintext
+      to reach the app), but pbkdf2 isn't in the supported `generated_from`
+      algorithm list yet.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Eclipse Mosquitto is an actively-maintained, EPL/EDL-licensed MQTT broker
+  with no catalogue overlap — it would be the first message-broker recipe
+  and a natural companion to the existing Home Assistant recipe. It has no
+  web UI at all, speaks a raw TCP protocol rather than HTTP, and needs a
+  password-file entry to avoid running fully open to anonymous
+  publish/subscribe once exposed. That credential can't be gated with
+  Traefik `basic_auth` (no HTTP layer to intercept) and Mosquitto's own
+  password format hashes with PBKDF2-HMAC-SHA512, an algorithm
+  `generated_from` doesn't support yet (only argon2/bcrypt). Revisit once
+  `generated_from` gains pbkdf2 support, or once there's a defined way to
+  expose a raw non-HTTP TCP port with a broker-native credential.
