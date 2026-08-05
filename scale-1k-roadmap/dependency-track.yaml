@@ -1,0 +1,77 @@
+slug: dependency-track
+name: Dependency-Track
+source_description: Component analysis platform monitoring SBOMs for supply chain vulnerabilities
+
+upstream:
+  url: https://dependencytrack.org
+  repo_url: https://github.com/DependencyTrack/dependency-track
+  license: Apache-2.0
+  docker_image: "dependencytrack/apiserver (+ dependencytrack/frontend as a second, mandatory image)"
+
+version_health:
+  latest_version: "5.0.4"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    OWASP Dependency-Track shipped a ground-up rewrite (codename "Hyades") as
+    v5.0 on 2026-06-09, followed by four patch releases in under two months
+    (5.0.1, 5.0.2, 5.0.3, 5.0.4 — the latter only 6 days before this analysis
+    on 2026-08-05). That is a very active cadence. The prior major line, 4.14,
+    released 2026-03-09 and is on a published maintenance track ending
+    2026-12-09 (per endoflife.date) — so a recipe built today should target
+    the 5.0.x line, not 4.x, to avoid shipping something that goes EOL in ~4
+    months.
+
+catalogue_fit:
+  categories: [security, devops, supply-chain]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches software supply-chain
+    security or SBOM analysis — closest neighbors are dev/ops tools like
+    Gitea or Portainer, which are unrelated in function. Dependency-Track
+    would be a genuinely new category for the catalogue (component
+    vulnerability tracking for teams already producing SBOMs in CI), not a
+    repackage of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    High value for teams that already generate SBOMs in CI/CD, but it's a
+    specialist DevSecOps tool, not a general consumer/SMB self-host pick like
+    the rest of the catalogue skews toward. Net-new capability, moderate
+    expected demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD (internal DB credential, no customer input needed)
+    - basic_auth gate credential (frontend + apiserver ship a fixed default admin/admin account with no deploy-time way to set/hash a different password before first boot)
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Dependency-Track v5.0 is an actively maintained, Apache-2.0 licensed
+  component-analysis platform with no catalogue overlap and a real
+  differentiator (supply-chain SBOM security). It is mechanically
+  installable today: Postgres is mandatory as of v5.0 (H2/MySQL/SQL Server
+  support was dropped) but its password is server-generated with no
+  customer input required, and the well-known default admin/admin account
+  — which the app only lets a human change interactively after first login,
+  with no env var or API to preset/hash a password before boot — can be
+  closed off the same way Adminer is: a mandatory Traefik basic_auth gate in
+  front of both public services. The only real complication is topology:
+  v5.0's "Hyades" rewrite discontinued the old bundled image, so a recipe
+  needs two containers (apiserver + frontend) both reverse-proxied and
+  correctly wired to each other via API_BASE_URL, plus Postgres — more
+  moving parts than most of our single-container recipes, closer to
+  paperless-ngx/immich in shape. Recommend build_with_caveats: worth adding,
+  but scope it as a 3-service recipe and document the "change admin/admin
+  immediately after first login" step for the customer since we cannot
+  inject their password directly into the app itself.
