@@ -1,0 +1,100 @@
+slug: chiefonboarding
+name: ChiefOnboarding
+source_description: "Open-source employee onboarding platform with Slack bot and workflow automation"
+
+upstream:
+  url: https://chiefonboarding.com/
+  repo_url: https://github.com/chiefonboarding/ChiefOnboarding
+  license: AGPL-3.0
+  docker_image: chiefonboarding/chiefonboarding
+
+version_health:
+  latest_version: "v2.4.1"
+  latest_release_date: "2026-03-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.4.1 shipped 2026-03-18, about 4.5 months before today (2026-08-05).
+    Tag history (v2.2.2 → v2.4.1) shows a release roughly every 1-6 months
+    over the past two years, with a couple of longer gaps (e.g. ~7 months
+    between v2.2.7 and v2.3.0). The GitHub repo's `pushed_at` is
+    2026-08-05T02:28:16Z — commits landed the same day as this analysis —
+    and the repo is not archived. Single primary maintainer (Stan
+    Triepels) but the project is clearly live, not dormant.
+
+catalogue_fit:
+  categories: [productivity, hr, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches HR/employee
+    onboarding — n8n covers generic workflow automation but has no
+    onboarding-specific data model (to-do sequences, preboarding pages,
+    knowledge base courses, hardware/access provisioning tracking). The
+    Slack bot channel Hostinger's description highlights is a genuine
+    differentiator versus a plain web app.
+  usefulness: medium
+  usefulness_rationale: >
+    Real standalone value as an HR tool for small/medium businesses even
+    without Slack wired up (web portal works independently), so it isn't
+    a companion-tool situation like some *arr-adjacent candidates. Medium
+    rather than high because it's a narrow-audience B2B HR tool compared
+    to broadly-applicable infra/productivity apps already in the
+    catalogue, and its headline Slack integration needs an external Slack
+    app registration this platform has no channel to configure (see
+    below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [initial_admin_account, slack_app_token, slack_bot_token]
+  secrets_expressible_today:
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+    - secret: django_secret_key
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No first-boot channel to create the initial admin account. Self-service
+      signup is explicitly disabled in the codebase
+      (`UserAdapter.is_open_for_signup()` returns `False` in
+      `back/users/adapter.py`), there is no `DJANGO_SUPERUSER_*`-style env
+      var or admin-credential env var anywhere in `back/back/settings.py`,
+      and no management command or data migration seeds a default user (the
+      one user fixture in `back/fixtures/all.json` is dev/test-only —
+      `FIXTURE_DIRS` is a Django test setting, not something loaded on
+      `migrate`). The upstream Docker guide's own account-creation step is
+      "from the logs, or specified yourself" with no elaboration, and the
+      only concrete path anyone has documented is an interactive
+      `manage.py createsuperuser` run inside the running container — not
+      compatible with an unattended `/compose` bootstrap that must finish
+      the container's first boot with no customer/operator shell session.
+      This isn't a fixed/hardcoded credential we could gate with
+      `basic_auth` and call solved (per SCHEMA.md's guidance on that
+      case) — there is no account at all until someone runs an interactive
+      command, so even a `basic_auth` front door would still leave the
+      customer locked out of the app itself.
+    - >
+      Slack bot integration (Hostinger's named headline feature) requires
+      `SLACK_APP_TOKEN` and `SLACK_BOT_TOKEN` from a customer-created Slack
+      app — an external credential/OAuth-style registration with no input
+      channel in the current mechanism. The web portal works standalone
+      without Slack, so this doesn't block installing the app, but it does
+      mean the differentiating feature named in the source description
+      can't be delivered turnkey.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  ChiefOnboarding (chiefonboarding/chiefonboarding, AGPL-3.0, single
+  official image, Postgres-backed Django app, port 8000) is mechanically
+  simple to containerize and fills a genuine gap — no HR/onboarding tool
+  exists in the current 24-recipe catalogue — but it fails the first-boot
+  test on its own terms, not just on the Slack side-feature: there is no
+  env var, management command, or data-seed path to create the initial
+  admin account non-interactively, and self-service signup is hard-disabled
+  in code. Until the platform has a way to run a one-off provisioning
+  command (or the upstream project adds an env-var-driven superuser
+  bootstrap), this can't ship as a recipe. Revisit if IF-1420/1312-style
+  mechanisms grow an "run this command once at first boot" primitive, or if
+  upstream adds `DJANGO_SUPERUSER_*`-style env vars.
