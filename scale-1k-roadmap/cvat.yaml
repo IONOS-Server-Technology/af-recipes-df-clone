@@ -1,0 +1,111 @@
+slug: cvat
+name: CVAT
+source_description: "Open-source web-based image and video annotation tool for computer vision"
+
+upstream:
+  url: https://www.cvat.ai
+  repo_url: https://github.com/cvat-ai/cvat
+  license: MIT
+  docker_image: cvat/server (+ cvat/ui, both tagged to match the git release, e.g. v2.72.0)
+
+version_health:
+  latest_version: "v2.72.0"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released ~1 week before today (2026-08-05). Release history shows a
+    tight, regular weekly-to-fortnightly cadence: v2.72.0 (2026-07-29),
+    v2.71.0 (2026-07-22), v2.70.0 (2026-07-14), v2.69.0 (2026-06-22),
+    v2.68.0 (2026-06-10), v2.67.0 (2026-06-02), v2.66.0 (2026-05-26),
+    v2.65.0 (2026-05-19), v2.64.0 (2026-04-29), v2.63.0 (2026-04-23).
+    16k GitHub stars, 3.8k forks, thousands of commits on develop, hundreds
+    of open issues actively triaged. This is a corporately-backed project
+    (CVAT.ai Corporation) with commercial Online/Enterprise tiers built on
+    top of the open-source Community edition — a strong signal the
+    community edition will keep being maintained as the funnel into the
+    paid product. Clearly active, not remotely dormant.
+
+catalogue_fit:
+  categories: [ai, developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does computer-vision
+    dataset annotation/labeling (bounding boxes, polygons, semantic
+    segmentation, video tracking, AI-assisted pre-labeling). Ollama and
+    Open WebUI serve/chat with LLMs; nothing touches building or curating
+    training data for vision models. This would be a genuinely new
+    category: ML/CV data-engineering tooling, not a variant of anything we
+    ship today.
+  usefulness: high
+  usefulness_rationale: >
+    Real, recognizable brand in the computer-vision space (used widely for
+    dataset labeling ahead of model training) with an active,
+    corporately-backed upstream. A self-hosted CVAT instance is a
+    plausible reason on its own for a customer to rent a VM, which is
+    exactly the profile of a strong catalogue addition — docked slightly
+    from "must-have" only because it's a fairly specialized/niche
+    professional tool (ML engineers/CV teams) rather than broad consumer
+    appeal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - CVAT_ADMIN_PASSWORD
+  secrets_expressible_today:
+    - secret: CVAT_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      CVAT has no env-var-driven first-boot admin bootstrap in its own
+      Docker images — upstream's documented install flow is an interactive
+      `docker exec -it cvat_server bash -ic 'python3 ~/manage.py
+      createsuperuser'`. Because CVAT's manage.py is a stock Django
+      command, this can still be scripted non-interactively post-boot via
+      `manage.py createsuperuser --no-input` with DJANGO_SUPERUSER_USERNAME
+      /EMAIL/PASSWORD passed to `docker compose exec`, feeding it the
+      root-password hash projected via `generated_from`. This is
+      mechanically sound but is a new install.sh pattern not used by any
+      existing recipe (all current recipes set admin credentials via
+      container env vars read at container start, not a scripted exec
+      after the container is already running) — flagging as a caveat to
+      confirm during Phase 3 planning, not a hard blocker.
+    - >
+      Upstream's reference docker-compose.yml is a heavy stack: cvat_db
+      (Postgres), cvat_redis_inmem, cvat_redis_ondisk (KVRocks), cvat_opa
+      (Open Policy Agent for auth), cvat_server plus 7 separate worker
+      containers (utils/import/export/annotation/webhooks/quality_reports
+      /chunks/consensus — all the same cvat/server image running different
+      queue-consumer commands), cvat_ui, an internal bundled Traefik
+      instance as the actual HTTP entrypoint, and an analytics side-stack
+      (cvat_clickhouse, cvat_vector, cvat_grafana) that the backend
+      containers hard-depend on at boot (`depends_on: cvat_clickhouse`
+      is baked into the shared backend-deps anchor, so it can't be trimmed
+      without patching upstream's compose file). That's ~17 containers for
+      one recipe — several times heavier than any app currently in the
+      catalogue (immich, the current heaviest, runs ~7) — with
+      correspondingly higher RAM/disk requirements. Not a structural
+      blocker, but a real sizing/cost consideration for the recipe's
+      minimum VM tier.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  CVAT is an active, corporately-backed, MIT-licensed computer-vision
+  annotation tool with a tight weekly release cadence and no upstream
+  end-of-life signal — a strong, differentiated addition that would open a
+  brand-new "ML/CV data engineering" category in the catalogue with zero
+  overlap against the current 24 recipes. It ships behind a single HTTP
+  entrypoint (its own bundled Traefik, itself reverse-proxyable behind
+  ours) and its one admin-login secret can be projected from the root
+  password, so it clears the bar for installable_today. Two real caveats
+  keep this at build_with_caveats rather than a clean build_now: (1) the
+  admin account has to be created via a scripted non-interactive `docker
+  exec ... createsuperuser --no-input` rather than a plain container env
+  var, a pattern no existing recipe uses yet and worth validating in
+  Phase 3; and (2) upstream's reference stack is unusually heavy at ~17
+  containers (full worker fleet + OPA + an analytics sub-stack that's
+  hard-wired as a dependency), which will push this recipe's minimum
+  RAM/disk requirements well above anything else we ship today.
