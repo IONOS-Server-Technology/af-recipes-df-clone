@@ -67,23 +67,32 @@ summary: >
   protocol port that must stay open to the internet for MQTT clients to
   connect — not something Traefik/HTTP basic_auth can gate, hence
   reverse_proxy_compatible: false at the whole-app level even though the
-  dashboard alone would qualify). The web UI ships with a fixed,
-  non-configurable default login (admin@example.com / password123, no env
-  var to preset it and no first-run "create admin" wizard), which per
-  precedent (IF-1312) is fine to ship as long as the exposure window is
-  closed by fronting the dashboard with Traefik basic_auth projected from the
-  customer's root password — the same pattern used for Vaultwarden/n8n-style
-  apps with a fixed or self-service-only login. The MQTT port itself is not a
-  first-boot secret gap the way it was for Ant Media Server's raw streaming
-  ports: BunkerM's dynamic-security plugin requires per-client username/
-  password by default (no anonymous pub/sub out of the box), and those client
-  credentials are created after deployment through the — now
-  basic_auth-gated — web UI, mirroring wg-easy's post-install peer-provisioning
-  model already in the catalogue. Core broker/ACL/monitoring functionality is
-  Apache-2.0 and free forever; paid Pro/Enterprise tiers only gate optional
-  AI features (chat assistant, cloud alert forwarding), so there's no
-  feature-paywall blocking normal use. Net: mechanically installable today
-  with zero hard blockers, but recommended as build_with_caveats rather than
+  dashboard alone would qualify). The web UI has no preset or default admin
+  credential at all: per upstream docs and the GitHub README, the first visit
+  to the dashboard runs an interactive "create your Admin account" setup
+  wizard, and there is no env var or config option to seed that account
+  before boot. That means the IF-1312 fixed-default-password precedent does
+  not apply here — /compose has no channel to drive an interactive browser
+  wizard during bootstrap, and there is no credential to project via
+  `generated_from` either. The workable pattern instead is to front the
+  dashboard with Traefik basic_auth (gate credential projected from the
+  customer's root password) for the exposure window between deploy and
+  first login, so the wizard itself is never sitting open on the internet;
+  the customer then completes the admin-account wizard manually through that
+  gate. The MQTT port itself is not a first-boot secret gap the way it was
+  for Ant Media Server's raw streaming ports: BunkerM's dynamic-security
+  plugin requires per-client username/password by default (no anonymous
+  pub/sub out of the box, though Docker Hub documents a default MQTT *client*
+  credential of bunker/bunker for the broker — distinct from the dashboard
+  admin account), and those client credentials are created after deployment
+  through the — now basic_auth-gated — web UI, mirroring wg-easy's
+  post-install peer-provisioning model already in the catalogue. Core
+  broker/ACL/monitoring functionality is Apache-2.0 and free forever; paid
+  Pro/Enterprise tiers only gate optional AI features (chat assistant, cloud
+  alert forwarding), so there's no feature-paywall blocking normal use. Net:
+  mechanically installable today via a basic_auth gate rather than any
+  preset admin credential, but recommended as build_with_caveats rather than
   a plain build_now given the raw public MQTT port (a real if narrower attack
-  surface than our usual HTTP-only recipes) and a small, recently thinning
-  release cadence worth re-checking before committing engineering time.
+  surface than our usual HTTP-only recipes), the manual-wizard step the
+  customer must complete post-deploy, and a small, recently thinning release
+  cadence worth re-checking before committing engineering time.
