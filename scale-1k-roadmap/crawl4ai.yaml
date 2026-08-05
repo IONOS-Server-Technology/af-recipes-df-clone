@@ -1,0 +1,105 @@
+slug: crawl4ai
+name: Crawl4AI
+source_description: "Open-source web crawler for AI applications with LLM-ready output"
+
+upstream:
+  url: https://crawl4ai.com
+  repo_url: https://github.com/unclecode/crawl4ai
+  license: Apache-2.0
+  docker_image: unclecode/crawl4ai
+
+version_health:
+  latest_version: "0.9.2"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.9.2 (2026-07-15, "maintenance bug fixes") is about 3 weeks old as of
+    this analysis (2026-08-05). Prior releases v0.9.1 (2026-07-08), v0.9.0
+    (2026-06-18, a major "secure-by-default" Docker auth rework), v0.8.9
+    (2026-06-04) and v0.8.8 (2026-06-04) show a sub-monthly cadence with
+    several security-driven patches (SSRF in proxy handling, path traversal,
+    hardcoded JWT secrets) shipped within days of disclosure. Single primary
+    maintainer (unclecode) but high commit volume and an active issue
+    tracker. No archival notice, no EOL signal.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes does web crawling/scraping. Crawl4AI
+    converts arbitrary web pages into LLM-ready Markdown/structured data via
+    a REST API, with a browser-based Playground (manual request testing) and
+    a Monitor dashboard (browser pool / job health). It would complement
+    AI-automation recipes already in the catalogue (n8n, Agent-Zero-style
+    agents, Open WebUI) as a scraping backend they could call, rather than
+    duplicating any of them.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (feeding scraped web content to LLM pipelines)
+    with a single official multi-arch Docker image and a browser UI, but the
+    product is fundamentally a developer-facing REST API — the web UI is a
+    testing/monitoring surface, not an end-user application — so the
+    addressable audience within a general self-hosting catalogue is narrower
+    than for chat/productivity apps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CRAWL4AI_API_TOKEN]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      As of v0.9.0, the Docker server is secure-by-default: if
+      CRAWL4AI_API_TOKEN is unset, the process binds to loopback only inside
+      the container, which would make it unreachable through our reverse
+      proxy at all. So the token must be set to get a routable service, but
+      that then makes CRAWL4AI_API_TOKEN a mandatory secret the customer
+      must know to call any endpoint (every route except GET /health
+      requires `Authorization: Bearer <token>`) — this is the app's actual
+      access-control boundary, not an optional extra, since there is no
+      other login/account system in front of the API or the Playground UI.
+    - >
+      Confirmed against the upstream source (deploy/docker/auth.py):
+      CRAWL4AI_API_TOKEN is checked via `hmac.compare_digest()` — a direct,
+      constant-time comparison against the literal configured string. There
+      is no hash-verification path (no bcrypt/argon2), so a hash projected
+      via `generated_from` can never match what the customer would type in;
+      the app only ever accepts the raw plaintext secret. Per SCHEMA.md,
+      this is the genuine-plaintext-requirement case that is a structural
+      blocker, not a "hash algorithm not supported yet" case.
+    - >
+      Gating the app behind Traefik `basic_auth` (as done for login-less
+      apps like Copyparty/n8n) does not solve this either: it would protect
+      the reverse-proxy hop, but the customer still could not make a single
+      successful API call afterward without separately knowing the exact
+      CRAWL4AI_API_TOKEN value, which our mechanism has no channel to
+      generate-and-then-reveal to the customer (as opposed to projecting a
+      hash of something the customer already knows, like their root
+      password). This is a distinct platform gap from root-password
+      projection — a "surface a server-generated secret back to the
+      customer" channel — not one IF-1420/IF-1312 close.
+    - >
+      Secondary, non-blocking note: the LLM-extraction features (the
+      "LLM-ready" half of the pitch) accept `provider`/`api_token` as
+      per-request parameters in the crawl API call body, not only as
+      server-wide env vars, so a missing OPENAI_API_KEY/ANTHROPIC_API_KEY at
+      boot is not itself a blocker — customers could supply their own key
+      per call once they can reach the API at all.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Crawl4AI is an active, well-maintained project (sub-monthly releases,
+  fast security turnaround) with an official multi-arch Docker image and no
+  overlap in our current 24 recipes. It is blocked from shipping as a recipe
+  today: as of v0.9.0 the Docker server requires a CRAWL4AI_API_TOKEN to be
+  reachable at all, that token is checked via plain constant-time string
+  equality with no hash-verification path, and it is the only thing gating
+  every API/Playground call. Our mechanism can project a hash of the
+  customer's root password (generated_from) or gate a reverse-proxy hop
+  (Traefik basic_auth), but has no way to generate an opaque secret and then
+  reveal it back to the customer so they can actually use the app — a
+  platform gap distinct from the root-password-hash work already tracked in
+  IF-1420/IF-1312.
