@@ -1,0 +1,89 @@
+slug: bluesky-pds
+name: Bluesky PDS
+source_description: "Personal Data Server for the Bluesky decentralized social network"
+
+upstream:
+  url: https://github.com/bluesky-social/pds
+  repo_url: https://github.com/bluesky-social/pds
+  license: MIT OR Apache-2.0
+  docker_image: ghcr.io/bluesky-social/pds:0.4
+
+version_health:
+  latest_version: "v0.4.5009"
+  latest_release_date: "2026-06-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tag history shows a steady drumbeat of releases: v0.4.5009 (2026-06-25),
+    v0.4.5006 (2026-06-22), v0.4.5001 (2026-05-30), v0.4.219 (2026-04-15),
+    v0.4.208 (2026-02-09), v0.4.204 (2026-01-16), going back through 2025.
+    That's ~6 weeks since the last tag as of this analysis (2026-08-05),
+    consistent with the release cadence over the prior year. 273 commits on
+    main, 85 open issues, 28 open PRs — actively developed by the Bluesky
+    team, not a community fork left to drift.
+
+catalogue_fit:
+  categories: [social, networking]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches decentralized/federated
+    social networking — this would be the first entry in that space. The
+    draw is customer data sovereignty on the AT Protocol / Bluesky network
+    (own your handle's data instead of relying on bsky.social), which is a
+    genuinely different pitch than any existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists among privacy-conscious Bluesky users for
+    self-hosted PDS instances, and it's lightweight to run. But it's a
+    backend API server for AT Protocol clients (the Bluesky app, other AT
+    Proto clients), not something a customer browses directly — there's no
+    dashboard to show off, and the audience is narrower and more technical
+    than our typical self-hosted-app customer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "PDS_ADMIN_PASSWORD (admin API credential, used by pdsadmin CLI / admin API, not a web login form)"
+    - "wildcard TLS + DNS control for the deployed hostname (*.<hostname> must resolve to the server; PDS's own Caddy container issues the cert)"
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The official compose.yaml runs PDS's own Caddy container with
+      `network_mode: host` for direct port 80/443 TLS termination, and the
+      installer requires wildcard DNS (`*.<hostname>` → server IP) because
+      each user account gets its own subdomain-style AT Protocol handle
+      under the PDS's domain. This is a structural conflict with our
+      single-hostname-per-recipe Traefik model (`<slug>.<base_domain>`) —
+      PDS needs to own the whole domain's TLS/routing, not sit behind a
+      shared reverse proxy on one subdomain, and we have no mechanism today
+      to delegate a wildcard subdomain plus TLS ownership to a single
+      recipe's container.
+    - >
+      PDS_ADMIN_PASSWORD is generated randomly by the upstream installer
+      and used only via the `pdsadmin` CLI / admin API (there is no web
+      login form to gate with Traefik basic_auth or to project a
+      root-password hash into) — even if the domain/TLS blocker were
+      solved, the customer would have no way to retrieve or set this value
+      through our current bootstrap channel, and without it they can't
+      create their own PDS account after first boot.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Bluesky PDS is actively maintained upstream (releases roughly every
+  4-8 weeks, most recently 2026-06-25) and would fill a genuinely new
+  category — decentralized social hosting — that none of our 24 recipes
+  cover. But it fails our installability bar on two independent,
+  structural grounds rather than a missing-secret-channel technicality:
+  it demands wildcard DNS and its own TLS/port-80/443 ownership
+  (incompatible with per-recipe Traefik routing on a single subdomain),
+  and its one credential (PDS_ADMIN_PASSWORD) is consumed by a CLI/API
+  workflow with no web login or basic-auth surface to gate — there is
+  nowhere in our current mechanism to hand that credential to the
+  customer or express it as a `generated_from`/`basic_auth` secret. Not
+  recommended today; revisit only if AF gains wildcard-subdomain +
+  dedicated TLS delegation for a recipe, which is a bigger platform change
+  than the IF-1420/IF-1312 secret-projection work this schema otherwise
+  tracks against.
