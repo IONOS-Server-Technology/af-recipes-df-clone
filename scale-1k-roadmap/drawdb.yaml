@@ -1,0 +1,76 @@
+slug: drawdb
+name: drawDB
+source_description: "Browser-based database diagram editor with SQL export and import"
+
+upstream:
+  url: https://drawdb.app/
+  repo_url: https://github.com/drawdb-io/drawdb
+  license: AGPL-3.0
+  docker_image: ghcr.io/drawdb-io/drawdb
+
+version_health:
+  latest_version: "v1.8.1"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.8.1 landed 2026-07-03, about one month before today
+    (2026-08-05), one day after v1.8.0 (2026-07-01) as a quick follow-up
+    fix. Prior tags show a healthy, slightly accelerating cadence:
+    v1.7.0 2026-06-06, v1.6.0 2026-03-08, v1.5.0 2025-10-09. The repo's
+    default branch was pushed to as recently as today (2026-08-05),
+    ahead of the next tag. Not archived, actively maintained. GitHub's
+    "Releases" list is empty (project only pushes lightweight git tags,
+    no release notes objects), which is a minor packaging quirk but not
+    a health signal — the ghcr.io image is built and published per tag
+    regardless.
+
+catalogue_fit:
+  categories: [developer-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    drawDB is a browser-based entity-relationship diagram editor and SQL
+    DDL generator/importer for MySQL, PostgreSQL, SQLite, MariaDB, and
+    SQL Server. None of the current 24 recipes touch database schema
+    design or diagramming — the closest adjacent tools (n8n, paperless-ngx)
+    use a database as a backend rather than helping design one. This
+    would be the first schema/ERD design tool in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for a developer or small team designing/documenting
+    a database schema without an account-gated SaaS tool, and it's
+    self-contained (no dependency on any other service). Capped at medium
+    because it's a niche, occasional-use design tool rather than
+    something a customer runs continuously, and much of its value
+    (client-side, no-signup use) is already available free at
+    drawdb.app without self-hosting at all — self-hosting mainly buys
+    privacy/air-gapping for sensitive schema work.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic_auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic_auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  drawDB is a single-container, purely client-side app: the official
+  Dockerfile builds the React frontend and serves the static bundle via
+  nginx on port 80, with no backend, no database, and no login of its
+  own — everything (diagrams, undo history) lives in the visitor's
+  browser storage. That makes it directly Traefik-compatible on
+  drawdb.<base_domain> with no server-side state to provision. It has no
+  built-in authentication, so per the platform's install rules it needs
+  a Traefik `basic_auth: true` gate (the same pattern used for n8n, WUD,
+  and Open WebUI) to avoid shipping an unauthenticated public tool by
+  default — this clears the `/compose` constraint cleanly with no
+  blocking issues. Upstream is actively maintained (latest tag ~1 month
+  before today, accelerating cadence, commits as recent as today).
+  Recommend build_with_caveats: mechanically installable today and a
+  genuine, non-overlapping addition to the catalogue, but a lower-
+  priority, occasional-use developer tool rather than a core workflow app.
