@@ -1,0 +1,81 @@
+slug: databasus
+name: Databasus
+source_description: "Databasus is a database backup tool for PostgreSQL, MySQL, and MongoDB"
+
+upstream:
+  url: https://databasus.com/
+  repo_url: https://github.com/databasus/databasus
+  license: Apache-2.0
+  docker_image: databasus/databasus (e.g. databasus/databasus:v3.51.0 — ghcr.io/databasus/databasus mirror also published; avoid `:latest`)
+
+version_health:
+  latest_version: "v3.51.0"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v3.51.0 shipped 2026-07-26, ~10 days before today
+    (2026-08-05). Release cadence is roughly weekly: v3.50.0 (same day,
+    2026-07-26), v3.49.0 (2026-07-14), v3.48.0 (2026-07-10), v3.47.1
+    (2026-06-24), v3.47.0 (2026-06-22), v3.46.0 (2026-06-20), v3.45.0
+    (2026-06-18), v3.44.0 (2026-06-17) — a young but fast-moving project.
+    ~7.9k GitHub stars, 467 forks, only 7 open issues, 929+ commits on
+    main. The project was previously shipped under the name "Postgresus"
+    and rebranded to Databasus for trademark reasons — same codebase and
+    history, just renamed; not a fork/split to worry about. No archival,
+    maintenance-only, or EOL signal; this looks like an actively-growing
+    project, not a mature/stable one, so expect continued fast churn in
+    upstream compose/env conventions.
+
+catalogue_fit:
+  categories: [backup, database-tools, ops]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does scheduled,
+    encrypted, point-in-time-recovery-capable backups for PostgreSQL,
+    MySQL/MariaDB, and MongoDB. Several existing recipes (n8n,
+    paperless-ngx, gitea, anytype-server, etc.) run their own Postgres
+    internally, but none exposes a general-purpose backup tool a
+    customer could point at any of their databases, self-hosted or
+    external. This would be a genuinely new "operations/backup" category
+    rather than an overlap with an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recurring pain point (DB backup automation) and broad database
+    coverage, but it's a support tool rather than an end-user
+    application — useful mainly to the subset of AF customers who are
+    already self-hosting databases via other recipes/VMs and want backup
+    automation on top, not a draw on its own the way a CMS or password
+    manager is. Also a young, fast-moving project (renamed from
+    Postgresus within the last year), so upstream conventions may shift
+    before it settles down.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Databasus is a single-container, single-port (4005) web app with no
+  env-var-driven admin bootstrap at all: the first person to visit the
+  UI creates the admin account through a signup wizard, the same
+  first-visit pattern our existing Uptime Kuma recipe already relies on,
+  so no customer-supplied secret or root-password projection is needed
+  at `/compose` time. It duplicates nothing in the current catalogue and
+  fills a real gap (general-purpose Postgres/MySQL/MongoDB backup
+  automation), though its audience is narrower than a typical end-user
+  app and the upstream project is young (recently renamed from
+  Postgresus) and moving fast, which is worth a caveat when scoping a
+  real recipe pass. One open question worth flagging in Phase 3 of an
+  actual recipe build: unlike Uptime Kuma, Databasus leaves external
+  signup open indefinitely by default (an admin has to manually disable
+  it post-setup, there is no env var for it) — not a blocker, since
+  unauthenticated signups get no workspace access, but a Traefik
+  `basic_auth` gate in front would be a reasonable defense-in-depth
+  addition even though it isn't strictly required to hit
+  `installable_today`.
