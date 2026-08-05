@@ -1,0 +1,72 @@
+slug: anythingllm
+name: AnythingLLM
+source_description: "All-in-one AI application for RAG, agents, and chatbots with any LLM provider"
+
+upstream:
+  url: https://anythingllm.com
+  repo_url: https://github.com/Mintplex-Labs/anything-llm
+  license: MIT
+  docker_image: mintplexlabs/anythingllm
+
+version_health:
+  latest_version: "1.15.0"
+  latest_release_date: "2026-06-25"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~1.5 months between v1.15.0 (2026-06-25) and today (2026-08-05).
+    Preceding tags (1.13.0, 1.14.0, 1.14.1) shipped roughly monthly through
+    spring 2026, and the floating `latest`/`master` image tag is rebuilt
+    several times a week between versioned releases. No archival or EOL
+    signal; repo is under active, frequent development.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Same "chat with any LLM provider" core as Open WebUI, but adds
+    document-centric RAG workspaces (per-workspace vector DB, configurable
+    embedder), multi-user/team permissions, and built-in agent/tool
+    orchestration (web browsing, SQL, custom skills) rather than just a chat
+    frontend over Ollama. Ollama itself remains just the inference engine,
+    with no UI at all.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely different feature set (RAG workspaces, agents, multi-user
+    teams) from what's in the catalogue today, but it lands squarely in the
+    same "local/any-provider AI chat" niche already served by open-webui +
+    ollama, so the incremental value to a customer who already has that
+    combination is moderate rather than clearly novel.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, SIG_KEY, SIG_SALT]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SIG_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: SIG_SALT
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  AnythingLLM boots with no customer-supplied value at all: the three
+  auth-signing secrets (JWT_SECRET, SIG_KEY, SIG_SALT) are patternless
+  strings the platform can generate server-side, and the admin account
+  itself is created interactively through AnythingLLM's own first-visit
+  setup wizard (LLM provider, embedder, vector DB, then admin
+  username/password) — the same self-serve pattern already used by
+  uptime-kuma and immich, so no root-password projection or basic_auth gate
+  is needed. It is installable today, but it overlaps meaningfully with the
+  existing open-webui + ollama pairing (same "chat with local/any-provider
+  LLM" use case), so the case for adding it rests on RAG workspaces, agents,
+  and multi-user teams rather than a capability gap. One operational caveat
+  worth flagging: the upstream container requests the SYS_ADMIN capability
+  for its Puppeteer-based web-scraping feature, which is precedented in the
+  catalogue (home-assistant, wg-easy) but is not a bare default-capabilities
+  container.
