@@ -1,0 +1,70 @@
+slug: erugo
+name: Erugo
+source_description: "Self-hosted file-sharing platform with password protection and expiry controls"
+
+upstream:
+  url: https://erugo.app/
+  repo_url: https://github.com/ErugoOSS/Erugo
+  license: MIT
+  docker_image: wardy784/erugo
+
+version_health:
+  latest_version: "0.2.15"
+  latest_release_date: "2026-01-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (0.2.15, a critical path-traversal security fix) is
+    from 2026-01-28, about 6 months before today (2026-08-05). Release history
+    shows a burst of weekly releases Feb-Apr 2025, then an ~8-month quiet
+    stretch, then another burst Dec 2025-Jan 2026 (v0.2.0 major rewrite plus
+    the 0.2.15 security patch). Commit activity on `main` continues well past
+    the last tag (most recent commit seen: 2026-03-05), and the image registry
+    shows near-daily pushes through early Feb 2026, so the project reads as
+    actively maintained despite the tag gap, not stalled. 1.1k GitHub stars,
+    84 open issues, 48 open PRs, active Discord — healthy single-maintainer
+    OSS project (DeanWard), not archived.
+
+catalogue_fit:
+  categories: [file-sharing, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Erugo is a WeTransfer-style "send a file with a password and an expiry
+    link" tool — one-off, ephemeral share links with download limits, not
+    continuous sync or asset management. The catalogue's closest neighbors
+    (syncthing: continuous folder sync between devices; immich: photo
+    library/backup; opengist: text-snippet pastes) all solve a different
+    problem, so this fills a distinct "quick, controlled file handoff" niche
+    customers plausibly search for by name (it's covered in several
+    self-hosting YouTube/blog roundups).
+  usefulness: high
+  usefulness_rationale: >
+    Popular, actively-developed, single-purpose tool with a real audience
+    (1.1k stars, dedicated Discord, third-party tutorials) and no equivalent
+    already in the 24-recipe catalogue. Deploys as one lightweight container
+    (512MB RAM / 1 CPU floor) behind a single HTTP port, which is exactly the
+    shape our Traefik-fronted recipes already handle well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Erugo is a small, single-container Laravel/Vue app (image `wardy784/erugo`,
+  pinned tag `0.2.15`) that only needs one HTTP port (80, mapped to 9998 in
+  upstream's example) and a storage volume — a straightforward Traefik target
+  with just a domain parameter, no raw ports or extra services. Like our
+  existing Uptime Kuma recipe, Erugo creates its admin account through an
+  in-browser first-run setup wizard rather than a deploy-time credential, so
+  there is no secret to project via `generated_from` or a `basic_auth` gate —
+  it is installable under the current `/compose` mechanism with zero
+  blocking issues. The project is actively developed (recent commits and near-
+  daily image pushes into early 2026) and fills a niche — one-off,
+  password-protected, expiring file-share links — that nothing else in the
+  catalogue covers, making it a solid `build_now` candidate.
