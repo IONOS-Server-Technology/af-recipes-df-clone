@@ -1,0 +1,81 @@
+slug: airsonic-advanced
+name: Airsonic Advanced
+source_description: "Stream personal music libraries through a Subsonic-compatible API server"
+
+upstream:
+  url: https://github.com/airsonic-advanced/airsonic-advanced
+  repo_url: https://github.com/airsonic-advanced/airsonic-advanced
+  license: GPL-3.0
+  docker_image: airsonicadvanced/airsonic-advanced
+
+version_health:
+  latest_version: "11.0.0-SNAPSHOT.20240424015024"
+  latest_release_date: "2024-04-24"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No commit, release, or Docker image tag pushed since 2024-04-24 (over 27
+    months / 2 years 3 months before today, 2026-08-05) — the last three
+    commits were all merged the same day and nothing has landed since. Every
+    tagged release, including this most recent one, is an unversioned
+    "11.0.0-SNAPSHOT" pre-release build; the project has never cut a stable
+    numbered release. GitHub's `archived` flag is false and issues are still
+    being opened/closed as recently as 2026-07-27, but no code fix has
+    shipped against any of them in over two years — this reads as
+    de-facto abandoned/dormant rather than actively maintained, even though
+    it hasn't been formally archived or EOL'd.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal media/music
+    streaming — closest is Immich (photo/video), which is a different media
+    type entirely. A Subsonic-API music server is a distinct, popular
+    self-hosting category (feeds Subsonic-compatible mobile/desktop
+    clients) that would be new ground for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted music streaming has a real, recurring audience and would
+    diversify the catalogue beyond dev-tools/monitoring/security, but this
+    specific project's two-plus years of inactivity and lack of any stable
+    versioned release undercut the pitch — a customer picking it up today
+    gets a snapshot build with 274 open issues and no prospect of fixes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Airsonic Advanced ships with a fixed default admin/admin login and no
+      environment variable or setup wizard to set an admin password at
+      first boot (confirmed against install/docker/entry.sh and
+      Dockerfile in the upstream repo — only PUID/PGID/AIRSONIC_PORT are
+      configurable via env). There is no `generated_from` channel into the
+      app's own admin credential, so every deployed instance would boot
+      with the same public default password unless gated externally.
+      Fronting it with Traefik `basic_auth` closes that gap for the HTTP
+      port, but the customer would still need to know to change the
+      in-app admin/admin password manually after first login — the recipe
+      can only secure the perimeter, not the app's own account.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Airsonic Advanced is a single-container Subsonic-API music streamer
+  (embedded DB by default, web UI on port 4040, optional UPnP/DLNA on
+  4041/1900 that would simply go unused behind a single-domain reverse
+  proxy) that is structurally similar to Uptime Kuma/Vaultwarden-style
+  single-container recipes. It clears the sharp installability bar only
+  by wrapping it in a mandatory Traefik basic_auth gate, since the app's
+  own admin/admin default has no way to receive a customer-derived
+  password today. Combined with upstream being dormant for over two years
+  with no stable release ever cut and 274 open issues, this is a
+  build-if-nothing-better-exists candidate at best — recommend not
+  building now; revisit only if a more actively maintained Subsonic-API
+  server (e.g. a different fork) surfaces as a gap candidate instead.
