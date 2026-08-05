@@ -1,0 +1,72 @@
+slug: countly
+name: Countly
+source_description: "Privacy-first product analytics for mobile, web, and desktop applications"
+
+upstream:
+  url: https://countly.com
+  repo_url: https://github.com/Countly/countly-server
+  license: "AGPL-3.0 with modified Section 7 (Countly Lite): free for non-commercial use only — using it to provide analytics as a service to customers/companies requires a paid Countly Enterprise license"
+  docker_image: "countly/api + countly/frontend (paired, official docker-compose.yml also runs bitnami/mongodb and bitnami/nginx)"
+
+version_health:
+  latest_version: "25.03.51"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Latest tag 25.03.51 shipped 2026-08-03, two days before this analysis;
+    the prior tag 25.03.50 shipped 2026-07-23, and 25.03.49 on 2026-07-10 —
+    roughly every 1-2 weeks. Master branch has commits as recent as
+    2026-08-05 (the day of this analysis). Countly also maintains a parallel
+    24.05.x LTS-style line (24.05.52, also cut 2026-08-03) alongside the
+    25.03.x line, both still receiving fixes. No archival, deprecation, or
+    EOL signal; actively developed with a dedicated security-fix cadence.
+
+catalogue_fit:
+  categories: [analytics, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue does product/mobile/web
+    analytics (event tracking, funnels, crash reporting, push notifications,
+    session/retention metrics). Uptime Kuma is the closest existing recipe
+    by shape (self-contained web app with its own first-run setup wizard)
+    but monitors service uptime, not in-app user behavior — a genuinely
+    different use case. Countly would be a new capability for the
+    catalogue, not a reskin of an existing one.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, common need (self-hosted alternative to Google Analytics/Mixpanel/
+    Amplitude for privacy-conscious teams), and Countly is a known,
+    reasonably popular name in that space. Value is capped somewhat by the
+    non-commercial license clause: a customer running a commercial product
+    who wants to analyze it with Countly technically needs an Enterprise
+    license from Countly itself to stay compliant, which is a real caveat
+    for a chunk of the likely audience (businesses tracking their own
+    commercial apps) that a customer could easily miss.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Countly boots with no customer-supplied value: the official stack (API +
+  frontend + MongoDB, fronted by a single nginx web port) needs no
+  compose-time secret, and the admin account is created interactively
+  through Countly's own first-visit setup wizard (create the first global
+  admin via the dashboard after deploy) — the same self-serve pattern
+  already used by uptime-kuma and immich, so no root-password projection or
+  basic_auth gate is required. It's installable today and fills a genuine
+  gap (no analytics recipe exists in the catalogue), and upstream is
+  actively released (weekly-ish tags, commits as recent as the day of this
+  analysis). The one caveat worth flagging to a customer: Countly Lite ships
+  under AGPL-3.0 with a modified Section 7 that restricts free use to
+  non-commercial purposes — a business using the instance to analyze a
+  commercial product would need to purchase an Enterprise license from
+  Countly to stay license-compliant, a nuance the AF isn't positioned to
+  surface at install time.
