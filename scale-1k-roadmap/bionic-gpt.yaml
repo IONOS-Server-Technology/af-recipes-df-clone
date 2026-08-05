@@ -1,0 +1,74 @@
+slug: bionic-gpt
+name: Bionic GPT
+source_description: "On-premise ChatGPT alternative with team chat, RAG assistants, and RBAC controls"
+
+upstream:
+  url: https://bionic-gpt.com
+  repo_url: https://github.com/bionic-gpt/bionic-gpt
+  license: BUSL-1.1
+  docker_image: ghcr.io/bionic-gpt/bionicgpt
+
+version_health:
+  latest_version: "v1.12.12"
+  latest_release_date: "2026-07-24"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    Latest stable v1.12.12 shipped 2026-07-24, ~12 days before today
+    (2026-08-05) — repo pushed_at is 2026-08-03, so development is current.
+    However cadence is uneven: a burst of near-daily point releases
+    (v1.12.4 through v1.12.9-rc) landed 2026-01-27 through 2026-02-12, then
+    a ~5.5-month gap before v1.12.12 in July. Not archived, not EOL, but the
+    release rhythm is bursty rather than steady, so "sporadic" fits better
+    than "active".
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >-
+    Adds team/organization RBAC, per-team RAG "assistants" with document
+    ingestion, and API-key access management on top of the same "chat with
+    an LLM, on your own infra" core that open-webui already covers.
+    open-webui bundles Ollama for local inference; Bionic GPT is provider-
+    agnostic (Ollama, OpenAI, Anthropic) and pitches itself at team/
+    enterprise deployments rather than a single user's local chat UI.
+  usefulness: low
+  usefulness_rationale: >-
+    The team/RBAC/RAG-assistant differentiation is real, but it is gated
+    behind a production architecture (Keycloak-backed OIDC, see below) far
+    heavier than a single-VM recipe customer would expect, and the upstream
+    project's own docker-compose is explicitly a non-production demo. Net
+    value to a customer over the already-catalogued open-webui is small
+    relative to the deployment complexity it would add.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OIDC identity provider (Keycloak realm/client), LLM provider API key]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Upstream ships no simple built-in username/password login for real deployments. The only documented auth path is SSO/OIDC — production and UAT profiles in infra-as-code/stack.yaml both require a Keycloak-backed OIDC provider with a stable redirect hostname; the app's login screen has no fallback of its own. This is not root-password projection (there is no single admin-login field to project a hash into) and not a bare Traefik basic_auth candidate (the app is not login-less by design — it delegates to an OIDC realm the recipe would also have to stand up, register a client in, and configure a redirect URL for, none of which /compose has an input channel for)."
+    - "The official docker-compose.yml (infra-as-code/docker-compose.yml) is explicitly labeled 'Do not expose this configuration to the internet... This is NOT a production configuration' and authenticates every request via a hardcoded DANGER_JWT_OVERRIDE JWT with a fixed subject/email baked into the compose file — unusable as-is for a customer-facing recipe."
+    - "License is the Business Source License 1.1 (BUSL-1.1), not MIT/Apache as some upstream marketing copy implies. The published grant text reads 'Additional Use Grant: None', meaning BUSL by default restricts production use to licensees with a separate commercial grant from Bionic GPT Ltd; hosting this for customers in production would need that grant confirmed before any recipe work, independent of the technical blockers above."
+    - "No path for supplying an LLM provider API key (OpenAI/Anthropic) if the customer doesn't want to route everything through a bundled Ollama instance — same class of gap as any other app needing a customer-chosen external API key."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >-
+  Bionic GPT is an actively-committed (if bursty-release) BUSL-1.1-licensed
+  on-prem ChatGPT alternative, but it is not installable under the current
+  recipe mechanism: its only real auth path is OIDC/Keycloak SSO with no
+  built-in login to project a root-password hash into and no login-less
+  surface to gate with Traefik basic_auth, and its own shipped
+  docker-compose is an explicit non-production demo authenticated by a
+  hardcoded dummy JWT. Layered on top, the BUSL-1.1 license's "Additional
+  Use Grant: None" raises an open question about whether a hosting
+  provider can run it in production for customers at all, and its
+  feature-set overlap with the already-catalogued open-webui is
+  significant enough that the differentiation (team RBAC, RAG assistants)
+  doesn't clearly justify the added complexity. Recommend not_recommended
+  rather than blocked_on_platform — this isn't just missing a
+  generated_from algorithm, it needs a whole OIDC identity stack the
+  recipe mechanism has no concept of, plus a licensing question resolved
+  first.
