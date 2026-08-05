@@ -1,0 +1,79 @@
+slug: civicrm
+name: CiviCRM
+source_description: "Open-source CRM for nonprofits, associations, and advocacy organizations"
+
+upstream:
+  url: https://civicrm.org
+  repo_url: https://github.com/civicrm/civicrm-core
+  license: AGPL-3.0 (with the CiviCRM Licensing Exception)
+  docker_image: civicrm/civicrm
+
+version_health:
+  latest_version: "6.16.2"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly-ish stable releases throughout 2026 (6.10 in Jan through 6.16.2 on
+    2026-07-27, about 9 days before this analysis) plus a separate security-release
+    track (civicrm.org/security/releases). No sign of slowdown, archival, or
+    announced EOL.
+
+catalogue_fit:
+  categories: [business, crm, nonprofit]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover CRM/constituent-management workflows
+    (donor tracking, membership, event registration, case management for
+    nonprofits/associations) — closest neighbors are dev-tool or infra recipes
+    (Gitea, n8n) with no domain overlap. This would be a genuinely new category
+    for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists among nonprofits/associations as a free alternative to
+    commercial CRMs, but it's a niche vertical compared to broadly-applicable
+    infra tools already in the catalogue, and the standalone edition is
+    comparatively young next to the CMS-integrated (Drupal/WordPress/Joomla)
+    deployments most existing CiviCRM installs actually use.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MYSQL_ROOT_PASSWORD
+    - CIVICRM_ADMIN_USER
+    - CIVICRM_ADMIN_PASS
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The official civicrm/civicrm image does not self-install on container
+      boot. Per the upstream civicrm-docker README, first-time setup requires
+      running a separate `civicrm-docker-install` script via `docker compose
+      exec` after the containers are already up, passing CIVICRM_ADMIN_USER
+      and CIVICRM_ADMIN_PASS as env vars to that exec call. Our recipe
+      mechanism only supports environment values injected at container
+      start via docker-compose.yaml/.env — there is no post-boot exec step
+      in /compose today, so the install can't complete without one.
+    - >
+      Even setting aside the exec-based install, CIVICRM_ADMIN_PASS has no
+      expressible mechanism: it's a plaintext admin password the app expects
+      as a literal string at install time, not a hash, so
+      generated_from:"argon2:ROOT_PASSWORD" (which only ever yields a hash)
+      cannot supply it, and it isn't a login the customer authenticates with
+      after the fact in a way that basic_auth could substitute for.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  CiviCRM is an active, well-maintained project (monthly releases, no EOL
+  signs) that would fill a genuinely uncovered CRM/nonprofit-management niche
+  in the catalogue, with a usable web UI and a single reverse-proxy-friendly
+  HTTP port. It is not installable today, however: the official Docker image
+  requires a post-boot `docker compose exec` install step that our /compose
+  mechanism has no channel for, and that step needs a plaintext admin
+  password our platform cannot project. Revisit once the recipe mechanism
+  supports a post-boot init/exec hook; the root-password-hash and
+  basic-auth mechanisms alone don't close the gap.
