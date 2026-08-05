@@ -1,0 +1,88 @@
+slug: docspell
+name: Docspell
+source_description: "Self-hosted document organizer with OCR, NLP extraction, and full-text search"
+
+upstream:
+  url: https://docspell.org/
+  repo_url: https://github.com/eikek/docspell
+  license: GPL-3.0
+  docker_image: ghcr.io/docspell/restserver:v0.43.0
+
+version_health:
+  latest_version: v0.43.0
+  latest_release_date: 2025-03-15
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v0.43.0 (2025-03-15) is the last tagged release, ~17 months before this
+    analysis (2026-08-05) — a long gap versus the project's own history
+    (v0.42.0 was 2024-08-18, ~7 months before v0.43.0). However the `master`
+    branch is not dormant: commits continue through at least 2026-07-29,
+    including a real feature (`statsProfile` search-stats option) tracked as
+    unreleased "v0.44.0" in Changelog.md, alongside routine renovate-bot
+    dependency bumps. The GHCR image tags (`ghcr.io/docspell/restserver`)
+    were also last pushed roughly one month before this analysis, i.e. the
+    v0.43.0 image was rebuilt/re-pushed recently even though no new version
+    tag was cut. Treat as an active but slow-cadence single-maintainer
+    project (eikek), not dormant or archived — no announced EOL, repo not
+    archived, issues still being triaged in 2026. The official Docker images
+    moved off Docker Hub (that repo is now archived with a pointer) to
+    GHCR via a separate `docspell/docker` repo; docker_image above reflects
+    the current GHCR location, not the stale Docker Hub one.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx]
+  differentiation: >
+    Docspell and paperless-ngx solve the same customer job — "digitize and
+    organize a pile of documents with OCR and full-text search" — with
+    overlapping feature sets (OCR ingestion, tagging/metadata, full-text
+    search, email/watch-folder import). Docspell's distinct angle is
+    multi-tenant "collectives" (several users/orgs sharing one instance with
+    separate document spaces) and NLP-based metadata extraction (dates,
+    correspondents, item types) versus paperless-ngx's single-workspace,
+    rule-based tagging model. For a single-customer self-hosted deployment
+    (the AF use case), the collectives feature is largely unused, which
+    narrows the practical differentiation to "a second, less actively
+    maintained OCR document archiver."
+  usefulness: low
+  usefulness_rationale: >
+    paperless-ngx already covers the core job (searchable OCR document
+    archive) with a materially more active upstream (see version_health)
+    and is already in the catalogue. Docspell's multi-collective angle is a
+    differentiator for MSPs/families sharing one instance, but that's a
+    narrow slice of demand and doesn't clearly justify a second recipe in
+    the same category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_endpoint_secret, auth_server_secret, integration_endpoint_header_value]
+  secrets_expressible_today:
+    - secret: admin_endpoint_secret
+      mechanism: server_generated_no_customer_input
+    - secret: auth_server_secret
+      mechanism: server_generated_no_customer_input
+    - secret: integration_endpoint_header_value
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Docspell is mechanically installable under the current /compose mechanism:
+  it has no admin login of its own at deploy time (the first visitor
+  self-registers a collective/user via the web UI, the same pattern already
+  accepted for n8n and Uptime Kuma in this catalogue), and its three
+  internal secrets (admin endpoint secret, auth-server secret, integration
+  header value) are all server-generated with no customer-facing input
+  needed. It also fronts cleanly behind Traefik on a single HTTP port
+  (restserver:7880; joex:7878 is an internal job-executor API that should
+  stay unpublished). The blocker is fit, not mechanism: it duplicates
+  paperless-ngx's job in this catalogue, brings a materially slower release
+  cadence (last tagged release 17 months ago vs. active development), and
+  its main differentiator (multi-collective/multi-tenant sharing) doesn't
+  match the single-customer deployment model AF ships. Not recommended
+  given the existing paperless-ngx recipe; revisit only if a customer
+  segment specifically wants multi-collective document sharing.
