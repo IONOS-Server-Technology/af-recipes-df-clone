@@ -1,0 +1,91 @@
+slug: airtrail
+name: AirTrail
+source_description: "Personal flight journal with interactive map, stats, and multi-user support"
+
+upstream:
+  url: https://airtrail.johan.ohly.dk/
+  repo_url: https://github.com/johanohly/AirTrail
+  license: GPL-3.0
+  docker_image: johly/airtrail
+
+version_health:
+  latest_version: "v3.11.1"
+  latest_release_date: "2026-06-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.11.1 released 2026-06-28, about 5.5 weeks before today (2026-08-05),
+    as a same-day patch fixing a production 502 issue in v3.11.0. Release
+    history is dense and regular through 2026: v3.8.0 (2026-03-28), v3.8.1
+    (2026-04-09), v3.9.0 (2026-04-19), v3.10.0 (2026-05-23), v3.11.0/v3.11.1
+    (2026-06-28) — roughly monthly. Repo is not archived and issues are
+    actively fixed same-day. Clearly active.
+
+catalogue_fit:
+  categories: [productivity, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal flight tracking.
+    AdventureLog (an open apps-gaps candidate, not yet a shipped recipe) is
+    the closest conceptual neighbor as a personal-travel-on-a-map tool, but
+    AdventureLog is a general trip/itinerary planner while AirTrail is
+    specifically a flight-log/stats tool that imports from flight-tracking
+    services (MyFlightRadar24, Flighty, TripIt, OpenFlights, etc.) — a
+    narrower, distinct use case an aviation-enthusiast customer would search
+    for by name rather than find via a general travel-planning app.
+  usefulness: medium
+  usefulness_rationale: >
+    Clean, well-scoped single-purpose app (SvelteKit + Postgres, single web
+    port, no unusual runtime needs) with genuine appeal to frequent flyers
+    and aviation enthusiasts wanting to self-host instead of paying for
+    Flighty/App in the Air. Capped at medium because the audience (people
+    who track their own flights) is narrower than general-purpose catalogue
+    staples like monitoring or password management.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against upstream's .env.example and the official
+      docker-compose docs (per pimylifeup.com's Docker walkthrough): AirTrail
+      has no admin-username/admin-password environment variable at all. The
+      app boots with zero users, and the first visitor to the public URL is
+      presented with an open registration form (username, password, name)
+      whoever submits it first becomes the sole account owner. This is the
+      same shape of problem documented in apps-gaps/2fauth.yaml and
+      apps-gaps/activepieces.yaml — there is no `type: password` parameter
+      on AirTrail's own login to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential is
+      created client-side via self-registration, not injected via env var.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger races to register first" version
+      of this problem, but per the 2FAuth/Activepieces precedent, today's
+      basic_auth mechanism has no channel to also hand the customer a
+      *second*, distinct credential for the in-app signup form beyond the
+      single root-password projection already used for the gate itself — so
+      it does not fully resolve the underlying provisioning gap. AirTrail
+      also supports optional OAuth account linking, which is a separate,
+      out-of-scope credential channel (third-party app registration) with
+      no input mechanism today either way.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  AirTrail is an active, well-maintained, single-purpose flight-tracking app
+  (SvelteKit + Postgres, one web port, Traefik-compatible) that would fill a
+  genuine gap in the catalogue distinct from the still-unshipped AdventureLog
+  candidate. It fails the installability test for the same structural reason
+  as 2FAuth and Activepieces: there is no env var to preset the sole admin
+  account, so the app relies on an open, first-visitor self-registration
+  screen that neither `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate
+  alone can safely hand to the customer exclusively. The internal DB_PASSWORD
+  is trivially server-generated and not blocking on its own. Revisit once
+  upstream adds an env-var-driven initial-admin flow, or the platform gains a
+  second customer-facing credential channel beyond root-password projection.
