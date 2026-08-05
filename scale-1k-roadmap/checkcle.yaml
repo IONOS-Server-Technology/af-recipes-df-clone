@@ -1,0 +1,80 @@
+slug: checkcle
+name: Checkcle
+source_description: "Full-stack uptime and infrastructure monitoring with public status pages"
+
+upstream:
+  url: https://checkcle.io/
+  repo_url: https://github.com/operacle/checkcle
+  license: MIT
+  docker_image: operacle/checkcle
+
+version_health:
+  latest_version: "v1.6.0"
+  latest_release_date: "2025-09-13"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.6.0 (2025-09-13) is the latest tagged GitHub release and the latest
+    `operacle/checkcle` Docker Hub tag (image last pushed 2025-09-14,
+    matching `:latest`) — almost 11 months before this analysis
+    (2026-08-05). This follows a run of 7 releases roughly monthly from
+    v1.0.0 (2025-05-09) through v1.6.0 (2025-09-13), then a hard stop on
+    versioned/packaged releases. The repo itself is not dormant: last
+    commit to `main` was 2026-07-17 (< 3 weeks ago), 2802 stars, 92 open
+    issues, not archived — so source-level development continues, but
+    nothing has been cut into a release or a new Docker image in nearly a
+    year. Notably, a merged security fix (PR #224, "fix(auth): stop
+    persisting PocketBase JWT in localStorage", CWE-922 — an XSS-exfiltrable
+    long-lived auth token in the SPA, merged 2026-05-04) has never made it
+    into a tagged release or the published `:latest`/`v1.6.0` image, so
+    anyone pulling the official image today still gets the vulnerable
+    behavior three months after the fix landed upstream.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Core feature set (HTTP/TCP/ICMP/DNS/SSL checks, notifications,
+    incident tracking, public status pages, multi-user auth) is
+    functionally the same territory Uptime Kuma already covers in the
+    catalogue. Checkcle adds distributed regional monitoring agents, a
+    Docker-container monitoring dashboard, a health heatmap visualization,
+    and PDF export for incident reports — genuinely new capabilities, but
+    incremental on top of a use case we already ship, not a new category.
+  usefulness: low
+  usefulness_rationale: >
+    A customer who wants uptime/status-page monitoring is already served
+    by Uptime Kuma; Checkcle's extra distributed-agent and Docker-dashboard
+    features are edge-case value for a small subset of technical users, not
+    enough to justify a second app in the same category, especially given
+    the stale/unpatched Docker image (see version_health.notes).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Checkcle is a single-container (PocketBase-backed) uptime/status-page
+  monitor exposed on port 8090, mechanically installable today: it ships
+  with a fixed, non-configurable default login (admin@example.com /
+  Admin123456, no env var to override it at boot) rather than a proper
+  first-boot admin secret, so the correct fix is the same one already
+  accepted for changedetection.io/Adminer-shaped apps — a mandatory Traefik
+  `basic_auth` gate with the password projected from the customer's root
+  password. That clears the mechanism check, but two independent findings
+  argue against building it now: it heavily overlaps an already-cataloged
+  recipe (Uptime Kuma) with only incremental differentiators, and its
+  official Docker image has not been rebuilt in ~11 months despite ongoing
+  upstream commits — including a merged CWE-922 auth-token-storage fix from
+  2026-05-04 that never made it into a release, so today's official image
+  ships a known-fixed weakness. Recommend not_recommended: low incremental
+  value over Uptime Kuma, and the image freshness/security-patch lag would
+  need to improve before revisiting.
