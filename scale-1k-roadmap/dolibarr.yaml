@@ -1,0 +1,81 @@
+slug: dolibarr
+name: Dolibarr
+source_description: "Open-source ERP/CRM platform for managing business operations"
+
+upstream:
+  url: https://www.dolibarr.org/
+  repo_url: https://github.com/Dolibarr/dolibarr
+  license: "GPL-3.0"
+  docker_image: dolibarr/dolibarr
+
+version_health:
+  latest_version: "23.0.2"
+  latest_release_date: "2026-04-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    23.0.2 (a security/bugfix release) landed 2026-04-04, ~4 months before
+    today (2026-08-05) — well within the project's stated cadence of two
+    major releases per year (recent majors: 22.0 on 2025-07-30, 23.0 in
+    early 2026), with patch releases filling the gaps between majors.
+    Repo is under continuous commit activity, not archived, and the
+    official `Dolibarr/dolibarr-docker` image repo was rebuilt within the
+    last few days per Docker Hub. Reads as a healthy, actively maintained
+    project, not slowing or dormant.
+
+catalogue_fit:
+  categories: [business, erp, crm, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers general-purpose
+    ERP/CRM (invoicing, orders, stock, HR, project/agenda, accounting in
+    one suite) — n8n is the closest recipe by "business tooling" framing
+    but automates workflows rather than running the books. Note for the
+    reviewer: three other still-open apps-gaps analyses cover adjacent or
+    overlapping ground — apps-gaps/aureuserp.yaml (Odoo-style modular ERP),
+    apps-gaps/corteza.yaml (low-code/CRM builder), and
+    apps-gaps/civicrm.yaml (nonprofit-focused CRM) — so if more than one of
+    these gets built, the catalogue would carry multiple ERP/CRM options;
+    worth a deliberate pick rather than merging all of them. Dolibarr is
+    the most mature and widely deployed of the group (in continuous
+    development since 2003, plain GPL-3.0 with no license-tier caps, unlike
+    apps-gaps/akaunting.yaml's BSL 1.1 usage limits).
+  usefulness: high
+  usefulness_rationale: >
+    ERP/CRM is mainstream SME demand and a strong self-hosting draw ("keep
+    my financial and customer data off a SaaS vendor's server"), Dolibarr
+    is the most established open-source option in this space (one of the
+    longest-running, most widely deployed self-hosted ERPs), and it is
+    plain GPL with no usage-tier restrictions to caveat to customers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DOLI_ADMIN_PASSWORD, DOLI_DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DOLI_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DOLI_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dolibarr is a single-container PHP/Apache app (official dolibarr/dolibarr
+  image, port 80) backed by its own MariaDB container — structurally the
+  same paperless-ngx/Akaunting-style two-container pattern, and reverse-
+  proxy-compatible behind Traefik with no extra ports or protocols. Both
+  first-boot credentials it needs (DOLI_ADMIN_PASSWORD for the app's own
+  admin login, DOLI_DB_PASSWORD for MariaDB) are plain environment
+  variables with no OAuth or external API key involved, so
+  DOLI_ADMIN_PASSWORD projects cleanly via generated_from_root_password and
+  DOLI_DB_PASSWORD can be server-generated with zero customer input —
+  clearing the /compose constraint with no blocking issues. The project is
+  actively maintained (latest release 4 months old, steady ~2-majors-a-year
+  cadence) and plain GPL-3.0 with no license-tier caps, unlike the
+  BSL-limited apps-gaps/akaunting.yaml. It fills a genuine, currently-empty
+  ERP/CRM category in the catalogue; the only open question is portfolio
+  overlap with the other pending ERP/CRM gap analyses (aureuserp, corteza,
+  civicrm) if more than one gets built. Recommend build_now.
