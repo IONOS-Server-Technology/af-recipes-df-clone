@@ -1,0 +1,81 @@
+slug: apache-druid
+name: Apache Druid
+source_description: "Real-time analytics database for sub-second OLAP queries on streaming event data"
+
+upstream:
+  url: https://druid.apache.org/
+  repo_url: https://github.com/apache/druid
+  license: Apache-2.0
+  docker_image: apache/druid
+
+version_health:
+  latest_version: "37.0.0"
+  latest_release_date: "2026-05-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    37.0.0 shipped 2026-05-08 (~3 months before today, 2026-08-05). Prior
+    majors: 36.0.0 on 2026-02-09, 35.0.1 on 2025-12-15, 35.0.0 on
+    2025-11-18, 34.0.0 on 2025-08-11 — a steady ~3-month major-release
+    cadence going back years, plus patch releases (e.g. 35.0.1, 32.0.1/
+    31.0.2 CVE fixes) between majors. ASF top-level project, actively
+    developed (29+ contributors credited in the 37.0.0 release notes), not
+    archived or slowing.
+
+catalogue_fit:
+  categories: [database, analytics, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes offer a customer-facing analytics
+    database. Existing recipes that embed Postgres/MySQL/SQLite (n8n,
+    paperless-ngx, gitea, immich) use it as a private implementation
+    detail; Druid is the opposite — customers stand it up on purpose to
+    ingest streaming/batch event data and run sub-second OLAP queries over
+    it via SQL or its native query API, then build dashboards or
+    downstream apps on top. This is a genuinely new capability class for
+    the catalogue (real-time analytics/data-warehouse infra), not an
+    overlap with anything already offered.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable to a data-engineering audience wanting a turnkey managed OLAP
+    engine, but it's infrastructure customers build on top of rather than
+    an end-user product, and it is far heavier than every other recipe in
+    the catalogue: the official docker-compose quickstart runs 8 containers
+    (ZooKeeper, a Postgres metadata store, and six Druid services —
+    coordinator, overlord, broker, router, historical, middleManager), each
+    budgeted up to 7 GiB of memory in the reference "micro-quickstart"
+    config. That's a materially larger resource floor and operational
+    surface than anything currently in the catalogue, narrowing the
+    realistic customer base to those who specifically want a full OLAP
+    cluster, not casual self-hosters.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [console_basic_auth]
+  secrets_expressible_today:
+    - secret: console_basic_auth
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Apache Druid is actively maintained (steady ~3-month major-release
+  cadence, latest 37.0.0 on 2026-05-08) and would add a genuinely new
+  capability — a customer-facing real-time OLAP database — with no overlap
+  in the current 24-recipe catalogue. Security is disabled by default (the
+  console and query APIs use an AllowAll authenticator/authorizer out of
+  the box, per upstream docs), so it has no login of its own to project a
+  credential into; gating the router's single HTTP entrypoint (port 8888,
+  which fronts the console and all service APIs) behind Traefik
+  `basic_auth` is the correct mechanism and is expressible today, making it
+  mechanically installable. The caveat is scale: the official stack is 8
+  containers (ZooKeeper + Postgres metadata store + six Druid services)
+  with a multi-GB-per-service memory footprint, well beyond any recipe
+  currently in the catalogue, and its audience (data engineers building
+  analytics pipelines) is narrower than the general-purpose apps we
+  currently ship. Recommend `build_with_caveats`: installable now, but
+  worth confirming the resource floor and target customer fit before
+  committing a recipe slot to it.
