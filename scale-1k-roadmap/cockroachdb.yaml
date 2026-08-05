@@ -1,0 +1,117 @@
+slug: cockroachdb
+name: CockroachDB
+source_description: "Distributed SQL database built for resilience and horizontal scale"
+
+upstream:
+  url: https://www.cockroachlabs.com
+  repo_url: https://github.com/cockroachdb/cockroach
+  license: >
+    Business Source License 1.1 (converts to Apache-2.0 3 years after each
+    version's release date) — CockroachDB Labs' "CockroachDB Core" build,
+    per version-specific expiry dates.
+  docker_image: cockroachdb/cockroach:v26.2.5
+
+version_health:
+  latest_version: "v26.2.5"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v26.2.5 pushed to Docker Hub ~6 days before this 2026-08-05 analysis;
+    sibling patches v25.4.14, v26.1.8, v25.2.22 all shipped in the same
+    7-8 day window, and v24.3.35 ~8 days before — a broad, actively
+    maintained patch train across every supported minor line, not a
+    single stale release. Cockroach Labs runs quarterly major releases
+    (vYY.R, alternating "Regular"/GA and "Innovation" cadence) with
+    Regular releases getting 12 months maintenance + 6 months
+    critical-only support, and some Regular releases promoted to
+    Long-Term-Support (12+12 months) after a stability track record.
+    Current latest is v26.2 (GA 2026-04-27); v25.4 (GA 2025-11-03) is
+    still in maintenance support through ~2026-11. No slowdown, no
+    archival, no EOL signal.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a standalone, customer-facing
+    database — n8n, paperless-ngx, gitea, immich, etc. each run
+    Postgres/MySQL/SQLite internally as a private backing service the
+    customer never touches directly. CockroachDB is the same new category
+    already flagged for ClickHouse/ArangoDB/Apache CouchDB: the database
+    itself is the product. Its specific angle is Postgres-wire-protocol
+    compatibility (any psql/JDBC/pg driver client can talk to it) plus
+    built-in horizontal scale-out and multi-region resilience, which none
+    of the other database gap-analyses offer — though on a single AF
+    instance the multi-node/multi-region story is moot, so the practical
+    pitch narrows to "a Postgres-compatible SQL engine with a bundled
+    observability console."
+  usefulness: medium
+  usefulness_rationale: >
+    Real appeal to developers who want a managed, Postgres-wire-compatible
+    SQL backend without provisioning Postgres themselves, but the value
+    proposition (horizontal scale, multi-region survivability) is largely
+    unrealized in a single-container AF deployment, and — per the
+    installability section below — the primary interface (the SQL wire
+    port) can't be safely exposed under the current recipe mechanism,
+    which caps this well below ClickHouse/ArangoDB's already-medium rating.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      CockroachDB's own auth is plaintext-only end to end: the Docker
+      entrypoint's COCKROACH_USER/COCKROACH_PASSWORD variables (only
+      honored on `start-single-node` with no pre-existing data directory)
+      write a cleartext password, and even a manual `ALTER USER ... WITH
+      PASSWORD` only accepts cleartext — CockroachDB hashes it itself at
+      write time. Client-supplied pre-hashed passwords (SCRAM-SHA-256 or
+      otherwise) are a long-standing open upstream request (cockroachdb/
+      cockroach#50757, cockroachdb/docs#12635), not shipped in any
+      released version. `generated_from` only ever carries a hash, so
+      there is no channel to project the customer's root password into
+      CockroachDB's own login — the same fundamental mismatch already
+      documented for ClickHouse, and the workaround is the same: leave
+      CockroachDB's own SQL/DB-Console auth on a randomly-generated,
+      server-side-only credential (or run `--insecure`, which has no auth
+      at all) and put the real customer-facing auth boundary at Traefik
+      `basic_auth` in front of the DB Console (HTTP, port 8080).
+    - >
+      Unlike the DB Console, the SQL wire port (26257, Postgres protocol)
+      is not HTTP and so cannot be gated by Traefik `basic_auth` — the
+      same structural limitation already flagged for ClickHouse's native
+      port 9000. A recipe would have to simply not publish 26257
+      (DB-Console-only exposure), but that guts the actual reason a
+      customer wants CockroachDB: connecting a psql/JDBC/application
+      client over the wire protocol. Exposing 26257 either unauthenticated
+      (`--insecure`) or with a credential no customer input channel can
+      set would leave root-level SQL access open on the internet, which
+      is not an acceptable default. This is a materially worse version of
+      ClickHouse's caveat, since ClickHouse still offers a usable HTTP
+      query interface (8123) behind the same gate — CockroachDB's DB
+      Console is observability/admin-only, not a query interface a normal
+      client uses.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  CockroachDB (v26.2.5, actively patched across multiple supported minor
+  lines, no EOL signal) would be the catalogue's first standalone SQL
+  database sold as the product rather than an app's internal backing
+  store — a real but niche developer audience. It clears the same
+  plaintext-only-auth hurdle as ClickHouse via a Traefik `basic_auth` gate
+  in front of the DB Console (port 8080), so it is mechanically
+  installable today. The bigger problem is that the DB Console isn't the
+  point of CockroachDB — the Postgres-wire SQL port (26257) is, and that
+  port can't be gated by HTTP basic auth or given a customer-set
+  credential under the current mechanism, so a compliant recipe can only
+  safely expose an admin console, not the SQL interface customers
+  actually want. Recommend `build_with_caveats`: technically shippable,
+  but the caveat here removes most of the app's practical value rather
+  than being a minor workaround.
