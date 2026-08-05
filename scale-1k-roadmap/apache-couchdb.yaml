@@ -1,0 +1,87 @@
+slug: apache-couchdb
+name: Apache CouchDB
+source_description: "Multi-primary NoSQL document database with an HTTP/JSON API and offline sync"
+
+upstream:
+  url: https://couchdb.apache.org/
+  repo_url: https://github.com/apache/couchdb
+  license: Apache-2.0
+  docker_image: couchdb
+
+version_health:
+  latest_version: "3.5.2.1"
+  latest_release_date: "2026-05-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.5.2 shipped 2026-05-14 (~2.9 months before today, 2026-08-05), with a
+    3.5.2.1 Docker-image-only respin shortly after. Prior patches: 3.4.3 on
+    2025-03-17, 3.4.0/3.5.0 branch split around 2024-09-20/2025-05-05 — a
+    steady multi-month patch cadence on the current 3.5.x line, not slowing.
+    Per endoflife.date, the project officially supports only the two most
+    recent minor lines (3.4 and 3.5) for CVEs; 3.3 (EOL 2025-05-05) and 3.2
+    (EOL 2024-09-20) are already unsupported. ASF project, not archived,
+    active commit and release history — clearly active, not dormant or EOL.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes give customers a standalone, general-
+    purpose database engine with its own HTTP API. n8n, paperless-ngx,
+    gitea, immich, etc. each run a Postgres/MySQL/SQLite instance
+    internally as a private implementation detail, not something the
+    customer provisions or talks to directly. CouchDB is the opposite: a
+    document database customers deploy on purpose, then read/write over
+    HTTP/JSON from their own apps (mobile/offline-first sync, IoT, custom
+    backends) via CouchDB's built-in multi-primary replication. It also
+    differs from Adminer (a generic admin UI *for* someone else's SQL
+    database) — CouchDB is the database itself, with an admin UI (Fauxton)
+    bundled on top.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable to developers who want a managed, ready-to-use NoSQL backend
+    with offline sync (a well-known pattern for mobile/PouchDB-based apps),
+    but it's infrastructure for other things a customer builds, not an
+    end-user product — narrower appeal than the chat apps, password
+    managers, and Git hosts that make up most of the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [couchdb_admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      CouchDB has its own admin login (no-admin-set "Admin Party" mode,
+      where the HTTP API is fully unauthenticated, is explicitly not an
+      option to ship) set via the official image's COUCHDB_USER /
+      COUCHDB_PASSWORD env vars, which the entrypoint writes verbatim into
+      local.ini's [admins] section. CouchDB accepts either a plaintext
+      password there (which it then hashes itself on next read) or an
+      already-hashed value prefixed `-pbkdf2-<hash>,<salt>,<iterations>` —
+      but *only* that PBKDF2 format; it does not recognize bcrypt or
+      argon2 hashes. `generated_from` today only supports `argon2` and
+      `bcrypt` (per apps-gaps/SCHEMA.md), so there is no way to project a
+      CouchDB-compatible admin credential from the customer's root password
+      yet. Per SCHEMA.md's guidance this is a genuine hash (not a plaintext)
+      requirement, so it is a `blocked_on_platform` gap, not a structural
+      `not_recommended` one: adding `pbkdf2` to `generated_from`'s
+      supported-algorithm list would unblock it.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Apache CouchDB is a single-container, single-HTTP-port (5984) app with a
+  bundled web UI (Fauxton at /_utils) and no overlap with the current
+  catalogue's internal-use relational databases — it would be the first
+  recipe offering a customer-facing NoSQL database with its own HTTP API.
+  Upstream is actively maintained (steady 3.5.x patch cadence, official
+  two-minor-line CVE support policy) and reverse-proxy-compatible. The
+  blocker is entirely mechanical: CouchDB's admin credential must be either
+  plaintext or a PBKDF2 hash, and `generated_from` only supports
+  argon2/bcrypt today, so there is no channel to project the customer's
+  root password into it without an unauthenticated "Admin Party" API.
+  Recommend `blocked_on_platform` pending PBKDF2 support in
+  `generated_from`, not a hard pass.
