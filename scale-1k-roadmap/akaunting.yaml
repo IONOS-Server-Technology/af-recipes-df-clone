@@ -1,0 +1,82 @@
+slug: akaunting
+name: Akaunting
+source_description: "Free open-source accounting software for small businesses and freelancers"
+
+upstream:
+  url: https://akaunting.com/
+  repo_url: https://github.com/akaunting/akaunting
+  license: "BSL 1.1 (converts to GPLv3 per-release, 4 years after each release's publication date)"
+  docker_image: akaunting/akaunting
+
+version_health:
+  latest_version: "3.2.1"
+  latest_release_date: "2026-07-21"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest tag 3.2.1 was released 2026-07-21, only ~2 weeks before today
+    (2026-08-05), and 3.2.0 landed 9 days before that (2026-07-12) — recent
+    activity looks healthy. But the release history leading up to it is
+    uneven: 3.1.19 (2025-07-22) was followed by a ~5-month gap to 3.1.20/
+    3.1.21 (2025-12-11/13), then a ~7-month gap to 3.2.0 (2026-07-12).
+    Repo is not archived and is under active commit/PR activity, so this
+    reads as a real project with a lumpy, not dormant, cadence rather than
+    maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers double-entry
+    business accounting (invoicing, expense/bill tracking, bank
+    reconciliation, multi-company books) — the closest adjacent gap
+    (apps-gaps/actual-budget.yaml) is personal envelope budgeting, a
+    different audience (individuals vs. small-business/freelancer
+    bookkeeping). Akaunting would be a genuinely new category.
+  usefulness: medium
+  usefulness_rationale: >
+    Small-business accounting is a real self-hosting draw, but Akaunting's
+    free tier is capped by its BSL 1.1 license at 2 users, 1 company, and
+    1,000 invoices per instance — a business that grows past any of those
+    limits needs a paid commercial license from Akaunting Inc. to keep
+    using the same self-hosted instance legally. Hostinger's "free
+    open-source" framing undersells this: the code is source-available
+    (each release converts to GPLv3 only 4 years after its own publish
+    date) with real production-use caps, not a plain free/libre app like
+    the rest of the catalogue. Still useful for the freelancer/very-small-
+    business segment the description targets, hence medium rather than
+    high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Akaunting is a Laravel/PHP app behind a single HTTP port (8080), backed
+  by its own MySQL container, matching the paperless-ngx-style
+  multi-container pattern. The admin account (ADMIN_EMAIL/ADMIN_PASSWORD)
+  and DB credentials are all plain env vars consumed at container start —
+  no OAuth, no external API key, no interactive credential entry — so
+  ADMIN_PASSWORD projects cleanly from the customer's root password via
+  generated_from, and DB_PASSWORD can be server-generated with no customer
+  input, clearing the /compose constraint with zero blocking issues.
+  The one operational wrinkle is that first boot needs AKAUNTING_SETUP=true
+  to run the install routine, then a restart without it — install.sh
+  scriptable, not a customer-input problem. Release cadence looks lumpy but
+  currently active (latest tag 2 weeks old) and the project is not EOL.
+  The real caveat is licensing, not mechanics: Akaunting's BSL 1.1 free tier
+  caps a self-hosted instance at 2 users/1 company/1,000 invoices, which
+  undercuts the "free open-source" framing and limits how far a customer
+  can grow on it before needing a commercial license. Recommend
+  build_with_caveats — technically installable today, but the license cap
+  should be surfaced to customers before shipping this as a recipe.
