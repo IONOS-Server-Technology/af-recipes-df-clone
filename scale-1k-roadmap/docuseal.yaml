@@ -1,0 +1,61 @@
+slug: docuseal
+name: DocuSeal
+source_description: "Open-source document signing platform with e-signature capabilities"
+
+upstream:
+  url: https://www.docuseal.com
+  repo_url: https://github.com/docusealco/docuseal
+  license: "AGPL-3.0 with Section 7(b) additional terms (source-available, not plain AGPL)"
+  docker_image: docuseal/docuseal
+
+version_health:
+  latest_version: "3.1.7"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (3.1.7) was cut 2 days before this analysis
+    (2026-08-05). Releases have shipped roughly weekly since at least
+    3.0.0 (2026-06-01) through 3.1.7 (2026-08-03) — this is a fast-moving,
+    actively maintained project, not slowing or dormant.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers document/e-signature workflows.
+    paperless-ngx and paperless-ai handle document archiving and OCR, not
+    signing; gitea, opengist etc. are unrelated. DocuSeal is a DocuSign-style
+    self-hosted alternative — a distinct, in-demand category (contracts,
+    forms, HR paperwork) with no catalogue overlap today.
+  usefulness: high
+  usefulness_rationale: >
+    E-signature is a common SMB/freelancer need with no self-hosted option
+    in the current 24-recipe catalogue, and DocuSeal is one of the most
+    popular OSS DocuSign alternatives (active development, single-container
+    web app, no raw-protocol requirements).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DATABASE_URL (Postgres password), SECRET_KEY_BASE]
+  secrets_expressible_today:
+    - secret: DATABASE_URL (Postgres password)
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DocuSeal is an active, weekly-releasing e-signature platform with no
+  overlap in the current catalogue. Upstream's own compose file bundles
+  Postgres and a Caddy reverse-proxy sidecar, but the app is a plain
+  single-HTTP-port (3000) service that drops in behind Traefik the same way
+  n8n does, with only server-generated secrets (DB password, Rails
+  SECRET_KEY_BASE) needed at boot. Like n8n, the first admin account is
+  created through an in-browser signup wizard after deployment rather than
+  an env-var credential, so no customer-supplied secret needs a projection
+  channel. Recommended as a build-now candidate.
