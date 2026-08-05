@@ -1,0 +1,76 @@
+slug: browserless
+name: Browserless
+source_description: "Headless Chrome browser as a service for web scraping and automation"
+
+upstream:
+  url: https://www.browserless.io/
+  repo_url: https://github.com/browserless/browserless
+  license: "SSPL-1.0 OR Browserless Commercial License (dual-licensed)"
+  docker_image: ghcr.io/browserless/chromium
+
+version_health:
+  latest_version: "v2.55.3"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.55.3 released 2026-08-04, one day before today (2026-08-05). Release
+    history shows a tight, ongoing weekly-or-better cadence through the
+    2.5x series: v2.55.2 (2026-07-30), v2.55.1 (2026-07-27), v2.55.0
+    (2026-07-14), v2.54.2 (2026-06-29), v2.54.1 (2026-06-22), v2.54.0
+    (2026-06-18), v2.53.1 (2026-06-18), v2.53.0 (2026-06-17), v2.52.2
+    (2026-06-15). Repo is not archived, still receiving feature work
+    (config seams, navigation-guard fixes, runtime bumps) as recently as
+    the day before this analysis. Clearly active, no maintenance-only or
+    EOL signal.
+
+catalogue_fit:
+  categories: [developer-tools, automation, web-scraping]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers headless-browser-as-a-service
+    (Puppeteer/Playwright-compatible REST/WebSocket endpoints for
+    screenshots, PDFs, content scraping, and scripted browser sessions).
+    n8n is the closest existing recipe in spirit (automation), but it
+    orchestrates workflows rather than exposing a raw browser-automation
+    backend a developer's own scripts would connect to. Browserless would
+    let a customer run scraping/automation jobs against a self-hosted
+    Chrome instance instead of a third-party cloud API.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability with no catalogue overlap, but the target
+    user is a developer wiring their own Puppeteer/Playwright code against
+    the API — there is no interactive web UI, so it delivers no value to a
+    customer who just clicks around a dashboard. It is infrastructure for
+    another project, similar in audience to bknd, not a standalone
+    consumer-facing app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TOKEN]
+  secrets_expressible_today:
+    - secret: TOKEN
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "Upstream license is dual SSPL-1.0 / Browserless Commercial License, not a permissive OSS license. SSPL's core term requires that if the software is offered 'as a service' to third parties, the full source of the service (including management/orchestration layers) be released under SSPL, or a commercial license be purchased instead. Application Factory hosting this recipe for customers is squarely the kind of 'offer as a service' use case SSPL targets, and every other recipe in the catalogue is permissively licensed (MIT/Apache/AGPL-with-precedent) — this would be the first dual-commercial/SSPL app. Needs a legal/licensing review (or a Browserless Commercial License) before shipping, independent of the /compose mechanism question."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Browserless is technically simple to install via our current mechanism —
+  a single container on port 3000, no web UI to gate, and its one required
+  secret (the API TOKEN env var that guards all requests) can be projected
+  from the customer's root password the same way Vaultwarden's ADMIN_TOKEN
+  is, via generated_from. Upstream is clearly active, releasing multiple
+  times a week with no EOL signal. The blocker is not the secrets mechanism
+  but licensing: Browserless ships under a dual SSPL-1.0/commercial license,
+  and SSPL's "offered as a service" clause is a real concern for a hosted
+  Application Factory recipe — no existing recipe in the catalogue carries
+  this kind of license, and shipping it would need a legal review or a
+  purchased commercial license first. It also has no interactive web UI,
+  so its value is limited to developers wiring their own scraping/
+  automation code against the API rather than a broad customer audience.
+  Recommend blocked_on_platform pending a licensing decision, not a
+  mechanism fix.
