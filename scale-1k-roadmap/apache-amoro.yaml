@@ -1,0 +1,81 @@
+slug: apache-amoro
+name: Apache Amoro
+source_description: "Lakehouse management for Iceberg and Paimon with self-optimizing dashboard"
+
+upstream:
+  url: https://amoro.apache.org
+  repo_url: https://github.com/apache/amoro
+  license: Apache-2.0
+  docker_image: apache/amoro
+
+version_health:
+  latest_version: "0.8.1-incubating"
+  latest_release_date: "2025-09-11"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    0.8.1-incubating (2025-09-11) is the latest tagged GA release — about
+    11 months before today (2026-08-05). However a 0.9.0 release-candidate
+    cycle is actively in flight on top of that: rc1 (2026-05-08), rc2
+    (2026-05-16), rc3 (2026-05-21), rc4 (2026-07-23), roughly two weeks
+    before today, and the Docker Hub `master-snapshot`/`master-snapshot-hadoop2`
+    tags were rebuilt 2 days ago. Still an ASF Incubator podling (entered
+    incubation 2024-03-11, not graduated, not retired) with quarterly board
+    reports and an active committer/PPMC list — no archival or EOL signal.
+    Net: GA tags ship slower than a typical top-level project (~4-11 months
+    apart), but nightly builds and an active RC pipeline show the project is
+    not dormant.
+
+catalogue_fit:
+  categories: [data, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes touches data-lakehouse/table-format
+    management — this is a genuinely new category (Iceberg/Paimon table
+    optimization, unified catalog service for Flink/Spark/Trino) rather
+    than overlapping an existing recipe.
+  usefulness: low
+  usefulness_rationale: >-
+    The dashboard/REST API (port 1630) is reverse-proxy-friendly on its
+    own, but Amoro's actual value (self-optimizing compaction, catalog
+    service) only materializes once external Flink/Spark/Trino compute
+    engines and optimizer processes connect to its Thrift ports (1260 table
+    service, 1261 optimizing service) — raw TCP, not HTTP, and not
+    something Traefik fronts. Standing up AMS alone, with no compute engine
+    attached, gives a customer little beyond an empty dashboard. This is
+    also a narrow data-engineering/big-data audience, a poor match for the
+    largely consumer/prosumer-facing apps already in the catalogue
+    (photos, VPN, ad-block, notes, etc.).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Amoro Management Service (AMS) ships with an embedded Derby metastore by
+  default, so no external database is needed to boot. Its own dashboard
+  login (`admin-username`/`admin-password` in config.yaml, default
+  admin/admin) only accepts a plaintext value compared/decrypted at
+  runtime — never a hash — so `generated_from` cannot project the
+  customer's root password into it directly. That is not a hard blocker,
+  though: following the same pattern used for Adminer, the fix is to leave
+  Amoro's own admin/admin login untouched and gate the whole dashboard
+  behind a mandatory Traefik `basic_auth` credential (projected from the
+  customer's root password via `generated_from`), which moves the actual
+  customer-facing auth boundary in front of the app rather than through it.
+  Mechanically installable today on that basis. The bigger open question is
+  value: Amoro's headline feature (self-optimizing Iceberg/Paimon tables)
+  needs external Flink/Spark/Trino engines talking to its raw Thrift ports,
+  which sit outside what a single Traefik-fronted docker-compose recipe
+  usefully exposes, and the audience (data engineers running a lakehouse
+  stack) doesn't match the rest of the catalogue. Recommend build_with_caveats:
+  ship it if there's a specific customer ask, but don't prioritize it as a
+  differentiator.
