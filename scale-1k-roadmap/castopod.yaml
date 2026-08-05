@@ -1,0 +1,97 @@
+slug: castopod
+name: Castopod
+source_description: "Open-source podcast hosting platform with analytics and social features"
+
+upstream:
+  url: https://castopod.org
+  repo_url: https://github.com/ad-aures/castopod
+  license: AGPL-3.0
+  docker_image: castopod/castopod
+
+version_health:
+  latest_version: "1.15.5"
+  latest_release_date: "2026-02-24"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    1.15.5 shipped 2026-02-24 — about 5.4 months before today (2026-08-05).
+    That patch capped a burst of six releases in nine days (1.15.0 on
+    2026-02-16 through 1.15.5 on 2026-02-24), itself driven by reworking the
+    official image onto FrankenPHP + Caddy and fixing arm64/build fallout
+    from that switch. Since then there has been no tagged release in over
+    five months, which is a real slowdown relative to that burst, though not
+    evidence of abandonment: the repo is not archived, the develop branch
+    shows over 1,100 commits total with ongoing activity, and a
+    `2.0.0-next.x` pre-release line (new plugin architecture, plugins.castopod.org
+    hub launched) is in active development. Net read: upstream is alive and
+    working toward a 2.0 rewrite, but the 1.x line customers would actually
+    run has gone quiet for several months.
+
+catalogue_fit:
+  categories: [media, podcasting, publishing, self-hosting]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does podcast hosting/RSS
+    distribution, episode analytics, or ActivityPub/Fediverse social
+    interaction for audio content. Immich is the closest by shape (self-hosted
+    media library, multi-service stack, browser UI) but is photo/video-focused
+    with no RSS feed generation, IAB-compliant analytics, or podcaster-facing
+    publishing workflow. Castopod would be a genuinely new category for the
+    catalogue rather than a variant of an existing one.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted podcast hosting with built-in analytics and Podcasting 2.0
+    support (transcripts, chapters, funding tags) addresses a real
+    "own your distribution, avoid third-party hosting fees/lock-in" niche
+    with no in-catalogue competitor. Capped at medium rather than high
+    because the audience (podcasters specifically) is narrower than general
+    self-hosting tools already in the catalogue (monitoring, password
+    management, automation), and the slowed 1.x release cadence adds
+    near-term risk to recommending it confidently.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [superadmin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Castopod has no environment variable or config-time mechanism to seed
+      the initial superadmin account. First-boot setup is done either through
+      an interactive browser wizard at `/cp-install` (customer types a
+      username, email, and plaintext password directly into a web form) or
+      via the CLI command `php spark install:create-superadmin`, which
+      prompts interactively for the same plaintext values with confirmation
+      — no documented flags or env vars for non-interactive/scripted use, and
+      no way to supply a pre-hashed value in either path. Per SCHEMA.md this
+      is the genuine "app requires the plaintext password, not any hash"
+      case: `generated_from` only ever projects a hash of the root password,
+      so it cannot satisfy an interactive wizard or CLI prompt expecting a
+      typed value. This is a structural blocker, not a soft one.
+    - >
+      Even if the superadmin step could be bypassed or scripted, Castopod
+      itself is not a bare single-container app: it needs a MySQL-compatible
+      database (MariaDB recommended) and optionally Redis for caching,
+      neither of which changes the blocker above but adds setup surface
+      beyond the reverse-proxy-only recipes already in the catalogue.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Castopod is a multi-service stack (app + MariaDB + optional Redis, official
+  image castopod/castopod:1.15.5, HTTP/HTTPS/HTTP3 ports) most structurally
+  similar to recipes/immich or recipes/n8n rather than the single-container
+  recipes. It would fill a genuinely new niche (podcast hosting/analytics/
+  Fediverse) with no overlap in the current 24-recipe catalogue and a clear
+  differentiation story. It fails the current installability bar, though:
+  the only way to create the first admin account is an interactive web
+  wizard or an interactively-prompted CLI command, both of which require a
+  plaintext password typed by a human — there is no config parameter or
+  env var that accepts a pre-computed hash, so `generated_from` cannot reach
+  it and there is no basic_auth-style workaround since the app does have its
+  own login the customer must set up. Combined with upstream's 1.x line
+  going quiet for over five months (while a 2.0 plugin rewrite is in
+  progress), this is a `blocked_on_platform` candidate: worth revisiting if
+  upstream ever adds a non-interactive/env-var-seedable superadmin path, but
+  not buildable as a recipe today.
