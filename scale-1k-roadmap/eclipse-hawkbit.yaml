@@ -1,0 +1,74 @@
+slug: eclipse-hawkbit
+name: Eclipse hawkBit
+source_description: "Open-source IoT device update management for over-the-air software rollouts"
+
+upstream:
+  url: https://eclipse.dev/hawkbit/
+  repo_url: https://github.com/eclipse-hawkbit/hawkbit
+  license: EPL-2.0
+  docker_image: hawkbit/hawkbit-update-server
+
+version_health:
+  latest_version: "1.1.0"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 1.1.0 published 2026-07-03, about 1 month before this analysis
+    (2026-08-05). Project reached its 1.0 milestone on 2026-03-31 after a long
+    0.x history, then shipped four patch releases (1.0.1-1.0.4) plus 1.1.0
+    within ~4 months — a healthy, accelerating cadence, not a one-off burst.
+    Eclipse Foundation now lists the project at "Mature" status. No signs of
+    maintenance-only or dormant behavior.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue addresses IoT/embedded fleet
+    OTA update management (rollout campaigns, device provisioning via DDI/DMF
+    APIs, staged/canary rollouts to constrained edge devices). home-assistant
+    is a smart-home hub for consumer devices, not a fleet update-management
+    backend for OEM/embedded device builders — different audience and job.
+  usefulness: low
+  usefulness_rationale: >
+    Technically distinct from everything we host, but the audience is narrow:
+    OEMs/embedded engineers managing device fleets, not the general
+    self-hoster/small-business crowd our other 24 recipes target. The
+    reference image also ships with an embedded H2 database "for test and
+    evaluation purposes" — real production use needs an external DB
+    (MySQL/Postgres) and, for full DMF functionality, RabbitMQ, adding stack
+    complexity for a niche use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Eclipse hawkBit is an actively maintained (1.1.0 shipped 2026-07-03, Eclipse
+  "Mature" status), EPL-2.0 project with an official Docker image
+  (hawkbit/hawkbit-update-server) and a single web UI/API port (8080),
+  making it mechanically reverse-proxy-compatible and installable today: its
+  one admin login is set via a standard Spring Security property
+  (hawkbit.server.im.users[0].password / SPRING_SECURITY_USER_PASSWORD) that
+  accepts a {bcrypt}-prefixed hash, so the root-password projection
+  (generated_from: "bcrypt:ROOT_PASSWORD") covers it cleanly — no
+  Traefik basic_auth gate needed. The blocker is fit, not mechanism: this is
+  IoT/embedded fleet update tooling for OEM and device engineering teams, a
+  different buyer than the rest of the catalogue, and the reference image's
+  default H2 database is eval-only, so a real deployment needs an added
+  Postgres/MySQL service (and RabbitMQ for full DMF rollout support),
+  pushing it closer to a multi-service stack than our simplest
+  single-container recipes. Worth building only if there is a concrete
+  IoT/embedded customer segment to serve; not a general-audience priority
+  otherwise.
