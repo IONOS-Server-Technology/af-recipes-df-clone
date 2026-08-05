@@ -73,11 +73,14 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose | native
-  secrets_required_at_first_boot: [<list of env vars / setup-flow secrets the app needs>]
+  secrets_required_at_first_boot: [<list of env vars / setup-flow secrets the app needs — include a basic-auth gate credential here if the app has no login of its own and needs one, [] if truly none>]
   secrets_expressible_today:
-    - secret: <name>
-      mechanism: generated_from_root_password | traefik_basic_auth | server_generated_no_customer_input | none_needed
-    # omit entries for secrets that have NO expressible mechanism — list those in blocking_issues instead
+    - secret: <name — must match an entry in secrets_required_at_first_boot>
+      mechanism: generated_from_root_password | traefik_basic_auth | server_generated_no_customer_input
+    # [] if secrets_required_at_first_boot is []. Do NOT add a placeholder
+    # entry (e.g. "none_needed") when there's nothing to express — an empty
+    # list already says that. Omit entries only for secrets that have NO
+    # expressible mechanism — list those in blocking_issues instead.
   blocking_issues: [<concrete reasons this can't ship as a recipe today, [] if none>]
   installable_today: true | false
   recommendation: build_now | build_with_caveats | blocked_on_platform | not_recommended
@@ -89,9 +92,22 @@ Notes:
 - `secrets_expressible_today` lists only what *can* be handled; anything the
   app needs that has no mechanism goes in `blocking_issues` — keeps the
   "why not" reasoning explicit instead of implied by absence.
+- **An app with no login of its own is not automatically secret-free.** If it
+  needs a Traefik `basic_auth` gate to avoid sitting open on the internet
+  (no built-in auth, e.g. Adminer), that gate's credential IS a secret
+  required at first boot — list it in `secrets_required_at_first_boot` and
+  give it a matching `secrets_expressible_today` entry with `mechanism:
+  traefik_basic_auth`. The structured fields must agree with whatever the
+  `summary` prose says about needing a mandatory gate; don't leave the
+  arrays empty while the prose describes a required credential.
 - `installable_today` is the sharp yes/no; `recommendation` adds the softer
   judgment call (e.g. `build_with_caveats` for an app that's installable but
   low-value, or `blocked_on_platform` for one that's high-value but needs
   IF-1420/1312 merged, or a real API-key input channel, first).
+- `version_health.notes` and any elapsed-time framing ("N months since the
+  last release") must be computed against **today's actual date**, not an
+  assumed or remembered one — get it from the environment/system clock, not
+  from training-data recall, and double check the arithmetic before writing
+  it.
 - No `analyzed_at`/worker metadata field — dark-factory's own issue/job
   records already carry that provenance; don't duplicate it in-file.
