@@ -1,0 +1,87 @@
+slug: chroma
+name: Chroma
+source_description: "Open-source embedding database for AI applications and semantic search"
+
+upstream:
+  url: https://www.trychroma.com/
+  repo_url: https://github.com/chroma-core/chroma
+  license: Apache-2.0
+  docker_image: chromadb/chroma:1.5.9
+
+version_health:
+  latest_version: "1.5.9"
+  latest_release_date: "2026-05-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very actively maintained as of 2026-08-05: tagged releases roughly
+    weekly through the spring (1.5.5 on 2026-03-10, 1.5.6/1.5.7 in early
+    April, 1.5.8 on 2026-04-16, 1.5.9 on 2026-05-05), plus a continuously
+    published dev-build train on Docker Hub (1.5.10.dev24x tags landing
+    within the last few days of research). No gap of concern; this is a
+    fast-moving, well-funded project (Chroma Inc.), not a maintenance-only
+    or dormant one.
+
+catalogue_fit:
+  categories: [ai, database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a vector/embedding database.
+    Chroma is a backend service, not an end-user app: it gives customers
+    already running Ollama, Open WebUI, n8n, or Hermes Agent from this same
+    catalogue a place to store embeddings for RAG/semantic-search workflows
+    instead of standing up their own Postgres+pgvector or a hosted vector
+    DB elsewhere. It's a genuinely new, complementary category rather than
+    a variant of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand from the growing self-hosted-AI/RAG audience, and it pairs
+    naturally with Ollama/Open WebUI/n8n already in the catalogue, but it
+    is a developer-facing infrastructure piece with no UI of its own — most
+    value only appears once wired up to another app or a custom pipeline,
+    so the addressable audience is narrower than a stand-alone consumer app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Chroma ships with no authentication enabled by default (the server
+      boots fully open) and its own auth options (token auth via
+      CHROMA_SERVER_AUTHN_PROVIDER/CHROMA_SERVER_AUTHN_CREDENTIALS, or
+      basic auth via an htpasswd file) are configured through a
+      static env var / mounted file, not a login screen — there is no
+      "admin login parameter" to project `generated_from` into. A Traefik
+      `basic_auth: true` gate in front of the whole service (same pattern
+      as Adminer/WUD) is mechanically expressible today and closes the
+      "open to the internet" gap.
+    - >
+      Worth flagging even though it's not a hard blocker: Chroma is
+      consumed almost exclusively by programmatic clients (its own Python/
+      JS SDKs, or another app's HTTP calls), not a browser. A Traefik HTTP
+      Basic Auth gate is usable from those clients (both SDKs support
+      setting custom request headers/auth), but it is a rougher fit than
+      for a human-driven web UI like Adminer's — every downstream
+      integration (e.g. an n8n workflow node) needs to be configured to
+      send the Basic Auth header on top of Chroma's own client config.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Chroma is a single-container, single-HTTP-port (8000) embedding/vector
+  database with an official, actively maintained Docker image and no
+  overlap in the current catalogue — it fills a real gap for customers
+  building RAG pipelines on top of Ollama/Open WebUI/n8n. It has no
+  built-in login of its own, so a mandatory Traefik `basic_auth: true` gate
+  (credential projected from the customer's root password) is the correct
+  and available mechanism to avoid shipping it open to the internet, making
+  it mechanically installable today. The caveat is fit, not mechanism: it's
+  a headless, API-only service that's rarely used stand-alone, so it should
+  be positioned/documented as an AI-stack building block rather than a
+  general-purpose app, and any downstream integration needs to be told to
+  send the basic-auth header.
