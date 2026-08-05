@@ -1,0 +1,87 @@
+slug: domjudge
+name: DOMjudge
+source_description: "Open-source automated programming contest judge for ICPC-style competitions"
+
+upstream:
+  url: https://www.domjudge.org/
+  repo_url: https://github.com/DOMjudge/domjudge
+  license: GPL-2.0-or-later (with vendored MIT/all-permissive components)
+  docker_image: domjudge/domserver:9.0.1
+
+version_health:
+  latest_version: "9.0.1"
+  latest_release_date: "2026-06-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    9.0.1 released 2026-06-11 (~2 months before this analysis on 2026-08-05);
+    9.0.0 released 2025-10-05; 8.3.0 released 2024-05-31. Roughly annual
+    major releases with patch releases in between, consistent history since
+    the project's 2004 founding, actively maintained by the ICPC/DOMjudge
+    community (used to run real ICPC regional/world finals). No signs of
+    slowdown or archival.
+
+catalogue_fit:
+  categories: [developer-tools, education]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches programming-contest judging
+    or automated code execution/grading. Closest neighbors (gitea,
+    opengist) are source-control/snippet tools, not contest infrastructure.
+    DOMjudge would be a genuinely new category (education/competitive-
+    programming) if it were mechanically deployable.
+  usefulness: low
+  usefulness_rationale: >
+    Real niche demand (university clubs, ICPC regional organizers) but a
+    narrow, one-off use case (spin up for a contest, tear down after) rather
+    than an always-on self-hosted app, and it needs the multi-container
+    setup below just to boot, which raises the bar versus most of the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_login_password, judgehost_worker_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No env var or config option lets the deployer set the initial `admin`
+      account password. The domserver container generates a random password
+      on first boot and writes it to
+      /opt/domjudge/domserver/etc/initial_admin_password.secret inside the
+      container (or prints it to container logs) — retrieval requires
+      `docker exec`/log access our customers don't have. There is no
+      `generated_from` channel: the app doesn't accept a supplied hash or
+      plaintext for this field, it always generates its own, so we have no
+      way to either set it to the customer's root-password hash or to
+      surface the generated value to the customer afterward.
+    - >
+      Requires a second container type (judgehost) running with
+      `privileged: true` and host cgroup mounts (/sys/fs/cgroup) to sandbox
+      and execute untrusted contestant-submitted code. This is a
+      fundamentally different trust/isolation requirement than any current
+      recipe and is a platform-level (not just secrets-mechanism) blocker
+      on shared multi-tenant infrastructure, independent of the admin-
+      password issue above.
+    - >
+      Needs an external MySQL/MariaDB database (not bundled in the official
+      image), adding a required extra service beyond the domserver +
+      judgehost pair.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  DOMjudge is a mature, actively maintained (9.0.1, 2026-06-11) contest-
+  judging system with no equivalent in our catalogue, but it fails the
+  current recipe mechanism on two independent grounds: its admin login
+  password is server-generated with no way for us to set it via
+  generated_from or to hand the generated value back to the customer, and
+  its judgehost component requires privileged containers with host cgroup
+  access to sandbox untrusted code, which is a container-isolation
+  requirement well beyond what our reverse-proxy/Traefik model or
+  multi-tenant hosting was designed for. Even setting the secrets-channel
+  gap aside, the privileged-container requirement alone makes this
+  unsuitable for the current platform. Not recommended to build until both
+  a customer-facing credential channel and a policy for privileged
+  contest-judging workloads exist.
