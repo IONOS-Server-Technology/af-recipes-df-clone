@@ -1,0 +1,91 @@
+slug: anki-sync-server-enhanced
+name: Anki Sync Server Enhanced
+source_description: "Self-hosted Anki sync server with multi-user support, backups, and web dashboard"
+
+upstream:
+  url: https://github.com/chrislongros/anki-sync-server-enhanced
+  repo_url: https://github.com/chrislongros/anki-sync-server-enhanced
+  license: AGPL-3.0
+  docker_image: chrislongros/anki-sync-server-enhanced
+
+version_health:
+  latest_version: "26.08"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Third-party (not official-Anki-maintained) Docker wrapper that tracks
+    upstream Anki releases with near-daily automated builds: 26.08 pushed
+    within the last day, 26.05 five days prior, 25.09.4/25.09.3/25.09.2
+    roughly two-three months before that. Repo is small (~60 commits,
+    single maintainer, chrislongros) but shows active CI/CD and release
+    cadence as of 2026-08-05. Not archived, no EOL signal, but young/low
+    community size relative to most of our current catalogue's upstreams —
+    bus-factor risk with a single maintainer.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes serves flashcard/spaced-repetition
+    sync. This would be a genuinely new category (personal
+    education/productivity) rather than overlapping an existing recipe —
+    closest analogues (Syncthing) are generic file sync, not
+    Anki-protocol-aware.
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow appeal — students/language-learners who want to avoid
+    AnkiWeb's free-tier limits or keep flashcard data private. It's a
+    single-purpose sync backend for one specific desktop/mobile app
+    ecosystem, not a broad-audience tool, and the primary interface is the
+    Anki sync protocol rather than a browser UI most customers would open.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [sync_user_credential, dashboard_auth]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The app's core credential (SYNC_USER1=<username>:<password>, what the
+      customer types into their Anki client to sync) is a single combined
+      username+password env var, not a password-only admin-login field.
+      There's no channel today for the customer to choose their own sync
+      username, and no way to hand the app a password that matches
+      something the customer actually knows to type into the Anki client —
+      generated_from only ever exposes a hash to the app, never the
+      customer's plaintext, and the sync client needs the plaintext.
+    - >
+      Even ignoring the username/plaintext problem, PASSWORDS_HASHED mode
+      expects pbkdf2 hashes specifically (via the app's own
+      user-manager.sh hash tool); generated_from only supports
+      argon2/bcrypt. The hash algorithms are incompatible, so root-password
+      projection can't produce a value the app would accept even in
+      hashed mode.
+    - >
+      A second, independent secret exists for the optional web dashboard
+      (DASHBOARD_AUTH=user:pass). Traefik basic_auth could gate the
+      dashboard route without needing the app's own DASHBOARD_AUTH, but
+      that still leaves two distinct auth surfaces (sync protocol +
+      dashboard) needing two independent credentials — the
+      root-password-projection mechanism only covers one.
+    - >
+      Sync traffic (port 8080/8443) and the dashboard (port 8081) are
+      separate services on separate ports with different semantics (raw
+      sync protocol vs. browser UI); fronting both cleanly behind a single
+      Traefik router the way our other recipes do is not a clean fit.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Anki Sync Server Enhanced would be a genuinely new category for the
+  catalogue (personal flashcard sync) with an actively-updated upstream,
+  but it fails our installability test in a way that isn't just "waiting
+  on IF-1420/1312 to merge": its core credential is a customer-chosen
+  username+password pair the Anki client needs in plaintext, which our
+  root-password-hash-projection mechanism structurally cannot supply, and
+  its optional hashed-password mode uses pbkdf2 while our mechanism only
+  supports argon2/bcrypt. Combined with a narrow, technical target
+  audience and a single-maintainer upstream, this is not recommended for
+  the recipe catalogue today.
