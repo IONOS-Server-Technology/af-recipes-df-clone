@@ -1,0 +1,69 @@
+slug: autobrr
+name: autobrr
+source_description: "Modern download automation tool for torrents and usenet with real-time IRC monitoring"
+
+upstream:
+  url: https://autobrr.com
+  repo_url: https://github.com/autobrr/autobrr
+  license: GPL-2.0-or-later
+  docker_image: ghcr.io/autobrr/autobrr
+
+version_health:
+  latest_version: "v1.83.0"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    9 days between v1.83.0 (2026-07-27) and today (2026-08-05). Preceding
+    tags (v1.82.1, v1.82.0, v1.81.0, v1.80.0, v1.79.0, v1.78.0, v1.77.1,
+    v1.77.0, v1.76.0) shipped every 1-3 weeks going back through spring
+    2026. No archival or EOL signal; repo is under active, frequent
+    development.
+
+catalogue_fit:
+  categories: [automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue touches download/media
+    automation — n8n is generic workflow automation, not torrent/usenet
+    filtering. autobrr fills a distinct niche: it watches indexer
+    IRC/RSS/JSON feeds in real time, matches releases against
+    customer-defined filters, and pushes approved torrents straight to a
+    download client (qBittorrent, Deluge, Transmission, etc.) or Arr app.
+    That download client itself is out of scope for this recipe (autobrr
+    only automates the decision layer), so value depends on the customer
+    already running (or separately standing up) a download client to push
+    to.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely novel category for the catalogue with no internal overlap,
+    but its usefulness is conditional: autobrr is a piece of a pipeline
+    (indexer -> filter -> download client) rather than a complete
+    self-contained tool, so a customer gets real value from it only if they
+    also run a compatible download client, which AF does not currently
+    offer as a recipe either.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  autobrr is a single-container app (SQLite by default, no separate DB
+  service required) serving a web UI on port 7474 that boots with zero
+  customer-supplied configuration: on first visit it walks the user through
+  its own onboarding wizard to create the single admin account
+  (username/password, bcrypt-hashed and stored internally), the same
+  self-serve pattern already used by uptime-kuma, immich, and anythingllm —
+  so no generated_from projection or Traefik basic_auth gate is needed.
+  IRC/indexer/download-client integrations and optional OIDC are configured
+  afterward through the UI and are not required to boot, so they don't
+  block installability. It is mechanically installable today
+  (recommendation: build_now), though its real-world value is coupled to
+  the customer also having a download client to push releases to, which is
+  outside this recipe's scope.
