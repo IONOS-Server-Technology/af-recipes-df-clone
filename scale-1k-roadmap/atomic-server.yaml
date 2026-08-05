@@ -1,0 +1,103 @@
+slug: atomic-server
+name: Atomic Server
+source_description: "Realtime open-source headless CMS and graph database for structured content"
+
+upstream:
+  url: https://atomicdata.dev
+  repo_url: https://github.com/atomicdata-dev/atomic-server
+  license: MIT
+  docker_image: joepmeneer/atomic-server
+
+version_health:
+  latest_version: "v0.41.0-beta.2"
+  latest_release_date: "2025-08-02"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Not archived and not EOL — the `develop` branch shows commits as recent
+    as today (2026-08-05), so upstream engineering is still alive. But the
+    formal release cadence has stalled: the last tagged GitHub release is
+    v0.41.0-beta.2 from 2025-08-02 (over a year ago as of today), and the
+    last *stable* (non-beta) tag is v0.40.3 from 2025-07-06 (~13 months ago).
+    More concerning for us specifically: the official Docker Hub image
+    (joepmeneer/atomic-server) has not published a new version-numbered tag
+    since v0.38.0 on 2024-06-12 (~26 months ago) — the maintainers now only
+    keep a floating `latest` tag current (last pushed 2026-06-22) plus a
+    `develop` tag, with no stable pinned tag corresponding to any 2025
+    release. Pinning to `v0.38.0` would mean shipping a build roughly two
+    stable-release-cycles behind current `develop`; pinning to `latest`
+    would violate RFC-002's no-`:latest` rule and track an unversioned
+    moving target. Pre-1.0 project (upstream itself states breaking changes
+    are expected until 1.0).
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes offer a generic structured-data /
+    graph-database / headless-CMS layer with a browser-based data browser
+    and table editor. The closest conceptual sibling, `anytype-server`, is a
+    personal notes/knowledge sync backend with no web UI of its own and
+    relies on raw TCP sync ports rather than a single HTTP surface — a
+    different shape of product. Atomic Server would be a genuinely new
+    category (developer/structured-content backend) rather than a
+    duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability (RDF-like linked-data store + CMS + table
+    editor with JS/React/Svelte SDKs), but it targets developers building on
+    top of it rather than an end-user self-hosting for its own sake — a
+    narrower audience than e.g. Vaultwarden or Immich. Pre-1.0 stability
+    caveats and the stale pinned-image situation (see version_health) also
+    temper how confidently we could support it today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Atomic Server has no username/password login of its own — identity is
+      via public/private-key "Agents", not a hash-checkable credential — so
+      there is no admin-login parameter to attach a `generated_from:
+      "<algo>:ROOT_PASSWORD"` projection to. A Traefik `basic_auth` gate can
+      still cover the front door (see secrets_expressible_today), but that
+      only stops anonymous access — it does not complete setup.
+    - >
+      The actual first-run admin bootstrap (`/setup`) requires a one-time
+      invite token that the app itself generates and prints only to
+      container stdout/logs at boot (confirmed against `atomic-server
+      --initialize` / `ATOMIC_INITIALIZE`, which "recreates the /setup
+      invite... prints it to console"). There is no env var to set this
+      token to a customer- or platform-chosen value, and no current AF
+      mechanism to surface container log output back to the customer. Even
+      with a basic_auth gate in front, the customer has no way to retrieve
+      the invite token needed to actually create the root Agent — this is
+      the reverse of the usual "customer can't supply a secret" problem
+      (here the app emits a secret the customer needs, and there's no
+      channel to deliver it), so it is not something IF-1420 or IF-1312 as
+      currently scoped would fix.
+    - >
+      Official Docker image has no stable version-numbered tag newer than
+      v0.38.0 (2024-06-12), roughly 26 months stale relative to `develop`
+      and not matching any 2025 GitHub release — see version_health.notes.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Atomic Server is a legitimately novel addition (structured-data/graph-CMS
+  backend, no overlap with the current 24 recipes) and upstream engineering
+  is still active, but it fails the first-boot secret-channel test for a
+  reason distinct from the usual root-password-projection gap: its own
+  setup flow needs an app-generated invite token surfaced to the customer,
+  and no such log/output channel exists in the platform today. Combined
+  with a stale pinned-Docker-tag situation (no version-numbered image in
+  ~26 months) and pre-1.0 stability caveats, this should stay
+  `blocked_on_platform` until either a log/first-boot-output surfacing
+  mechanism exists or upstream adds a settable-invite env var — building a
+  recipe now would mean shipping a stale image behind a gate that can't
+  actually complete setup.
