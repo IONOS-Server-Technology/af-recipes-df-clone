@@ -1,0 +1,89 @@
+slug: buildbot
+name: Buildbot
+source_description: "Self-hosted CI/CD framework for automated builds and deployments"
+
+upstream:
+  url: https://buildbot.net/
+  repo_url: https://github.com/buildbot/buildbot
+  license: GPL-2.0
+  docker_image: buildbot/buildbot-master
+
+version_health:
+  latest_version: "v4.3.0"
+  latest_release_date: "2025-05-12"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    v4.3.0 shipped 2025-05-12 — just under 15 months before today
+    (2026-08-05), the longest gap between tagged releases in the project's
+    history (prior releases ran roughly every 1-3 months through 2024,
+    e.g. v4.2.1 2025-01-10, v4.2.0 2024-12-10, v4.1.0 2024-10-13). The repo
+    itself is not archived — 703 open issues, 114 open PRs, and the
+    `buildbot/buildbot-master` Docker Hub `master` tag was pushed ~29 days
+    ago, so commits and CI are still flowing. But no versioned release has
+    landed in over a year, which reads as maintenance-only rather than
+    active feature development; a recipe pinned to a real tag would be
+    pinned to a build that is now well over a year old.
+
+catalogue_fit:
+  categories: [developer-tools, ci-cd]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Gitea (existing recipe) is git hosting only and has no build-execution
+    engine; nothing in the current 24-app catalogue runs actual CI/CD
+    pipelines. Buildbot would be the first dedicated build-automation tool
+    in the catalogue if it fit our turnkey-app model.
+  usefulness: low
+  usefulness_rationale: >
+    Buildbot is a Python-configuration-as-code CI framework, not a
+    turnkey app: out of the box it has zero builders, schedulers, or
+    workers defined. A customer must author a `master.cfg` (Python)
+    describing which repos to build, what steps to run, and provide
+    credentials for those repos/registries themselves before the app does
+    anything useful — a materially heavier lift than every other recipe in
+    the catalogue, which are usable within minutes of install. Self-hosted
+    CI is also well served today by GitHub Actions runners, Woodpecker,
+    Drone, or Gitea Actions, all lighter-weight for the same job.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, WORKER_PASS, basic_auth_password]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: WORKER_PASS
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Buildbot ships with no built-in admin login of its own; access
+      control (if any) is defined inside the customer-authored
+      `master.cfg`, not via an env var af-api could set. A Traefik
+      basic_auth gate covers the exposure problem, but it does not solve
+      the deeper issue below.
+    - >
+      The app is non-functional at first boot without a customer-authored
+      `master.cfg` (Python) defining builders/schedulers/workers and
+      credentials for the repos being built. There is no input channel
+      today for this — it isn't a single secret or password, it's an
+      arbitrary code/config artifact — so even with the basic-auth gate in
+      place the installed app would boot to an empty, unusable CI system.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Buildbot could technically clear the /compose secrets constraint (a
+  Postgres password and worker-connect secret are both patternless and
+  server-generatable, and the missing login can be papered over with
+  Traefik basic_auth), but that's not the real barrier. Buildbot is
+  config-as-code CI: it needs a customer-authored `master.cfg` describing
+  what to build and with what credentials before it's a working product,
+  which is a structural mismatch with the "give it a domain and it just
+  works" model every current recipe follows. Combined with no tagged
+  release in ~15 months (maintenance-only, longest gap in the project's
+  history) and better-fitting self-hosted CI options already on the
+  market (Woodpecker, Drone, Gitea Actions), this is not a good use of a
+  recipe slot today.
