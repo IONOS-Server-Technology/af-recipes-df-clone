@@ -1,0 +1,81 @@
+slug: atlas-cmms
+name: Atlas CMMS
+source_description: Self-hosted CMMS for work orders, preventive maintenance, and asset tracking
+
+upstream:
+  url: https://atlas-cmms.com/
+  repo_url: https://github.com/Grashjs/cmms
+  license: AGPL-3.0 (dual-licensed; commercial license adds white-labeling/branding via a LICENSE_KEY, not required for core functionality)
+  docker_image: intelloop/atlas-cmms-backend:v1.8.0 (paired with intelloop/atlas-cmms-frontend:v1.8.0)
+
+version_health:
+  latest_version: v1.8.0
+  latest_release_date: 2026-07-31
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.8.0 tagged 2026-07-31, i.e. 5 days before today (2026-08-05); the
+    matching Docker Hub image tag was pushed 5 days ago and the rolling
+    `latest` tag was rebuilt ~3 hours ago. Prior tags show a steady
+    roughly-monthly-to-bimonthly cadence through all of 2026: v1.7.0
+    (2026-06-23), v1.6.0 (2026-04-30), v1.5.1 (2026-04-05), v1.5.0
+    (2026-03-06), v1.4.0 (2026-01-09), v1.3.0 (2025-12-07), back to v1.0.0
+    (2025-03-03). Repo (Grashjs/cmms, upstream org page github.com/atlas-cmms)
+    is not archived, has 717 stars / 202 forks / 20 open issues / ~2,029
+    commits on main. Both tagging and engineering are active, no cadence
+    concern.
+
+catalogue_fit:
+  categories: [cmms, maintenance-management, asset-tracking, facilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch CMMS / preventive-maintenance /
+    physical-asset-tracking — the closest neighbors by shape (n8n,
+    paperless-ngx, immich, anytype-server) are workflow-automation,
+    document-management, photo-storage, and note-taking tools
+    respectively, none of which serve facilities/maintenance teams. This
+    is a genuinely new vertical for the catalogue, not a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (facilities managers, manufacturing, healthcare
+    maintenance teams) that nothing else in the catalogue addresses, but
+    it's a narrower B2B niche than most existing recipes and the stack is
+    heavier than a typical single-container recipe (Postgres + MinIO +
+    separate backend/frontend + nginx), raising the effective hosting-plan
+    floor.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik basic-auth gate credential (the app's own signup flow lets
+      whoever visits first create an organization and become its admin
+      unless ALLOWED_ORGANIZATION_ADMINS is set to a customer-chosen email
+      allowlist we have no channel to populate; gating the whole app closes
+      that race the same way Appsmith's recipe does)
+  secrets_expressible_today:
+    - secret: traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Atlas CMMS is mechanically installable today as a docker-compose recipe
+  (Postgres + MinIO + Java/Spring backend + React frontend, fronted by the
+  project's own nginx or directly by Traefik on one HTTP port) behind
+  Traefik basic_auth: Postgres, MinIO, and JWT-signing secrets are all
+  server-generated with no customer input required, and the optional
+  LICENSE_KEY (commercial white-labeling only) is not needed for core
+  AGPLv3 functionality. Like Appsmith, the app has no env-settable admin
+  account of its own — the first visitor to sign up creates an
+  organization and becomes its admin, gated only by an
+  ALLOWED_ORGANIZATION_ADMINS email allowlist we have no channel to
+  populate per customer — so a Traefik basic_auth gate is required to
+  close that race rather than optional. It fills a genuinely new vertical
+  versus the current 24-recipe catalogue (no existing recipe touches
+  maintenance/asset-tracking), and upstream is actively maintained with a
+  release 5 days ago and a consistent cadence through all of 2026.
+  Recommend build_now, with the multi-service footprint (5 containers) and
+  niche B2B audience called out as the main caveats.
