@@ -1,0 +1,84 @@
+slug: embystat
+name: EmbyStat
+source_description: "Statistics and analytics tool for Emby and Jellyfin media servers"
+
+upstream:
+  url: https://mregni.github.io/EmbyStat/
+  repo_url: https://github.com/mregni/EmbyStat
+  license: MIT
+  docker_image: uping/embystat
+
+version_health:
+  latest_version: "v0.2.0-beta.38"
+  latest_release_date: "2022-07-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Latest GitHub release v0.2.0-beta.38 shipped 2022-07-27 — just over 4
+    years before today (2026-08-05). Release velocity was already weekly-
+    to-monthly betas through 2021-2022 and then stopped completely; no
+    tag since. The README (still live, repo not archived on GitHub) has an
+    explicit maintainer note: "I don't have a lot of time anymore and I
+    keep getting blocked with the Emby media sync[,] I decided to put this
+    [project] in sleep mode", and the maintainer directs users to the
+    unrelated project JellyStat (github.com/CyferShepard/Jellystat)
+    instead. The `uping/embystat` Docker Hub image mirrors this: its
+    `nightly` tag was last pushed ~3 years ago and `beta`/`latest` tags
+    are even older (~4-8 years), so no image has been rebuilt since the
+    project went dormant. Marked `maintenance-only` rather than `eol`
+    only because the repo itself is not archived and the maintainer's note
+    stops short of a formal EOL announcement — but this is abandonware in
+    practice, not a project anyone should build a new recipe on top of.
+
+catalogue_fit:
+  categories: [media, monitoring, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers Emby/Jellyfin usage
+    statistics or library health (missing episodes, duplicates, quality
+    gaps) — this would be net-new ground. However EmbyStat is purely a
+    companion/read-only client: it has no value without a customer
+    already running their own Emby or Jellyfin media server, and neither
+    Emby nor Jellyfin is itself in the catalogue (or being considered
+    here), so the addressable customer base inside this platform is
+    whoever separately self-hosts (or points at an external) Emby/
+    Jellyfin instance.
+  usefulness: low
+  usefulness_rationale: >
+    Even ignoring the dormancy, this is a narrow companion tool for a
+    media-server type the catalogue doesn't otherwise serve, and the
+    maintainer's own guidance is to use a different, actively developed
+    project (JellyStat) for this job. Shipping EmbyStat now would mean
+    building a recipe on top of software its author has stopped
+    developing, when a maintained alternative covering the same need is
+    publicly known.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic_auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic_auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  EmbyStat is mechanically simple to install — a single container
+  (uping/embystat) with local LiteDB storage, one HTTP port (6555), a
+  config volume, and no built-in login of its own, so it would clear the
+  `/compose` constraint today via a Traefik `basic_auth: true` gate (the
+  same pattern used for n8n, WUD, and Open WebUI), with no mechanical
+  blocking issues. The Emby/Jellyfin server connection itself (URL + API
+  key) is entered by the customer through EmbyStat's own setup wizard
+  after login, not a boot-time secret, so it doesn't need a platform
+  input channel. Despite being installable, this is a `not_recommended`
+  candidate: upstream has had no release in over 4 years, the maintainer
+  has explicitly put the project in "sleep mode" and points users to a
+  different actively-developed project (JellyStat) for the same need,
+  and the catalogue has no Emby/Jellyfin server recipe for it to
+  complement in the first place. Shipping a recipe for abandonware with
+  a maintainer-endorsed replacement in the wild is not a good use of a
+  catalogue slot.
