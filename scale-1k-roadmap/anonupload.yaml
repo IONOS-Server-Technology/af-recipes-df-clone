@@ -1,0 +1,76 @@
+slug: anonupload
+name: AnonUpload
+source_description: "AnonUpload is a secure anonymous file sharing application without database requirements"
+
+upstream:
+  url: https://github.com/Supernova3339/anonupload
+  repo_url: https://github.com/Supernova3339/anonupload
+  license: GPL-3.0
+  docker_image: ghcr.io/supernova3339/anonfiles
+
+version_health:
+  latest_version: "1.0.0"
+  latest_release_date: "2022-12-23"
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    Latest git tag is v1.0.0 (2022-12-23); the last commit of any kind to
+    the repo (a README/bug-report doc tweak) is from 2023-02-24. That is
+    roughly 3 years and 5 months before today (2026-08-05) with zero
+    commits, releases, or triaged issue activity since. The published
+    Docker image (ghcr.io/supernova3339/anonfiles) has exactly one tag
+    ("1", aliased 1.0/1.0.0) pushed once, over 3 years ago, and never
+    updated since. The repo is not formally GitHub-archived and carries no
+    explicit EOL announcement from the author, but by every practical
+    signal (no commits, no releases, no image rebuilds, 7 open issues with
+    no responses since Jan 2023) it reads as an abandoned single-developer
+    project rather than one in ongoing maintenance.
+
+catalogue_fit:
+  categories: [productivity, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does plain anonymous
+    file-drop/sharing. OpenGist is the closest neighbor but is scoped to
+    Git-backed text/code snippets, not arbitrary file uploads; Syncthing is
+    P2P folder sync between owned devices, not one-off link sharing with
+    strangers. A true "upload a file, get a shareable link, auto-expire"
+    tool would be a novel category if the underlying app were healthy.
+  usefulness: low
+  usefulness_rationale: >
+    The use case (quick anonymous file drop) has real appeal, but this
+    specific project is a single-maintainer PHP app that stopped shipping
+    in early 2023, with its one Docker image frozen at that point too —
+    exactly the kind of app (public-facing file upload/serving surface)
+    where an unpatched multi-year-old codebase is a bad security trade for
+    the value it adds.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      No current or maintained upstream image: the only published tag is
+      frozen at the app's original 2022-2023 state, so any recipe would
+      ship a 3.5-year-old, unpatched build of a public file-upload/serving
+      surface with no vendor path to future security fixes.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  AnonUpload is a single-container, single-HTTP-port (80) databaseless PHP
+  app with a built-in admin login (ADMIN_EMAIL/ADMIN_PASSWORD env vars),
+  which mechanically clears the /compose constraint cleanly via
+  generated_from:"<algo>:ROOT_PASSWORD" on ADMIN_PASSWORD, the same shape as
+  Vaultwarden's ADMIN_TOKEN. It fills a genuine, currently-unfilled niche
+  (anonymous file sharing) in the 24-recipe catalogue. However, the project
+  itself has had zero commits, releases, or image rebuilds since early
+  2023 (~3.5 years), and its one Docker image tag is frozen at that same
+  point — shipping a customer-facing file-upload surface with no patch
+  path outweighs the value of the niche. Recommend not_recommended; revisit
+  only if the upstream resumes activity or a maintained fork emerges.
