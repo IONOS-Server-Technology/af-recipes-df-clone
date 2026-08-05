@@ -1,0 +1,71 @@
+slug: cassandra-reaper
+name: Cassandra Reaper
+source_description: "Repair scheduler and web UI for orchestrating Apache Cassandra cluster repairs"
+
+upstream:
+  url: http://cassandra-reaper.io/
+  repo_url: https://github.com/thelastpickle/cassandra-reaper
+  license: Apache-2.0
+  docker_image: thelastpickle/cassandra-reaper
+
+version_health:
+  latest_version: "5.0.0"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.0.0 published 2026-07-08 (~4 weeks before this analysis), preceded by
+    4.2.5 (2026-06-11), 4.2.4 (2026-06-02), 4.2.3 (2026-05-19), 4.2.2
+    (2026-05-13) — a steady monthly-or-better cadence through mid-2026, with
+    5.0.0 itself a maintenance/dependency-upgrade release (Netty/Jackson CVE
+    fixes, Java 17, Dropwizard 5). Actively maintained by The Last Pickle /
+    DataStax contributors, no archival notice on the repo.
+
+catalogue_fit:
+  categories: [infrastructure, database-ops]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe touches Apache Cassandra in any form — this would be
+    the first. Reaper itself is not a Cassandra server; it is a repair
+    scheduler/UI that connects over JMX to an already-running Cassandra
+    cluster the customer operates elsewhere (there is no Cassandra database
+    recipe in this catalogue to pair it with).
+  usefulness: low
+  usefulness_rationale: >
+    Real operational value exists only for a customer who already runs a
+    Cassandra cluster outside this platform and wants a hosted UI to manage
+    repairs on it — a narrow, specialist DBA audience. Since we don't host
+    Cassandra itself, this recipe would be an orphaned tool pointing at
+    infrastructure the customer manages elsewhere, not a self-contained app
+    like the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - REAPER_AUTH_PASSWORD
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: REAPER_AUTH_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Cassandra Reaper is mechanically installable: it has a single-port web UI
+  (reverse-proxy friendly), can run with an in-memory storage backend so it
+  needs no database at boot, and its only mandatory startup credential
+  (REAPER_AUTH_USER/REAPER_AUTH_PASSWORD, plaintext-only — no hash support)
+  can be server-generated and never exposed, with the customer-facing gate
+  handled by Traefik basic_auth against their root-password hash instead.
+  Target Cassandra clusters are registered later through the UI (JMX host +
+  credentials), which is a normal in-app configuration step, not a boot-time
+  secret. The blocker is fit, not mechanism: we have no Cassandra recipe in
+  the catalogue, so Reaper would manage infrastructure the customer runs
+  entirely outside this platform — a niche specialist tool rather than a
+  self-contained app, hence not_recommended despite being technically
+  buildable today.
