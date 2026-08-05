@@ -1,0 +1,93 @@
+slug: activepieces
+name: Activepieces
+source_description: "Open-source no-code workflow automation with 200+ app integrations"
+
+upstream:
+  url: https://www.activepieces.com/
+  repo_url: https://github.com/activepieces/activepieces
+  license: MIT (core); packages/ee (enterprise features) under a separate commercial/proprietary license
+  docker_image: ghcr.io/activepieces/activepieces
+
+version_health:
+  latest_version: "0.86.3-hotfix.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (0.86.3-hotfix.1) published today, 2026-08-05. GitHub
+    release history shows near-continuous shipping: 0.86.0 through 0.86.3
+    all landed within the last five weeks (2026-07-01 through 2026-07-17),
+    plus release-candidate builds and this same-day hotfix. Repo is not
+    archived, pushed_at is today, 436 open issues actively triaged, 23.6k
+    stars — clearly an active, fast-moving project.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Direct conceptual overlap with n8n: both are visual, no-code/low-code
+    workflow-automation platforms styled as open-source Zapier alternatives,
+    both need Postgres, both expose a single web UI port behind Traefik.
+    Activepieces' pitch leans harder into AI-agent/MCP-server pieces and a
+    larger claimed integration count (200+ "pieces" vs n8n's node library),
+    which could appeal to a customer specifically wanting AI-agent workflows
+    rather than n8n's more general/technical node editor — but for a
+    customer just wanting "workflow automation," n8n already covers the
+    same job.
+  usefulness: medium
+  usefulness_rationale: >
+    Legitimate, popular, actively maintained tool with real demand (23.6k
+    GitHub stars), but it duplicates the job n8n already does in the
+    catalogue rather than filling a gap. Value to the customer is more
+    "which brand of no-code automation do I prefer" than a new capability,
+    which caps usefulness at medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, AP_POSTGRES_PASSWORD, AP_ENCRYPTION_KEY, AP_JWT_SECRET]
+  secrets_expressible_today:
+    - secret: AP_POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: AP_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AP_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the upstream docker-compose.yml and .env.example:
+      there is no admin-username/admin-password environment variable at
+      all. The app boots with zero users, and the first visitor to the
+      public URL is presented with an open account-creation screen; whoever
+      submits it first becomes the platform's sole admin. This is the same
+      shape of problem as the 2FAuth gap analysis (see apps-gaps/2fauth.yaml)
+      — no `type: password` parameter on the app's own login exists to
+      target with `generated_from: "<algo>:ROOT_PASSWORD"`, because the
+      credential is created client-side via self-registration, not injected
+      via env var.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger races to register first" version
+      of this problem, but per the precedent set in the 2FAuth analysis,
+      today's basic_auth mechanism has no channel to also hand the customer
+      a *second*, distinct credential for the in-app signup form beyond the
+      single root-password projection already used for the gate itself —
+      so it does not fully resolve the underlying provisioning gap.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Activepieces is an active, fast-moving, well-starred workflow-automation
+  platform, but it lands in the catalogue as a near-duplicate of n8n rather
+  than filling a new gap — both are Postgres-backed, single-web-port,
+  no-code automation tools. It also fails the installability test for the
+  same structural reason as 2FAuth: there is no environment variable to
+  preset the sole admin account, so the app relies on an open, first-visitor
+  self-registration screen that neither `generated_from:ROOT_PASSWORD` nor a
+  `basic_auth` gate alone can safely provision for the customer. The
+  internal Postgres/Redis/JWT/encryption secrets are all trivially
+  server-generated and not blocking on their own. Revisit only if upstream
+  adds an env-var-driven initial-admin flow, or the platform gains a second
+  customer-facing credential channel beyond root-password projection — and
+  even then, weigh it against the existing n8n recipe before prioritizing.
