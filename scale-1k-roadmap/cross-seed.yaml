@@ -1,0 +1,86 @@
+slug: cross-seed
+name: Cross-seed
+source_description: "Automatic cross-seeding tool for private and public torrent trackers"
+
+upstream:
+  url: https://www.cross-seed.org/
+  repo_url: https://github.com/cross-seed/cross-seed
+  license: Apache-2.0
+  docker_image: ghcr.io/cross-seed/cross-seed
+
+version_health:
+  latest_version: "v6.13.7 (stable); v7.0.0-22 prerelease track"
+  latest_release_date: "2026-06-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag is v6.13.7 (2026-05-04), but the project is actively
+    cutting v7.0.0 prereleases in parallel — most recently v7.0.0-22 on
+    2026-06-01, roughly 2 months before today (2026-08-05), with a dense
+    cadence of prereleases through May-June 2026 (v7.0.0-9 through -22 in
+    about 5 months). No archival or EOL signal; upstream is clearly
+    actively developed, currently mid-way through a major-version
+    transition (v6 -> v7).
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches torrent/download automation,
+    so on paper this would be a new category. In practice, though,
+    cross-seed is not a standalone tool: its entire function is to watch
+    an existing torrent client (qBittorrent/Deluge/Transmission/rTorrent)
+    and query existing Torznab indexers (via Prowlarr or Jackett) to find
+    cross-seedable matches. None of those companion apps exist in the
+    catalogue today, so a customer deploying this recipe alone would get a
+    daemon with nothing to connect to.
+  usefulness: low
+  usefulness_rationale: >
+    Useful only as part of a torrent-automation stack (torrent client +
+    indexer manager + cross-seed) that we don't otherwise offer; shipped
+    in isolation it has no functional value to a customer, and the target
+    audience (private-tracker/cross-seeding hobbyists) is narrow relative
+    to the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - torrent client URL + credentials (qBittorrent/Deluge/Transmission/rTorrent)
+    - Torznab indexer URLs + API keys (from a customer's own Prowlarr or Jackett instance)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      cross-seed has no web UI at all — it is a headless daemon configured
+      via a JS config file (config.js), plus a small HTTP API (port 2468)
+      used for webhooks/triggers, not human administration. There is no
+      login screen to project a root-password hash into and nothing
+      meaningful to gate with Traefik basic_auth, since there's no browser
+      surface to protect.
+    - >
+      The app is non-functional without a torrent client connection and at
+      least one Torznab indexer URL/API key, both of which are
+      customer-supplied, arbitrary, third-party credentials pointing at
+      services outside this recipe (and outside our current catalogue
+      entirely). There is no channel today (generated_from or otherwise)
+      to get a customer-chosen value into config.js at /compose time.
+    - >
+      Even if the credential-injection gap were solved, the recipe would
+      depend on companion recipes (a torrent client, Prowlarr/Jackett) that
+      don't exist in the catalogue yet, so it can't be usefully deployed
+      standalone regardless of the secrets question.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Cross-seed is an actively maintained (latest stable v6.13.7, prereleases
+  as recent as June 2026) but narrow-purpose daemon: it has no web UI,
+  needs a customer-supplied torrent client connection and Torznab
+  indexer API keys to do anything useful, and has no login surface for
+  our root-password-projection or Traefik basic_auth mechanisms to attach
+  to. It also depends on companion apps (a torrent client, Prowlarr or
+  Jackett) that aren't in the catalogue, so it would ship as a
+  non-functional standalone container even if the credential problem were
+  solved. Not recommended — both structurally blocked on the current
+  /compose mechanism and low-value on its own.
