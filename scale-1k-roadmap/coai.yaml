@@ -1,0 +1,81 @@
+slug: coai
+name: Coai
+source_description: "Multi-provider AI platform with user management, quotas, and usage billing"
+
+upstream:
+  url: https://www.coai.dev/
+  repo_url: https://github.com/coaidev/coai
+  license: Apache-2.0
+  docker_image: programzmh/chatnio
+
+version_health:
+  latest_version: "4.25.0 (Docker image tag; latest GitHub release tag is v4.0.0)"
+  latest_release_date: "2026-03-12"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Repo (coaidev/coai, formerly "ChatNio", 9.3k stars) is not dormant but
+    tags releases inconsistently. Last formal GitHub release/tag is v4.0.0
+    (2025-10-23, ~9.5 months before today 2026-08-05). However commit
+    history continues past that: a burst of "sora adapter"/video-generation
+    commits in Nov 2025, a docs update 2026-01-23, and the most recent
+    commit "chore: atomic write" on 2026-03-12 (~5 months ago). The Docker
+    Hub image (programzmh/chatnio) is versioned independently of git tags —
+    tag 4.24.2 pushed ~9 months ago, 4.25.0 (also "latest") pushed ~5 months
+    ago, matching the March 2026 commit. Net: active but bursty, with no
+    commits or image pushes visible in the last ~5 months as of today.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >
+    Open WebUI (bundled with Ollama) is a single-tenant chat UI for
+    self-hosted local models. Coai is positioned differently: a
+    multi-tenant gateway in front of 35+ external LLM providers (OpenAI,
+    Claude, Gemini, etc.) with a built-in admin backend for per-user quotas,
+    credit/subscription billing, and usage analytics. A customer wanting to
+    resell or meter AI access across a team gets that out of the box here;
+    Open WebUI has no billing/quota layer at all. Real differentiation, not
+    a duplicate, if there is demand for the billing/multi-tenant angle.
+  usefulness: medium
+  usefulness_rationale: >
+    Multi-tenant billing/quota management for LLM access is a niche but
+    real need (agencies/resellers metering AI usage for clients). Value is
+    capped by the fact that the app itself contributes no AI capability —
+    it only proxies external provider API keys the customer must supply
+    manually post-deploy, and by an upstream release process that looks
+    thin/inconsistent (see version_health).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MYSQL_ROOT_PASSWORD / MYSQL_PASSWORD (internal DB credential)
+    - SECRET (JWT signing key)
+    - basic_auth gate credential (front door — app's own admin login has a
+      hardcoded, non-configurable-at-deploy default)
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD / MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Coai (upstream "ChatNio") is a self-contained docker-compose stack
+  (app + MySQL + Redis) behind one HTTP port, so it is mechanically
+  installable today: internal DB/JWT secrets can be server-generated, and
+  its admin login ships a hardcoded default (root / chatnio123456) with no
+  env-var override, which per SCHEMA.md is handled by gating the app behind
+  a Traefik basic_auth front door rather than treating the fixed credential
+  as a blocker. The app needs no external API key to boot — those are
+  entered by the tenant admin after deploy — so there's no structural
+  secrets-channel blocker. The open question is upstream health: the last
+  formal release tag is ~9.5 months old and there's been no visible commit
+  or image update in ~5 months, so recommend build_with_caveats pending a
+  quick recheck of upstream activity closer to actual recipe authoring.
