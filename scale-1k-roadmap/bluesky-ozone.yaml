@@ -1,0 +1,86 @@
+slug: bluesky-ozone
+name: Bluesky Ozone
+source_description: "Moderation and labeling service for Bluesky and the AT Protocol"
+
+upstream:
+  url: https://github.com/bluesky-social/ozone
+  repo_url: https://github.com/bluesky-social/ozone
+  license: MIT OR Apache-2.0
+  docker_image: ghcr.io/bluesky-social/ozone
+
+version_health:
+  latest_version: "v0.1.104 (image tag recommended by upstream is the floating '0.1' minor tag, not a pinned patch/semver tag)"
+  latest_release_date: "2025-04-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The last tagged GitHub Release is v0.1.104 (2025-04-15), roughly 16
+    months before this analysis (2026-08-05) — on tag cadence alone that
+    would read as dormant. But the commit history on `main` shows daily
+    activity through 2026-08-05 itself (today), with 105 open issues and 35
+    open PRs being actively worked. Bluesky ships Ozone via continuous
+    deployment off `main` (their own compose stack runs watchtower and
+    tracks the floating `ghcr.io/bluesky-social/ozone:0.1` tag, auto-
+    updating nightly) rather than cutting frequent versioned releases —
+    so the project is genuinely active, just not release-tagged in the way
+    our pin-a-stable-tag convention expects. Worth flagging: upstream's own
+    HOSTING.md instructs pulling `:latest` for manual updates, and the
+    compose-pinned `:0.1` tag is a moving minor-version target, not a fixed
+    patch release — neither matches our "pinned, current stable tag"
+    convention.
+
+catalogue_fit:
+  categories: [social, moderation, at-protocol]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch social-network moderation or the
+    AT Protocol. Ozone would be a genuinely new category, but it is a
+    single-purpose tool: it only functions as a labeling/moderation
+    backend for one or more existing Bluesky accounts, not a general
+    self-hosted service most customers would reach for.
+  usefulness: low
+  usefulness_rationale: >
+    Only useful to a narrow slice of customers who already run (or want to
+    run) an independent Bluesky moderation/labeler service — not a
+    general-purpose app most hosting customers would install. It also
+    cannot do anything useful standalone: it must be wired up to a
+    customer-owned Bluesky/AT Protocol account and DID before it serves any
+    purpose, which is an external dependency outside our platform.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "OZONE_SERVER_DID (the DID of a dedicated Bluesky/AT Protocol service account the customer must already own and register via the PLC directory, pointing its serviceEndpoint at this deployment)"
+    - "OZONE_ADMIN_DIDS (comma-separated DIDs of one or more existing Bluesky accounts that are allowed to log into the Ozone admin UI)"
+    - "OZONE_SIGNING_KEY_HEX (secp256k1 private key used to sign labels)"
+    - "OZONE_ADMIN_PASSWORD (hex admin/API credential used by Ozone's own tooling)"
+    - "Postgres credentials"
+  secrets_expressible_today:
+    - secret: "OZONE_SIGNING_KEY_HEX"
+      mechanism: server_generated_no_customer_input
+    - secret: "OZONE_ADMIN_PASSWORD"
+      mechanism: server_generated_no_customer_input
+    - secret: "Postgres credentials"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "OZONE_SERVER_DID requires the customer to already control a distinct Bluesky/AT Protocol account and to have completed an external PLC-directory registration step pointing that DID's serviceEndpoint at our deployment's public URL — this is third-party account linking, not a value we can derive or hash from the root password, and has no input channel in /compose today."
+    - "OZONE_ADMIN_DIDS requires one or more pre-existing customer Bluesky account DIDs as login identities for the web UI — again an external account credential, not expressible via generated_from or basic_auth."
+    - "Gating the app behind Traefik basic_auth does not resolve the above: the app is non-functional (cannot label anything, admin UI login is DID-based, not password-based) without OZONE_SERVER_DID and OZONE_ADMIN_DIDS regardless of what sits in front of it."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Ozone is actively developed upstream (daily commits through today despite
+  a stale 2025-04-15 release tag) but is structurally unlike anything else
+  in the catalogue: it only functions once wired to a customer-owned
+  Bluesky account DID via an external PLC-directory registration step, and
+  its admin login is DID-based rather than password-based. Both required
+  identifiers are third-party account-linking values with no projection
+  path through generated_from or basic_auth, so it is not installable under
+  the current /compose mechanism. Combined with a narrow, niche audience
+  (only customers already operating a Bluesky moderation service would want
+  this), it is not recommended for the catalogue even if a generic
+  external-secret input channel were added later, since the blocker is
+  account-linking, not merely a missing secret field.
