@@ -1,0 +1,90 @@
+slug: bagisto
+name: Bagisto
+source_description: "Open-source e-commerce platform built on Laravel for online stores"
+
+upstream:
+  url: https://bagisto.com/
+  repo_url: https://github.com/bagisto/bagisto
+  license: MIT
+  docker_image: webkul/bagisto
+
+version_health:
+  latest_version: "v2.4.9"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v2.4.9 published 2026-08-05 — today. The repo runs two
+    parallel active branches (2.3.x maintenance line and 2.4.x current
+    line), with releases landing roughly every 1-4 weeks across both
+    (v2.4.8 2026-07-08, v2.4.7 2026-06-24, v2.4.6 2026-06-05, v2.4.5
+    2026-06-02, v2.3.19 2026-05-12, v2.4.4 2026-05-05). GitHub repo shows
+    `pushed_at` also 2026-08-05, not archived, 27.9k stars, 40 open issues
+    being actively triaged. No dormancy signal at all — this is one of the
+    more actively maintained candidates seen in this gap-analysis series.
+
+catalogue_fit:
+  categories: [ecommerce, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers e-commerce/online
+    storefronts at all — closest neighbors (gitea, opengist, portainer,
+    n8n) are dev-tooling/ops, not customer-facing storefronts. Bagisto
+    (Laravel + Vue, MySQL-backed, self-hosted Shopify/Magento-style
+    platform) would be a genuinely new category for the catalogue rather
+    than a duplicate.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real category gap (self-hosted online store) that no existing
+    recipe touches, backed by an actively developed, well-starred upstream.
+    Usefulness is high on fit grounds; see installability below for why it
+    can't ship as-is today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_basic_auth_gate, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "The official webkul/bagisto all-in-one image (nginx + PHP-FPM + MySQL
+      + Supervisor) seeds a fixed, hardcoded admin account
+      (admin@example.com / admin123) with no environment variable or
+      install-time flag to change it — confirmed no ADMIN_EMAIL/ADMIN_PASSWORD
+      override exists in the image. Per SCHEMA.md precedent this alone is
+      not a blocker: a Traefik basic_auth gate in front of the app would
+      normally cover a fixed default credential."
+    - "But unlike every existing basic_auth precedent (n8n, WUD, OpenClaw,
+      Open WebUI, Immich, Adminer), Bagisto is not an internal tool or
+      single-user dashboard — it is a public storefront (/) bundled with an
+      admin panel (/admin/login) in the same container on the same port.
+      Our basic_auth mechanism gates the whole public port/domain, not a
+      path prefix. Applying it here would lock out the storefront itself,
+      i.e. no customer could ever browse or buy anything — defeating the
+      entire purpose of an e-commerce recipe. There is no path-scoped
+      basic_auth mechanism in the current platform to gate only /admin
+      while leaving / open."
+    - "The bagisto-docker multi-container compose setup's own installer
+      explicitly ships with --skip-admin-creation in its reference setup.sh,
+      meaning admin account creation is deferred to a separate manual step
+      outside of container boot in that variant too — no cleaner
+      env-var-driven path there either."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Bagisto is upstream-healthy (active development, releases landing as
+  recently as today, 2026-08-05) and would fill a genuine category gap —
+  no existing recipe covers self-hosted e-commerce. It fails installability
+  today for a reason distinct from the usual "no input channel for a
+  customer-chosen secret": the app's only expressible auth-gating mechanism
+  (Traefik basic_auth on the whole port) would have to cover the public
+  storefront as well as /admin, since both share one container and port,
+  which would make the store unusable by actual customers. This needs
+  either a path-scoped basic_auth capability (gate /admin only) or an
+  admin-credential injection channel (env var/install flag for admin
+  email+password) before a Bagisto recipe can ship. Recommend
+  `blocked_on_platform`, re-evaluate once path-scoped basic_auth or
+  admin-credential env injection exists.
