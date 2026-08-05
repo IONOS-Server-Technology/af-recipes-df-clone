@@ -1,0 +1,98 @@
+slug: docmost
+name: Docmost
+source_description: "Collaborative wiki and documentation platform with real-time editing"
+
+upstream:
+  url: https://docmost.com
+  repo_url: https://github.com/docmost/docmost
+  license: AGPL-3.0 (Community Edition core); separate Enterprise Edition license for paid add-ons (SSO/SAML, LDAP, AI, advanced importers) — not required for or bundled into core functionality
+  docker_image: docmost/docmost
+
+version_health:
+  latest_version: "v0.95.0"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.95.0 shipped 2026-07-03 — 33 days before today (2026-08-05).
+    Preceding history is dense: v0.90.1 (2026-05-28), v0.90.0
+    (2026-05-21), v0.80.2 (2026-05-02), v0.80.1 (2026-04-28), v0.80.0
+    (2026-04-14), v0.71.1 (2026-04-05), v0.71.0 (2026-03-31) — multiple
+    releases most months, no gap over ~5 weeks anywhere in the last
+    year. Repo is not archived, issues/discussions actively triaged.
+    Clearly active, pre-1.0 but maturing steadily.
+
+catalogue_fit:
+  categories: [productivity, knowledge-base, documentation, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a wiki/knowledge-base or
+    real-time collaborative-docs tool. Gitea hosts git repos and OpenGist
+    hosts snippets, but neither gives a browsable, structured, multi-user
+    wiki with live co-editing. Within this gap-analysis pass alone,
+    several other wiki/docs-shaped candidates have already surfaced —
+    BookStack (apps-gaps/bookstack.yaml, structured
+    books/chapters/pages), An Otter Wiki (apps-gaps/an-otter-wiki.yaml,
+    lightweight git-backed Markdown), CodiMD (apps-gaps/codimd.yaml,
+    frozen upstream image), AFFiNE (apps-gaps/affine.yaml, docs +
+    whiteboard + database, EE-licensing concern), and Colanode
+    (apps-gaps/colanode.yaml, chat + pages + databases, stalled release
+    cadence). Docmost's specific angle is a polished, actively-developed
+    Notion/Confluence-style real-time collaborative wiki (live
+    multi-cursor editing, nested pages, spaces with granular
+    permissions, full-text search, diagram embeds) with a clean AGPL-3.0
+    core and no EE code required for baseline functionality — unlike
+    AFFiNE's Enterprise-Edition-licensed self-host image. Among the wiki-
+    shaped candidates surfaced so far, Docmost is the most directly
+    "real-time collaborative Confluence/Notion alternative" positioned
+    one, distinct from BookStack's static-hierarchy and An Otter Wiki's
+    git-backed single-editor models.
+  usefulness: high
+  usefulness_rationale: >
+    Team wikis/documentation with live co-editing are a very common
+    self-hosting request, and Docmost is a modern, actively developed,
+    cleanly-licensed (AGPL-3.0 core, no EE dependency for core features)
+    option with growing name recognition as a Confluence/Notion
+    alternative. It is a genuine, currently-unfilled gap in the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DATABASE_URL (postgres password), APP_SECRET, basic_auth_password]
+  secrets_expressible_today:
+    - secret: DATABASE_URL (postgres password)
+      mechanism: server_generated_no_customer_input
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Docmost ships an official image (docmost/docmost, pinned e.g. v0.95.0)
+  paired with a required Postgres 18 and Redis 8 sidecar (same
+  Postgres-plus-cache shape as n8n/paperless-ngx), serving its UI on a
+  single HTTP port (3000) — fully Traefik-compatible. Its boot-time
+  needs are DATABASE_URL (carries the Postgres password) and APP_SECRET
+  (a 32+ char signing key), both patternless secrets nothing
+  customer-facing ever reads, so both can be server-generated with no
+  customer input channel needed. The app itself has no admin-
+  provisioning env var: like An Otter Wiki, the first visitor to reach a
+  fresh instance is walked through a public setup screen that creates
+  the first workspace and admin account — meaning an anonymous visitor
+  could claim the admin account before the customer does if left open.
+  Per the pattern already applied to An Otter Wiki/n8n/WUD in this
+  catalogue, that is resolved with a mandatory Traefik basic_auth:true
+  gate (projected from the customer's root password via
+  generated_from) in front of the app until the customer completes
+  their own setup. That clears the /compose constraint today with zero
+  hard blocking issues — installable_today — and the Community Edition
+  core is cleanly AGPL-3.0 with no Enterprise-Edition code required to
+  boot (unlike AFFiNE's EE-licensed self-host image). Release cadence is
+  unambiguously active. Still a workaround for the app's own missing
+  boot-time admin credential rather than a clean built-in mechanism,
+  hence build_with_caveats rather than a plain build_now.
