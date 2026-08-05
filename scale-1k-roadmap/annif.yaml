@@ -1,0 +1,88 @@
+slug: annif
+name: Annif
+source_description: "Multilingual automated subject indexing toolkit for libraries and research"
+
+upstream:
+  url: https://annif.org/
+  repo_url: https://github.com/NatLibFi/Annif
+  license: Apache-2.0
+  docker_image: quay.io/natlibfi/annif:1.4.1
+
+version_health:
+  latest_version: "1.4.1"
+  latest_release_date: "2025-11-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.4.1 shipped 2025-11-07 (confirmed via PyPI upload metadata); today is
+    2026-08-05, so ~9 months have passed with no new version tag — a
+    noticeably wider gap than the project's prior cadence (1.0.0 Aug 2023,
+    1.1.0 Apr 2024, 1.2.0 Oct 2024, 1.2.1 Dec 2024, 1.3.0 Feb 2025, 1.3.1
+    Mar 2025, 1.4.0 Sep 2025, 1.4.1 Nov 2025 — roughly every 2 months for
+    two years, then a stop). The repo is not archived, and the quay.io
+    image for the `1.4.1` tag has been rebuilt repeatedly through
+    2026-05/2026-08 (base-image/dependency patches under the same app
+    version), so the maintainer (NatLibFi, National Library of Finland) is
+    still actively operating the project infrastructure even though no new
+    functional release has landed in 9 months. Calling this "slowing" rather
+    than "dormant" — the underlying Finto AI production service run by the
+    same maintainer is still live, but the release pace has clearly cooled
+    versus its 2023-2025 track record.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Annif is a multi-algorithm automated subject-indexing/classification
+    tool built for libraries, archives, and museums — given a document, it
+    suggests controlled-vocabulary subject headings using statistical and
+    ML backends (fastText, Omikuji, MLLM, etc.), exposed via a REST API and
+    a lightweight web UI. This is a distinct capability from anything in
+    the current 24-recipe catalogue: Ollama and Open WebUI are general LLM
+    chat/inference tools, and Paperless-ngx/Paperless-AI do OCR/document
+    archiving with LLM-assisted tagging, but none does controlled-vocabulary
+    subject classification against a library taxonomy (e.g. YSO, LCSH). The
+    catch is that this differentiation only matters to a narrow slice of
+    customers — libraries, archives, and academic/research institutions
+    doing metadata work — not the general self-hoster.
+  usefulness: low
+  usefulness_rationale: >
+    Legitimate, actively-operated tool from a credible institutional
+    maintainer (National Library of Finland), but it targets a very narrow
+    professional audience (library/archive metadata specialists) and is
+    non-functional out of the box: a fresh Annif instance ships with no
+    vocabulary and no trained model, so the web UI and REST API have
+    nothing to suggest until an operator manually trains a model or
+    downloads a pre-trained one (e.g. from Hugging Face) and registers it
+    in `projects.cfg`. That is a real setup burden with no self-service path
+    in our one-click flow, well beyond what a domain name and a generated
+    password can bootstrap. Combined with the niche audience, day-one value
+    for a typical Application Factory customer is close to zero.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Annif ships as a single container (quay.io/natlibfi/annif, Gunicorn on
+  :8000, reference compose adds an nginx front-end we'd replace with
+  Traefik) — structurally closest to the single-container web-app template
+  (recipes/uptime-kuma/) rather than a multi-service stack. It has no
+  built-in login of its own, so a Traefik `basic_auth: true` gate projected
+  from the customer's root password is the workable mechanism, making it
+  technically installable today with no blocking secret-channel gap. The
+  real problem is product fit: it needs a trained subject-classification
+  model and vocabulary before it does anything useful, which our current
+  per-customer parameter mechanism has no way to supply, and its target
+  audience (library/archive metadata teams) is a sliver of our customer
+  base. Recommend not_recommended — mechanically buildable but low value
+  for a one-click catalogue entry, and upstream's release cadence has
+  cooled sharply in the last 9 months on top of that.
