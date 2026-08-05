@@ -1,0 +1,61 @@
+slug: chartdb
+name: ChartDB
+source_description: "Open-source database diagram editor with AI DDL export and schema visualization"
+
+upstream:
+  url: https://chartdb.io
+  repo_url: https://github.com/chartdb/chartdb
+  license: AGPL-3.0
+  docker_image: ghcr.io/chartdb/chartdb
+
+version_health:
+  latest_version: "1.20.1"
+  latest_release_date: "2026-04-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Roughly monthly releases from Aug 2025 through Apr 2026 (1.14.0 through
+    1.20.1), then a gap of ~4 months with no release as of 2026-08-05 (today).
+    Repo is not archived and issues/PRs are still active on GitHub, so this
+    reads as a cadence slowdown rather than abandonment — worth a re-check in
+    a month or two before drawing an EOL conclusion.
+
+catalogue_fit:
+  categories: [developer-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers database schema
+    visualization/design. ChartDB lets a customer point it at an existing DB
+    (via a "magic" one-shot query run manually against the DB, pasted into the
+    UI), or import DDL, and get an ER-diagram-style visual editor plus
+    AI-assisted DDL export for migrations. It's a genuinely distinct
+    developer-tool category, not a variant of anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful niche tool for developers/DBAs who already self-host a database
+    with us, but it's a single-purpose diagramming utility rather than
+    something most customers run continuously — narrower audience than e.g.
+    n8n or Paperless-ngx.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ChartDB is a single-container, single-port (8080→80) web app with no
+  built-in login of its own — diagrams live in the browser, and DB
+  connections are supplied manually per-session rather than as a persistent
+  server-side secret. The optional AI DDL export feature needs an
+  OPENAI_API_KEY or a custom inference endpoint, but the app is fully
+  functional without it, so that's a non-blocking optional env var rather
+  than a required secret. The only mandatory first-boot secret is a Traefik
+  basic_auth gate (mechanism already supported, per hermes-agent's existing
+  use). Fills a genuinely new category for us; recommend building it now.
