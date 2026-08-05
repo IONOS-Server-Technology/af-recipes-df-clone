@@ -49,25 +49,15 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [NUXT_SESSION_PASSWORD, BASIC_AUTH_GATE]
+  secrets_required_at_first_boot: [NUXT_SESSION_PASSWORD, BASIC_AUTH_GATE, CFRAME_ADMIN_PASSWORD]
   secrets_expressible_today:
     - secret: NUXT_SESSION_PASSWORD
       mechanism: server_generated_no_customer_input
     - secret: BASIC_AUTH_GATE
       mechanism: traefik_basic_auth
-  blocking_issues:
-    - "CFRAME_ADMIN_PASSWORD (the app's own admin login) is accepted only
-      as plaintext at container startup — there is no hashed/pre-hashed
-      form the app will accept, so generated_from cannot project the
-      customer's root password into it. This is a genuine plaintext
-      requirement, not just an unsupported hash algo, so it's a structural
-      blocker for personalizing that specific credential today. Workaround:
-      leave CFRAME_ADMIN_PASSWORD at its fixed default and gate the whole
-      app behind Traefik basic_auth (using generated_from on the root
-      password) instead — the admin panel then sits behind that boundary,
-      same pattern used for n8n/WUD/Open WebUI. This makes the app
-      installable, just not with the customer's real password reaching the
-      app's own login."
+    - secret: CFRAME_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
   installable_today: true
   recommendation: build_with_caveats
 
@@ -75,12 +65,13 @@ summary: >
   ChronoFrame is a single-container Nuxt app (local storage by default, no
   mandatory database) that boots fine behind Traefik on one HTTP port —
   mechanically simple to package, similar shape to uptime-kuma/vaultwarden.
-  Its only self-generated secret (NUXT_SESSION_PASSWORD) needs no customer
-  input. Its admin login is plaintext-only, so we can't project the
-  customer's root password into the app's own account; the practical path
-  is a Traefik basic_auth gate on the root password instead, leaving the
-  app's internal admin password at its documented default. That makes it
-  installable today with a caveat on the auth story, but it duplicates an
-  existing recipe (Immich) at lower value-add (still pre-1.0, smaller
-  feature set, narrower differentiation) — worth keeping on the backlog
-  rather than building now.
+  NUXT_SESSION_PASSWORD is server-generated with no customer input needed.
+  CFRAME_ADMIN_PASSWORD only accepts plaintext (defaults to a fixed value,
+  CF1234@!, if unset), so generated_from can't project the customer's root
+  password into it; per platform convention for a fixed/default admin
+  credential, the fix is to leave it at its default and gate the whole app
+  behind a Traefik basic_auth boundary keyed off the root password instead
+  — that's a standard pattern (n8n/WUD/Open WebUI), not a blocker. It's
+  mechanically installable today, but it duplicates an existing recipe
+  (Immich) at lower value-add (still pre-1.0, smaller feature set, narrower
+  differentiation) — worth keeping on the backlog rather than building now.
