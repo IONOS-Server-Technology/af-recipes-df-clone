@@ -62,7 +62,7 @@ installability:
       mechanism: server_generated_no_customer_input
   blocking_issues: []
   installable_today: true
-  recommendation: build_now
+  recommendation: build_with_caveats
 
 summary: >
   ClassroomIO fills a genuinely new category (LMS/compliance training) with
@@ -76,15 +76,27 @@ summary: >
   customer-facing login. The initial admin/org-owner account is created
   through the app's own web signup form (Better Auth) the first time a
   browser hits the domain, the same no-channel-needed pattern already used
-  for Immich and Apache Answer. Reverse-proxy fit is single-domain-friendly
-  in production deployments (per upstream's Coolify guide, the dashboard
-  server-side-proxies all API calls, so only the dashboard's HTTP port needs
-  to be public — the api and jobs containers, and MinIO, stay internal),
-  which matches our one-HTTP-router-per-recipe constraint. The stack is
-  heavier than a single-container app (postgres, redis, minio, api,
-  dashboard, jobs — six containers) but comparable to already-shipped
-  multi-service recipes like Immich and Anytype. Recommend building this
-  recipe now; the main open question for the actual build is confirming
-  media/upload delivery works fully proxied through the dashboard/API
-  without needing a second public MinIO domain, which upstream's default
-  local-MinIO docs treat as optional rather than required.
+  for Immich and Apache Answer; checking the actual Better Auth config in
+  source (not just the self-host doc's general Email section, which reads
+  as more mandatory than it is) confirms `requireEmailVerification` is not
+  enabled, so that signup/login completes with a session with no SMTP
+  configured — email is only needed afterward for verification, invites,
+  and password-reset, none of which upstream gates login on. That does
+  leave a real, named gap: SMTP is an external mail-relay credential with
+  no customer-input channel today, so invites/reset would ship silently
+  broken until an operator manually edits the compose env — worth flagging
+  as a known post-install limitation, not a first-boot blocker. Reverse-proxy
+  fit is single-domain-friendly in production deployments (per upstream's
+  Coolify guide, the dashboard server-side-proxies all API calls, so only
+  the dashboard's HTTP port needs to be public — the api and jobs
+  containers, and MinIO, stay internal), which matches our
+  one-HTTP-router-per-recipe constraint. The stack is heavier than a
+  single-container app (postgres, redis, minio, api, dashboard, jobs — six
+  containers) but comparable to already-shipped multi-service recipes like
+  Immich and Anytype. Recommend building this recipe now with SMTP/Zoho
+  named in the recipe's own docs as an unconfigured, manually-addable
+  post-install step; the other open question for the actual build is
+  confirming media/upload delivery works fully proxied through the
+  dashboard/API without needing a second public MinIO domain, which
+  upstream's default local-MinIO docs treat as optional rather than
+  required.
