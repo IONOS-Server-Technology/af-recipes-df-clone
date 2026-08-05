@@ -55,9 +55,12 @@ installability:
   secrets_required_at_first_boot:
     - Convex admin key (`convex-self-hosted|<hash>`) — required by the customer's own machine to run `npx convex deploy`/`convex dev` against this instance, and to authenticate in the dashboard UI; without it the instance is unusable by its owner
     - INSTANCE_SECRET (internal — backend/dashboard shared secret, never read by the customer directly)
+    - basic_auth_password (dashboard, port 6791, has no server-side login wall of its own — needs a Traefik gate as a network-exposure precaution)
   secrets_expressible_today:
     - secret: INSTANCE_SECRET
       mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
   blocking_issues:
     - >
       The customer-critical secret is the Convex admin key, not
