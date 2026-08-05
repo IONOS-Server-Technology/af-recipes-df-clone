@@ -1,0 +1,82 @@
+slug: affine
+name: AFFiNE
+source_description: "All-in-one workspace combining docs, whiteboards, and databases with AI"
+
+upstream:
+  url: https://affine.pro
+  repo_url: https://github.com/toeverything/AFFiNE
+  license: "MIT (editor/BlockSuite/client) + AFFiNE Enterprise Edition license (packages/backend/server — the component shipped in the official self-host image)"
+  docker_image: ghcr.io/toeverything/affine
+
+version_health:
+  latest_version: "v0.27.3"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Stable v0.27.3 tagged 2026-07-23, ~13 days before today (2026-08-05);
+    v0.27.4-beta.1 already out 2026-08-04. Canary builds ship almost daily
+    (e.g. v2026.8.5-canary.953 published today). Very high release cadence
+    across stable, beta, and canary channels — clearly active development,
+    nowhere near maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >
+    Both AFFiNE and anytype-server target self-hosted personal/team
+    knowledge management, but they differ sharply in shape: anytype-server
+    is only a sync backend (three non-HTTP any-sync ports + MinIO) for
+    Anytype's native desktop/mobile apps — no web UI at all, not
+    reverse-proxy-friendly. AFFiNE ships a real single-port HTTP web app
+    (docs, whiteboards, and a database/table view, with optional AI
+    features) that works directly behind Traefik on
+    affine.<base_domain>. It would be the first browsable
+    "Notion/Miro-style" workspace in the catalogue, versus anytype-server's
+    sync-only backend.
+  usefulness: high
+  usefulness_rationale: >
+    Broad appeal — docs + whiteboard + lightweight database with AI is a
+    popular self-hosted Notion/Miro alternative and a genuinely new UI-first
+    productivity category for the catalogue, not a niche developer tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Licensing: the self-host Docker image (ghcr.io/toeverything/affine,
+      the one used in AFFiNE's own docker-compose.yml) bundles
+      packages/backend/server, which upstream maintainers confirmed is not
+      part of AFFiNE's MIT-licensed core — it ships under the AFFiNE
+      Enterprise Edition license. Per that license, production self-hosting
+      is unconditionally free only up to a 10-member/100GB tier; sustained
+      use beyond that (or, arguably, systematic redistribution to many
+      catalogue customers as a hosting reseller) falls under the EE
+      Subscription Terms of Service. This needs legal/commercial review
+      with AFFiNE before the recipe ships at catalogue scale — it is not
+      resolved by any af-recipes mechanism.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  AFFiNE is a single-HTTP-port (3010), Traefik-friendly Docker Compose app
+  (affine + postgres + redis, plus a one-shot migration job) with an active,
+  fast-moving release cadence (stable v0.27.3, 2026-07-23; canaries almost
+  daily). Mechanically it is installable today: the Postgres password can be
+  generated server-side with no customer input, and the lack of any
+  built-in admin-login parameter is handled the same way as Adminer/n8n —
+  a mandatory Traefik basic_auth gate (projected from the customer's root
+  password) protecting the first-run setup wizard from being claimed by a
+  stranger. The real open question is licensing: the self-host server image
+  ships under AFFiNE's Enterprise Edition terms, not MIT, with subscription
+  requirements past a free tier — worth building as a recipe, but only after
+  legal/commercial sign-off, hence build_with_caveats rather than
+  build_now.
