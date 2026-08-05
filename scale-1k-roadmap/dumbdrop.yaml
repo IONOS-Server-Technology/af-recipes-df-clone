@@ -1,0 +1,93 @@
+slug: dumbdrop
+name: DumbDrop
+source_description: "DumbDrop is a bare-bones, self-hosted drag-and-drop file uploader"
+
+upstream:
+  url: https://github.com/DumbWareio/DumbDrop
+  repo_url: https://github.com/DumbWareio/DumbDrop
+  license: GPL-3.0
+  docker_image: dumbwareio/dumbdrop
+
+version_health:
+  latest_version: null
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The repo has never cut a GitHub Release or a semver git tag — "There
+    aren't any releases here" on the releases page. Docker Hub only
+    publishes `latest`, a `dev` tag, and per-commit `sha-<hash>` tags; there
+    is no pinnable version number at all, only pinnable commit digests.
+    Despite that, the project is genuinely active: commits as recent as
+    2025-11-10 (bind-mount fix), 2025-11-06, 2025-11-05, and 2025-11-03
+    (upload-list feature), with an earlier burst around 2025-06-20 — about
+    9 months of gap between those two clusters, then steady weekly-ish
+    activity in Nov 2025. Today is 2026-08-05, so the most recent commit is
+    roughly 9 months old, which is a real gap but not dormancy given the
+    multi-year commit history and open-issue triage continuing around it.
+
+catalogue_fit:
+  categories: [productivity, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does plain drag-and-drop file
+    upload/drop. Syncthing is P2P folder sync between devices the customer
+    already owns, not a one-off "drop a file, done" surface; OpenGist is
+    scoped to Git-backed text snippets, not arbitrary binary files. DumbDrop
+    would fill a genuinely open "quick file drop" niche, deliberately
+    minimal (single container, no database, no accounts).
+  usefulness: medium
+  usefulness_rationale: >
+    The use case has clear appeal — a lightweight upload endpoint customers
+    can point tools or people at — and the app is actively developed. It's
+    capped at medium rather than high because it is a small single-purpose
+    utility (not a full product) and because the write-only "no read"
+    design and lack of any versioned release make it a slightly rougher fit
+    for a catalogue that pins app versions.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      DumbDrop's own optional login is a 4-10 digit numeric PIN
+      (DUMBDROP_PIN), checked via constant-time plaintext comparison
+      against the raw digits — the README explicitly documents "No
+      client-side PIN storage" and plaintext, not hashed, comparison. A
+      `generated_from:"<algo>:ROOT_PASSWORD"` value is a hash string, which
+      cannot be entered into a numeric PIN field, so DUMBDROP_PIN has no
+      expressible mechanism today. The recipe would instead leave
+      DUMBDROP_PIN unset (app runs with no built-in auth, as it does by
+      default) and rely on a Traefik `basic_auth` gate in front of it —
+      viable, but means shipping the app in its "no native login" mode
+      rather than using the feature it does offer.
+    - >
+      No pinnable version: Docker Hub has no semver tags for
+      dumbwareio/dumbdrop, only `latest`, `dev`, and `sha-<commit>` tags. A
+      recipe following "always pin to a tag visible on Docker Hub or the
+      releases page" would have to pin to a commit-sha tag instead of a
+      normal version string, which is workable but nonstandard for this
+      catalogue and would need re-pinning by hand on every future bump
+      since there's no release cadence to track against.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  DumbDrop is a single-container (dumbwareio/dumbdrop), single-HTTP-port
+  (3000) file uploader with no database and no fixed volumes beyond the
+  upload directory — structurally similar to Uptime Kuma/Vaultwarden as a
+  simple reverse-proxy-friendly web app, and it fills a real gap (no
+  drag-and-drop file drop tool exists in the current 24-recipe catalogue).
+  It is mechanically installable today only via a Traefik basic_auth gate,
+  since its own DUMBDROP_PIN field wants a plaintext numeric PIN that
+  generated_from's hash output can't satisfy. The bigger caveat is upstream
+  hygiene: there are no releases or semver tags at all, only latest/dev/sha
+  tags, so any recipe would pin to a commit digest rather than a version
+  number and require manual re-pinning over time. Recommend
+  build_with_caveats — worth building, but flag the basic_auth-only auth
+  path and the sha-pin version strategy to the recipe author up front.
