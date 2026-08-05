@@ -1,0 +1,72 @@
+slug: cypht
+name: Cypht
+source_description: "Open-source webmail client aggregating multiple email accounts and feeds"
+
+upstream:
+  url: https://cypht.org/
+  repo_url: https://github.com/cypht-org/cypht
+  license: LGPL-2.1
+  docker_image: cypht/cypht:2.12.0
+
+version_health:
+  latest_version: v2.12.0 (mainline); v1.4.8 (legacy 1.x branch still maintained in parallel)
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11 releases in the last ~7 months as of 2026-08-05 (v2.6.0 on 2026-01-17
+    through v2.12.0 on 2026-07-25), including a security-focused v1.4.8 on
+    2026-07-28 (7 days before today) that backports SSRF fixes to the legacy
+    1.x branch. Docker Hub tag 2.12.0 was pushed the same day as the GitHub
+    release. Two release lines are maintained concurrently (2.x current, 1.x
+    legacy/security-only), both actively touched within the last 2 weeks —
+    no dormancy signal at all.
+
+catalogue_fit:
+  categories: [productivity, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers webmail/email aggregation. Cypht consolidates
+    IMAP/SMTP/JMAP/EWS/POP3 mail accounts plus RSS/GitHub/WordPress feeds
+    into one lightweight web inbox — closest thing in spirit to n8n or
+    paperless-ngx (single PHP app + relational DB), but a distinct use case
+    from anything currently in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted webmail is a real, recognizable customer want (consolidate
+    several personal/work inboxes without trusting a third-party
+    aggregator), and this fills a genuine gap in the catalogue. Rated medium
+    rather than high because it is a niche client-side tool relative to
+    infrastructure recipes like n8n or Vaultwarden, and its value depends on
+    the customer already having IMAP/JMAP accounts elsewhere to feed it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Cypht is a single-container PHP/nginx app (cypht/cypht:2.12.0, official
+  image, actively maintained) backed by MariaDB, reverse-proxy-compatible on
+  one HTTP port, and fills a real gap (no webmail recipe exists today).
+  Installability hinges on a design choice the recipe author must get
+  right: the upstream example docker-compose hardcodes AUTH_USERNAME=admin /
+  AUTH_PASSWORD=admin as a plaintext DB-auth account created at container
+  startup (create_account.php takes a raw password and hashes it internally
+  with Cypht's own scheme, so `generated_from` cannot project a
+  bcrypt/argon2 hash into it the way Vaultwarden's ADMIN_TOKEN accepts one —
+  it would just re-hash our hash and lock the customer out). The clean fix
+  is to set AUTH_TYPE=IMAP instead, which is Cypht's native mode: the
+  customer logs in directly with their own existing email account
+  credentials against their own mail server, so the recipe needs no
+  admin-login secret at all — only the auto-generated, non-customer-facing
+  MariaDB password. This is a real config decision (not a blocker) that
+  should be spelled out in the recipe's install notes so nobody copies the
+  upstream demo's admin/admin default verbatim.
