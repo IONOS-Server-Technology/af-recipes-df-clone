@@ -1,0 +1,78 @@
+slug: apache-shenyu
+name: Apache ShenYu
+source_description: "Java-native API gateway for service proxy, protocol conversion, and governance"
+
+upstream:
+  url: https://shenyu.apache.org
+  repo_url: https://github.com/apache/shenyu
+  license: Apache-2.0
+  docker_image: apache/shenyu-admin, apache/shenyu-bootstrap
+
+version_health:
+  latest_version: "2.7.1"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~3 weeks between 2.7.1 (2026-07-13) and today (2026-08-05). Preceding
+    releases landed on a steady ~3-month cadence (2.7.0.3 on 2025-11-24,
+    2.7.0.2 on 2025-08-25, 2.7.0.1 on 2025-05-03, 2.7.0 on 2025-01-15), each
+    merging 50-250+ PRs per the project's own release announcements. Both
+    official images (apache/shenyu-admin, apache/shenyu-bootstrap) publish
+    versioned tags in step with releases. This is a healthy, actively
+    maintained Apache top-level project, not incubating or dormant.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >-
+    No recipe in the current 24-app catalogue is an API gateway, so the
+    category itself would be new. Unlike apache-apisix (already analyzed:
+    no web UI, not_recommended), ShenYu ships an official admin console
+    image (apache/shenyu-admin) with a real browser-based dashboard for
+    managing routes, selectors, and plugins — so the "no usable control
+    surface" problem that sank APISIX doesn't apply here on its face.
+    However, the product's actual value is that its second component
+    (shenyu-bootstrap) is a data-plane proxy meant to sit in front of a
+    customer's own backend APIs, accepting traffic on its own port(s) and
+    routing it based on rules configured in the admin console — the same
+    "gateway-shaped, not app-shaped" mismatch APISIX has.
+  usefulness: low
+  usefulness_rationale: >-
+    ShenYu targets enterprise microservices teams governing many internal
+    services behind one gateway (originally built at Dangdang for that use
+    case) — a mismatch for the typical AF customer running one self-hosted
+    app per subdomain. Even a technical customer who wanted this would need
+    to already have other services to proxy and the domain-specific
+    knowledge to configure selectors/rules/plugins; there's no standalone
+    value the way there is for e.g. Vaultwarden or n8n.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SHENYU_ADMIN_CONSOLE_ACCESS]
+  secrets_expressible_today:
+    - secret: SHENYU_ADMIN_CONSOLE_ACCESS
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "shenyu-admin ships a fixed, hardcoded default login (admin/123456) baked into its default H2 dataset. There is no documented environment variable or startup property to set/override the initial admin username or password (checked admin-property-config docs) — the password is only changeable after logging in with the default. Per SCHEMA.md this is not itself a hard blocker (gate the console behind Traefik basic_auth, as with Adminer/IF-1312), so this line is informational, not blocking."
+    - "Structural mismatch, independent of secrets: shenyu-bootstrap is a data-plane proxy meant to accept and route a customer's own arbitrary backend API traffic on its own port(s) (9195 default), based on rules the customer configures after the fact. That conflicts with the fixed one-app-one-subdomain-behind-Traefik shape every current recipe uses — the gateway's public port(s) can't be basic-auth-gated without breaking the API calls it's meant to proxy, and there's no fixed 'the app' behind a single subdomain the way there is for a normal web app. This is the same category of architectural-fit problem that made apache-apisix not_recommended, not a platform secrets-input gap."
+    - "Deployment requires wiring shenyu-bootstrap to shenyu-admin via a WebSocket sync URL (SHENYU_SYNC_WEBSOCKET_URLS) between two containers on a shared network, plus a database choice (H2 default, or MySQL/PostgreSQL/Oracle/OpenGauss for anything beyond a toy deployment) — more moving parts than a typical single-purpose recipe, though not on its own a blocker."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >-
+  Apache ShenYu is an actively maintained top-level Apache project (release
+  3 weeks ago, steady ~3-month cadence, no EOL signal) and, unlike
+  apache-apisix, it does ship an official admin console image with a real
+  web UI — so it clears the "unusable without a working control surface"
+  bar APISIX failed. It still doesn't fit the catalogue: its actual product
+  is a data-plane gateway meant to proxy a customer's own arbitrary backend
+  APIs through its own open port(s) based on rules configured after
+  deployment, which is fundamentally different in shape from every existing
+  recipe's "one app, one subdomain, behind Traefik" model, and can't be
+  basic-auth-gated without breaking the very traffic it's meant to proxy.
+  Combined with a niche enterprise-microservices audience that doesn't
+  match typical AF customers, this is not_recommended on fit and usefulness
+  grounds rather than a platform secrets gap.
