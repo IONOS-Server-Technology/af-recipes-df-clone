@@ -6,7 +6,7 @@ upstream:
   url: https://www.agent-memory.dev/
   repo_url: https://github.com/rohitg00/agentmemory
   license: Apache-2.0
-  docker_image: iiidev/iii:0.11.2
+  docker_image: null
 
 version_health:
   latest_version: "v0.9.28"
@@ -17,10 +17,11 @@ version_health:
     v0.9.28 released 2026-07-19, 17 days before today (2026-08-05). Release
     history is dense: v0.9.23 (2026-05-29), v0.9.24 (2026-05-29), v0.9.25
     (2026-06-02), v0.9.26 (2026-06-03), v0.9.27 (2026-06-07), v0.9.28
-    (2026-07-19) — multiple releases per week in bursts, several explicitly
-    bug-fix waves for regressions in the immediately preceding release. 474
-    commits, 26.6k stars, 199 open PRs. Clearly active, pre-1.0, fast-moving
-    project rather than a mature/stable one.
+    (2026-07-19) — several releases explicitly labelled as hotfix/regression
+    waves for the immediately preceding release (first-boot crash fix,
+    version-flag/dependency-pinning fix). 474 commits, 26.6k stars, 199 open
+    PRs. Active and pre-1.0 (still on 0.9.x) — fast-moving but not yet
+    settled; expect continued churn before a 1.0.
 
 catalogue_fit:
   categories: [ai, developer-tools]
@@ -28,48 +29,51 @@ catalogue_fit:
   reverse_proxy_compatible: false
   overlaps_with: []
   differentiation: >
-    Nothing in the current 24 recipes is a memory/context layer for AI
-    coding agents (closest neighbors by category are claude-code,
-    hermes-agent, open-webui, ollama — all either the agent/model itself or
-    a chat UI, not a session-memory backend). If it fit our mechanism it
-    would be a genuinely distinct addition.
-  usefulness: low
+    Nothing in the current 24 recipes is a session-memory/context layer for
+    AI coding agents. claude-code and gemini-cli are the agents themselves,
+    not a memory backend; open-webui/ollama/hermes-agent are chat UIs or a
+    messaging-driven agent, not a persistence layer. As a native recipe
+    installed alongside claude-code/gemini-cli on the same VM, agentmemory
+    would give a customer's terminal coding agent durable, hybrid
+    BM25/vector/graph session memory across restarts — a genuinely new
+    capability, not a duplicate of anything shipped today.
+  usefulness: medium
   usefulness_rationale: >
-    The value proposition is a memory layer that a developer's coding
-    agent (Claude Code, Cursor, Copilot CLI, etc.) talks to over MCP/REST
-    while that developer is actively coding — i.e. a local dev-machine
-    companion tool, not a multi-user hosted service. Standing up a
-    dedicated cloud VM for it adds a network hop and public-exposure risk
-    for something upstream explicitly designs to bind to localhost. The
-    bundled real-time viewer is a secondary observability aid, not the
-    product's reason to exist, so it does not really benefit from the
-    "give it a domain behind Traefik" model the rest of the catalogue is
-    built around.
+    Re-evaluated as a native recipe (per corrected SCHEMA.md guidance) rather
+    than a containerized web app, the earlier "doesn't fit the give-it-a-
+    domain model" objection dissolves: agentmemory's REST/MCP server is
+    meant to be reached over localhost by a coding agent running on the same
+    host, which is exactly the claude-code/gemini-cli usage pattern already
+    in the catalogue — no public exposure or Traefik domain is needed for
+    the core use case. It only reaches medium rather than high because (a)
+    it depends on a separate pinned native binary or container for the
+    "iii-engine" storage layer, adding install complexity beyond a plain
+    binary download, and (b) it's a pre-1.0 project still shipping
+    regression-fix waves, so day-one experience for a customer could be
+    rockier than a mature CLI tool.
 
 installability:
-  recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [LLM_PROVIDER_API_KEY, AGENTMEMORY_SECRET, VIEWER_BASIC_AUTH_PASSWORD]
-  secrets_expressible_today:
-    - secret: AGENTMEMORY_SECRET
-      mechanism: server_generated_no_customer_input
-    - secret: VIEWER_BASIC_AUTH_PASSWORD
-      mechanism: traefik_basic_auth
-  blocking_issues:
-    - "No official, self-contained Docker image for the agentmemory server itself. Upstream's own docker-compose.yml only containerizes the internal 'iii-engine' dependency (iiidev/iii:0.11.2, all ports bound to 127.0.0.1); the actual REST API (3111), MCP server, and web viewer (3113) are shipped as an npm package (@agentmemory/agentmemory) meant to run on the host via `npm install -g` / `npx`, not as a container. Building a recipe would mean writing a custom Dockerfile around an upstream npm CLI, not wrapping an official image — outside what af-create-recipe expects to find."
-    - "Full functionality (auto-compression, graph extraction) requires an LLM provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY). This is an external, customer-chosen credential with no projection channel today (same class of blocker noted for claude-code and hermes-agent)."
-    - "Upstream architecture intentionally binds its ports to localhost for a single local developer, not a multi-tenant public deployment; there is no built-in multi-user access control beyond a single bearer-token secret (AGENTMEMORY_SECRET) and an unauthenticated viewer, both of which assume trusted-localhost access rather than internet-facing exposure."
-  installable_today: false
-  recommendation: not_recommended
+  recipe_type_guess: native
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
 
 summary: >
-  AgentMemory is a fast-moving, actively released open-source project, but
-  it is architecturally a local dev-machine companion for AI coding agents
-  (MCP/REST server + viewer), not a containerized hosted web app — upstream
-  ships only an npm CLI plus a helper-engine Docker image bound to
-  localhost. Building a recipe would require authoring a custom Docker
-  image around the npm package rather than pinning an official one, and
-  its core functionality depends on a customer-supplied LLM provider API
-  key that has no projection channel under the current /compose mechanism.
-  Combined with a usage model (agent talks to it from the developer's own
-  machine) that doesn't map well onto "give it a public domain behind
-  Traefik," this is not a good fit for the catalogue today.
+  Corrected re-run: the previous not_recommended verdict rested on treating
+  agentmemory as a containerized web app and on an assumed hard LLM-API-key
+  requirement, both wrong. Upstream confirms no LLM calls are made and no
+  provider key is needed unless the customer opts into compression/graph
+  extraction ("by default, no LLM calls are made unless you configure a
+  provider") — that parameter would ship optional, exactly like
+  ANTHROPIC_API_KEY on the existing claude-code recipe. As a recipe_type:
+  native install (npm/npx package plus a pinned iii-engine v0.11.2 sidecar,
+  binding to 127.0.0.1 by default) it needs no public port, no domain, and
+  no customer-supplied secret at first boot — AGENTMEMORY_SECRET is optional
+  and only relevant if the app is later reconfigured to bind 0.0.0.0 for
+  remote access, which is not the intended install shape here. It is
+  mechanically installable today with no blocking secret. The only real
+  caveats are product-shaped: it's pre-1.0 with frequent regression-fix
+  releases, and install.sh has two version pins to track in lockstep (the
+  npm package and the iii-engine binary/image) rather than one.
