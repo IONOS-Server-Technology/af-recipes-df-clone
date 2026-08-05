@@ -1,0 +1,78 @@
+slug: damselfly
+name: Damselfly
+source_description: "Self-hosted photo manager with face recognition and object detection"
+
+upstream:
+  url: https://damselfly.info/
+  repo_url: https://github.com/Webreaper/Damselfly
+  license: GPL-3.0
+  docker_image: webreaper/damselfly
+
+version_health:
+  latest_version: "4.5.3"
+  latest_release_date: "2026-01-14"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Not archived; repo pushed as recently as 2026-06-24 (dev tag rebuilt same
+    day), so development is ongoing even between tagged releases. Release
+    history is bursty rather than steady: four 4.x releases in Dec 2024
+    (4.2.0-4.2.3), then a roughly year-long gap before a burst of five
+    releases (4.3.0-4.5.3) landed together on 2026-01-14 — the maintainer's
+    own release notes for 4.5.3 call it "Finally!" after a long hiatus. As
+    of 2026-08-05 the latest tag is ~7 months old, within a normal window
+    given the project's history of long-but-not-abandoned gaps. One
+    maintainer, 1.8k GitHub stars, 183 open issues.
+
+catalogue_fit:
+  categories: [media, photos]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Immich already covers "self-hosted photo library with AI-powered
+    search/albums." Damselfly's pitch is narrower and more
+    archivist-flavored: indexing an existing large folder-based photo
+    collection in place (rather than an upload/backup-target model),
+    driven by IPTC keyword tagging plus local face/object detection (via
+    FaceONNX/YoloDotNet, no cloud API required since Azure Face API
+    dependency was dropped). For a customer who already has a big folder
+    tree of photos and wants search/tagging without re-organizing into an
+    Immich-style library, Damselfly is a plausible alternative UX, but the
+    overlap in outcome (browse/search/tag your photos with ML help) with
+    Immich is substantial.
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow differentiation from Immich for a specific workflow
+    (index-in-place vs. upload-library), a much smaller community (1.8k
+    stars vs. Immich's much larger base), a single maintainer, and sporadic
+    release cadence make it a lower-priority addition than most gaps in the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Damselfly is a single-container app (webreaper/damselfly, single HTTP
+  port 6363, config/thumbs/pictures volumes) with no admin credential to
+  provision at boot: its own authentication is disabled by default and, when
+  turned on, is toggled through a runtime Settings-page checkbox followed by
+  an app restart rather than an env var or config file our install.sh can
+  set — so there is no first-boot login for af-api to project a password
+  into. With auth off by default the app would otherwise sit open on the
+  internet, so a Traefik basic_auth:true gate (password derived from the
+  customer's root password via generated_from) is the correct and only
+  mechanism to secure it today, same pattern as Adminer/n8n. That makes it
+  mechanically installable now. The overlap with Immich for the same
+  "self-hosted photo library with AI tagging" use case, combined with a
+  smaller community, single maintainer, and sporadic release history, means
+  it's installable but a lower-value addition — recommend building only if
+  the index-in-place-vs-upload-library differentiation is judged worth a
+  second photo-management recipe.
