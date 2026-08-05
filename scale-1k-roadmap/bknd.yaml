@@ -1,0 +1,83 @@
+slug: bknd
+name: bknd
+source_description: "Lightweight Firebase alternative with data, auth, media, and an admin UI"
+
+upstream:
+  url: https://bknd.io/
+  repo_url: https://github.com/bknd-io/bknd
+  license: Apache-2.0
+  docker_image: null
+
+version_health:
+  latest_version: "v0.20.0"
+  latest_release_date: "2026-01-09"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    v0.20.0 released 2026-01-09, just under 7 months before today
+    (2026-08-05). Before that, releases were dense and monthly-or-better
+    through 2025: v0.16.0 (2025-08-01), v0.16.1 (2025-08-06), v0.17.0
+    (2025-08-30), v0.17.1 (2025-09-03), v0.17.2 (2025-09-15), v0.18.0
+    (2025-10-01), v0.18.1 (2025-10-13), v0.19.0 (2025-10-31), v0.20.0
+    (2026-01-09) — then nothing. Repo commit activity also stopped: the
+    last push to the default branch was 2026-04-06 (~4 months ago), and
+    the commit before that was 2026-03-28; zero commits since. Repo is not
+    archived, still Apache-2.0, 3,745 stars, 37 open issues, no explicit
+    EOL announcement — but a project that shipped monthly for a year and
+    then went fully silent (no release, no commit) for 4+ months has
+    clearly slowed well past "slowing" into dormant; watch for either a
+    resumption or a formal maintenance-mode/archive notice.
+
+catalogue_fit:
+  categories: [backend-as-a-service, developer-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers a Firebase/Supabase-style
+    backend-as-a-service (auto-generated REST/data API, multi-strategy
+    auth, media storage, and a visual admin UI over a single SQLite/
+    Postgres-backed service). n8n and gitea are the closest developer-
+    tools entries but serve entirely different purposes (workflow
+    automation, git hosting). bknd would let a customer stand up a
+    lightweight backend for their own app without a separate Firebase/
+    Supabase account.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely novel category for the catalogue, but it's a developer
+    infrastructure tool rather than a consumer-facing app — the target
+    customer is someone actively building another application on top of
+    it, a narrower audience than most of the current catalogue. That
+    value is further discounted by ~4 months of zero upstream activity
+    (see version_health) and the missing official image (see
+    installability), both of which add first-boot and long-term
+    maintenance risk for a customer relying on it as their app's backend.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official pre-built Docker image is published anywhere (not on Docker Hub, not on GHCR) — the repo's docker/ directory only documents 'docker build -t bknd .' from the Dockerfile in-tree, which every current recipe in this catalogue avoids (none build from source; all pin to a published image tag). Shipping this recipe today would mean either building and maintaining our own image (a maintenance burden and provenance gap the catalogue doesn't currently accept for any app), or running it as a recipe_type: native npm install (npx bknd run) — but every existing native recipe (claude-code, gemini-cli) is a localhost-only CLI tool with ports: [] and no Traefik domain, not a public-web-UI app; there's no precedent in this catalogue for a native recipe fronted by Traefik on a public domain, so that path isn't clearly supported either."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  bknd is a novel category for the catalogue — a Firebase/Supabase-style
+  backend-as-a-service (data API, auth, media, admin UI) with no
+  overlapping recipe today — and its default SQLite-file storage needs no
+  customer-supplied secret to boot beyond a mandatory Traefik basic_auth
+  gate, which is expressible via generated_from just like Adminer. It is
+  blocked today on a mechanism gap rather than a secrets gap: there is no
+  official published Docker image to pin (only an in-repo Dockerfile meant
+  for local builds, a pattern no current recipe uses), and the npm-based
+  native install path this project would otherwise support has no
+  precedent in this catalogue for a public-domain, Traefik-fronted service.
+  Combine that with ~4 months of zero commits and 7 months since the last
+  release after a year of steady monthly cadence, and this is a
+  build_with_caveats candidate at best even if the image gap were solved.
+  Recommend blocked_on_platform: revisit if upstream publishes an official
+  image, or if the catalogue adds support for native recipes with a public
+  Traefik-fronted port.
