@@ -1,0 +1,93 @@
+slug: astrbot
+name: AstrBot
+source_description: AstrBot is an open-source multi-platform AI chatbot framework
+
+upstream:
+  url: https://astrbot.app
+  repo_url: https://github.com/AstrBotDevs/AstrBot
+  license: AGPL-3.0
+  docker_image: soulter/astrbot
+
+version_health:
+  latest_version: v4.27.2
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v4.27.2) shipped today (2026-08-05); the two releases
+    before it (v4.27.1, v4.27.0) shipped 2026-08-02, and v4.26.8 shipped
+    2026-07-28 — sub-weekly cadence, no gap over a few days in the last
+    month. 5,000+ commits on the repo, actively maintained by AstrBotDevs.
+    No archival notice, no EOL announcement.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [openclaw, hermes-agent, open-webui]
+  differentiation: >
+    AstrBot's niche is IM-platform bot deployment — QQ, WeChat Work, Feishu,
+    DingTalk, WeChat Official Accounts, in addition to Telegram/Discord/Slack
+    — with a plugin ecosystem (1000+ community plugins) and built-in
+    RAG/MCP/knowledge-base features layered on top of any LLM backend. This
+    is a materially different audience than openclaw/hermes-agent (Telegram-
+    first, coding/task-agent framing) and open-webui (single-user local-model
+    chat UI, no IM integration at all).
+  usefulness: medium
+  usefulness_rationale: >
+    A real niche (self-hosted multi-platform IM chatbot, strong in the
+    Chinese IM ecosystem) not fully covered by the two existing agent
+    recipes, but it is the third AI-agent-with-messaging recipe in the
+    catalogue and the value is concentrated in a specific audience segment
+    rather than being broadly differentiating for most customers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WEBUI_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      AstrBot has no environment variable for setting the dashboard admin
+      password at first boot. On first start it auto-generates a random
+      password for the fixed username `astrbot` and prints it only to
+      container stdout logs — there is no channel in the current recipe
+      mechanism to read those logs back to the customer, nor to inject a
+      customer value into that flow.
+    - >
+      The dashboard credential CAN be pre-seeded before first boot by
+      writing `data/cmd_config.json` with a `pbkdf2_password` field, but
+      that field is a `pbkdf2_sha256$<iterations>$<hash>` hash —
+      `generated_from` today only supports `argon2`/`bcrypt`. Per
+      apps-gaps/SCHEMA.md this is not a hard blocker (it's a hash, not a
+      plaintext-password requirement), just a missing algorithm — flagging
+      as `blocked_on_platform` rather than `not_recommended`. A legacy
+      plaintext `password` field also exists in the same config file, but
+      our mechanism only ever has a password *hash* available
+      (`generated_from: "<algo>:ROOT_PASSWORD"`), never the plaintext, so
+      that field is not usable either way.
+    - >
+      Full IM-platform functionality (the app's core purpose) needs more
+      than the dashboard's single HTTP port: QQ integration via the NapCat
+      adapter uses a reverse WebSocket port (default 6199) and upstream
+      docs recommend opening the 6180-6200 range plus 11451 on a cloud
+      server. The dashboard itself (port 6185) is a normal single HTTP
+      service and works fine behind Traefik, but bot functionality beyond
+      Telegram/Discord/Slack (which use outbound polling/webhooks, no
+      inbound port needed) would require raw ports outside the
+      Traefik-only model our other recipes use.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  AstrBot is an actively developed (sub-weekly releases), AGPL-3.0 licensed
+  multi-platform AI chatbot framework with a real web dashboard and a
+  differentiated niche (Chinese IM platforms, plugin ecosystem, RAG/MCP)
+  versus the catalogue's existing openclaw/hermes-agent agent recipes. It is
+  not installable today: the dashboard's first-boot admin password is
+  randomly generated and only surfaced via container logs, and the one
+  pre-seedable credential path (a `pbkdf2_sha256` hash in
+  `cmd_config.json`) needs `generated_from` to support the `pbkdf2`
+  algorithm, which it does not yet. Revisit once `generated_from` gains
+  `pbkdf2` support; QQ/NapCat-style raw-port integrations would still be
+  out of scope for a Traefik-only recipe but core Telegram/Discord/Slack
+  usage would not need them.
