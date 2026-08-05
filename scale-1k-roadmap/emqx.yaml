@@ -1,0 +1,123 @@
+slug: emqx
+name: EMQX
+source_description: "High-performance open-source MQTT broker for IoT and real-time messaging"
+
+upstream:
+  url: https://www.emqx.io/
+  repo_url: https://github.com/emqx/emqx
+  license: >
+    Business Source License (BSL) 1.1 as of v5.9.0 (May 2025), when EMQX
+    merged its previously separate Apache-2.0 Community Edition and BSL
+    Enterprise Edition into a single source-available product. Each BSL
+    version converts to Apache-2.0 four years after its release. BSL 1.1
+    permits running a single-node instance in production for free, but
+    prohibits offering EMQX itself as a commercial hosted/managed service
+    and requires a paid license for multi-node clustering. Hostinger's
+    "open-source" framing is only accurate for versions predating 5.9.0.
+  docker_image: "emqx/emqx:6.2.2"
+
+version_health:
+  latest_version: "6.2.2"
+  latest_release_date: "2026-07-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    6.2.2 shipped 2026-07-02, about one month before today (2026-08-05).
+    EMQ actively maintains three parallel minor branches at once —
+    6.2.x (6.2.0 2026-03-31, 6.2.1 2026-06-11, 6.2.2 2026-07-02), 6.1.x
+    (6.1.0 2025-12-30 through 6.1.3 2026-07-01), and 6.0.x (6.0.1
+    2025-11-11 through 6.0.3 2026-06-17) — with patch releases landing
+    roughly monthly on each. Docker Hub also lists a 6.1.4 build newer
+    than 6.2.2. This is a clearly active, well-resourced project (EMQ
+    Technologies, commercially backed), not remotely dormant or EOL.
+
+catalogue_fit:
+  categories: [iot, messaging, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker of any kind — this would
+    be the first. EMQX is a clustering-capable, high-throughput MQTT
+    broker with a built-in web Dashboard (unlike Eclipse Mosquitto, which
+    is UI-less), aimed at IoT/IIoT fleets and real-time messaging rather
+    than end-user apps. It pairs conceptually with the existing Home
+    Assistant recipe (a common MQTT consumer) but is distinct
+    infrastructure, not a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Having a web Dashboard is a real advantage over Mosquitto for this
+    catalogue (fits our Traefik-fronted, browser-managed app pattern much
+    better), but the audience is still narrow and technical (people
+    wiring up their own MQTT clients/devices), and the BSL license
+    introduces a business-model wrinkle Mosquitto's EPL/EDL license
+    doesn't have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - EMQX Dashboard admin login (default admin/public, changeable via
+      EMQX_DASHBOARD__DEFAULT_PASSWORD, plaintext only)
+    - Traefik basic_auth gate for the Dashboard (defense-in-depth, since
+      the Dashboard credential itself can't carry the customer's root
+      password — see blocking_issues)
+  secrets_expressible_today:
+    - secret: EMQX Dashboard admin login (default admin/public, changeable via EMQX_DASHBOARD__DEFAULT_PASSWORD, plaintext only)
+      mechanism: server_generated_no_customer_input
+    - secret: Traefik basic_auth gate for the Dashboard (defense-in-depth, since the Dashboard credential itself can't carry the customer's root password — see blocking_issues)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The Dashboard's own admin credential
+      (`dashboard.default_password`/`EMQX_DASHBOARD__DEFAULT_PASSWORD`) is
+      documented only as "the password used to initialize the database
+      record for the admin user" with no mention of accepting a
+      pre-hashed value — the config key is named `default_password`, not
+      `default_password_hash`, unlike Vaultwarden's `ADMIN_TOKEN` which
+      explicitly documents argon2 support. This reads as a genuine
+      plaintext-only requirement, which per SCHEMA.md is a structural
+      blocker for `generated_from` (it only ever carries a hash, never
+      the plaintext). Workaround: set this env var to a random
+      server-generated secret the customer never sees, and put the
+      actual customer-facing gate in Traefik `basic_auth` (projecting the
+      root-password hash there instead) in front of the whole Dashboard
+      endpoint — mechanically this works exactly like an app with no
+      login of its own, it's just that EMQX happens to also have an
+      inner login the customer will never use.
+    - >
+      EMQX exposes non-HTTP raw ports that are the actual point of the
+      app — MQTT (1883/tcp) and MQTTS (8883/tcp), plus MQTT-over-WebSocket
+      (8083/8084) — alongside the Dashboard (18083/tcp, HTTP). Only the
+      Dashboard port can sit behind Traefik; 1883/8883 need direct raw
+      TCP exposure the way wg-easy exposes its VPN port, which is a
+      workable but non-default pattern for this catalogue.
+    - >
+      Licensing: BSL 1.1 (since v5.9.0) forbids offering EMQX itself as a
+      commercial hosted/managed service. Whether IONOS Application
+      Factory reselling EMQX instances to customers counts as exactly
+      that is a real open question that should go to legal/licensing
+      review before building, independent of the technical mechanism
+      questions above.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  EMQX would be the catalogue's first message-broker recipe and, unlike
+  the also-analyzed Eclipse Mosquitto, ships a real web Dashboard that
+  fits our Traefik-fronted pattern well. It is actively and commercially
+  developed with no sign of slowing. Two things block it today: the
+  Dashboard's own admin-password field appears to require plaintext (no
+  documented hash support), so `generated_from` can't project the
+  customer's root password directly into it the way it does for
+  Vaultwarden — the workaround is a server-generated Dashboard password
+  plus a Traefik `basic_auth` gate carrying the real customer credential,
+  same shape as our login-less-app pattern. Separately, EMQX's core
+  purpose requires raw non-HTTP ports (1883/8883) that don't fit the
+  Traefik-only exposure model most recipes use. On top of both mechanism
+  questions, EMQX adopted a Business Source License in 5.9.0 that
+  restricts offering it as a hosted service — worth a licensing check
+  before this is built regardless of the technical answers. Recommend
+  blocked_on_platform: revisit once a raw-TCP-port exposure pattern
+  exists (as needed for Mosquitto too) and the basic_auth-gate-in-front
+  approach is confirmed as acceptable for apps with their own
+  plaintext-only inner login.
