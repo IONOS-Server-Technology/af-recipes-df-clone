@@ -1,0 +1,102 @@
+slug: aptabase
+name: Aptabase
+source_description: "Privacy-first SDK analytics for mobile, desktop, and web apps"
+
+upstream:
+  url: https://aptabase.com
+  repo_url: https://github.com/aptabase/aptabase
+  license: AGPL-3.0 (server code; bundled SDKs are MIT)
+  docker_image: ghcr.io/aptabase/aptabase:main
+
+version_health:
+  latest_version: "main (rolling build, no tagged release)"
+  latest_release_date: null
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    The repo has never published a single GitHub Release or version tag in
+    its history — the only self-hosting artifact is `ghcr.io/aptabase/aptabase:main`,
+    a rolling build re-published on every merge to main (last pushed ~6 days
+    before 2026-08-05, i.e. ~2026-07-30). Commit activity is genuinely
+    active (commits as recent as 2026-07-31, including a .NET 10 upgrade),
+    so this is not an abandoned project — but there is no stable version to
+    pin. "release_cadence: sporadic" describes the release process itself
+    (none), not the underlying development pace, which looks healthy.
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers app/product analytics.
+    Aptabase targets mobile/desktop/web app event tracking (Firebase
+    Analytics / Google Analytics alternative) rather than website traffic
+    analytics — a distinct niche from a generic website-analytics tool like
+    Ackee (already analyzed, apps-gaps/ackee.yaml, also blocked). It would
+    be a genuinely new category if it shipped.
+  usefulness: medium
+  usefulness_rationale: >
+    App-event analytics has a real audience among indie/mobile developers
+    who want to avoid sending usage data to Google/Firebase, and it's a
+    novel category rather than a duplicate. But it's a narrower, more
+    technical audience than n8n/Vaultwarden-style recipes, and the lack of
+    any pinned release (see version_health) makes it a riskier pick to
+    stand a recipe on today regardless of the installability blocker below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [AUTH_SECRET, admin account creation]
+  secrets_expressible_today:
+    - secret: AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Aptabase has no password-based admin login at all — first-run access
+      is passwordless: a user registers with an email address and receives
+      a magic-link JWT to activate the account (server/Controllers,
+      AuthController.HandleMagicLink). There is no ADMIN_PASSWORD-shaped
+      field for `generated_from: "<algo>:ROOT_PASSWORD"` to project into,
+      because the app never asks for or verifies a password anywhere in
+      the login flow — this differs from Ackee's case (plaintext-compare
+      password field with no channel) in that here there is no password
+      field to target in the first place.
+    - >
+      Aptabase ships with no SMTP configured by default. Without SMTP, the
+      activation magic-link is only ever written to container logs
+      (confirmed via aptabase/self-hosting docs and issue #5/#7 in that
+      repo) — a customer using our install flow has no way to read
+      container logs to retrieve it, and af's install flow has no channel
+      to surface log output as a credential either. Configuring SMTP so the
+      customer receives the link by email would itself require an external
+      SMTP relay/credentials — exactly the class of "external credential
+      the customer must supply" that /compose has no channel for.
+    - >
+      Gating the app behind Traefik `basic_auth` (our other supported
+      mechanism) does not solve the underlying problem: it would only
+      protect the login/registration screen from the open internet, it
+      does not give the customer a way to complete Aptabase's own
+      email-based account activation. The blocker is the account-creation
+      flow itself, not lack of a perimeter gate.
+    - >
+      Separately, upstream has never cut a tagged release — the only image
+      available is the rolling `ghcr.io/aptabase/aptabase:main` tag, which
+      RFC-002's pinned-tag requirement (no `:latest`-equivalent floating
+      tags) would also reject even if the auth blocker were solved.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Aptabase is a genuinely new category for us (app-event analytics, not
+  website traffic analytics like Ackee) and is under active development,
+  but it fails installability today for a different and more fundamental
+  reason than Ackee: it has no password field at all, only a passwordless
+  email-magic-link registration flow with no SMTP configured out of the
+  box, so a customer has no channel to complete the first-admin-account
+  setup through our install flow. Neither `generated_from` (no password
+  field to target) nor Traefik `basic_auth` (doesn't touch account
+  activation) close this gap. On top of that, upstream has never published
+  a tagged release, only a rolling `main` image — a second, independent
+  blocker against shipping a pinned recipe today. Revisit only if Aptabase
+  adds a conventional password-based admin login or an env-var-settable
+  activation bypass, and separately once it starts cutting real releases.
