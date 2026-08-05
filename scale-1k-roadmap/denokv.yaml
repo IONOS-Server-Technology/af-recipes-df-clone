@@ -46,23 +46,33 @@ catalogue_fit:
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot: [DENO_KV_ACCESS_TOKEN]
-  secrets_expressible_today:
-    - secret: DENO_KV_ACCESS_TOKEN
-      mechanism: server_generated_no_customer_input
-  blocking_issues: []
-  installable_today: true
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      DENO_KV_ACCESS_TOKEN is not an internal secret nothing customer-facing
+      reads — it's the one credential the customer's own external Deno
+      application (`Deno.openKv(url)`) must be configured with to use the
+      service at all. DenoKV has no web UI, admin API, or any log/output
+      channel to surface a server-generated value after boot, so there is no
+      way for the customer to ever learn a server-generated token. It also
+      isn't a customer-chosen credential (so `generated_from` doesn't apply)
+      and there's no login of DenoKV's own to gate with `traefik_basic_auth`
+      instead. No expressible mechanism exists for this secret today.
+  installable_today: false
   recommendation: not_recommended
 
 summary: >
-  DenoKV is mechanically installable today: it needs only a single bearer
-  access token, which is a plain server-generated secret (not a customer-
-  chosen credential and not a login the app itself hashes), so it fits the
-  server_generated_no_customer_input mechanism cleanly, and it exposes one
-  plain-HTTP port with no other raw protocols, making it reverse-proxy
-  compatible. However, it has no web UI whatsoever and its only interface is
-  a developer-facing KV protocol consumed from a customer's own Deno code —
-  a narrow audience relative to the rest of the catalogue, with release
-  cadence recently slowing. Given the mechanical ease to ship but very
-  limited general-audience appeal, it is not recommended for the current
-  catalogue; revisit if Deno adoption among AF customers becomes a
-  requested use case.
+  DenoKV needs a single bearer access token (DENO_KV_ACCESS_TOKEN) that its
+  own external Deno client must be configured with, but there is no channel
+  today for that value to ever reach the customer: it's not a customer-
+  chosen credential (no `generated_from`), there's no UI or API to gate with
+  `traefik_basic_auth`, and DenoKV has no web UI, admin surface, or log
+  output through which a server-generated token could be retrieved post-
+  boot. It exposes one plain-HTTP port with no other raw protocols, so it
+  would be reverse-proxy compatible if this were solved, but as things stand
+  it is not mechanically installable today. Combined with having no web UI
+  and a narrow developer-only audience (customers already building Deno/Deno
+  Deploy applications who want an external KV backend) plus a recently
+  slowing release cadence, it is not recommended for the current catalogue;
+  revisit only if a customer-supplied-secret input channel ships and Deno
+  adoption among AF customers becomes a requested use case.
