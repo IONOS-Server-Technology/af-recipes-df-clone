@@ -1,0 +1,89 @@
+slug: apache-jspwiki
+name: Apache JSPWiki
+source_description: "Java-based Apache wiki engine with versioning, attachments, and access control"
+
+upstream:
+  url: https://jspwiki.apache.org/
+  repo_url: https://github.com/apache/jspwiki
+  license: Apache-2.0
+  docker_image: apache/jspwiki
+
+version_health:
+  latest_version: "2.12.4"
+  latest_release_date: "2026-04-08"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    2.12.4 was tagged/published to Maven Central on 2026-04-08 — just under
+    4 months before today (2026-08-05). Recent stable-release gaps have been
+    long and widening: 2.12.2 (2024-06-19) -> 2.12.3 (2025-07-29, +13
+    months) -> 2.12.4 (2026-04-08, +8 months). That is a genuinely sporadic
+    cadence for a 2.x line, not a healthy monthly/quarterly rhythm.
+    However the project is not stale: master had commits as recently as
+    2026-07-14 (3 weeks ago), and there is live work toward a 3.0.0 line
+    (tag jspwiki-builder-3.0.0-RC1, dev version string "3.0.0-git-24" in
+    July 2026 commits), so this reads as active-but-slow rather than
+    maintenance-only. One naming oddity worth flagging for a reviewer: the
+    git/Docker Hub tag for this release is literally named "2.14.2"
+    (release-2.14.2 on Docker Hub, tag 2.14.2 on GitHub), but the pom.xml
+    inside that tag is version 2.12.4 and Maven Central's maven-metadata.xml
+    lists 2.12.4 as <latest>/<release> — "2.14.2" appears to be a mistaken
+    tag label, not a real second version line. Treat 2.12.4 as the
+    authoritative latest version.
+
+catalogue_fit:
+  categories: [productivity, knowledge-base, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue is a wiki/knowledge-base
+    tool. Gitea hosts git repos and OpenGist hosts snippets, but neither
+    gives a browsable, editable wiki with page history. JSPWiki's specific
+    angle within "wiki" is fine-grained page/group ACLs and a mature
+    versioning + attachment model (it predates Confluence and is still used
+    by some legacy enterprise/documentation teams wanting that model) — a
+    real but narrower niche than a generic Markdown wiki.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuine, currently-unfilled catalogue gap (self-hosted wiki) on
+    its own merits, but is a heavier stack (JVM + Tomcat + JSP) with a
+    sporadic, cooling release cadence compared to a same-category
+    alternative already surfaced in this gap-analysis process (An Otter
+    Wiki: single lightweight Python process, git-backed, dense/active
+    release cadence — see apps-gaps/an-otter-wiki.yaml). If the catalogue
+    only has room for one wiki recipe, An Otter Wiki is the stronger
+    general-purpose pick; JSPWiki would only add value for customers
+    specifically wanting its Java-centric ACL/versioning model or migrating
+    from an existing JSPWiki instance.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Apache JSPWiki ships an official single-container image (apache/jspwiki,
+  pin e.g. release-2.12.3 or build-equivalent to 2.12.4) serving on one HTTP
+  port (8080 in-container), storing pages/attachments/logs on a local
+  volume with no external database — fully Traefik-compatible and
+  mechanically simple to deploy. Like An Otter Wiki, it ships with an open
+  default security policy: anonymous visitors can edit pages and
+  self-register a profile out of the box, with whoever gets there first
+  effectively claiming admin-equivalent standing before the customer does.
+  That is not a hard blocker — the same Traefik basic_auth:true gate
+  pattern used for Adminer/n8n/WUD/An Otter Wiki closes it — but it is a
+  required secret, not an optional one. Mechanically installable_today with
+  zero hard blocking issues, hence build_with_caveats. The bigger caveat is
+  strategic rather than mechanical: release cadence has slowed to roughly
+  one release every 8-13 months and the stack is heavier (JVM/Tomcat) than
+  a comparable, more actively-released wiki candidate already flagged in
+  this same gap-analysis pass (An Otter Wiki), which fills the same
+  "self-hosted wiki" catalogue gap with less footprint and a much denser
+  release cadence. Worth building only if the catalogue wants a second,
+  ACL/versioning-focused wiki option alongside (or instead of) that one.
