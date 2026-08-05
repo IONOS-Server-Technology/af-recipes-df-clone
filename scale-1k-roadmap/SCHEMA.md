@@ -37,10 +37,13 @@ Practical test for "installable via our recipe mechanism today":
 | Just a domain | yes |
 | Domain + one admin login → project root password into it | yes (`generated_from`) |
 | Domain + no login, but should be gated | yes (Traefik `basic_auth`) |
+| Domain + a fixed/default/hardcoded admin credential the app itself gives no way to change | yes — gate the whole app behind Traefik `basic_auth`; that's the actual auth boundary, so a weak or unchangeable credential *behind* it is no longer customer-facing risk (IF-1312). Don't treat "app ships a fixed default password" as a blocker on its own. |
 | Domain + a random secret nothing customer-facing reads (DB password, JWT signing key) | yes — generate anything patternless server-side, customer never needs it |
+| A CLI tool / local agent with no web UI at all | yes, as `recipe_type: native` (see `recipes/claude-code/`, `recipes/gemini-cli/`) — AF supports native/CLI recipes as a first-class type, not just `docker-compose` web apps. Don't mark an app down just for lacking a container or a web UI. |
 | Domain + an external API key/token the app can't function without | **no** — no channel for the customer to supply it |
 | Domain + OAuth app registration / third-party account linking | **no** |
 | Multiple independent customer-chosen logins | **no** — root-password projection only covers one |
+| Domain + an admin credential the app will only accept as a hash in an algorithm `generated_from` doesn't support yet (e.g. `pbkdf2`) | **not a hard no** — the supported-algorithm list (`argon2`, `bcrypt`) is extensible; flag as `blocked_on_platform` with the needed algo named, not `not_recommended`. Only a genuine requirement for the **plaintext** password (not any hash) is a structural blocker, since `generated_from` only ever carries a hash. |
 
 ## Schema
 
@@ -111,3 +114,16 @@ Notes:
   it.
 - No `analyzed_at`/worker metadata field — dark-factory's own issue/job
   records already carry that provenance; don't duplicate it in-file.
+- **Aggressive EOL/dormant detection is correct and valued, keep doing it.**
+  Flagging an app `not_recommended` purely because upstream has gone dark for
+  years (no commits, no releases, image frozen) — even when the app would be
+  *mechanically* installable — is exactly the signal this analysis is for.
+  Don't soften `eol_status`/`release_cadence` findings to be diplomatic about
+  an abandoned project; the whole point is catching that before a recipe
+  ships on top of it.
+- **When an app name is ambiguous (multiple distinct upstreams share it),
+  say so explicitly.** Name a candidate `repo_url` as usual, but add a line
+  to `blocking_issues` (or `version_health.notes` if otherwise
+  installable) noting that the name is ambiguous and which other project(s)
+  you considered and ruled out, so a human reviewer can catch a wrong pick
+  without re-doing the search themselves.
