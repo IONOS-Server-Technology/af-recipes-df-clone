@@ -1,0 +1,86 @@
+slug: apache-kvrocks
+name: Apache Kvrocks
+source_description: "Redis-compatible disk-backed NoSQL database powered by the RocksDB engine"
+
+upstream:
+  url: https://kvrocks.apache.org/
+  repo_url: https://github.com/apache/kvrocks
+  license: Apache-2.0
+  docker_image: apache/kvrocks
+
+version_health:
+  latest_version: "2.16.0"
+  latest_release_date: "2026-06-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.16.0 shipped 2026-06-22 (~1.4 months before today, 2026-08-05) with
+    conditional SET ops, CLIENT PAUSE/UNPAUSE, expanded Redis 7.0+ command
+    compatibility, a RocksDB bump to v11.1.1, and security hardening (Lua
+    CVE patches, replication tightening, RDB validation). ASF top-level
+    project (graduated from incubator), steady multi-week release cadence,
+    active commit history and nightly Docker builds — clearly active, not
+    dormant or EOL.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes give customers a standalone Redis-
+    protocol-compatible key-value store. Kvrocks isn't a drop-in overlap
+    with anything shipped today — the closest conceptual cousin is a
+    Postgres/MySQL instance bundled *inside* another recipe (n8n,
+    paperless-ngx), but those are private implementation details the
+    customer never talks to directly, whereas Kvrocks would be a database
+    the customer provisions and connects their own application to over the
+    RESP protocol. It differentiates itself from an in-memory Redis by
+    persisting to RocksDB on disk, aimed at larger datasets at lower memory
+    cost.
+  usefulness: low
+  usefulness_rationale: >
+    Pure developer infrastructure with no web UI and no HTTP surface at
+    all — a customer would deploy it only to point their own external
+    application at it over the Redis wire protocol. That's a narrower,
+    more technical audience than the end-user apps (password managers,
+    chat, Git hosting, photo management) making up most of the catalogue,
+    and lower appeal than CouchDB's comparable "standalone database" gap
+    since Kvrocks lacks even a bundled admin UI or HTTP API to browse data.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [requirepass]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Kvrocks authenticates exactly like Redis: `requirepass` in
+      kvrocks.conf is compared byte-for-byte against whatever the client
+      sends via `AUTH <password>` — the server never hashes it, and there
+      is no hashed-credential config option at all. `generated_from` can
+      only ever project a hash (argon2/bcrypt) of the customer's root
+      password, never the plaintext, so this is not a "missing algorithm"
+      gap like CouchDB's — extending `generated_from`'s supported-algorithm
+      list would not help, because Kvrocks has no hash-verification code
+      path to target in the first place. Only a genuine plaintext-password
+      input channel would unblock it, and none exists today.
+    - >
+      Traefik `basic_auth` is not an alternative gate here either: Kvrocks
+      speaks the raw RESP (Redis) wire protocol on port 6666, not HTTP, so
+      an HTTP-layer basic-auth gate in front of it is a no-op — Traefik
+      would have nothing to intercept.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Apache Kvrocks is an actively maintained (2.16.0, 2026-06-22), Apache-
+  licensed disk-backed Redis-compatible database with no overlap in the
+  current 24-recipe catalogue. However it has no web UI, speaks a raw
+  TCP protocol rather than HTTP, and its only auth mechanism (Redis-style
+  plaintext `requirepass`) has no projection path from the customer's root
+  password and can't be gated by Traefik basic auth since there's no HTTP
+  layer to intercept. Combined with its narrow appeal as pure developer
+  backend infrastructure rather than a customer-facing app, recommend
+  not_recommended rather than blocked_on_platform — there is no near-term
+  platform change (unlike CouchDB's missing pbkdf2 algorithm) that would
+  unblock it, since Kvrocks has no hash-verification path to extend at all.
