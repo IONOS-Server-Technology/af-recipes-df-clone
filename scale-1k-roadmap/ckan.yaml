@@ -54,46 +54,35 @@ installability:
     - CKAN_SYSADMIN_NAME
     - CKAN_SYSADMIN_PASSWORD
     - POSTGRES_PASSWORD
+    - BASIC_AUTH_GATE
   secrets_expressible_today:
     - secret: POSTGRES_PASSWORD
       mechanism: server_generated_no_customer_input
-  blocking_issues:
-    - >
-      The official ckan/ckan-docker compose stack (ckan-base image +
-      Postgres + Solr + Redis + DataPusher, fronted by nginx) provisions
-      the initial sysadmin account at container start from
-      CKAN_SYSADMIN_NAME / CKAN_SYSADMIN_PASSWORD (upstream defaults:
-      ckan_admin / test1234, "must be changed before running this as a
-      public instance"). CKAN stores only a hash internally, but the env
-      var it reads is a literal plaintext password — the same class of
-      requirement as CiviCRM's CIVICRM_ADMIN_PASS. Our only supported
-      per-customer secret mechanism, `generated_from: "<algo>:ROOT_
-      PASSWORD"`, only ever yields a hash, so it cannot supply this field.
-    - >
-      Unlike Adminer/Chroma/WUD, CKAN has a real login system of its own
-      (sysadmin + editor/member roles) that customers must authenticate
-      into to actually publish or manage datasets — the app's core
-      function. Gating the reverse-proxied port with Traefik
-      `basic_auth: true` (as done for apps with no login of their own)
-      would only add a network-level gate in front of an nginx/CKAN stack
-      whose application-level sysadmin credential the customer still has
-      no way to learn or set; it does not substitute for the missing
-      plaintext-password channel, so the instance would ship functionally
-      admin-locked.
-  installable_today: false
-  recommendation: blocked_on_platform
+    - secret: CKAN_SYSADMIN_NAME
+      mechanism: server_generated_no_customer_input
+    - secret: CKAN_SYSADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
 
 summary: >
   CKAN is an actively maintained (2.12 in active development, roadmap
   toward 3.0), non-duplicative addition that would open a genuinely new
   open-data-portal category for the catalogue, with a reverse-proxy-
-  friendly single web UI port. It is not installable today: the official
-  Docker Compose stack requires a plaintext CKAN_SYSADMIN_PASSWORD at
-  container start to create the account customers need to actually manage
-  their data portal, and our platform's only per-customer secret channel
-  (`generated_from` root-password hash) cannot supply a plaintext value.
-  A Traefik basic_auth gate doesn't close the gap either, since it would
-  sit in front of CKAN's own separate login system rather than replace it.
-  Revisit once the recipe mechanism supports projecting a customer-chosen
-  plaintext credential (or a post-boot exec step to set one), not just a
-  root-password hash.
+  friendly single web UI port. The official ckan/ckan-docker compose stack
+  (ckan-base image + Postgres + Solr + Redis + DataPusher, fronted by
+  nginx) provisions the initial sysadmin account at container start from
+  CKAN_SYSADMIN_NAME / CKAN_SYSADMIN_PASSWORD (upstream defaults:
+  ckan_admin / test1234). Per platform convention for a fixed/default
+  admin credential (IF-1312), this is not a blocker on its own: leave
+  those two vars at their documented default and gate the whole app
+  behind a Traefik basic_auth boundary keyed off the root password — the
+  same pattern used for chronoframe. CKAN also lets a sysadmin change any
+  user's password after login via its own web UI
+  (`/user/edit/<username>`), so there's no post-boot exec step needed the
+  way there is for CiviCRM. It's mechanically installable today; the
+  remaining caveat is packaging weight (Postgres + Solr + Redis +
+  DataPusher sidecars) rather than any secret-projection gap.
