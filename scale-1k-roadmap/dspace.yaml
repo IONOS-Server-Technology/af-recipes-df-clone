@@ -1,0 +1,105 @@
+slug: dspace
+name: DSpace
+source_description: "Open-source institutional repository for research and digital preservation"
+
+upstream:
+  url: https://dspace.org/
+  repo_url: https://github.com/DSpace/DSpace
+  license: BSD-3-Clause
+  docker_image: dspace/dspace:dspace-10.0
+
+version_health:
+  latest_version: "dspace-10.0"
+  latest_release_date: "2026-05-28"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    dspace-10.0 (2026-05-28) is the current major release; dspace-9.3 and
+    dspace-8.4 (bugfix releases for the still-supported 9.x/8.x lines)
+    shipped the same day, and dspace-7.6.7 was released as the final
+    end-of-life build for the now-retired 7.x line. As of today
+    (2026-08-05) that's ~2.4 months since 10.0 — consistent with the
+    project's established ~5-7 month major/minor cadence (9.0 2025-05-23,
+    9.1 2025-07-14, 9.2 2025-12-17, 9.3/10.0 2026-05-28) and matching
+    Docker Hub image pushes as recently as 2026-08-05 (dspace-10_x rolling
+    tag). LYRASIS (the maintaining foundation) states 8.x/9.x remain under
+    bug-fix/security support until 11.0 (~May 2027). No archival or
+    dormancy signal — this is a mature, actively maintained project.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes covers institutional repository /
+    research-object digital preservation (persistent identifiers, metadata
+    schemas like Dublin Core/DataCite, embargoes, bitstream preservation).
+    Paperless-ngx (personal document scanning/OCR archive) and Gitea (code
+    hosting) are the closest existing recipes by shape but serve entirely
+    different audiences and data models. DSpace would open a genuinely new
+    segment: universities, libraries, and research institutions needing a
+    self-hosted repository for theses, datasets, and publications.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, well-established niche (DSpace powers thousands of institutional
+    repositories worldwide) but a narrow, specialized customer base
+    compared to broad consumer/SMB tools already in the catalogue
+    (Vaultwarden, Immich, n8n). Heavy JVM + Angular + Solr + Postgres stack
+    also means a much bigger resource footprint than most current recipes,
+    which raises the bar for who self-hosts this on a single AF instance
+    versus using an institutional/managed DSpace hosting provider instead.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, solr_internal, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: solr_internal
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      DSpace ships with no default administrator account and no
+      ADMIN_EMAIL/ADMIN_PASSWORD-style environment variable of any kind.
+      The only supported way to create the first admin e-person is the
+      interactive-or-flagged CLI command `dspace create-administrator -e
+      <email> -f <first> -l <last> -p <password> -c <lang>`, which stores
+      the password using DSpace's own internal hashing after receiving it
+      in plaintext — there is no hook to inject a pre-computed hash, so
+      `generated_from` (hash-only) cannot reach it and there is no channel
+      for a customer-chosen plaintext password either.
+    - >-
+      Workable within the existing fixed-default-credential precedent
+      (Apache DolphinScheduler, Adminer): install.sh can run
+      `create-administrator` once at first boot with a recipe-fixed,
+      non-customer-facing password (never surfaced to the customer), then
+      gate the entire app behind a mandatory Traefik `basic_auth` credential
+      projected from the customer's root password. The customer authenticates
+      at the Traefik layer; the DSpace-internal admin login stays an
+      implementation detail the recipe controls, same as
+      apps-gaps/apache-dolphinscheduler.yaml. This is a workaround, not a
+      DSpace-native mechanism, and should be called out explicitly in the
+      recipe if built.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  DSpace is an active, well-maintained project (dspace-10.0, 2026-05-28)
+  filling a real gap — institutional repository / research digital
+  preservation — with no equivalent in the current 24-recipe catalogue.
+  It is mechanically installable today only via a workaround: DSpace has no
+  admin-account input channel of its own (CLI-only, plaintext-password,
+  no env var), so the recipe would need to seed a fixed, non-customer-facing
+  admin password at first boot and rely on a mandatory Traefik basic_auth
+  gate (root-password projected) as the real customer-facing auth boundary,
+  following the same precedent used for DolphinScheduler/Adminer-style fixed
+  defaults. Beyond that workaround, DSpace is also a heavier multi-service
+  stack (Tomcat/JVM backend + Angular frontend + Solr + Postgres, official
+  images explicitly marked "not production ready" by upstream) than most of
+  the catalogue, aimed at a narrow institutional/library audience.
+  Recommend build_with_caveats: worth building only for a specific customer
+  ask, with the basic_auth workaround and the upstream "not production
+  ready" image warning both called out explicitly.
