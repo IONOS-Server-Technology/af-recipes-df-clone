@@ -16,12 +16,12 @@ version_health:
   notes: >
     Third-party (not official-Anki-maintained) Docker wrapper that tracks
     upstream Anki releases with near-daily automated builds: 26.08 pushed
-    within the last day, 26.05 five days prior, 25.09.4/25.09.3/25.09.2
-    roughly two-three months before that. Repo is small (~60 commits,
-    single maintainer, chrislongros) but shows active CI/CD and release
-    cadence as of 2026-08-05. Not archived, no EOL signal, but young/low
-    community size relative to most of our current catalogue's upstreams —
-    bus-factor risk with a single maintainer.
+    within the last day (as of 2026-08-05), 26.05 five days prior,
+    25.09.4/25.09.3/25.09.2 roughly two-three months before that. Repo is
+    small (single maintainer, chrislongros) but shows active CI/CD and
+    release cadence as of today's date. Not archived, no EOL signal, but
+    young/low community size relative to most of our current catalogue's
+    upstreams — bus-factor risk with a single maintainer.
 
 catalogue_fit:
   categories: [productivity]
@@ -39,53 +39,66 @@ catalogue_fit:
     Real but narrow appeal — students/language-learners who want to avoid
     AnkiWeb's free-tier limits or keep flashcard data private. It's a
     single-purpose sync backend for one specific desktop/mobile app
-    ecosystem, not a broad-audience tool, and the primary interface is the
-    Anki sync protocol rather than a browser UI most customers would open.
+    ecosystem, not a broad-audience tool, and the primary interface most
+    customers would ever open is the optional dashboard, not the sync
+    protocol itself.
 
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot: [sync_user_credential, dashboard_auth]
-  secrets_expressible_today: []
+  secrets_expressible_today:
+    - secret: dashboard_auth
+      mechanism: traefik_basic_auth
   blocking_issues:
     - >
-      The app's core credential (SYNC_USER1=<username>:<password>, what the
-      customer types into their Anki client to sync) is a single combined
-      username+password env var, not a password-only admin-login field.
-      There's no channel today for the customer to choose their own sync
-      username, and no way to hand the app a password that matches
-      something the customer actually knows to type into the Anki client —
-      generated_from only ever exposes a hash to the app, never the
-      customer's plaintext, and the sync client needs the plaintext.
+      The app's core credential is SYNC_USER1=<username>:<secret>, and the
+      username half is not customer-chosen — the recipe can simply hardcode
+      a fixed username (e.g. "customer") in the .env.template, so that part
+      is not a blocker on its own.
     - >
-      Even ignoring the username/plaintext problem, PASSWORDS_HASHED mode
-      expects pbkdf2 hashes specifically (via the app's own
-      user-manager.sh hash tool); generated_from only supports
-      argon2/bcrypt. The hash algorithms are incompatible, so root-password
-      projection can't produce a value the app would accept even in
-      hashed mode.
+      With PASSWORDS_HASHED=true, SYNC_USER1's <secret> is a hash, and the
+      Anki client authenticates by sending the plaintext password to the
+      server at sync time (over TLS) — the server itself only ever needs
+      the hash to verify against, the same shape as Vaultwarden's
+      ADMIN_TOKEN. So this is NOT a case where the app needs the customer's
+      plaintext; a customer syncing their Anki client would simply type
+      their existing root password as the sync password, matching the
+      generated_from model exactly. The genuine blocker is narrower: the
+      app's hashing tool (user-manager.sh) produces PHC-format pbkdf2
+      hashes, and generated_from today only supports argon2/bcrypt. This is
+      blocked_on_platform pending pbkdf2 (PHC pbkdf2-sha256) support in
+      generated_from, not a structural not_recommended — per SCHEMA.md's
+      corrected guidance, only a genuine plaintext requirement is a hard
+      blocker, and this app has none.
     - >
-      A second, independent secret exists for the optional web dashboard
-      (DASHBOARD_AUTH=user:pass). Traefik basic_auth could gate the
-      dashboard route without needing the app's own DASHBOARD_AUTH, but
-      that still leaves two distinct auth surfaces (sync protocol +
-      dashboard) needing two independent credentials — the
-      root-password-projection mechanism only covers one.
+      The optional web dashboard (DASHBOARD_ENABLED=true) has its own
+      independent secret, DASHBOARD_AUTH=user:pass, for the app's built-in
+      basic-auth page. Since it's a plain HTTP basic-auth prompt with no
+      backing user-management, the recipe can simply leave DASHBOARD_ENABLED
+      off and instead gate the dashboard's route with Traefik basic_auth —
+      same pattern as n8n/WUD/Open WebUI. That secret is fully expressible
+      today.
     - >
-      Sync traffic (port 8080/8443) and the dashboard (port 8081) are
-      separate services on separate ports with different semantics (raw
-      sync protocol vs. browser UI); fronting both cleanly behind a single
-      Traefik router the way our other recipes do is not a clean fit.
+      Sync traffic (8080/8443) and the dashboard (8081) are two separate
+      backend ports needing two separate Traefik routers/hostnames rather
+      than the single-port-per-app shape most of our recipes use. Not a
+      hard blocker (multi-service recipes like anytype-server/immich already
+      front more than one port), but it is a step above our simplest
+      single-container recipes and worth flagging as extra plumbing.
   installable_today: false
-  recommendation: not_recommended
+  recommendation: blocked_on_platform
 
 summary: >
-  Anki Sync Server Enhanced would be a genuinely new category for the
-  catalogue (personal flashcard sync) with an actively-updated upstream,
-  but it fails our installability test in a way that isn't just "waiting
-  on IF-1420/1312 to merge": its core credential is a customer-chosen
-  username+password pair the Anki client needs in plaintext, which our
-  root-password-hash-projection mechanism structurally cannot supply, and
-  its optional hashed-password mode uses pbkdf2 while our mechanism only
-  supports argon2/bcrypt. Combined with a narrow, technical target
-  audience and a single-maintainer upstream, this is not recommended for
-  the recipe catalogue today.
+  Correcting the prior pass: this app's core sync credential does NOT
+  require the customer's plaintext to reach the container — in
+  PASSWORDS_HASHED mode the server only ever needs a hash to check the
+  client-submitted password against, and the username half of SYNC_USER1
+  can be a fixed, non-customer-chosen value. The real, narrower blocker is
+  that the app's hash tool produces pbkdf2 (PHC format), which
+  generated_from doesn't support yet (only argon2/bcrypt) — this is
+  blocked_on_platform, not a structural not_recommended. The optional
+  dashboard's own auth can be bypassed entirely with a Traefik basic_auth
+  gate instead. Once pbkdf2 support lands in generated_from, this becomes
+  mechanically installable; independent of that, it remains a low-value,
+  narrow-audience addition (single flashcard-sync ecosystem, single-
+  maintainer upstream) so even post-unblock it's a low-priority build.
