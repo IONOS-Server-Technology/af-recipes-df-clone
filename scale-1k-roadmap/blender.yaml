@@ -1,0 +1,71 @@
+slug: blender
+name: Blender
+source_description: "Browser-accessible 3D modeling, animation, and rendering suite"
+
+upstream:
+  url: https://www.blender.org
+  repo_url: https://github.com/linuxserver/docker-blender
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/blender
+
+version_health:
+  latest_version: "5.2.0 (image tag 5.2.0-ls234)"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Blender 5.2 LTS released 2026-07-14 (supported until 2028-07), with
+    Blender 5.1 released 2026-03-17 and 5.3 alpha expected 2026-11 — a
+    steady multi-release-per-year cadence. The linuxserver/blender image
+    tracks upstream tightly: the 5.2.0 build was pushed ~6 days before this
+    analysis (2026-08-05), and the prior 5.1.2 build ~27 days before that.
+    Both upstream Blender and the linuxserver packaging are clearly
+    actively maintained.
+
+catalogue_fit:
+  categories: [productivity, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch 3D content creation. This would be
+    the first "creative tooling accessed as a remote desktop in the
+    browser" recipe — closest in shape to Guacamole (browser-delivered
+    remote desktop) but for a specific bundled application rather than a
+    general RDP/VNC/SSH gateway, and Guacamole itself is currently disabled
+    (`enabled: false`) in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Gives customers a zero-install way to run Blender from any device,
+    which is a real draw for a hosted-desktop-adjacent use case. But it's a
+    heavy, single-user, GPU-optional (CPU rendering only out of the box)
+    desktop app delivered via VNC-in-browser rather than a purpose-built
+    web app — a narrower audience than our typical self-hosted-service
+    recipes, and rendering performance without a GPU device passthrough
+    will be poor for anything beyond light modeling work.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "basic-auth gate credential (image ships with NO authentication by default and includes a passwordless-sudo terminal, so it must not be exposed publicly without a gate)"
+  secrets_expressible_today:
+    - secret: "basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Blender via linuxserver/docker-blender is mechanically installable today:
+  it's a single-container web app (KasmVNC-based desktop in the browser on
+  port 3001/3000) with no login of its own, so a Traefik basic_auth gate
+  using the customer's root-password hash covers its one security
+  requirement cleanly, and both upstream Blender and the packaging image
+  are actively maintained. The caveat is fit rather than mechanism: it's a
+  heavy remote-desktop-style app with only CPU rendering out of the box
+  (GPU passthrough would need extra device config we don't currently
+  support per-customer), and it's a genuinely new category for the
+  catalogue rather than filling a gap next to an existing recipe. Worth
+  building if the catalogue wants a creative-tooling entry, but it's a
+  differentiator bet, not a duplicate-avoidance or high-demand-backlog
+  item.
