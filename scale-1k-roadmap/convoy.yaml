@@ -1,0 +1,75 @@
+slug: convoy
+name: Convoy
+source_description: "Open-source cloud-native webhooks gateway for reliable event delivery"
+
+upstream:
+  url: https://getconvoy.io/
+  repo_url: https://github.com/frain-dev/convoy
+  license: Elastic License v2.0 (ELv2 — source-available, not OSI-approved open source)
+  docker_image: getconvoy/convoy
+
+version_health:
+  latest_version: "v26.7.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active — v26.7.0 shipped 2026-08-04 (2 days before this analysis),
+    preceded by v26.6.10 (2026-07-31), v26.6.9 (2026-07-28), v26.6.8
+    (2026-07-24), v26.6.7 (2026-07-23): multiple releases per week. Repo has
+    ~1,618 commits on main, 2.8k stars, actively triaged issues/PRs. No EOL
+    or maintenance-mode signal.
+
+catalogue_fit:
+  categories: [developer-tools, integration, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers webhook ingestion/delivery
+    management (retries, rate limiting, circuit breaking, delivery
+    debugging). n8n and activepieces do workflow automation and can consume
+    webhooks as one trigger type among many, but neither is a dedicated
+    webhooks gateway/dashboard for reliably fanning events out to
+    third-party endpoints. Convoy would be a genuinely new category for
+    developer-facing customers who need webhook infrastructure.
+  usefulness: medium
+  usefulness_rationale: >
+    Solid differentiator for a developer/SaaS-builder audience, but it's a
+    backend infrastructure primitive rather than a broad-appeal app — the
+    target user is a customer building their own product on top of it, not
+    an end-user consuming it directly. Elastic License v2.0 (not OSI open
+    source) is also worth flagging for a "self-hosted open-source app"
+    catalogue, though ELv2 does permit self-hosted production use.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Convoy's official docker-compose stack (Postgres + Redis + a migrate job
+  + web/agent/worker processes fronted by a single API+UI port, 5005) ships
+  with a hardcoded, undocumented-as-configurable default admin login
+  (documentation samples show both "superuser@default.com" and
+  "admin@getconvoy.io", password "default" — the exact seeded pair is
+  version-dependent, but in all cases it is a fixed credential the app,
+  not the customer, chooses). No env var for overriding the seeded
+  admin password was found in the configuration docs or the local
+  docker-compose file. Per the "fixed/unchangeable default admin
+  credential" case in SCHEMA.md, this is not a blocker: gate the whole
+  app behind a Traefik basic_auth:true wall (password projected from the
+  customer's root password via generated_from), making that gate the real
+  auth boundary and the weak internal default a non-issue. JWT signing
+  secrets are also required but are server-generated with no customer
+  input needed. Recommend build_with_caveats: mechanically installable
+  today, but it's a multi-service stack (Postgres, Redis, migrate,
+  web, worker, agent) more like anytype-server/immich than a single
+  container, and the audience is narrower (webhook infra builders, not
+  general self-hosters) — worth a real af-create-recipe pass but not an
+  urgent one.
