@@ -1,0 +1,75 @@
+slug: apache-doris
+name: Apache Doris
+source_description: "Real-time MPP analytics database for sub-second SQL and unified data warehousing"
+
+upstream:
+  url: https://doris.apache.org
+  repo_url: https://github.com/apache/doris
+  license: Apache-2.0
+  docker_image: "apache/doris (separate fe-<version> and be-<version> tags, e.g. apache/doris:fe-4.1.3 / apache/doris:be-4.1.3)"
+
+version_health:
+  latest_version: "4.1.3"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~3.5 weeks between 4.1.3 (2026-07-13) and today (2026-08-05). Two parallel
+    stable lines both getting regular patches: 4.1.x (4.1.0 Apr-21, 4.1.1
+    May-24, 4.1.2 Jun-17, 4.1.3 Jul-13 — roughly monthly) and 4.0.x (4.0.6
+    Jun-08, 4.0.7 Jul-12). Top-level Apache project, large active community,
+    no slowdown or EOL signal.
+
+catalogue_fit:
+  categories: [database, analytics, data-warehouse]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is an analytics/OLAP database — this
+    would be a genuinely new category (real-time MPP SQL analytics, unified
+    data warehousing). But the product's core value is served over the raw
+    MySQL wire protocol (port 9030) to BI tools and SQL clients, not through
+    the FE's web console; the web console (port 8030) is a monitoring/admin
+    surface, not the primary way customers get value from the app. That's a
+    different shape from every existing web-app recipe.
+  usefulness: low
+  usefulness_rationale: >
+    Real category, but Doris targets large-scale distributed analytics
+    workloads: minimum viable deployment is already two containers (FE +
+    BE) configured in "election mode" with FE_SERVERS/FE_ID coordination,
+    and upstream's own production guidance is 3+ FE and 3+ BE nodes for HA.
+    The BE image also requires AVX2 CPU support and JVM-backed FE tends to
+    want double-digit GB of RAM. This is a heavier, more specialized
+    footprint than a typical single-VM AF customer's use case, and the
+    payoff (a MySQL-protocol endpoint for BI tools) doesn't map well onto
+    the "one app, one browser tab" model most AF customers expect.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["root account password (FE web console at :8030 and MySQL-protocol access at :9030 share the same root account)"]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Doris's root account ships with an empty password by default and is changed only via a post-boot SQL command (SET PASSWORD) or the fe.conf `root_password` setting, which accepts only a doubled-SHA1 hash (MySQL PASSWORD()-style: SHA1(SHA1(plaintext))) — not argon2 or bcrypt. `generated_from` doesn't support that hash format today, so there's no channel to project the customer's root (server) password into it. Per the schema's guidance this is a 'not a hard no': it needs a supported-algorithm extension, not a plaintext requirement, so this is flagged blocked_on_platform rather than not_recommended."
+    - "Inspected the official FE init script (docker/runtime/fe/resource/init_fe.sh in the apache/doris repo) directly: it validates cluster-topology env vars (FE_SERVERS, FE_ID, FE_MASTER_IP, etc.) but has no env var for setting an initial password of any kind — confirming there is no init-time hook to inject a hash even if the algorithm gap were closed."
+    - "Even with the credential issue solved, the product's primary interface is the raw MySQL wire protocol on port 9030, not HTTP — usable as a `public: true, http: false` raw port (the platform already supports this for wg-easy/pihole), but it means the actual value of the app is delivered outside the Traefik-fronted browser flow every current recipe assumes."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Apache Doris is an actively maintained, healthy ASF top-level project
+  (monthly-ish releases, no EOL signal) and would fill a real gap — no
+  analytics/OLAP database exists in the current 24-recipe catalogue.
+  However it can't ship as a recipe today: its root account (shared by the
+  FE web console and MySQL-protocol SQL access) only accepts a doubled-SHA1
+  password hash via fe.conf, an algorithm `generated_from` doesn't support
+  yet, and the official Docker init script has no env-var hook for setting
+  any initial password regardless. That's a genuine but closable platform
+  gap (extend the supported-algorithm list), not a plaintext-only
+  requirement, so this is `blocked_on_platform`. Separately, even once
+  unblocked, Doris's minimum viable footprint (FE+BE multi-container
+  cluster, AVX2 CPU requirement, upstream's own 3+3-node HA guidance) and
+  its MySQL-wire-protocol-first interaction model make it a heavier, more
+  niche fit for typical AF customers than most of what's in the catalogue
+  today — worth deprioritizing relative to lighter-weight gaps even after
+  the platform blocker is resolved.
