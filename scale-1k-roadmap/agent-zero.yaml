@@ -1,0 +1,106 @@
+slug: agent-zero
+name: Agent Zero
+source_description: "Open-source AI agent framework with multi-agent cooperation and persistent memory"
+
+upstream:
+  url: https://www.agent-zero.ai/
+  repo_url: https://github.com/agent0ai/agent-zero
+  license: MIT
+  docker_image: agent0ai/agent-zero
+
+version_health:
+  latest_version: "v2.8"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.8 published 2026-08-01, four days before today (2026-08-05). Release
+    history shows a near-weekly cadence through 2026: v2.0 (Jun 23), v2.1
+    (Jun 26), v2.2 (Jul 2), v2.3 (Jul 9), v2.4 (Jul 10), v2.5 (Jul 17), v2.6
+    (Jul 23), v2.7 (Jul 27), v2.8 (Aug 1). Docker Hub tags for
+    agent0ai/agent-zero confirm the same cadence (latest pushed 4 days ago
+    at time of research). Repo is not archived, has 18.7k stars and ongoing
+    commits/PRs — clearly active development. Note the project migrated
+    from the original frdel/agent-zero repo/image to the agent0ai
+    organization; agent0ai/agent-zero is the current, actively-published
+    image.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [openclaw, hermes-agent]
+  differentiation: >
+    Meaningful conceptual overlap with two existing recipes: openclaw and
+    hermes-agent are both already "self-hosted AI agent" entries in the
+    catalogue. Those two are messaging-app-first (Telegram gateway/bot with
+    a secondary dashboard); Agent Zero is web-UI-first and pitches itself as
+    a general-purpose autonomous coworker — a Dockerized Linux desktop, a
+    browser with DOM annotation for computer-use tasks, hierarchical
+    multi-agent delegation (an agent can spawn subordinate agents for
+    subtasks), and a persistent long-term memory/vector store across
+    sessions. It is closer in spirit to a self-hosted, model-agnostic
+    "autonomous dev/ops agent" than either existing entry. Real
+    differentiator for a customer who wants an agent to actually operate a
+    computer (browse, run code, manage files) rather than just relay
+    Telegram messages, but a third "AI agent framework" recipe risks
+    crowding an already-covered niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular (18.7k stars) and actively developed, with a genuinely distinct
+    computer-use/multi-agent angle versus openclaw and hermes-agent. Capped
+    at medium rather than high because the catalogue already has two AI
+    agent recipes covering adjacent ground, and Agent Zero brings no
+    integration a typical self-hosting customer couldn't already get by
+    pairing an LLM API key with one of those.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Confirmed against upstream source (helpers/dotenv.py, helpers/login.py,
+      helpers/ui_server.py in agent0ai/agent-zero @ main): the app does ship
+      its own optional login, gated by two env vars, AUTH_LOGIN and
+      AUTH_PASSWORD, read from usr/.env at startup. Login is enabled only
+      when AUTH_LOGIN is non-empty. However, the login handler
+      (`ui_server.py::login_handler`) does a direct plaintext string
+      comparison — `request.form["password"] == password` — not a hash
+      comparison. This is the opposite shape of Vaultwarden's ADMIN_TOKEN
+      (which detects and hash-compares an argon2-prefixed value). It means
+      `generated_from: "<algo>:ROOT_PASSWORD"` cannot target AUTH_PASSWORD:
+      the projected value would be a hash of the customer's root password,
+      and the customer would type their actual root password at the login
+      screen, which would never equal the stored hash. There is no
+      plaintext-passthrough option in today's mechanism (only argon2/bcrypt
+      hashing), so the app's native login has no usable input channel.
+    - >
+      Workaround, same shape as n8n/OpenClaw/WUD/Open WebUI/Immich: leave
+      AUTH_LOGIN/AUTH_PASSWORD unset (native login disabled, matching
+      upstream's own default/documented state) and gate the single public
+      port with Traefik `basic_auth: true`, projecting the root-password
+      hash there instead. This is fully expressible today and is the
+      recommended path — it does not require the app's own auth at all.
+    - >
+      Model provider credentials (Anthropic/OpenAI/OpenRouter/Ollama, etc.)
+      are configured post-provision via the Settings UI, not required as an
+      env var at first boot — same deferred pattern already shipped in
+      openclaw and hermes-agent, not a blocker.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Agent Zero is an active, well-starred, weekly-shipping AI agent framework
+  and is installable today by gating it entirely with Traefik `basic_auth`
+  (the same pattern already used for n8n, OpenClaw, WUD, Open WebUI, and
+  Immich) rather than trying to drive its own AUTH_LOGIN/AUTH_PASSWORD env
+  vars, which do a plaintext comparison and are therefore incompatible with
+  the hashed root-password projection mechanism. The bigger open question is
+  fit, not installability: the catalogue already has openclaw and
+  hermes-agent covering "self-hosted AI agent," and while Agent Zero's
+  computer-use/multi-agent/persistent-memory angle is a real differentiator,
+  a third entry in this niche should be weighed against those two before
+  building, not treated as an automatic yes.
