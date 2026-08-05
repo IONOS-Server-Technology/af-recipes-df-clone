@@ -1,0 +1,78 @@
+slug: duckdns
+name: DuckDNS
+source_description: "Free dynamic DNS service for mapping IP addresses to domains"
+
+upstream:
+  url: https://www.duckdns.org/
+  repo_url: https://github.com/linuxserver/docker-duckdns
+  license: MIT (linuxserver docker-duckdns wrapper); duckdns.org service itself is a free hosted API with no public source
+  docker_image: lscr.io/linuxserver/duckdns
+
+version_health:
+  latest_version: "af6dcae5-ls86"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Checked against today (2026-08-05). linuxserver/docker-duckdns tags a
+    new release roughly every 1-2 weeks (ls82 2026-06-01, ls83 2026-07-13,
+    ls84 2026-07-15, ls85 2026-07-27, ls86 2026-08-03) but these are almost
+    all routine "updating base packages" / Alpine-rebase bumps, not
+    DuckDNS-specific feature work — there is no versioned "DuckDNS
+    application" to track since the actual service is just a hosted API
+    (duckdns.org) with a client script baked into the image. The wrapper
+    repo is not archived and is actively maintained by the LinuxServer.io
+    team.
+
+catalogue_fit:
+  categories: [networking, utilities]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides dynamic DNS. It's also a
+    poor fit for how AF apps are actually deployed: every recipe already
+    runs on an IONOS cloud VM with a fixed IP and gets a stable
+    <slug>.<base_domain> hostname from the platform itself, which is
+    exactly the problem DuckDNS solves for home-lab users with a
+    residential IP that changes. On AF infrastructure there's no changing
+    IP for DuckDNS to track.
+  usefulness: low
+  usefulness_rationale: >
+    DuckDNS's value proposition (tracking a customer's own dynamic IP) is
+    largely moot on a hosted cloud VM with a static address and a
+    platform-managed domain already provided at install time.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TOKEN]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      TOKEN is the customer's own DuckDNS account API token, generated on
+      duckdns.org after they sign in (e.g. via GitHub/Google/Reddit OAuth)
+      and tied to their personal subdomain(s) there. It is an arbitrary
+      external third-party credential, not a hash of the server root
+      password and not something af-api can generate or derive — there is
+      no `generated_from`/basic_auth channel that can supply it.
+    - >
+      SUBDOMAINS (the DuckDNS subdomain name(s) to update) is also a
+      customer-chosen value tied to their duckdns.org account, with the
+      same no-input-channel problem.
+    - >
+      The container exposes no HTTP port and has no web UI or login of its
+      own to gate with Traefik basic_auth — it's a headless background
+      updater, so there is nothing to front with the reverse-proxy pattern
+      even if the token problem were solved.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  DuckDNS is a headless dynamic-DNS updater requiring a customer-supplied,
+  third-party DuckDNS account token and subdomain name — both external
+  credentials with no projection mechanism under the current /compose
+  constraint, and it exposes no web UI to gate instead. Even setting the
+  installability problem aside, its core purpose (tracking a changing home
+  IP) doesn't map onto AF's fixed-IP, platform-domain-assigned VMs, so it
+  would add little value even if a token input channel existed. Recommend
+  not_recommended.
