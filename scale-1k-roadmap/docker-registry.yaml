@@ -1,0 +1,76 @@
+slug: docker-registry
+name: Docker Registry
+source_description: "Private Docker registry for storing and distributing container images"
+
+upstream:
+  url: https://distribution.github.io/distribution/
+  repo_url: https://github.com/distribution/distribution
+  license: Apache-2.0
+  docker_image: registry
+
+version_health:
+  latest_version: "3.1.1"
+  latest_release_date: "2026-05-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.1.1 (2026-05-01) is ~3 months old as of 2026-08-05. The v3 line
+    reached stable in April 2026 (v3.0.0 on 2026-04-03) after a run of
+    release candidates through late 2025/early 2026, with v3.1.0 following
+    within days and v3.1.1 a few weeks later — a healthy, tightening
+    cadence, not a stale project. Recent releases close CVEs, and the repo
+    (formerly docker/distribution, now under the CNCF-adjacent
+    distribution/ org) shows ongoing multi-contributor activity. Not
+    ambiguous: this is the canonical OCI registry implementation behind the
+    official `registry` Docker Hub image; not to be confused with
+    third-party registry UIs (e.g. Joxit/docker-registry-ui) which are
+    separate optional add-ons, not the registry itself.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea]
+  differentiation: >
+    Gitea (already in the catalogue) ships a built-in OCI-compatible
+    container/package registry as one of its many features, which covers
+    the "push/pull private images" use case for anyone already running
+    Gitea. Docker Registry is a dedicated, standalone alternative for
+    customers who want just a registry without a full git forge attached —
+    lighter weight, single purpose, and usable independently of any git
+    hosting choice.
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow demand (teams wanting a private image registry without
+    Docker Hub/GHCR), further narrowed by Gitea already covering the same
+    need for anyone using it as their git host. It's also a headless HTTP
+    API with no web UI at all — a customer manages it purely via `docker
+    login`/`push`/`pull`, so there's nothing to browse in the AF app
+    catalogue beyond a working endpoint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Docker Registry (the `registry:3.1.1` official image) is a single
+  container, single HTTP port (5000) service with no login or web UI of
+  its own — upstream's own docs document running it behind a reverse
+  proxy for TLS termination, which fits our Traefik-fronted model
+  directly. It has no built-in admin auth mechanism reachable via our
+  `generated_from` root-password projection (its own htpasswd-based auth
+  requires customer-uploaded credential files, not a single hashed
+  parameter), so the correct gate is the same Traefik `basic_auth: true`
+  pattern used for Adminer/n8n, with the registry's own
+  `REGISTRY_AUTH=htpasswd` left disabled since Traefik becomes the actual
+  auth boundary. Mechanically installable today, but low differentiation
+  given Gitea already provides an equivalent container registry, and the
+  headless nature (no UI, CLI-only `docker push`/`pull` workflow) makes it
+  a poor fit for a customer-facing app catalogue tile. Recommend building
+  only with those caveats flagged, not as a priority addition.
