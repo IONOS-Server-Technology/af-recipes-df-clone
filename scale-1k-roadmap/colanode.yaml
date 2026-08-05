@@ -1,0 +1,83 @@
+slug: colanode
+name: Colanode
+source_description: "Local-first open-source workspace combining chat, pages, and databases"
+
+upstream:
+  url: https://colanode.com
+  repo_url: https://github.com/colanode/colanode
+  license: Apache-2.0
+  docker_image: "ghcr.io/colanode/server (paired with ghcr.io/colanode/web for the frontend)"
+
+version_health:
+  latest_version: "0.4.7"
+  latest_release_date: "2026-04-03"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    ~4 months since the 0.4.7 tag as of this analysis (2026-08-05). Prior
+    cadence was roughly monthly through late 2025/early 2026 (0.3.10 →
+    0.4.0 → 0.4.1 ... 0.4.7 in quick succession), but nothing has shipped
+    since 0.4.7 and the most recent visible main-branch commits ("Fix web
+    docker build", "Update packages", "Add authorization checks to user
+    role update endpoint") also cluster around that same April 2026 date —
+    i.e. the whole repo, not just tagged releases, appears to have gone
+    quiet for ~4 months. 5k GitHub stars, 38 open issues, repo not archived
+    or marked read-only — reads as active-but-currently-stalled rather than
+    abandoned; worth a re-check before committing engineering time.
+
+catalogue_fit:
+  categories: [productivity, collaboration, chat]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >
+    anytype-server is sync-only infrastructure — the actual AnyType app
+    runs as a desktop/mobile client and the server just relays CRDT
+    updates; there is nothing to browse to. Colanode ships a real hosted
+    web app (ghcr.io/colanode/web) a customer logs into directly, and adds
+    Slack-style real-time chat plus Notion-style pages/wikis on top of
+    structured databases (table/kanban/calendar views) — a category (team
+    chat + workspace docs) nothing in the current 24-recipe catalogue
+    covers at all.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuine "self-hosted Slack+Notion" demand exists and no recipe in the
+    catalogue currently serves it, but the app is young (sub-1.0, ~1k
+    commits) relative to established alternatives, and the apparent 4-month
+    stall in upstream activity is a real risk factor for a first release.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD (colanode_user DB password)
+    - VALKEY/REDIS password (Valkey cache auth)
+    - Traefik basic-auth gate credential (open self-signup with no invite
+      wall by default — see notes below)
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: VALKEY/REDIS password
+      mechanism: server_generated_no_customer_input
+    - secret: Traefik basic-auth gate credential
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Colanode fills a real gap (self-hosted team chat + Notion-style pages +
+  databases, closest thing the catalogue has today is the sync-only
+  anytype-server), ships official pinnable images for both server and web,
+  and needs nothing beyond random server-side secrets (Postgres/Valkey
+  passwords) at first boot — its account.verificationType defaults to
+  "automatic" so no SMTP/email step is required to create the first admin
+  account. However, Colanode's own auth is open self-registration (whoever
+  reaches the domain first can sign up and become the initial workspace
+  owner), not a fixed admin login, so — same pattern as n8n and Open WebUI —
+  it needs a Traefik basic_auth gate projected from the customer's root
+  password to keep the instance from being claimed by a stranger before the
+  customer sets it up; that gate is expressible today via
+  generated_from_root_password. The main open question is the ~4-month
+  quiet period on upstream activity (last tag and last visible commits both
+  April 2026) — recommend a quick re-check on repo activity closer to
+  build time rather than treating this as a hard blocker now.
