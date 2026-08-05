@@ -1,0 +1,97 @@
+slug: codimd
+name: CodiMD
+source_description: "Real-time collaborative markdown editor for documentation and note-taking"
+
+upstream:
+  url: https://hackmd.io/c/codimd-documentation
+  repo_url: https://github.com/hackmdio/codimd
+  license: AGPL-3.0
+  docker_image: quay.io/codimd/server
+
+version_health:
+  latest_version: "2.6.1"
+  latest_release_date: "2024-10-01"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    GitHub releases: 2.6.1 (2024-10-01), 2.6.0 (2024-06-11), 2.5.4
+    (2023-06-18), 2.5.3 (2023-01-08), 2.5.2 (2023-01-05), 2.5.1
+    (2023-01-03) — roughly one release a year, uneven gaps, no stable
+    release in ~22 months as of today (2026-08-05). The repo itself is
+    not archived and the `develop` branch shows commits as recently as
+    2025-10 (~10 months ago), so it is not dead, just very slow.
+
+    Far more significant: the *official Docker image*, quay.io/codimd/server,
+    has not been updated since 2020-11-12 — it is still frozen at v1.6.0/
+    `latest`, five years and nine months behind the current 2.6.1 GitHub
+    release. There is no quay.io tag for 2.x at all. The community
+    `linuxserver/codimd` image is also explicitly deprecated by its
+    maintainers. In practice there is no current, officially-published,
+    pinned container tag to build a recipe against.
+
+    Name/project note: CodiMD was hard-forked in 2020 (governance dispute
+    with HackMD Inc.) into HedgeDoc (github.com/hedgedoc/hedgedoc), which
+    is the actively maintained continuation — HedgeDoc 1.11.1 was released
+    2026-07-24, ~12 days before today, on a healthy cadence. Most
+    real-world "CodiMD-like" self-hosting today is actually done via
+    HedgeDoc. Hostinger's catalogue slug is explicitly `codimd`, so this
+    analysis targets the original hackmdio/codimd project as instructed,
+    but a reviewer should be aware HedgeDoc exists as a separate,
+    healthier candidate under a different name if this app is desired.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers real-time
+    multi-cursor collaborative document editing. Gitea hosts git
+    repositories/code review and OpenGist hosts single-file snippet
+    sharing, but neither lets several people type into the same document
+    simultaneously the way CodiMD/HedgeDoc-style editors do (live cursors,
+    presence, synced markdown with slide/diagram rendering). That would be
+    a genuinely distinct, commonly-requested use case (meeting notes,
+    shared docs, lightweight wiki-with-live-editing) if the underlying
+    project were healthy.
+  usefulness: medium
+  usefulness_rationale: >
+    The use case (live collaborative markdown notes) is a real, currently
+    unfilled gap and would appeal broadly, not just to developers.
+    However the specific upstream requested here (hackmdio/codimd) has a
+    dead container distribution channel and a sporadic release cadence,
+    which caps usefulness regardless of the feature gap — shipping a
+    recipe against a 5+ year old frozen image, or against a self-built
+    image tracking an unofficial source, is not a good foundation for a
+    catalogue entry.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, postgres_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "No current officially-published, pinned Docker image exists: quay.io/codimd/server has not been updated since 2020-11-12 (frozen at v1.6.0), while upstream GitHub has since moved to 2.6.1 (2024-10-01). Building a recipe today would require maintaining our own image build from source, not consuming an official tag, which is outside the current recipe mechanism."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  CodiMD is a Postgres-backed, single-HTTP-port markdown editor that would
+  otherwise be Traefik-compatible, and its default open self-registration
+  (no built-in root/admin concept) is a solved pattern — the same
+  Traefik basic_auth gate used for An Otter Wiki and n8n would keep the
+  signup form private to the customer until they create their own
+  account, with the Postgres password generated server-side. The blocker
+  is upstream health, not the auth mechanism: the official container
+  image has been frozen since November 2020 while the project's own
+  GitHub releases have moved on to 2.6.1, and there is no current image to
+  pin. Combined with a sporadic release cadence and the fact that the
+  actively-maintained continuation of this codebase is a separate fork
+  (HedgeDoc, healthy releases through 2026), CodiMD as specifically
+  requested is not a good candidate today. Recommend not_recommended for
+  this slug; if live collaborative markdown editing is wanted in the
+  catalogue, a future gap analysis of HedgeDoc under its own slug would be
+  the better path.
