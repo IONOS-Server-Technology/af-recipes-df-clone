@@ -1,0 +1,80 @@
+slug: euro-office-documentserver
+name: Euro-Office DocumentServer
+source_description: "Sovereign self-hosted office suite for collaborative document editing"
+
+upstream:
+  url: https://euro-office.github.io/documentation/
+  repo_url: https://github.com/Euro-Office/DocumentServer
+  license: AGPL-3.0
+  docker_image: ghcr.io/euro-office/documentserver
+
+version_health:
+  latest_version: v9.3.3
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 1-3 weeks (v9.3.1-beta.1 on 2026-05-28 through
+    v9.3.3 on 2026-08-04, i.e. one day before this analysis). Repo has 496
+    commits on main, 122 open issues, 27 open PRs, not archived. This is an
+    actively maintained AGPL-3.0 fork/rebrand of ONLYOFFICE Document Server
+    targeted at EU digital-sovereignty deployments.
+
+catalogue_fit:
+  categories: [office, productivity, document-collaboration]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover collaborative office-document
+    editing (DOCX/XLSX/PPTX/ODT/ODS/ODP/PDF). If a customer-facing document
+    editing tool were desired, this would be net-new ground. However, the
+    app is architecturally an embedded editing backend, not a standalone
+    product a customer opens and uses directly (see installability below).
+  usefulness: low
+  usefulness_rationale: >
+    DocumentServer is designed to be called by a document-management
+    frontend (first-class Nextcloud/ownCloud integration, or a custom DMS
+    via its REST API) that owns the file storage, sharing, and user
+    accounts. We do not have a Nextcloud/ownCloud recipe in the catalogue
+    today, so a customer installing this recipe alone would get a bare
+    editing engine with no file-management surface to drive it — not a
+    usable product on its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, example_editor_basic_auth]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: example_editor_basic_auth
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app ships no standalone login or file-management UI of its own.
+      The only browser-reachable page is the "Example App" test editor
+      (gated behind EXAMPLE_ENABLED=true), which is documented as a
+      verification tool, not a production interface — real usage requires
+      a separate DMS (Nextcloud/ownCloud or a custom integration) driving
+      it over its JWT-authenticated REST API. We have no such DMS recipe
+      in the catalogue for it to integrate with, so there is no customer
+      workflow that reaches a finished product through this recipe alone.
+    - >
+      If shipped anyway with EXAMPLE_ENABLED=true so the customer has
+      something to open, that unauthenticated demo editor page would need
+      a mandatory Traefik basic_auth gate to avoid sitting open on the
+      internet, since the app provides no login of its own for it.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Euro-Office DocumentServer is an actively maintained AGPL-3.0 fork of
+  ONLYOFFICE Document Server, releasing every 1-3 weeks with the latest
+  release one day before this analysis. Mechanically it could be started
+  (JWT_SECRET is server-generated, Postgres/Redis/RabbitMQ can be bundled
+  internally with no customer input needed), but it is an embedded editing
+  backend meant to be driven by a DMS like Nextcloud or ownCloud, not a
+  standalone customer-facing app. We have no such DMS recipe for it to
+  plug into, so installing it alone would not give a customer a usable
+  product — recommend not_recommended until/unless a Nextcloud-style
+  frontend recipe exists to pair it with.
