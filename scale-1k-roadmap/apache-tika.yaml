@@ -1,0 +1,65 @@
+slug: apache-tika
+name: Apache Tika
+source_description: "REST server extracting text and metadata from a thousand file formats"
+
+upstream:
+  url: https://tika.apache.org/
+  repo_url: https://github.com/apache/tika
+  license: Apache-2.0
+  docker_image: apache/tika
+
+version_health:
+  latest_version: "3.3.2.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Steady ~1-2 month cadence through 2026: 3.3.0 (2026-05-01), 3.3.1
+    (2026-05-26), 3.3.2 (2026-07-21) — about two weeks before today
+    (2026-08-05). A 4.0.0 line is already in beta/snapshot builds on Docker
+    Hub. Actively maintained top-level Apache project, no EOL signal.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Tika is a REST API for extracting text/metadata from ~1000 file formats
+    (Office, PDF, images via OCR in the "-full" image, audio/video metadata,
+    etc.) — a building block other software calls, not an end-user
+    application. Nothing in the current 24 recipes exposes this as a
+    standalone service; paperless-ngx does its own OCR internally and does
+    not use Tika. Value only exists for a customer who already has their
+    own script/app that calls the Tika REST API — visiting the root URL in
+    a browser just returns a bare "Tika server is running" test page, no
+    functional web UI.
+  usefulness: low
+  usefulness_rationale: >
+    Apache Tika is a developer-facing REST microservice, not a product with
+    an end-user workflow. AF customers are provisioning self-hosted apps to
+    use directly; a bare text/metadata-extraction API with no UI has very
+    narrow appeal outside customers already running custom integration
+    code against it (and those customers are better served self-hosting it
+    themselves alongside their own app, not via a standalone AF recipe).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Mechanically installable: single container, single HTTP port (9998), no
+  login of its own, so a Traefik basic_auth:true gate (password projected
+  from the customer's root password) covers the only secret it would need
+  — same pattern as adminer/n8n/WUD. Upstream is healthy and actively
+  released. The blocker is fit, not mechanism: Tika has no web UI, its
+  value is purely as a REST API consumed by other software, and it
+  duplicates nothing while adding no direct end-user workflow to the
+  catalogue. Recommend not_recommended on usefulness grounds despite being
+  technically installable today.
