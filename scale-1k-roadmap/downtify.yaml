@@ -1,0 +1,70 @@
+slug: downtify
+name: Downtify
+source_description: "Download Spotify music from YouTube with album art, lyrics, and metadata"
+
+upstream:
+  url: https://downtify.henriquesebastiao.com/
+  repo_url: https://github.com/henriquesebastiao/downtify
+  license: GPL-3.0
+  docker_image: ghcr.io/henriquesebastiao/downtify
+
+version_health:
+  latest_version: "2.9.1"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 2.9.1 released 2026-07-16 — about 3 weeks before today
+    (2026-08-05). Release cadence is very fast: 2.9.0 (2026-07-12), 2.8.0
+    (2026-06-02), 2.7.0 (2026-05-11), 2.6.1 (2026-05-05), 2.6.0 (2026-05-03),
+    2.5.0 (2026-05-02), 2.4.3/2.4.2/2.4.1 (all late April 2026) — multiple
+    releases per month, several in the same week. Clearly active,
+    single-maintainer development, not maintenance-only.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does music acquisition/download —
+    closest adjacent recipes (Immich for photos, Paperless-ngx/Paperless-AI
+    for documents) are unrelated media types. Downtify would be a genuinely
+    new category: paste a Spotify link, get a tagged audio file (with album
+    art, lyrics, metadata) resolved via YouTube Music/yt-dlp, no Spotify
+    account or API key involved.
+  usefulness: medium
+  usefulness_rationale: >
+    Functionally novel and actively maintained, but its entire purpose is
+    routing around Spotify's licensing by re-fetching the same audio from
+    YouTube — the project's own README carries an explicit "users are
+    responsible for legal consequences" disclaimer. That is a meaningfully
+    different risk profile from the rest of the catalogue (infra tools,
+    self-hosted productivity apps) and worth a deliberate legal/ToS call by
+    IONOS before treating this as just another recipe, independent of the
+    mechanical installability question below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Downtify is mechanically simple to ship: a single container
+  (ghcr.io/henriquesebastiao/downtify, pin 2.9.1), one HTTP port (8000,
+  configurable via DOWNTIFY_PORT), two volumes (/downloads, /data), no
+  Spotify API key or account needed, and no built-in login — so it fits the
+  same "gate the whole thing behind Traefik basic_auth" pattern already used
+  for WUD and Immich, with no external-credential blocker. Upstream is
+  active (multiple releases per month, latest 2.9.1 on 2026-07-16). The
+  caveat is not technical but reputational/legal: the app's sole function is
+  downloading Spotify-catalogued audio via YouTube Music without Spotify's
+  involvement, and upstream itself disclaims responsibility for the legal
+  consequences of that. Recommend a build-with-caveats decision pending an
+  explicit IONOS call on hosting a copyright-circumvention tool in the
+  catalogue, rather than a purely technical installability veto.
