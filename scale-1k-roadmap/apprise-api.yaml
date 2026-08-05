@@ -1,0 +1,62 @@
+slug: apprise-api
+name: Apprise API
+source_description: "Lightweight REST API for sending push notifications to 120+ services"
+
+upstream:
+  url: https://github.com/caronc/apprise-api
+  repo_url: https://github.com/caronc/apprise-api
+  license: MIT
+  docker_image: caronc/apprise
+
+version_health:
+  latest_version: v1.5.1
+  latest_release_date: 2026-07-04
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Releases roughly monthly through 2026 (v1.5.1 2026-07-04, v1.5.0
+    2026-05-29, v1.4.1 2026-05-02, v1.4.0 2026-04-26, v1.3.3 2026-03-22),
+    with commit activity as recent as 2026-08-04. Latest release is ~1 month
+    before today (2026-08-05). Well-maintained, not archived, no EOL signal.
+
+catalogue_fit:
+  categories: [notifications, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the 24 current recipes provide a centralized notification
+    fan-out endpoint. Apprise API lets other self-hosted apps (or scripts)
+    POST a single webhook and have it relayed to 120+ notification services
+    (email, Slack, Discord, Telegram, Pushover, etc.) via Apprise URL
+    syntax — useful as glue infrastructure alongside n8n, Uptime Kuma, or
+    WUD, which each have limited/no native fan-out notification support.
+  usefulness: medium
+  usefulness_rationale: >-
+    Valuable as connective tissue for customers who already run several
+    recipes and want one notification hub, but it is not a destination app
+    on its own — value is contingent on being paired with other recipes
+    that call its API.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Apprise API is a small, single-container, actively-maintained (monthly
+  releases, MIT-licensed) service that exposes a web UI plus a stateless/
+  stateful REST API on a single HTTP port (8000), making it fully Traefik-
+  compatible. It ships with no built-in authentication (per upstream docs,
+  auth is only optional and left to a reverse proxy), so — like WUD — it
+  needs a mandatory Traefik basic_auth gate to avoid an open notification
+  relay and open config-management UI on the internet; that gate is fully
+  expressible with today's root-password-hash mechanism, so nothing blocks
+  a recipe. It doesn't overlap any existing recipe and offers medium,
+  infrastructure-glue value rather than being a standalone draw — reasonable
+  to build, but likely a lower catalogue priority than customer-facing apps.
