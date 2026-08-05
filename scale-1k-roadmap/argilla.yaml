@@ -1,0 +1,95 @@
+slug: argilla
+name: Argilla
+source_description: Collaborative platform for AI engineers to build high-quality datasets
+
+upstream:
+  url: https://argilla.io
+  repo_url: https://github.com/argilla-io/argilla
+  license: Apache-2.0
+  docker_image: argilla/argilla-server
+
+version_health:
+  latest_version: "v2.8.0"
+  latest_release_date: "2025-03-11"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v2.8.0 (2025-03-11) is both the latest GitHub release and the last
+    commit on `main` — no commits or releases in ~17 months as of today
+    (2026-08-05). The repo README carries an explicit maintainer notice:
+    "The original authors have moved on to exciting new projects! ... the
+    codebase is mature and stable ... we won't be adding new features
+    going forward, but we're committed to solving bug fixes and
+    publishing patches as needed," and the project is soliciting new
+    maintainers. Not archived and not declared EOL, but self-described
+    maintenance-only with a genuinely dormant release cadence — this is
+    the aggressive-detection case the schema calls out, not a diplomatic
+    "active" reading of a project that happens to be quiet.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Argilla is a dataset-annotation / human-in-the-loop labeling tool for
+    building and curating training data (text classification, NER, RAG
+    relevance, preference/RLHF pairs). Nothing in the current 24-recipe
+    catalogue covers this — ollama/open-webui are local-LLM chat/inference,
+    paperless-ai/hermes-agent/openclaw are document/agent tooling, none do
+    dataset labeling.
+  usefulness: medium
+  usefulness_rationale: >
+    Dataset annotation is a real, distinct niche with no catalogue
+    coverage today, so differentiation is genuine. Usefulness is capped at
+    medium rather than high because upstream has taken no new features
+    and no commits in ~17 months with an explicit maintainer-succession
+    notice — shipping a recipe on a stagnant project is a weaker bet than
+    the differentiation alone would suggest.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - PASSWORD (owner/admin login for the built-in "argilla" account)
+    - API_KEY (owner API key)
+    - POSTGRES_PASSWORD
+  secrets_expressible_today:
+    - secret: API_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The documented owner-bootstrap path for the v2.x Docker image is the
+      `USERNAME`/`PASSWORD` env-var pair, consumed as plaintext at
+      container startup — argilla-server hashes it internally (bcrypt) but
+      gives the operator no way to supply an already-hashed value through
+      that path. `generated_from` only ever projects a hash of the
+      customer's root password, so there is no channel to reach this
+      plaintext-only startup argument. Older (v1.x) docs describe a
+      separate `hashed_password` field in a user-migration YAML file
+      consumed by a CLI migration command, which in principle accepts a
+      pre-hashed value and would fit `generated_from: "bcrypt:..."` — but
+      it is undocumented for the current v2.8 owner-bootstrap flow, appears
+      to be a distinct import/migration feature rather than first-boot
+      user creation, and isn't confirmed to work as a first-boot
+      substitute for `PASSWORD` today.
+    - >
+      Traefik `basic_auth` does not substitute here: Argilla ships its own
+      login (the "argilla" owner account), so a basic_auth gate would be a
+      second, redundant login surface in front of an app that already has
+      one — not a stand-in for a missing login, per the same reasoning
+      that ruled out basic_auth for AppFlowy's admin frontend.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Argilla fills a genuine catalogue gap (dataset annotation for AI/ML,
+  no overlap with the existing 24 recipes) but is blocked on two fronts:
+  the platform has no channel to supply the plaintext owner PASSWORD its
+  standard Docker bootstrap requires (only a hash via `generated_from`,
+  and basic_auth doesn't stand in for an app that already has its own
+  login), and upstream has been in an explicit maintenance-only mode with
+  no commits or releases for ~17 months. Even if a plaintext-credential
+  channel were added to the platform, the dormant upstream makes this a
+  weak long-term bet; not recommended for now.
