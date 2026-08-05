@@ -1,0 +1,81 @@
+slug: dufs
+name: Dufs
+source_description: "Lightweight self-hosted file server with WebDAV, web UI, and access control"
+
+upstream:
+  url: https://github.com/sigoden/dufs
+  repo_url: https://github.com/sigoden/dufs
+  license: MIT / Apache-2.0 (dual-licensed)
+  docker_image: sigoden/dufs
+
+version_health:
+  latest_version: "v0.46.0"
+  latest_release_date: "2026-05-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v0.46.0 tagged 2026-05-07, about 3 months before today (2026-08-05).
+    Prior tag gaps have widened over time: v0.45.0 (2025-09-04) to v0.46.0
+    (2026-05-07) is an 8-month gap, v0.44.0 (2025-08-14) to v0.45.0 was
+    ~3 weeks, and v0.43.0 (2024-11-05) to v0.44.0 was ~9 months — irregular
+    and lengthening, hence "slowing" rather than "active". Repo is not
+    archived; commit activity continues between tags (last commit
+    2026-06-29, per GitHub API `pushed_at`), and issues are still being
+    triaged (10 open). No EOL announcement. Small single-maintainer Rust
+    utility (10.5k stars, 575 forks) — healthy but not fast-moving.
+
+catalogue_fit:
+  categories: [productivity, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe does simple ad-hoc static/WebDAV file serving over a
+    directory. Syncthing (existing recipe) is peer-to-peer continuous sync
+    between devices, a different model entirely. OpenGist is code-snippet
+    sharing, not general file serving. The closest thing in the catalogue
+    is conceptual overlap with apps-gaps/alist.yaml (also unbuilt): both are
+    lightweight file-browser/WebDAV servers, but AList aggregates 30+ cloud
+    storage backends behind one UI while Dufs is a much simpler single Go
+    Rust binary serving one local directory tree with basic
+    upload/download/search/access-control — no cloud-account integrations.
+    If only one gets built, AList's broader backend support makes it the
+    stronger pick; Dufs would be a "smaller/simpler" alternative to it.
+  usefulness: medium
+  usefulness_rationale: >
+    A minimal, resource-light way to expose one directory over HTTP/WebDAV
+    with drag-and-drop upload and folder-as-zip download — handy for quick
+    file drops or a lightweight NAS-style share. Real-world draw is
+    moderate: it solves a narrower slice of the same need AList already
+    covers more completely, so it reads as a nice-to-have rather than a
+    clear catalogue gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Dufs is a single-container, single-HTTP-port (5000) Rust binary with no
+  login enabled by default — access control (`-a`/`DUFS_AUTH`) is an
+  opt-in flag, not a mandatory built-in admin account. Its own auth
+  mechanism only accepts either a plaintext password or a sha-512 crypt
+  hash (`$6$...`), neither of which matches the argon2/bcrypt algorithms
+  `generated_from` supports today, so projecting the customer's root
+  password directly into DUFS_AUTH is not currently expressible. The clean
+  path is the same one used for Adminer/n8n-style apps with no auth of
+  their own: run dufs with `--allow-all`/no built-in auth and gate the
+  whole app behind a Traefik `basic_auth: true` (`generated_from` root
+  password) so it isn't left open on the internet. That clears the
+  /compose constraint today with zero blocking issues. Release cadence has
+  slowed and become irregular (latest tag ~3 months old, prior gaps up to
+  8-9 months) though the project is still active and not archived. Given
+  it largely duplicates ground already covered — more completely — by the
+  unbuilt AList candidate (apps-gaps/alist.yaml), recommend build_with_caveats:
+  installable, but lower priority than AList if only one file-server-type
+  recipe is added to the catalogue.
