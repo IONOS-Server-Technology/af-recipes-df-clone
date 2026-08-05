@@ -1,0 +1,77 @@
+slug: evershop
+name: EverShop
+source_description: "Modern open-source e-commerce platform on Node.js, React, GraphQL, and PostgreSQL"
+
+upstream:
+  url: https://evershop.io/
+  repo_url: https://github.com/evershopcommerce/evershop
+  license: "GPL-3.0"
+  docker_image: evershop/evershop:2.1.2
+
+version_health:
+  latest_version: "v2.1.2"
+  latest_release_date: "2026-04-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (v2.1.2) shipped roughly 4 months before this
+    analysis (2026-08-05). History shows an accelerating cadence: v1.0.0
+    Jan-2024, v1.1.0 May-2024, v1.2.0 Sep-2024, v1.2.2 Jan-2025, then a
+    jump to the v2.x line with v2.0.0 Jul-2025, v2.1.0 Nov-2025, v2.1.1
+    Jan-2026, v2.1.2 Apr-2026 — releases every 2-4 months since mid-2025.
+    Actively maintained, no signs of slowing.
+
+catalogue_fit:
+  categories: [ecommerce]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover e-commerce/storefront use cases.
+    EverShop would be a genuinely new category — a self-hosted online
+    store (product catalogue, cart, checkout, order management) rather
+    than automation (n8n), documents (paperless-ngx), or media (immich).
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted e-commerce is a common ask and fills a real gap in the
+    catalogue. The upstream project is small/young relative to Magento
+    or WooCommerce but is modern (TypeScript/GraphQL/React), actively
+    developed, and Docker-first.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_EMAIL, ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "EverShop has no browser-based first-run setup wizard for Docker
+      deployments. The upstream-documented way to create the initial admin
+      account is to exec into the running app container and run `npm run
+      user:create -- --email ... --password ... --name ...`, which takes
+      the admin password as a plaintext CLI argument that EverShop hashes
+      itself internally. `generated_from` only ever produces a hash of the
+      customer's root password, never the plaintext — there is no
+      documented way to seed EverShop's admin_user table with a
+      pre-computed hash instead of a plaintext password, so the admin
+      login cannot be projected through the supported mechanism."
+    - "Traefik basic_auth is not a viable substitute gate here: EverShop
+      serves a public storefront (product browsing/checkout) on the same
+      domain as the admin panel, and gating the whole domain behind HTTP
+      basic auth would block the customer's own shoppers from the store
+      front-end, defeating the app's purpose."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  EverShop would be a valuable, differentiated addition (the catalogue's
+  first e-commerce recipe) and the upstream project is actively maintained
+  with a straightforward Postgres-backed docker-compose shape similar to
+  n8n/paperless-ngx. It is blocked today purely on the installation
+  mechanism: initial admin account creation requires a plaintext password
+  passed to a CLI command inside the container, which the platform's
+  root-password-hash-only secret channel cannot supply, and a basic_auth
+  gate is the wrong fit for a public storefront. Revisit if EverShop adds
+  a documented way to seed the admin account from a pre-hashed password
+  (matching an algorithm generated_from supports) or a browser-based
+  first-run setup flow.
