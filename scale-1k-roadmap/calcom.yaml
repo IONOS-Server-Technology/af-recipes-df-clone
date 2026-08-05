@@ -1,0 +1,111 @@
+slug: calcom
+name: Cal.com
+source_description: "Open-source scheduling platform for booking meetings and appointments"
+
+upstream:
+  url: https://cal.com/
+  repo_url: https://github.com/calcom/cal.com
+  license: MIT (community edition, rebranded "Cal.diy" — see notes below)
+  docker_image: calcom/cal.com
+
+version_health:
+  latest_version: "v6.2.0"
+  latest_release_date: "2026-03-01"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    calcom/cal.com is Cal.com, Inc.'s official self-hosted repo, but the
+    project has been rebranded mid-repo: cal.com's own self-hosting docs now
+    301-redirect to https://cal.diy/docker, and the README at
+    github.com/calcom/cal.com/blob/main/README.md now identifies the
+    project as "cal.diy — the community-driven, open-source scheduling
+    platform" rather than Cal.com. Cal.com, Inc. explicitly frames this as
+    a split: the commercial cal.com SaaS stays "battle-tested,
+    enterprise-ready," while the open-source edition (still living at the
+    same calcom/cal.com URL, docker image calcom/cal.com) is now positioned
+    as community-maintained and, per cal.diy's own docs, "strictly
+    recommended for personal, non-production use" with the disclaimer that
+    "Cal.com, Inc. does not guarantee security and safety of the open
+    source project." Tag history shows near-daily patch releases through
+    Jan-Feb 2026 (v6.1.8 through v6.1.16 in about two weeks), then a single
+    v6.2.0 tag on 2026-03-01 and nothing since — over 5 months with no new
+    version tag as of today (2026-08-05) — even though commits keep landing
+    on `main` daily (most recent seen: 2026-08-05). Read together, this
+    looks like the rebrand paused versioned Docker releases for the
+    community edition while development attention shifted elsewhere; not
+    dormant, but a real cadence slowdown worth re-checking before building.
+    No name ambiguity beyond the rebrand itself — calcom/cal.com and
+    "cal.diy" are the same repository/project, not two competing forks.
+
+catalogue_fit:
+  categories: [productivity, scheduling]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Scheduling/booking (Calendly-style meeting scheduler) is a category none
+    of the current 24 recipes cover — closest neighbors are automation tools
+    (n8n) and productivity/knowledge apps (Anytype), neither of which
+    overlaps functionally. A single Next.js web service behind Postgres,
+    exposing one HTTP port (3000), fits the same shape as `recipes/n8n/`
+    and would be a genuinely new capability for the catalogue rather than a
+    duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, no-overlap category and a well-known product name, which argues
+    for high usefulness — but the vendor's own "personal, non-production
+    use only, no security/safety guarantee" framing for the self-hosted
+    edition is a real caveat to put in front of AF customers running this
+    on rented infrastructure, and the release-tag slowdown noted above adds
+    uncertainty about how well-supported the self-hosted image will stay.
+    Net: medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, POSTGRES_PASSWORD, NEXTAUTH_SECRET, CALENDSO_ENCRYPTION_KEY]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: CALENDSO_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the upstream self-hosting docs (cal.diy/docker,
+      the redirect target of cal.com's own Docker guide): "The first time
+      you run Cal.diy, a setup wizard will initialize. Define your first
+      user, and you're ready to go!" There is no environment variable to
+      pre-seed an admin account — the `/auth/setup` endpoint only works
+      while the User table is empty and takes whatever the first visitor
+      submits. This is the same structural gap already documented for
+      ByteChef (apps-gaps/bytechef.yaml), Activepieces
+      (apps-gaps/activepieces.yaml), and 2FAuth (apps-gaps/2fauth.yaml): no
+      `type: password` parameter on the app's own login exists to target
+      with `generated_from: "<algo>:ROOT_PASSWORD"`.
+    - >
+      A Traefik `basic_auth: true` gate would close the "stranger races to
+      register first" window, but per the same precedent it does not
+      resolve the gap — basic_auth only carries the single root-password
+      projection for the gate itself, with no second channel to also hand
+      the customer a distinct credential for the in-app setup wizard.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Cal.com fills a genuinely new category for the catalogue (scheduling/
+  booking, no overlap with the existing 24 recipes) and is architecturally
+  a good fit — single Postgres-backed web service on one HTTP port, same
+  shape as the n8n recipe. It is blocked today for the same structural
+  reason already seen with ByteChef, Activepieces, and 2FAuth: first-user
+  creation happens through an open setup wizard with no environment
+  variable or `generated_from`-targetable field, so there is no channel to
+  provision the admin account. Two additional flags for whoever revisits
+  this: the upstream project quietly rebranded its self-hosted edition to
+  "cal.diy," with the vendor now explicitly recommending it for "personal,
+  non-production use" only and disclaiming security guarantees; and tagged
+  Docker releases have stalled at v6.2.0 since 2026-03-01 (over 5 months)
+  despite continued daily commit activity, a real cadence slowdown worth
+  re-checking. Revisit once IF-1420/1312-style provisioning covers
+  wizard-style first-user creation, and re-verify the production-use
+  disclaimer and release cadence at that point.
