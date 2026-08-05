@@ -1,0 +1,91 @@
+slug: apache-streampark
+name: Apache StreamPark
+source_description: "Develop and operate Apache Flink and Spark streaming jobs from one console"
+
+upstream:
+  url: https://streampark.apache.org/
+  repo_url: https://github.com/apache/streampark
+  license: Apache-2.0
+  docker_image: apache/streampark
+
+version_health:
+  latest_version: "2.1.7"
+  latest_release_date: "2025-11-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.1.7 shipped 2025-11-05, roughly 9 months before today (2026-08-05).
+    Recent cadence: 2.1.4 (2025-05-14) -> 2.1.5 (2025-09-?) -> 2.1.6
+    (2025-07-09) -> 2.1.7 (2025-11-05, patches CVE-2025-54947), i.e. a
+    point release roughly every 2-4 months historically. No release in the
+    last 9 months is a gap by that cadence but not yet dormant for a
+    top-level Apache project, and the security fix in 2.1.7 shows the PMC
+    is still responsive. The bigger concern is the official Docker Hub
+    image (apache/streampark): the newest pushed tag is "2.1.6"
+    (2025-07-09) with "latest" also pointing at 2.1.6 -- there is no "2.1.7"
+    image tag at all as of today, so the containerized artifact lags the
+    patched source release by one version and still carries the CVE fixed
+    upstream in 2.1.7. Any recipe built today would have to pin to the
+    vulnerable 2.1.6 image or build/publish an unofficial 2.1.7 image
+    ourselves.
+
+catalogue_fit:
+  categories: [developer-tools, infrastructure, data]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches stream-processing
+    job orchestration -- StreamPark is a console for developing, deploying,
+    and monitoring Apache Flink/Spark jobs, a distinct niche from workflow
+    automation (n8n), infra dashboards (Portainer), or observability
+    (Uptime Kuma). It would be a genuine first for that category.
+  usefulness: low
+  usefulness_rationale: >
+    Real gap, but the audience is narrow and the value is mostly
+    theoretical for a single customer VM: StreamPark itself is just a
+    control-plane UI -- to do anything useful a customer must already have
+    (or separately stand up) a Flink and/or Spark cluster for it to submit
+    jobs to, and the local Flink install path even expects the Flink
+    distribution to sit on the same server. That is a lot of surrounding
+    infrastructure a typical AF customer would not have, making this a
+    console with nothing to operate out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_basic_auth_password]
+  secrets_expressible_today:
+    - secret: ui_basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      StreamPark ships a fixed, hardcoded first-boot login (admin /
+      streampark) with no documented env var, config.yaml key, or CLI flag
+      to set/override it at deploy time -- the customer would have to log
+      in with the well-known default and change the password manually
+      through the UI afterward. Not a hard blocker per SCHEMA.md (gate the
+      whole app behind Traefik basic_auth as the real auth boundary, same
+      pattern as n8n/WUD), but it does mean the app's own login stays a
+      known-default credential until the customer manually rotates it.
+    - >
+      Official Docker image is one version behind the patched source
+      release (image pinned at 2.1.6, source patched CVE-2025-54947 in
+      2.1.7 with no corresponding image tag yet) -- shipping a recipe today
+      means either pinning a vulnerable image or maintaining an unofficial
+      rebuild, neither of which is a stable long-term posture.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Apache StreamPark is an active, credible Apache project and a genuinely
+  unfilled niche in the catalogue (no stream-processing console today), and
+  mechanically it is a single-container, single-HTTP-port app that fits our
+  Traefik-fronted pattern with the app's fixed default login gated behind
+  basic_auth. It is held back from build_now by two real issues: the
+  official Docker image lags the CVE-patched source release by one
+  version, and -- more importantly -- StreamPark alone has no standalone
+  value for a typical AF customer since it only orchestrates Flink/Spark
+  jobs against a cluster the customer must provide separately. Recommend
+  build_with_caveats: revisit once an image tag tracking 2.1.7+ exists, and
+  weigh whether the narrow "already runs Flink/Spark elsewhere" audience
+  justifies a slot in the catalogue.
