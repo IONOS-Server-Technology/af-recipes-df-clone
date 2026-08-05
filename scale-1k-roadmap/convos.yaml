@@ -1,0 +1,74 @@
+slug: convos
+name: Convos
+source_description: "Browser-based IRC client for persistent, always-on chat connections"
+
+upstream:
+  url: https://convos.chat/
+  repo_url: https://github.com/convos-chat/convos
+  license: Artistic-2.0
+  docker_image: ghcr.io/convos-chat/convos
+
+version_health:
+  latest_version: "alpha (rolling build off main, no tagged stable release since v8.07)"
+  latest_release_date: "2023-10-30 (v8.07, last tagged release); main branch last commit 2026-07-29"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Development on the main branch is genuinely active (latest commit
+    2026-07-29, about a week before this analysis on 2026-08-05), and the
+    project migrated its Docker publishing from Docker Hub to GHCR in
+    late 2023, which is a healthy modernization signal, not a warning
+    sign. But the last *tagged* release is v8.07 from 2023-10-30 (~2 years
+    10 months ago) and a v9.0-rc1 pre-release has sat un-finalized since
+    2025-07-14 (over a year) without cutting to stable. The only image the
+    README currently recommends is the ":alpha" tag, i.e. a continuously
+    rebuilt rolling build off main rather than a versioned release —
+    there is no pinned "current stable" tag to point a recipe at today.
+    This is an unusual but real pattern: active commits, stalled releases.
+
+catalogue_fit:
+  categories: [communication, chat]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover IRC or persistent-connection chat
+    bouncing. openclaw, hermes-agent, and open-webui are AI-chat interfaces
+    to LLMs, not IRC/human chat clients, so there's no functional overlap.
+    Convos would be a genuinely new category: a self-hosted, always-on IRC
+    bouncer + web client, letting a customer stay connected to IRC networks
+    from any browser without running a local client or separate bouncer.
+  usefulness: low
+  usefulness_rationale: >
+    IRC itself is a shrinking, technical-niche protocol relative to the
+    rest of the catalogue's broader-appeal apps (password managers,
+    photo backup, home automation, uptime monitoring). Convos would mainly
+    appeal to developers/sysadmins already on IRC (e.g. Libera.Chat) rather
+    than a general self-hosting customer base.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Convos has no admin-login parameter of its own to project a root-password hash into: account creation happens through a self-service web signup form, and the app used to gate that signup behind a CONVOS_INVITE_CODE env var. The current Dockerfile no longer sets CONVOS_INVITE_CODE at all, meaning a fresh instance now defaults to open self-registration — whoever reaches the URL first can sign up and become the org owner. Left un-gated, this is a race an unrelated internet visitor could win before the customer does. A Traefik basic_auth gate (root-password projected) in front of the whole app closes that race and is the correct fix, same pattern as adminer/n8n/WUD, but it means the recipe's only expressible secret is the basic-auth gate, not anything app-native."
+    - "No pinned stable Docker tag exists to build a recipe against today (see version_health) — only the rolling ':alpha' build. A recipe pinned to ':alpha' would silently pick up new (potentially breaking) builds on every redeploy, which conflicts with the pin-a-stable-tag expectation for new recipes."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Convos is mechanically installable today — a single-container, single
+  HTTP-port (3000) app with no raw IRC ports exposed inbound (it makes
+  outbound IRC connections as a client/bouncer), and its lack of built-in
+  admin auth can be closed with a standard Traefik basic_auth gate using
+  root-password projection, the same pattern used for adminer/n8n/WUD.
+  However it's a weak candidate to actually build: it fills a real gap
+  (no IRC/chat recipe exists) but for a narrow, technical audience, and
+  upstream has no pinned stable release to build against (last tag
+  v8.07 from 2023-10-30, a stalled v9.0-rc1 pre-release since
+  2025-07-14, only a rolling ":alpha" image recommended today). Recommend
+  build_with_caveats: revisit once upstream cuts a real v9 stable tag,
+  and treat the basic_auth gate as mandatory given the app's own
+  open-registration default.
