@@ -1,0 +1,76 @@
+slug: 1backend
+name: 1Backend
+source_description: "Self-hosted platform for building AI apps with microservices and microfrontends"
+
+upstream:
+  url: https://1backend.com/
+  repo_url: https://github.com/1backend/1backend
+  license: AGPL-3.0
+  docker_image: crufter/1backend (backend, tag `default-1-latest`) + crufter/1backend-ui (frontend, tag `latest`)
+
+version_health:
+  latest_version: "v0.9.0"
+  latest_release_date: "2025-10-12"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Six tagged releases from v0.4.0 (2025-05-05) through v0.9.0 (2025-10-12),
+    roughly one per month — then no new tag in the ~10 months since (as of
+    2026-08-05). Commit activity has not stopped, though: the default branch
+    was last pushed 2026-05-27 (~2.2 months ago) with active feature work
+    (TOTP enrollment, CLI fixes, user-svc changes). Repo is not archived, has
+    2.3k stars and effectively 1 open issue (well-triaged). Read as a project
+    that is still developing but has stopped cutting versioned releases,
+    which also means there is no stable tag to pin a recipe to beyond
+    v0.9.0 or a floating `:latest`-style tag — upstream's own docs default
+    to `crufter/1backend:default-1-latest` and `crufter/1backend-ui:latest`,
+    neither of which is a pinned version tag.
+
+catalogue_fit:
+  categories: [ai, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [runtipi, open-webui, ollama]
+  differentiation: >
+    1Backend is a developer framework/runtime for building and hosting
+    custom microservice + microfrontend apps (with built-in auth, routing,
+    and the ability to launch LLM containers) — not a finished end-user
+    application like the rest of the catalogue. It overlaps conceptually
+    with Runtipi (both launch and manage other containers from inside the
+    app, both mount the Docker socket) and with Open WebUI/Ollama (both can
+    run local LLMs in containers), but its actual audience is a developer
+    who wants to build something on top of it, not a customer looking for a
+    ready-made tool.
+  usefulness: low
+  usefulness_rationale: >
+    Most Hostinger/AF customers self-hosting apps want a finished product
+    (password manager, notes app, chat UI), not a bare application
+    framework they still have to write code against. 1Backend has no
+    standalone function out of the box beyond its own admin console — value
+    only appears once a developer builds and deploys custom services on it,
+    which is out of scope for a one-click recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "The app ships a fixed, documented default admin login (username `1backend`, password `changeme`) with no environment variable or first-boot config to set a custom password. There is no `generated_from`-compatible parameter to project the customer's root-password hash into, because the app's own credential isn't configurable at container start — only changeable manually after first login, which a one-click installer can't guarantee happens."
+    - "A Traefik `basic_auth` gate could shield the login page from anonymous internet access, but that doesn't fix the underlying issue: the app's own admin account would still carry a public, well-known default password indefinitely if the customer never logs in to change it — an unacceptable default state for a hands-off recipe."
+    - "Two independently-public HTTP endpoints that both need direct browser reachability: the UI (port 3901) and the API (port 11337, which the browser calls directly, not just server-to-server) — more complex than the single-hostname pattern most current recipes use, though not by itself disqualifying."
+    - "Backend container requires a `/var/run/docker.sock` bind mount to launch its own LLM/microservice containers (same pattern already accepted for runtipi/wud/portainer, so not a novel blocker, but adds host-level attack surface on top of the credential issue above)."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  1Backend is a developer platform for building microservice/microfrontend
+  apps, not a ready-to-use end-user application — its value only appears
+  once someone writes and deploys custom services on top of it, which
+  doesn't fit a one-click recipe catalogue aimed at finished tools. It also
+  ships a fixed default admin login (`1backend` / `changeme`) with no
+  documented way to set a custom password at first boot, so even a
+  Traefik basic_auth gate would only mask, not fix, a permanently
+  public-default-credential admin account. Combined with low fit for our
+  customer base and overlap with Runtipi (container orchestration) and
+  Open WebUI/Ollama (local LLM hosting), this is not recommended for the
+  catalogue.
