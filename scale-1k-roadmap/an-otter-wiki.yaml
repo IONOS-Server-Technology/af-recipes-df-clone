@@ -1,0 +1,74 @@
+slug: an-otter-wiki
+name: An Otter Wiki
+source_description: "Lightweight self-hosted wiki with Git-backed pages and Markdown editing"
+
+upstream:
+  url: https://otterwiki.com/
+  repo_url: https://github.com/redimp/otterwiki
+  license: MIT
+  docker_image: redimp/otterwiki
+
+version_health:
+  latest_version: "v2.22.2"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.22.2 released 2026-08-02 — 3 days before today (2026-08-05).
+    CHANGELOG shows a dense, regular cadence through 2026: v2.22.1
+    (2026-07-30), v2.22.0 (2026-07-22), v2.21.1 (2026-07-12), v2.21.0
+    (2026-07-04), v2.20.8 (2026-07-01), v2.20.7 (2026-06-20) — multiple
+    releases per month, no gap over ~3 weeks anywhere in the last year.
+    Repo is not archived, issues/PRs are actively triaged. Clearly active.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a wiki/knowledge-base
+    tool. Gitea hosts git repos/code collaboration and OpenGist hosts
+    code snippets, but neither gives a customer a browsable, editable,
+    Markdown wiki with page history — a distinct, commonly-requested
+    self-hosted use case (team docs, personal knowledge base, project
+    wikis) that the catalogue currently has no answer for.
+  usefulness: high
+  usefulness_rationale: >
+    Wikis are a very common self-hosting ask and this is a small,
+    single-container, actively-maintained implementation (MIT license,
+    one Python/Flask process, one HTTP port, git-backed storage with no
+    external DB). Genuine, currently-unfilled gap with broad appeal
+    beyond developers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  An Otter Wiki is a single-container Python/Flask app (redimp/otterwiki,
+  pinned e.g. v2.22.2) serving its UI on one HTTP port (80 on the default
+  image, 8080 on the -slim variant), storing wiki pages in a local git
+  repo with no external database — fully Traefik-compatible. It has no
+  boot-time admin-provisioning env var: the app ships with open self-
+  registration, and whoever completes the first sign-up through the web
+  form becomes the admin. That makes it worse than a typical no-login app
+  (Adminer-style) if left open — an anonymous visitor could grab the admin
+  account before the customer does. It therefore needs a Traefik
+  basic_auth:true gate in front of it at first boot (password projected
+  from the customer's root password via generated_from, same pattern as
+  Adminer/n8n/WUD) so no one but the customer can reach the sign-up form
+  before they've created their own admin account; the customer can then
+  disable registration or basic_auth from inside the app's own settings
+  once set up. That clears the /compose constraint today with zero hard
+  blocking issues, but it's a workaround for a genuine gap in the app's
+  own security model rather than a clean fit, hence build_with_caveats
+  rather than a plain build_now. Release cadence is active (latest release
+  3 days ago) and the catalogue currently has no wiki recipe, so this is a
+  real, currently-unfilled, high-usefulness candidate.
