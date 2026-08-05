@@ -51,30 +51,26 @@ installability:
       mechanism: traefik_basic_auth
   blocking_issues:
     - >
-      The app ships no standalone login or file-management UI of its own.
-      The only browser-reachable page is the "Example App" test editor
-      (gated behind EXAMPLE_ENABLED=true), which is documented as a
-      verification tool, not a production interface — real usage requires
-      a separate DMS (Nextcloud/ownCloud or a custom integration) driving
-      it over its JWT-authenticated REST API. We have no such DMS recipe
-      in the catalogue for it to integrate with, so there is no customer
-      workflow that reaches a finished product through this recipe alone.
-    - >
-      If shipped anyway with EXAMPLE_ENABLED=true so the customer has
-      something to open, that unauthenticated demo editor page would need
-      a mandatory Traefik basic_auth gate to avoid sitting open on the
-      internet, since the app provides no login of its own for it.
-  installable_today: false
+      The "Example App" test editor (gated behind EXAMPLE_ENABLED=true) is
+      the only browser-reachable page and is unauthenticated by default, so
+      it must be fronted by a mandatory Traefik basic_auth gate to avoid
+      sitting open on the internet, since the app provides no login of its
+      own for it. That gate is expressible today via traefik_basic_auth, so
+      this is not a blocker on its own.
+  installable_today: true
   recommendation: not_recommended
 
 summary: >
   Euro-Office DocumentServer is an actively maintained AGPL-3.0 fork of
   ONLYOFFICE Document Server, releasing every 1-3 weeks with the latest
-  release one day before this analysis. Mechanically it could be started
-  (JWT_SECRET is server-generated, Postgres/Redis/RabbitMQ can be bundled
-  internally with no customer input needed), but it is an embedded editing
-  backend meant to be driven by a DMS like Nextcloud or ownCloud, not a
-  standalone customer-facing app. We have no such DMS recipe for it to
-  plug into, so installing it alone would not give a customer a usable
-  product — recommend not_recommended until/unless a Nextcloud-style
+  release one day before this analysis. It is mechanically installable
+  today: JWT_SECRET is server-generated with no customer input needed, and
+  its only browser-reachable page (the optional "Example App" test editor)
+  can be gated behind a Traefik basic_auth credential. The real problem is
+  fit, not installability — DocumentServer is an embedded editing backend
+  meant to be driven by a DMS like Nextcloud or ownCloud over its
+  JWT-authenticated REST API, not a standalone customer-facing app. We have
+  no such DMS recipe in the catalogue for it to plug into, so installing it
+  alone would hand a customer a bare editing engine with no file-management
+  surface — recommend not_recommended until/unless a Nextcloud-style
   frontend recipe exists to pair it with.
