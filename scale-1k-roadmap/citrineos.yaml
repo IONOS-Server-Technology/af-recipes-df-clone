@@ -1,0 +1,75 @@
+slug: citrineos
+name: CitrineOS
+source_description: "Open-source OCPP 2.0.1 charging station management system for EV networks"
+
+upstream:
+  url: https://citrineos.github.io/latest/
+  repo_url: https://github.com/citrineos/citrineos-core
+  license: Apache-2.0
+  docker_image: ghcr.io/citrineos/citrineos-server  # only published as :latest — no pinned version tag exists (see blocking_issues)
+
+version_health:
+  latest_version: "v1.9.1 (latest tagged stable GitHub Release); v2.0.0-beta1 is a newer pre-release tag"
+  latest_release_date: "2025-04-29"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Formal GitHub Releases are sporadic: v1.9.1 (2025-04-29) is the newest
+    tag carrying the "Latest" badge — about 15 months old as of 2026-08-05.
+    The newest tag overall, v2.0.0-beta1 (2025-08-05), is a year-old
+    pre-release that never graduated to stable. Despite this, the underlying
+    repo is very actively developed — commits and merged PRs land on `main`
+    almost daily (verified through 2026-08-03/08-05), and published Docker
+    images (ghcr.io/citrineos/citrineos-server, -operator-ui, -ocpi) are only
+    ever tagged `:latest`, tracking `main` directly rather than a versioned
+    release train. So: active upstream, but no stable versioned artifact to
+    pin a recipe to — a distinct problem from the project being dormant.
+
+catalogue_fit:
+  categories: [infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches EV charging station
+    management or OCPP. This would be a genuinely new category for the
+    catalogue (charge-point operators / EV network operators), not a
+    duplicate of any existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, growing niche demand (EU EV-charging operators needing OCPP 2.0.1
+    CSMS software) and no open-source competitor recipe exists in-catalogue,
+    but the audience is narrow compared to general-purpose recipes, and the
+    deployment is unusually heavy/operationally involved for that audience
+    (see installability below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - HASURA_GRAPHQL_ADMIN_SECRET (internal GraphQL/API secret; also what the bundled Operator UI embeds client-side to authenticate every request — see notes)
+    - Traefik basic-auth gate for the Operator UI (port 3000) and OCPP HTTP API (port 8080), since neither has a login screen of its own
+  secrets_expressible_today:
+    - secret: HASURA_GRAPHQL_ADMIN_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: Traefik basic-auth gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No pinned, stable Docker image tag exists for any CitrineOS component (server, operator-ui, ocpi) — ghcr.io only publishes `:latest`, which tracks `main` directly. There is nothing to pin a recipe to that wouldn't silently drift underneath every install."
+    - "The stack's core function — charge points connecting over OCPP — depends on raw WebSocket/WSS listeners on multiple non-standard ports (8081-8083 plain, 8443-8444 TLS, plus 8080 HTTP API), not a single HTTP(S) port. Our Traefik-per-domain-on-443 model has no mechanism today to provision and expose a per-customer set of raw ports for charge-point traffic, so the product's primary purpose would not work out of the box behind our standard ingress."
+    - "The full stack is 6 containers (OCPP server, Operator UI, Postgres+PostGIS, RabbitMQ, MinIO/S3, Hasura GraphQL engine), plus an optional OCPI server profile — significantly heavier than any current recipe and a large surface to keep patched given the lack of pinned releases above."
+    - "The Operator UI has no login of its own: it bakes HASURA_GRAPHQL_ADMIN_SECRET directly into the client bundle (VITE_HASURA_ADMIN_SECRET) and auto-attaches it to every GraphQL call, i.e. anyone who loads the page gets full admin/DB access unless it sits behind an additional auth layer. Upstream's own docs recommend an external OAuth/IdP provider instead of the admin-secret approach in production — that OAuth registration has no input channel in our platform today. A Traefik basic_auth gate in front covers the immediate exposure risk (listed above) but is a workaround for a design upstream itself calls unsuitable for production, not upstream's intended auth model."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  CitrineOS would fill a genuinely new niche (EV charging / OCPP 2.0.1 CSMS)
+  with no overlap in the current catalogue, and upstream is clearly an
+  active project (Apache-2.0, LF Energy-hosted, daily commits). But it is not
+  installable under today's mechanism: there is no pinned/stable image to
+  build a recipe against, and its core value — charge points connecting over
+  raw OCPP WebSocket ports — does not fit our single-domain-on-443 Traefik
+  model the way our other recipes do. The admin-UI secret exposure is
+  workaroundable via basic_auth, but the image-pinning and raw-port problems
+  are structural. Revisit if upstream starts cutting real version tags and if
+  the platform gains a way to provision extra raw ports per customer;
+  until then this is blocked_on_platform, not a fit to build now.
