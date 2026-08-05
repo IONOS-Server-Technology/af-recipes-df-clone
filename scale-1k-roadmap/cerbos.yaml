@@ -1,0 +1,81 @@
+slug: cerbos
+name: Cerbos
+source_description: "Self-hosted authorization service for policy-as-code access control"
+
+upstream:
+  url: https://www.cerbos.dev/
+  repo_url: https://github.com/cerbos/cerbos
+  license: Apache-2.0
+  docker_image: ghcr.io/cerbos/cerbos:0.54.0
+
+version_health:
+  latest_version: "0.54.0"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases run on a steady ~monthly cadence (0.54.0 on 2026-07-20,
+    0.53.0 on 2026-05-05, 0.52.0 on 2026-04-28, 0.51.0 on 2026-02-04),
+    with 0.54.0 landing only about 2 weeks before today (2026-08-05).
+    The repo is under clear active, ongoing maintenance — no signs of
+    slowing, archival, or EOL.
+
+catalogue_fit:
+  categories: [security, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Cerbos is a headless Policy Decision Point (PDP): a backend
+    authorization microservice that a customer's own application calls
+    over HTTP (3592) or gRPC (3593) to evaluate "can principal X do
+    action Y on resource Z" against YAML policies the customer writes
+    and supplies themselves. It has no browsable admin UI, no dashboard,
+    and nothing to look at after install beyond a bare API — the
+    self-hosted open-source PDP's policy-authoring/playground UI lives
+    only in the separate commercial Cerbos Hub SaaS, not in this image.
+    Nothing in the current 24-recipe catalogue overlaps: the closest
+    conceptual neighbors (Vaultwarden, Casdoor) are end-user-facing
+    credential/identity apps with their own login UI, whereas Cerbos is
+    pure infrastructure a developer wires into their own backend code.
+  usefulness: low
+  usefulness_rationale: >
+    Legitimate, actively maintained project, but it targets application
+    developers who are actively building a custom app and want an
+    externalized authorization layer for it — a narrow slice of our
+    self-host audience, and one where "installing the recipe" alone
+    yields zero customer-visible value: an out-of-the-box Cerbos
+    instance has no policies loaded and does nothing until the customer
+    writes YAML policies and modifies their own application's code to
+    call its API. That's a materially higher integration bar than any
+    turnkey app in the current catalogue, similar in kind to Alerta's
+    "needs an external producer wired up" gap but with no UI at all to
+    even confirm the install worked.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Cerbos ships as a single container (ghcr.io/cerbos/cerbos:0.54.0)
+  serving REST on 3592 and gRPC on 3593, reading policies from a mounted
+  directory — structurally simple, closest to a single-container
+  template like Uptime Kuma but with no UI at all. The core PDP API has
+  no built-in authentication of its own by default, so it must be gated
+  behind Traefik `basic_auth: true` projected from the customer's root
+  password, exactly the pattern used for other login-less recipes
+  (n8n, WUD); the optional Admin API also directly supports a bcrypt
+  password hash in its own config (`adminCredentials.passwordHash`),
+  which would map cleanly to `generated_from: "bcrypt:ROOT_PASSWORD"`
+  if that surface is ever exposed. Mechanically installable today under
+  the basic-auth gate, but usefulness is low for a one-click catalogue:
+  it's a headless developer dependency that provides no visible feature
+  until a customer writes custom policies and modifies their own
+  application code to call it — recommend build_with_caveats, low
+  priority relative to broader-appeal gaps.
