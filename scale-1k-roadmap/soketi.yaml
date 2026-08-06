@@ -10,19 +10,30 @@ upstream:
 
 version_health:
   latest_version: "1.6.1"
-  latest_release_date: "2025-03-25"
-  release_cadence: slowing
-  eol_status: active
+  latest_release_date: "2024-03-25"
+  release_cadence: dormant
+  eol_status: maintenance-only
   notes: >
-    1.6.1 shipped 2025-03-25 — about 17 months before today (2026-08-05).
-    Historical gaps between tagged releases were roughly 7-9 months (1.5.0
-    Nov 2023 -> 1.6.0 Aug 2024, ~9 months; 1.6.0 -> 1.6.1, ~7 months), so the
-    current gap is already close to double the established cadence. The repo
-    is not archived (~5.6k stars, ~100 open issues) and the README itself
-    states maintenance is "tight as hell" due to the maintainer's available
-    time, and solicits GitHub Sponsors funding to sustain the release/support
-    cadence. Treat as a single-maintainer project showing early warning
-    signs of a slowdown, not yet dormant or EOL.
+    1.6.1 was tagged 2024-03-25 — about 28 months before today (2026-08-05).
+    Historical gaps between tagged releases were at most ~9 months (1.5.0
+    2022-11-09 -> 1.6.0 2023-08-03, ~9 months; 1.6.0 -> 1.6.1, ~8 months), so
+    the current gap is roughly 3x the longest previous gap and there has been
+    no release at all in over two years. Worse than the release gap: the
+    default branch has had no human commit since 2024-03-25 (a README edit),
+    and the last commit touching code was 2024-02-13. The only activity
+    anywhere in the repo after that is a set of unmerged dependabot branches,
+    the newest from 2025-03-03 — nothing merged, and even the bot traffic
+    stopped ~17 months ago. The published images match: quay.io `latest` is
+    frozen at 2024-03-25 and the newest images in the registry are
+    per-PR/per-commit builds from 2025-03-03. Note also that no bare `1.6.1`
+    tag exists on quay.io; the pinnable release tags are variant-suffixed
+    (`1.6.1-16-alpine`, `-debian`, `-distroless`). The repo is not archived
+    and upstream has published no EOL notice, so `eol_status` is nominally
+    maintenance-only, but that label is generous — the README already warned
+    that maintenance is "tight as hell" for the single maintainer and
+    solicited GitHub Sponsors funding, and the commit history since then
+    shows that constraint winning. Treat as effectively unmaintained, not
+    merely slowing.
 
 catalogue_fit:
   categories: [developer-tools, real-time, messaging-infra]
@@ -49,32 +60,37 @@ catalogue_fit:
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot:
-    - PUSHER_APP_ID
-    - PUSHER_APP_KEY
-    - PUSHER_APP_SECRET
+    - DEFAULT_APP_ID
+    - DEFAULT_APP_KEY
+    - DEFAULT_APP_SECRET
   secrets_expressible_today:
-    - secret: PUSHER_APP_ID
+    - secret: DEFAULT_APP_ID
       mechanism: server_generated_no_customer_input
-    - secret: PUSHER_APP_KEY
+    - secret: DEFAULT_APP_KEY
       mechanism: server_generated_no_customer_input
-    - secret: PUSHER_APP_SECRET
+    - secret: DEFAULT_APP_SECRET
       mechanism: server_generated_no_customer_input
   blocking_issues: []
   installable_today: true
-  recommendation: build_now
+  recommendation: not_recommended
 
 summary: >
-  Soketi is a single-container, single-HTTP-port (6001, WebSocket
-  upgrade + Pusher-style HTTP API; 9601 metrics stays internal) service with
-  no admin login and no web UI, so it needs neither generated_from nor a
-  Traefik basic_auth gate — its own wire protocol (HMAC-signed requests
-  using the app secret) is the auth boundary, the same shape as
-  recipes/openclaw's auto-generated gateway token. Its three required
-  values (app id/key/secret) can all be randomly server-generated at
-  install with no customer input needed to boot, matching the
-  auto_generate pattern already used elsewhere in the catalogue, and are
-  then read back out by the customer to configure their own client app —
-  mechanically installable today. The only caveat is upstream: it's a
-  single-maintainer project whose release cadence has visibly slowed and
-  who has publicly flagged tight time constraints, worth a light version
-  pin/monitoring note rather than a hard blocker.
+  Soketi is mechanically installable today: a single container on a single
+  HTTP port (6001, WebSocket upgrade + Pusher-style HTTP API; 9601 metrics
+  stays internal), no admin login and no web UI, so it needs neither
+  generated_from nor a Traefik basic_auth gate — its own wire protocol
+  (HMAC-signed requests using the app secret) is the auth boundary, the same
+  shape as recipes/openclaw's auto-generated gateway token. Its three
+  required values are DEFAULT_APP_ID / DEFAULT_APP_KEY / DEFAULT_APP_SECRET
+  (which fall back to the hardcoded `app-id` / `app-key` / `app-secret` if
+  unset, so they must be overridden); all three can be randomly
+  server-generated at install with no customer input, then read back out by
+  the customer to configure their client app.
+  The reason not to build it is upstream, not mechanism: no release in ~28
+  months, no human commit on the default branch since March 2024, no code
+  change since February 2024, and published images frozen since 2025-03-03.
+  For an AGPL-3.0 network service that would sit on a customer's public
+  domain terminating untrusted WebSocket connections, shipping a recipe on a
+  codebase with no security-patch path is the wrong bet — hence
+  not_recommended, to be revisited only if upstream resumes releases or a
+  credible maintained fork emerges.
