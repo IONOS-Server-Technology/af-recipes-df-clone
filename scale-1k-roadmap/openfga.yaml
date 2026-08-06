@@ -1,0 +1,92 @@
+slug: openfga
+name: OpenFGA
+source_description: Google Zanzibar-inspired fine-grained authorization engine for apps
+
+upstream:
+  url: https://openfga.dev
+  repo_url: https://github.com/openfga/openfga
+  license: Apache-2.0
+  docker_image: openfga/openfga
+
+version_health:
+  latest_version: v1.18.3
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v1.18.3) shipped today (2026-08-05); the prior four
+    releases (v1.18.2, v1.18.1, v1.18.0, v1.17.1) landed 2026-08-03,
+    2026-06-29, 2026-06-17, 2026-06-05 respectively — a steady multi-week
+    cadence with no gaps. CNCF-hosted (Auth0/Okta-originated), actively
+    maintained, no archival or EOL signals.
+
+catalogue_fit:
+  categories: [developer-tools, security]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OpenFGA is a Zanzibar-style relationship-based authorization API server —
+    nothing in the current 24-recipe catalogue provides fine-grained
+    permission/authz-as-a-service for other applications to call. It is not
+    an end-user app; it's infrastructure other apps' developers embed into
+    their own software via SDK calls over its HTTP/gRPC API.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated (developer-tools/security infra we don't have),
+    but its audience is developers building their own apps against the API,
+    not the typical AF customer standing up a ready-to-use app. Value is
+    real but narrower than most of the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - OPENFGA_AUTHN_PRESHARED_KEYS
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      OpenFGA ships two HTTP surfaces: the API (port 8080, meant to be called
+      by the customer's own applications) and a "Playground" (port 3000),
+      which upstream docs explicitly describe as a local-development-only
+      tool with no authentication of its own — not something to expose on a
+      public domain. There is no browser-facing admin UI suitable for a
+      customer-facing AF app the way every other recipe in the catalogue has.
+    - >
+      Default authentication mode is OPENFGA_AUTHN_METHOD=none — the API
+      accepts any request unauthenticated out of the box. Securing it means
+      OPENFGA_AUTHN_METHOD=preshared plus one or more
+      OPENFGA_AUTHN_PRESHARED_KEYS values, which are plaintext bearer-token
+      API keys the customer's own external applications must be configured
+      with to call OpenFGA — not a login/password pair on an app the
+      customer clicks into.
+    - >
+      This breaks the current mechanism in a way distinct from every
+      existing blocked case: the problem isn't lack of an *input* channel
+      for a customer-chosen secret (a random preshared key can be generated
+      server-side just fine), it's lack of an *output* channel — nothing in
+      the current recipe/`/compose` flow surfaces a generated secret back to
+      the customer so their external application can actually use it. All
+      three existing mechanisms assume the secret is either supplied by the
+      customer (root-password hash) or never needs to leave the server
+      (backend DB password); OpenFGA's preshared key is generated
+      server-side but MUST reach the customer to be useful, which none of
+      the three cover.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (as done for WUD/
+      Adminer-style apps with no login) does not substitute here: that
+      protects a human clicking through a browser, not an SDK making
+      Bearer-token API calls, so it would not give the customer's own
+      application a usable path to authenticate against OpenFGA.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OpenFGA is an actively maintained, differentiated addition (no existing
+  recipe covers authorization-as-a-service) but doesn't fit the current
+  recipe mechanism: it has no customer-facing web UI, defaults to open/
+  unauthenticated API access, and its real secret — a preshared API key
+  the customer's own external apps must be configured with — needs an
+  output channel (surfacing a generated secret back to the customer) that
+  `/compose` doesn't have today, not just an input channel. Revisit once
+  the platform can hand a generated secret back to the customer post-install,
+  or once OpenFGA is paired with OIDC-based auth wiring specific to AF.
