@@ -1,0 +1,98 @@
+slug: gitlab
+name: GitLab
+source_description: "GitLab is a complete DevOps platform for Git repository management and CI/CD"
+
+upstream:
+  url: https://about.gitlab.com/
+  repo_url: https://gitlab.com/gitlab-org/gitlab
+  license: "MIT (Community Edition core); shipped as the free tier of the unified GitLab EE codebase — proprietary tiers are gated behind a license key, not a separate CE source tree, since the 2021 CE/EE code merge"
+  docker_image: gitlab/gitlab-ce
+
+version_health:
+  latest_version: "19.2"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    GitLab ships a minor release on the 22nd of every month plus mid-cycle
+    patch releases for the last three minors (e.g. the 2026-02-10 patch
+    release covered 18.8.4/18.7.4/18.6.6 simultaneously). 19.2 landed
+    2026-07-16, under 3 weeks before today (2026-08-05) — this is one of the
+    most disciplined, predictable release cadences of any app considered in
+    this catalogue. No indication of slowdown, archival, or EOL; GitLab is a
+    publicly traded company (NASDAQ: GTLB) actively developing the product.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea, opengist, gerrit]
+  differentiation: >
+    GitLab is a genuine superset of what Gitea offers today in this
+    catalogue: built-in CI/CD pipelines, a container registry, merge-request
+    approval rules, security/dependency scanning, and project
+    management (issues, epics, boards) in one product, versus Gitea's
+    lighter Git-hosting-plus-basic-Actions scope. It is not a substitute for
+    Gerrit's patch-set review workflow, but it does cover everything Opengist
+    offers (snippets) as a minor feature. For a customer who wants "our own
+    GitHub/GitLab-style DevOps platform," it is a stronger, more
+    recognizable brand match than Gitea.
+  usefulness: high
+  usefulness_rationale: >
+    GitLab is one of the most widely recognized self-hosted DevOps
+    platforms and a plausible top request from customers who specifically
+    want "GitLab," not just "a git server" — brand recognition alone drives
+    demand distinct from Gitea. The catalogue currently has nothing that
+    covers integrated CI/CD + container registry + Git hosting in one app.
+    The cost is a materially heavier footprint (omnibus image bundles
+    PostgreSQL, Redis, and Puma/Sidekiq internally; upstream recommends a
+    minimum of 4 GB RAM, 8 GB for reliable operation, vs. 512 MB for Gitea)
+    which should be reflected in `app_min_ram_mb` if this is ever built.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [GITLAB_ROOT_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      GitLab's own admin bootstrap variable, GITLAB_ROOT_PASSWORD (an
+      omnibus `gitlab.rb`/env setting), only accepts a plaintext password
+      that GitLab itself hashes internally on first boot — it has no
+      "accept a pre-hashed value and compare against it at login" mode the
+      way Vaultwarden's ADMIN_TOKEN does. `generated_from` only ever
+      produces a hash of the customer's root/server password, never the
+      plaintext, so there is no way to project a value into
+      GITLAB_ROOT_PASSWORD that the customer could actually authenticate
+      with afterward. This is the exact "genuine requirement for the
+      plaintext password" case SCHEMA.md calls out as a hard structural
+      blocker, not a missing-algorithm gap.
+    - >
+      Gating the app behind Traefik `basic_auth` (our other supported
+      mechanism) does not substitute here either: GitLab has its own login
+      (the root account) and public self-signup is disabled by default, so
+      a customer still needs a working root credential to do anything
+      inside the app once past a `basic_auth` door — unlike Adminer/n8n,
+      where `basic_auth` alone is the entire auth boundary.
+    - >
+      If GITLAB_ROOT_PASSWORD is left unset, GitLab auto-generates a random
+      root password and writes it once to
+      /etc/gitlab/initial_root_password inside the container, valid for only
+      24 hours. Retrieving it requires a shell into the container/VM, which
+      is not a channel our current provisioning flow exposes to the
+      customer — and it expires before most customers would think to look
+      for it, effectively locking them out of their own first login.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  GitLab is an actively and predictably maintained project (monthly
+  releases, no EOL signal) and would be a genuinely higher-value,
+  higher-recognition addition than what Gitea covers today, bundling
+  CI/CD, a container registry, and project management into one app. It is
+  blocked purely on provisioning: GitLab's root-login bootstrap variable
+  only accepts a plaintext password, which `generated_from` (hash-only) and
+  Traefik `basic_auth` (gate-only, doesn't help once an app has its own
+  login) cannot supply between them. This is a platform-mechanism gap, not
+  a reason to rule the app out — recommend revisiting once a
+  plaintext-secret projection channel exists, and separately budgeting for
+  its notably heavier RAM/disk footprint versus the rest of the catalogue.
