@@ -1,0 +1,90 @@
+slug: supertokens
+name: SuperTokens
+source_description: "SuperTokens is an open-source authentication solution with session management"
+
+upstream:
+  url: https://supertokens.com
+  repo_url: https://github.com/supertokens/supertokens-core
+  license: "Apache-2.0 (core); a separate ee/ directory in the repo carries its own more restrictive license for enterprise-only features, not needed for self-hosted core usage"
+  docker_image: supertokens/supertokens-postgresql
+
+version_health:
+  latest_version: "12.0.10"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v12.0.10 published 2026-08-06, essentially the day of this analysis
+    (2026-08-05). supertokens-core maintains several parallel supported
+    version lines (12.0.x, 11.4.x, 11.3.x, 11.2.x, 11.1.x, 11.0.x, 10.1.x)
+    and backports patches across all of them — v12.0.10, v11.4.7 and
+    v11.3.7 were all released within hours of each other on 2026-08-06,
+    with v12.0.9 four days before that. Going back further, releases are
+    frequent and continuous through 2026 with no gaps longer than a few
+    weeks. Repo is not archived, 15.2k GitHub stars, last push
+    2026-08-06. Clearly a well-resourced, actively maintained project.
+
+catalogue_fit:
+  categories: [security, identity, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is an auth/identity backend,
+    so on paper this looks like a gap similar to the ones already flagged
+    for Authentik and Casdoor. In practice it is a fundamentally different
+    kind of app: SuperTokens core is a headless authentication microservice
+    with no standalone UI of its own. Its only HTTP surface is a REST API
+    (health-checked via GET /hello) meant to be called by a backend SDK
+    (Node/Python/Go/Java) that a developer writes and deploys separately;
+    the "user management dashboard" upstream advertises is not served by
+    the core container itself — it's mounted by the customer's own backend
+    app once that app integrates the supertokens SDK (e.g. reachable at
+    <their-app-domain>/auth/dashboard, not at the core's own port). Deployed
+    on its own, as any recipe here would deploy it, the container serves no
+    page a customer could open in a browser and use — unlike Authentik or
+    Casdoor, which ship a complete, usable web IdP UI out of the box.
+  usefulness: low
+  usefulness_rationale: >
+    SuperTokens is a building block for developers who are already writing
+    a custom backend application and choose it as their auth layer at
+    development time — it is not a turnkey product an AF customer could
+    stand up and start using the way they can with every other recipe in
+    the catalogue. A recipe that boots the core container in isolation
+    hands the customer a bare API with nothing to click on; all the
+    value requires them to write, deploy, and wire up separate backend
+    code with the SDK, which is entirely outside what a self-hosting
+    recipe delivers. This is a stronger version of the caveat already
+    flagged for Casdoor ("value only materializes once wired into other
+    apps") — Casdoor at least has a working admin web UI reachable
+    immediately after boot; SuperTokens core has none at all.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRESQL_PASSWORD, API_KEYS]
+  secrets_expressible_today:
+    - secret: POSTGRESQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: API_KEYS
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "The recipe mechanism could technically boot the container (Postgres password and the optional API_KEYS core-auth secret are both patternless values nothing customer-facing needs to read, so they're server-generatable), but there is no customer-facing login screen to gate at all — 'has no login of its own, gate the whole thing with Traefik basic_auth' does not apply either, because the thing being gated is a JSON REST API consumed by a backend SDK, not a browser UI a human would visit. Fronting it with Traefik on <slug>.<base_domain> and basic_auth would just break normal API calls from the customer's own backend (which don't send interactive basic-auth credentials), so the standard no-login gate pattern used for Adminer/WUD/Stirling PDF doesn't transfer here."
+    - "Even if deployed successfully, the recipe would deliver nothing a customer can use standalone: functioning auth requires them to write and deploy their own backend application with the supertokens SDK pointed at this core instance, which is out of scope for anything a recipe can provision. This is a product-fit gap, not a secrets/mechanism gap."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  SuperTokens core (supertokens/supertokens-postgresql, pin 12.0.10) is a
+  single-container, Postgres-backed service on one port (3567) with no
+  customer-supplied secrets it can't get server-generated — mechanically it
+  would be easy to boot. The upstream project is also very actively
+  maintained (near-daily backported releases across multiple version
+  lines, not archived). It fails on product fit, not mechanism: the core
+  by itself has no web UI — its dashboard is served by a customer's own
+  backend application after they integrate the SuperTokens SDK, something
+  entirely outside a recipe's scope. Standing up just the core container
+  would give an AF customer an unauthenticated-by-default REST API with
+  nothing to open in a browser, not a usable self-hosted app. Recommend
+  not_recommended: this is a developer library/dependency, not a
+  self-contained application, and doesn't fit the "one container, one web
+  UI behind Traefik" shape the rest of the catalogue follows.
