@@ -1,0 +1,91 @@
+slug: hedgedoc
+name: HedgeDoc
+source_description: "Real-time collaborative markdown editor for team documentation"
+
+upstream:
+  url: https://hedgedoc.org/
+  repo_url: https://github.com/hedgedoc/hedgedoc
+  license: AGPL-3.0
+  docker_image: quay.io/hedgedoc/hedgedoc
+
+version_health:
+  latest_version: "1.11.1"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: maintenance-only
+  notes: >
+    1.11.1 shipped 2026-07-24, 12 days before this analysis (2026-08-05).
+    Release history over the prior ~12 months (1.11.0 2026-06-18, 1.10.8
+    2026-04-15, 1.10.7 2026-02-24, 1.10.6 2026-02-04, 1.10.5 2025-12-06)
+    shows a steady ~4-8 week cadence, mostly security fixes and small
+    bugfixes/hardening — genuinely active, not dormant. However, the
+    project's own GitHub banner states the 1.x line is now
+    maintenance-only: no new feature requests are being accepted against
+    it. Development effort has moved to "HedgeDoc 2", a from-scratch
+    rewrite splitting the app into a separate backend and frontend, which
+    is still pre-release (tracked on the `master` branch and milestone
+    "Version 2.0"/"Version 2.x" — not yet a shipped stable version). So:
+    active security/maintenance releases on 1.x, but explicitly no new
+    features until/unless 2.0 ships. A recipe built today would target
+    1.x and should expect a major-version migration story later rather
+    than incremental 1.x feature growth.
+
+catalogue_fit:
+  categories: [collaboration, productivity, developer-tools, documentation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes covers real-time multi-user
+    collaborative editing. recipes/anytype-server is the closest by
+    category (notes/knowledge base) but is single-user/local-first, not
+    simultaneous multi-cursor editing; recipes/opengist and recipes/gitea
+    are git-backed code/snippet sharing with commit-based history, not
+    live co-editing. HedgeDoc's actual niche — a self-hosted HackMD/CodiMD
+    for teams to co-write markdown docs, meeting notes, and runbooks in
+    real time — is genuinely unaddressed today.
+  usefulness: high
+  usefulness_rationale: >
+    Real-time collaborative markdown editing is a common, recognizable
+    self-hosted-alternative request (HedgeDoc/CodiMD is a well-known
+    Notion/HackMD substitute), matches Hostinger's stated description
+    closely, and is structurally simple to run (one Node app + Postgres).
+    The maintenance-only status of 1.x is a caveat but not disqualifying
+    given the steady security-release cadence.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - postgres_db_password (CMD_DB_URL)
+    - session_secret (CMD_SESSION_SECRET)
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: postgres_db_password (CMD_DB_URL)
+      mechanism: server_generated_no_customer_input
+    - secret: session_secret (CMD_SESSION_SECRET)
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  HedgeDoc is a mature, AGPL-3.0 collaborative markdown editor with an
+  official pinned image (quay.io/hedgedoc/hedgedoc:1.11.1, released
+  2026-07-24) and a simple two-container shape (app + Postgres) that is
+  fully reverse-proxy compatible on one HTTP port. It fills a real gap in
+  the current 24-recipe catalogue: no existing recipe does real-time
+  multi-user co-editing. Its only first-boot secrets — the DB password and
+  session-signing secret — are both server-generatable with no customer
+  input needed. The one design decision the recipe must make explicit is
+  that HedgeDoc enables open email self-registration by default (anyone
+  who can reach the URL can create an account), which is not a
+  customer-scoped credential the platform can gate on its own; the clean
+  fix is a Traefik basic_auth gate (projected from the customer's root
+  password) in front of the whole app, inside which the customer's own
+  users self-register. With that gate, installable_today with no
+  platform blockers. The project's 1.x line is explicitly maintenance-only
+  (feature development has moved to a not-yet-released "HedgeDoc 2"
+  rewrite), so recommend building against 1.x now while noting a future
+  major-version migration will eventually be needed.
