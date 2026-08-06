@@ -1,0 +1,129 @@
+slug: r2r
+name: R2R
+source_description: "Production-ready RAG framework with hybrid search and knowledge graphs"
+
+upstream:
+  url: https://www.sciphi.ai/
+  repo_url: https://github.com/SciPhi-AI/R2R
+  license: MIT
+  docker_image: sciphiai/r2r:3.6.6
+
+version_health:
+  latest_version: "v3.6.5 (git tag, 2025-06-06); sciphiai/r2r:3.6.6 is a newer Docker Hub-only tag with no matching GitHub release/tag"
+  latest_release_date: "2025-06-06"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    As of today (2026-08-05): the last GitHub release/tag is v3.6.5
+    (2025-06-06, ~14 months ago), following a near-weekly cadence through
+    April-June 2025 (v3.5.16 → v3.6.5 in six weeks). That cadence then
+    stopped abruptly — no release since. Commit activity continued for a
+    few more months (last commit on main: 2026-11-07 per commit history,
+    ~9 months ago) before also going quiet. The repo is NOT formally
+    archived and there's no EOL announcement, so this isn't a clean
+    `archived`/`eol` call, but two open, unpatched security reports are a
+    stronger signal than the release gap alone: issue #2295 ("[Security]
+    CRITICAL auth bypass" — unauthenticated requests fall through to a
+    default admin superuser, opened 2026-06-21) and #2297 ("request for a
+    private disclosure channel", opened 2026-06-29) both remain open with
+    zero maintainer response as of today, 5-6 weeks later. Community
+    members are still filing issues (most recently 2026-07-27), but nobody
+    from SciPhi-AI appears to be triaging them. The founders' YC page
+    (Event Horizon Labs) now describes the company as "an AI research lab
+    automating all of investing," with R2R positioned as a legacy
+    open-source asset under a still-active SciPhi Cloud product rather
+    than the company's current focus — consistent with the observed drop
+    in engineering attention.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is an end-to-end RAG pipeline
+    (ingestion, chunking, embeddings, knowledge-graph extraction,
+    hybrid retrieval, agentic query) shipped as one product. It sits one
+    layer up from the vector-database candidates previously researched
+    (apps-gaps/qdrant.yaml, chroma, milvus — none shipped) and adjacent to
+    the self-hosted-AI cluster already in the catalogue (Ollama,
+    Open WebUI, n8n, Hermes Agent): same "building block for an AI stack"
+    audience, but positioned as the retrieval/knowledge-graph layer rather
+    than the chat UI or inference server.
+  usefulness: low
+  usefulness_rationale: >
+    The concept (production RAG with knowledge graphs) is genuinely
+    differentiated from anything shipped today, but current upstream
+    health erases most of that value: an unpatched, publicly-disclosed
+    critical auth-bypass sitting open for 5+ weeks with no maintainer
+    response makes this a bad candidate to put in front of customers right
+    now regardless of the installability question below. Like the
+    previously-researched vector DBs, the addressable audience is also
+    narrow — developers wiring a RAG pipeline via API/SDK, not a
+    stand-alone destination app for a general self-hoster.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENAI_API_KEY_or_ANTHROPIC_API_KEY, r2r_admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      R2R's core value proposition — RAG completions and knowledge-graph
+      extraction — requires a customer-supplied LLM provider API key
+      (OPENAI_API_KEY or ANTHROPIC_API_KEY) set as an environment variable
+      at container boot. Document ingestion and hybrid keyword/vector
+      search work without one, but that's not what "production-ready RAG
+      framework" is sold as. There is no in-app settings page to add a
+      provider key post-deploy (confirmed via Railway's own deploy docs,
+      which instruct adding the env var in the hosting platform's variable
+      panel and redeploying) — the key must be present at first boot. This
+      is the canonical "external API key the app can't function without"
+      case the schema calls a hard no; it is not a build_with_caveats
+      workaround like Hermes Agent's OPENROUTER_API_KEY, because Hermes's
+      key is entered later through its own authenticated dashboard at
+      runtime, while R2R's is a boot-time env var with no equivalent
+      runtime input path.
+    - >
+      R2R-Application (the web dashboard) ships a default admin login
+      (admin@example.com / change_me_immediately, overridable only via
+      env vars at boot) with no documented password-reset flow for a
+      forgotten default — this is a fixed/default admin credential the
+      schema says is fine to gate behind Traefik basic_auth rather than a
+      blocker on its own, but it stacks on top of the API-key blocker
+      above rather than resolving it.
+    - >
+      Independent of the mechanism question: issue #2295 documents a live,
+      unpatched CRITICAL authentication bypass (unauthenticated requests
+      resolve to a default admin superuser) reported 2026-06-21 and still
+      unaddressed as of this analysis (2026-08-05). Shipping a recipe on
+      top of an actively-exploitable, publicly-disclosed vulnerability with
+      no maintainer response is a reason to hold regardless of whether
+      Traefik basic_auth could otherwise mask it at the edge.
+    - >
+      Full-mode deployment is a five-service stack (R2R core API,
+      R2R-Application dashboard, Postgres+pgvector, Hatchet workflow
+      engine with its own web dashboard, MinIO object storage with its own
+      web console) — only the main dashboard needs to be public; Hatchet's
+      and MinIO's consoles would stay internal-network-only behind Traefik,
+      similar to the gRPC-port pattern already used for Qdrant
+      (apps-gaps/qdrant.yaml). This adds recipe complexity but is not a
+      structural blocker by itself.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  R2R is architecturally interesting — the only candidate researched so far
+  that packages a full RAG pipeline (ingestion, hybrid search, knowledge
+  graphs, agentic retrieval) rather than a single building block — but two
+  independent problems rule it out today. Mechanically, its core RAG
+  functionality needs a customer-supplied OpenAI/Anthropic API key set as a
+  boot-time environment variable, with no runtime settings page to supply
+  one later, which is the "external API key, no input channel" hard no per
+  the schema. Separately, upstream health has visibly declined: no release
+  in 14 months, no commits in 9 months, and most tellingly, a critical
+  unauthenticated-admin-bypass vulnerability (#2295) reported over five
+  weeks ago with zero maintainer response — the founding team's public
+  profile now centers a different, unrelated product. Recommend not
+  building a recipe for this; revisit only if upstream shows renewed
+  maintenance activity and a real API-key input channel exists on the
+  platform.
