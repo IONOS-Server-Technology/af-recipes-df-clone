@@ -1,0 +1,78 @@
+slug: pulse
+name: Pulse
+source_description: "Real-time monitoring dashboard for Proxmox, Docker, and Kubernetes"
+
+upstream:
+  url: https://github.com/rcourtman/Pulse
+  repo_url: https://github.com/rcourtman/Pulse
+  license: MIT
+  docker_image: rcourtman/pulse:6.1.2
+
+version_health:
+  latest_version: "v6.1.2 (stable); v6.2.0-rc.8 in active pre-release as of today, 2026-08-05)"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active: v6.1.0, v6.1.1, and v6.1.2 stable tags shipped within
+    a 15-day span (2026-07-11 through 2026-07-26), and a v6.2.0 release
+    candidate line has been cutting near-daily rc builds since
+    (rc.1 on 2026-07-27 through rc.8 on 2026-08-05, today). No sign of
+    slowdown, archival, or maintenance-only mode.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma, portainer]
+  differentiation: >
+    Pulse is a unified observability dashboard for virtualization/container
+    infrastructure itself (Proxmox nodes/VMs, Docker hosts, Kubernetes
+    clusters, TrueNAS, vSphere) — CPU/memory/disk metrics, backup-failure
+    detection, restart-loop and capacity alerts, pulled via API tokens/agents
+    against the customer's own infra. This differs from Uptime Kuma, which
+    checks external-facing service availability (HTTP/TCP/DNS pings) with no
+    concept of hypervisor or container-host internals, and from Portainer,
+    which is a Docker management/control-plane UI (start/stop/deploy
+    containers) rather than a metrics-and-alerting layer. A customer running
+    Proxmox or a small Docker/K8s fleet outside AF's own infra would want
+    Pulse for visibility that neither existing recipe provides.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful to the homelab/small-IT-team audience AF's catalogue
+    targets, and distinct from what's already offered. Capped at medium
+    rather than high because its value is entirely dependent on the
+    customer separately owning and connecting Proxmox/Docker/Kubernetes
+    infrastructure elsewhere — unlike a self-contained app, an AF customer
+    who installs Pulse purely to monitor the AF VM it runs on gets
+    comparatively little (it has no built-in target to monitor until the
+    customer supplies external API credentials through the UI).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today:
+    - secret: admin_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Pulse is a single-container, single-HTTP-port (7655, WebSocket-capable)
+  web app with an MIT license, an actively maintained upstream (multiple
+  stable releases in the last month, daily rc builds ongoing today), and a
+  pinnable numbered Docker Hub tag (rcourtman/pulse:6.1.2). Its admin login
+  is set via the `PULSE_AUTH_PASS` environment variable, which upstream
+  explicitly documents as accepting either a plaintext password (auto-hashed
+  at startup) or a pre-computed bcrypt hash — a direct match for
+  `generated_from: "bcrypt:ROOT_PASSWORD"` — with `PULSE_AUTH_USER` set to a
+  fixed default username, avoiding the app's normal interactive
+  bootstrap-token flow entirely. No external API key or OAuth registration
+  is needed for the app itself to boot and be usable; connecting it to the
+  customer's actual Proxmox/Docker/Kubernetes infrastructure is a
+  post-login, in-app configuration step the customer performs with their
+  own credentials, same as any other admin task. Recommend build_now: it's
+  mechanically installable today, fills a real gap (hypervisor/container
+  host observability) distinct from Uptime Kuma and Portainer, and rides an
+  actively developed upstream.
