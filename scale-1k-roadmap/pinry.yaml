@@ -1,0 +1,94 @@
+slug: pinry
+name: Pinry
+source_description: "Self-hosted Pinterest-style image board with tag-based organization"
+
+upstream:
+  url: https://github.com/pinry/pinry
+  repo_url: https://github.com/pinry/pinry
+  license: BSD-2-Clause
+  docker_image: getpinry/pinry
+
+version_health:
+  latest_version: "2.1.13"
+  latest_release_date: "2024-10-03"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Just over 22 months since the latest tagged release/image (2.1.13,
+    pushed 2024-10-03) as of today (2026-08-05). Full tag history: v2.1.4
+    (2020-07-23), v2.1.5 (2020-11-23), v2.1.6 (2022-02-19), v2.1.7
+    (2022-04-14), v2.1.8 (2022-04-22), v2.1.9 (2022-04-23), v2.1.10
+    (2022-05-04), v2.1.11 (2022-05-04), v2.1.12 (2022-05-06), v2.1.13
+    (2024-09-30/10-03) — already a pattern of long dormant stretches (18
+    months, then 2.5 years) between short clusters of activity, not a
+    steady cadence. Repo is not archived and still receives occasional
+    commits after the 2.1.13 release: a security-fix PR merged 2024-10-04/05,
+    then single small fixes on 2025-03-12 ("remove unused site link") and
+    2025-07-09 ("demo domain name not up to date") — roughly 13 months
+    since the last commit of any kind as of today. No commits or releases
+    since. This reads as an unmaintained project kept on informal life
+    support by one maintainer (winkidney) rather than active or even
+    reliably maintenance-scheduled development: 3.4k GitHub stars and
+    1M+ Docker pulls indicate real historical userbase, but the trend
+    (no release in nearly 2 years, no commit in over a year) is toward
+    dormant/eol, not stable maintenance-only.
+
+catalogue_fit:
+  categories: [media, bookmarking, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes covers tag-based visual
+    bookmarking/mood-boarding. Immich is the closest recipe by "media
+    library" shape, but it is personal photo/video library management
+    (auto-import from your own devices, facial recognition, timeline) for
+    content the customer already owns — a fundamentally different use case
+    from Pinry's Pinterest-style workflow of clipping/saving images and
+    webpages found elsewhere on the internet and organizing them by tag.
+    Paperless-ngx and Opengist are both "capture and organize" tools too,
+    but for documents and code snippets respectively, not images. Single
+    container, single HTTP port (80), SQLite by default (no external DB
+    service required in the documented production docker deployment),
+    volume for /data (SQLite file + media + static assets) only.
+  usefulness: low
+  usefulness_rationale: >
+    The niche itself (self-hosted Pinterest alternative) is real and has
+    no catalogue overlap, but version health is the deciding factor: no
+    release in ~22 months and no commit at all in the last ~13 months on a
+    project whose GitHub activity was already characterized by multi-year
+    dormant stretches even in its healthier years. Building a recipe now
+    means shipping a stale image (Django/Python dependencies from
+    2024, unpatched since) with no visible momentum behind it, which is a
+    weak argument for build priority even though it is mechanically simple
+    to install.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Pinry is mechanically simple to install: a single container, single HTTP
+  port (80), SQLite embedded by default (no external DB service needed),
+  and no env-var-driven admin credential to project — instead, the app's
+  default production config ships with ALLOW_NEW_REGISTRATIONS = True and
+  PUBLIC = True (django settings/local_settings.example.py), meaning any
+  visitor to a freshly deployed, ungated instance could self-register the
+  first account and browse all pins without logging in at all. That maps
+  cleanly onto the Traefik basic_auth gate mechanism (same pattern as
+  n8n/WUD) to stop a race for the first admin account, so there is no
+  platform blocker — installable_today is true. However, version health is
+  poor enough to recommend against building now: the last image/tag
+  release was 2.1.13 on 2024-10-03 (~22 months ago), the last commit of any
+  kind was 2025-07-09 (~13 months ago), and the project's own longer
+  history shows repeated multi-year dormant stretches even during
+  "healthy" periods. Recommend not_recommended: real, non-overlapping
+  niche and no mechanism blocker, but not worth build bandwidth on a
+  project that reads as informally unmaintained rather than
+  steady-state maintenance-only.
