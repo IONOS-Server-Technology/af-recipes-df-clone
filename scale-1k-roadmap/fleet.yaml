@@ -1,0 +1,77 @@
+slug: fleet
+name: Fleet
+source_description: "Open-source device management and endpoint security platform powered by osquery"
+
+upstream:
+  url: https://fleetdm.com
+  repo_url: https://github.com/fleetdm/fleet
+  license: MIT
+  docker_image: fleetdm/fleet
+
+version_health:
+  latest_version: "fleet-v4.89.2"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release fleet-v4.89.2 shipped 2026-07-24, ~12 days before today
+    (2026-08-05). The v4.8x line alone shows nine tagged releases between
+    2026-06-03 and 2026-07-24 (v4.86.1 through v4.89.2), a mix of ~2-week
+    minor releases and same-week patch releases. Repo is not archived,
+    26k+ commits, 222 open PRs, 3.1k issues actively triaged — clearly an
+    actively maintained, well-resourced project (backed by Fleet Device
+    Management Inc.), not remotely dormant.
+
+catalogue_fit:
+  categories: [security, monitoring, it-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches device/endpoint management or
+    security telemetry. The closest neighbors by theme are Portainer
+    (container/infra admin, not endpoint fleets) and Uptime Kuma
+    (service-uptime monitoring, not host-level osquery telemetry) — neither
+    overlaps functionally. Fleet gives a customer live inventory, policy
+    compliance checks, vulnerability data, and (with MDM enabled) device
+    management across laptops/servers, which is a genuinely distinct,
+    IT/security-admin-facing use case the catalogue doesn't currently serve.
+  usefulness: medium
+  usefulness_rationale: >
+    High-value, well-known tool in its niche (widely used at scale by
+    security/IT teams), but it's a specialist ops/security product aimed at
+    organizations managing fleets of company-owned devices, not the
+    typical home-lab / personal-productivity audience most of today's
+    catalogue targets. Real demand exists among SMB customers who want basic
+    device inventory/compliance without a SaaS MDM subscription, but it's a
+    narrower audience than n8n- or Vaultwarden-style general appeal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, FLEET_SERVER_PRIVATE_KEY]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: FLEET_SERVER_PRIVATE_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Fleet is an actively maintained, single-HTTP-port (1337) web app backed by
+  MySQL and Redis — a three-service stack comparable in shape to
+  paperless-ngx or n8n, and reverse-proxy-compatible with no extra raw ports
+  needed publicly. Every secret it needs at boot (MySQL credentials, the
+  Fleet server private key) is a patternless string the platform can
+  generate server-side with no customer input. Its one admin account is
+  created interactively through Fleet's own first-visit setup wizard
+  (org name, admin email/password), the same self-serve pattern already
+  used by uptime-kuma, immich, and anythingllm in this catalogue, so no
+  root-password projection or basic_auth gate is required. It fills a real
+  gap — device/endpoint management and osquery-based security telemetry —
+  with nothing overlapping in the current 24 recipes. Recommend building,
+  caveated only on it being a narrower-audience, IT/security-admin-facing
+  tool rather than broad consumer appeal.
