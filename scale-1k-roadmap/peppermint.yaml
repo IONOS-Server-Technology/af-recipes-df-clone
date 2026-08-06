@@ -1,0 +1,73 @@
+slug: peppermint
+name: Peppermint
+source_description: "Open-source ticketing and help desk system for tracking customer requests"
+
+upstream:
+  url: https://peppermint.sh/
+  repo_url: https://github.com/Peppermint-Lab/peppermint
+  license: "Mixed — core directory under a self-referential 'Commercial License' (license file text points to itself and is not a recognized SPDX identifier), remaining content under AGPL-3.0. Ambiguous/non-standard, not a clean AGPL-3.0 grant."
+  docker_image: pepperlabs/peppermint
+
+version_health:
+  latest_version: "0.5.5 (2024-11-14) — no newer numbered release exists; only :latest/:nightly Docker tags, both last pushed 2024-11-15/16"
+  latest_release_date: "2024-11-14"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    GitHub repo Peppermint-Lab/peppermint is archived (confirmed via
+    `GET /repos/Peppermint-Lab/peppermint` → "archived": true) and now
+    read-only. Last code push (`pushed_at`) was 2025-09-21, ~10.5 months
+    before archiving and ~10.5 months before today (2026-08-05). The last
+    tagged release is 0.5.5 from 2024-11-14 — 20 months, 3 weeks before
+    today. Docker Hub for pepperlabs/peppermint has only two tags,
+    `latest` and `nightly`, both last updated 2024-11-15/16 — no
+    version-pinned tags exist at all, and the image itself has not been
+    rebuilt in ~21 months. This is a clear archived/dormant project: no
+    commits, no releases, no fresh image, and the repository is now
+    formally frozen by its own maintainers.
+
+catalogue_fit:
+  categories: [productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers ticketing/helpdesk
+    (Zendesk/Jira-style customer request tracking with a markdown editor,
+    file uploads, and client history). If upstream were healthy this would
+    be a genuinely distinct category for the catalogue, not overlap with
+    any current recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Ticketing/helpdesk is a real, recognizable self-hosted category with
+    no current catalogue entry, so demand exists in principle. However
+    the concrete usefulness of shipping *this* app is undermined by its
+    archived status — a customer would be adopting a frozen product with
+    no security-patch path.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No version-pinned Docker Hub tag exists — pepperlabs/peppermint only ships :latest and :nightly, both frozen since Nov 2024. RFC-002's 'never :latest, always a pinned current stable tag' requirement cannot be satisfied because no such tag was ever published."
+    - "The app's own admin account is a hardcoded default (admin@admin.com / 1234) baked into the seed data; the docker-compose.yml upstream ships only DB_USERNAME, DB_PASSWORD, DB_HOST and SECRET as env vars — there is no ADMIN_EMAIL/ADMIN_PASSWORD-style variable to project a hashed root password into, so generated_from does not apply. This alone would not block installability (per SCHEMA.md, a fixed unchangeable default credential is fine behind a Traefik basic_auth gate), but is noted because it means the app's own login provides zero protection on its own."
+    - "Upstream repository is archived (read-only) and the last release is ~21 months old with no image rebuild since — shipping a recipe on top of a frozen, unpatched codebase is a security-support risk independent of the mechanical installability question."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Peppermint is architecturally simple to run (single app container plus
+  Postgres, one HTTP port, a Traefik basic_auth gate would cover its
+  hardcoded default admin login) and would fill a real gap — no ticketing
+  or help-desk recipe exists in the current catalogue. But the upstream
+  project is archived on GitHub as of a recent push in 2025-09 with the
+  archive flag now set, the last numbered release is 0.5.5 from
+  2024-11-14 (nearly two years ago), and the Docker image was never
+  published with a pinned version tag — only a stale :latest/:nightly
+  from November 2024. Combined with an ambiguous, non-standard license
+  grant, this is a dormant/archived project with no patch path. Recommend
+  not_recommended; revisit only if the project is un-archived and resumes
+  releases, or if a maintained fork emerges.
