@@ -1,0 +1,92 @@
+slug: readur
+name: Readur
+source_description: "Modern document management system with advanced OCR for searchable archives"
+
+upstream:
+  url: https://readur.github.io/readur/
+  repo_url: https://github.com/readur/readur
+  license: MIT
+  docker_image: ghcr.io/readur/readur:2.9.2
+
+version_health:
+  latest_version: "2.9.2"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Not archived. Releases have shipped roughly every 2-4 weeks over the
+    past several months (2.7.3 on 2025-12-26 through 2.9.2 on 2026-07-09),
+    and the default branch had a commit as recently as 2026-08-06 — one day
+    after today (2026-08-05), i.e. development is ongoing right now. This
+    is a young, fast-moving project, not a mature/slowing one.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx, paperless-ai]
+  differentiation: >
+    Same core pitch as paperless-ngx (OCR + full-text search over scanned
+    documents/PDFs behind a web UI), but a lighter stack: single Rust/Axum
+    binary plus Postgres, no Redis/Celery worker tier. Adds WebDAV/S3
+    ingestion and OIDC/SSO login that paperless-ngx doesn't have
+    out of the box. It is a genuine alternative within a category we
+    already cover, not a new category.
+  usefulness: medium
+  usefulness_rationale: >
+    A real, if narrower, audience wants a lighter/faster document-OCR
+    stack than paperless-ngx, but it's the same job-to-be-done we already
+    ship, and Readur is a much younger, less battle-tested project (first
+    releases only in the past ~8 months) than the paperless-ngx line it
+    would sit next to.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_USERNAME, ADMIN_PASSWORD, JWT_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_USERNAME
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ADMIN_PASSWORD has no expressible mechanism today. Readur's admin
+      seeding (src/seed.rs) takes the env var as a literal plaintext
+      password (min 8 chars) and stores `bcrypt::hash(password, 12)`; login
+      (src/routes/auth.rs) does `bcrypt::verify(submitted_password,
+      stored_hash)` against the same value. `generated_from:
+      "<algo>:ROOT_PASSWORD"` produces an opaque hash string (e.g.
+      "bcrypt:$2b$..."), not a plaintext credential — feeding that string
+      into ADMIN_PASSWORD would make Readur bcrypt-hash the hash itself and
+      require the customer to type the raw hash blob as their login
+      password to match it. There is no channel today to hand Readur a
+      plaintext credential the customer actually knows.
+    - >
+      Auto-generating ADMIN_PASSWORD server-side (like POSTGRES_PASSWORD or
+      JWT_SECRET) doesn't work either: unlike those internal secrets, this
+      one is customer-facing — it's the literal password the customer must
+      type into Readur's own login screen every visit. A random value never
+      shown to the customer would lock them out of the document archive
+      entirely.
+    - >
+      Gating the app behind Traefik `basic_auth` doesn't rescue this either
+      — Readur has its own login (unlike Adminer), so a basic-auth wrapper
+      would only add a second, equally undeliverable credential in front of
+      the first; it doesn't solve access to Readur's own UI.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Readur is a single-HTTP-port (8000), Traefik-friendly Rust document/OCR
+  app backed by Postgres, with no extra raw ports or GPU/privileged needs.
+  It overlaps squarely with paperless-ngx (and by extension paperless-ai)
+  already in the catalogue — same OCR/searchable-archive pitch, lighter
+  stack, younger and less proven project. It fails installability today for
+  the same structural reason as other apps whose own login does a
+  plaintext bcrypt compare: ADMIN_PASSWORD needs a customer-known plaintext
+  credential and there is no channel to supply or safely auto-generate one
+  today. Revisit if a future mechanism can pass a customer-known plaintext
+  credential through, or purely as a differentiated-alternative candidate
+  once paperless-ngx-style admin-password delivery is solved platform-wide.
