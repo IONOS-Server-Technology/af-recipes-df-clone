@@ -1,0 +1,77 @@
+slug: homebox
+name: Homebox
+source_description: "Inventory and organization system built for home users"
+
+upstream:
+  url: https://homebox.software
+  repo_url: https://github.com/sysadminsmedia/homebox
+  license: AGPL-3.0
+  docker_image: ghcr.io/sysadminsmedia/homebox
+
+version_health:
+  latest_version: "v0.26.2"
+  latest_release_date: "2026-06-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.26.2 shipped 2026-06-14, about 7 weeks before today (2026-08-05);
+    v0.26.0 (2026-06-13), a v0.26.0-rc.1 (2026-05-25), and v0.25.0
+    (2026-04-13) show a steady multi-week release cadence with real
+    feature work (entity merge, API keys, password resets, tag
+    relationships, OpenTelemetry support) plus prompt patch releases for
+    regressions and a CVE fix. Note the original upstream, hay-kot/homebox,
+    was archived by its owner on 2024-06-12 with no pointer to a
+    successor; sysadminsmedia/homebox is a community continuation that
+    picked up development and is the project actually being evaluated
+    here — the archived hay-kot repo should not be used as the source for
+    a recipe.
+
+catalogue_fit:
+  categories: [productivity, homelab, organization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Homebox is a personal/home asset-inventory tracker (items, locations,
+    labels, warranties, purchase records, maintenance schedules, item
+    photos). None of the current 24 recipes cover this niche —
+    paperless-ngx and paperless-ai are document-management/OCR tools for
+    scanned paper, not physical-object inventory, and nothing else in the
+    catalogue is adjacent. It's a genuinely new category for the
+    catalogue rather than a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct home-user demand (insurance/warranty tracking, moving,
+    decluttering, general home-organization use cases) and it's a single
+    lightweight Go binary with an embedded SQLite database — cheap to run
+    and simple to operate. Rated medium rather than high because it's a
+    niche personal-productivity tool rather than infrastructure most
+    customers reach for first, and its multi-user story is thin (one
+    flat set of accounts/groups, no tiered admin roles) compared to
+    higher-demand recipe categories already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Homebox is a single-container Go app with an embedded SQLite database —
+  no external database service, no API keys, no OAuth. It has no
+  pre-provisioned admin login of its own: the first user creates their own
+  account (name, email, password) through an in-app self-registration
+  form once HBOX_OPTIONS_ALLOW_REGISTRATION is enabled server-side, the
+  same open-registration pattern already handled elsewhere in the
+  catalogue via a Traefik basic_auth gate keyed off the customer's root
+  password (IF-1312). That makes it mechanically installable today with
+  no new platform work. It fills a genuinely new niche (home
+  physical-asset inventory) with no overlap in the current 24 recipes and
+  an actively maintained upstream (weekly-to-monthly releases, latest tag
+  7 weeks old), but the underlying demand is narrower than
+  infrastructure-class recipes already shipped, so build_with_caveats
+  rather than a strong build_now.
