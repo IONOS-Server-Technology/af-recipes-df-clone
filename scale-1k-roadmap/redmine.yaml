@@ -1,0 +1,75 @@
+slug: redmine
+name: Redmine
+source_description: "Flexible project management and issue tracking platform used by thousands of organizations"
+
+upstream:
+  url: https://www.redmine.org/
+  repo_url: https://github.com/redmine/redmine
+  license: GPL-2.0
+  docker_image: redmine
+
+version_health:
+  latest_version: "7.0.0"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.0.0 shipped 2026-06-30, about 5 weeks before today (2026-08-05).
+    Redmine maintains several parallel supported branches: 5.1.13, 6.0.10,
+    and 6.1.3 were all released together on 2026-06-15, two weeks before
+    7.0.0 landed, showing coordinated patch releases across three active
+    lines plus ongoing major-version development. This is a long-running
+    (since 2006), still-active project with a healthy, non-sporadic
+    release rhythm.
+
+catalogue_fit:
+  categories: [project-management, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a general project-management /
+    issue-tracking suite (Gantt charts, time tracking, wikis, per-project
+    issue trackers). Gitea (recipes/gitea) has a basic issue tracker but is
+    fundamentally a Git hosting service; Redmine is VCS-agnostic and aimed
+    at teams managing projects/tickets rather than hosting code. This is
+    genuinely new ground, not a re-skin of an existing recipe.
+  usefulness: high
+  usefulness_rationale: >
+    Project/issue tracking is a broadly useful, well-known category (widely
+    used as a lighter self-hosted alternative to Jira) with no current
+    catalogue coverage. Single Ruby-on-Rails container plus a database,
+    officially maintained Docker image, and a single HTTP port make it a
+    clean fit for the existing recipe pattern.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_password
+    - db_password
+    - secret_key_base
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: secret_key_base
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Redmine's official Docker image has no environment variable for setting
+  the initial admin username/password — the shipped default is always the
+  hardcoded admin/admin login ("Currently, the default user and password
+  from upstream is admin/admin", per docker-library/docs). Per the schema's
+  fixed-default-credential case, the fix is gating the whole app behind a
+  Traefik basic_auth:true wall (same pattern as n8n/Adminer/WUD) rather than
+  trying to inject a customer credential the image has no channel for; the
+  basic-auth password itself is projected from the customer's root password
+  via generated_from. The database password and SECRET_KEY_BASE are both
+  patternless secrets nothing customer-facing reads, so they're generated
+  server-side with no input channel needed. Upstream is actively maintained
+  with a recent major release and no overlapping recipe exists in the
+  catalogue today. Recommend build_now.
