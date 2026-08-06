@@ -1,0 +1,84 @@
+slug: pelican-panel
+name: Pelican Panel
+source_description: "Modern open-source game server management panel, successor to Pterodactyl"
+
+upstream:
+  url: https://pelican.dev
+  repo_url: https://github.com/pelican-dev/panel
+  license: AGPL-3.0
+  docker_image: ghcr.io/pelican-dev/panel
+
+version_health:
+  latest_version: "v1.0.0-beta36"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.0.0-beta36 shipped 2026-08-05 — today. Prior releases: beta35
+    (2026-06-22), beta34 (2026-05-08), beta33 (2026-02-18), beta32
+    (2026-02-09), beta31 (2026-01-18), beta30 (2025-12-19), beta29
+    (2025-12-09), beta28 (2025-11-09), beta27 (2025-10-20). Roughly
+    monthly releases with no gap over a year, still under active
+    development (6,600+ commits on main). Not archived, not EOL. Still
+    formally in beta/pre-1.0 (has been "v1.0.0-betaNN" for well over a
+    year), which is a maturity caveat worth noting but not a health
+    concern — the project is clearly active, not stalled pre-release.
+
+catalogue_fit:
+  categories: [game-servers, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers game server hosting/management. Pelican
+    Panel is a community-driven fork/modernization of Pterodactyl
+    (rewritten on current Laravel/Filament), providing a web UI to
+    deploy and manage isolated Docker-based game servers (Minecraft,
+    SteamCMD titles, Discord bots, voice servers, etc.), with Pterodactyl
+    egg/node import for easy migration. This would be a genuinely new
+    category for the catalogue, not a re-skin of anything already
+    present.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted game panels, and the Panel
+    container alone (web UI, DB, cache/queue) is cleanly single-container
+    and reverse-proxy-compatible. But the Panel by itself cannot run any
+    game server — that requires a separate "Wings" daemon component that
+    needs Docker socket access, its own raw ports (8080 API, 2022 SFTP,
+    not HTTP-proxyable), and a manual pairing step (an admin-generated
+    node token pasted into Wings' config, only possible after the Panel
+    is fully set up) that cannot be scripted by install.sh because the
+    token doesn't exist until a human completes setup in the browser
+    first. Shipping the Panel alone would put a functionally empty game
+    panel in the catalogue; shipping Wings alongside it in the same
+    compose stack means a service that crash-loops until manually
+    reconfigured post-deploy — a rough first-run experience relative to
+    our other recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Core product value (running a game server) requires the separate Wings daemon, which needs Docker-socket-level host access and a manual Panel-generated node token pasted into its config after first boot — this pairing step can't be pre-populated by install.sh since the token only exists after a human finishes the Panel's own web setup wizard. A recipe shipping Wings in the same compose stack would crash-loop until the customer manually intervenes."
+    - "Wings' SFTP port (2022) and API port (8080) are raw TCP, not HTTP — usable as public: false / non-Traefik ports (precedent: Portainer's edge-agent port), but this means the 'panel + one working node' experience needs more manual host-level follow-up than a typical single-container recipe."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Pelican Panel is upstream-healthy (monthly releases, active development,
+  though still formally pre-1.0/beta) and fills a category gap — no
+  existing recipe covers game server hosting. The Panel container itself
+  is mechanically installable today: no external secrets are needed
+  (DB/cache/APP_KEY are all server-generated), and the first admin
+  account is created by the customer directly through the Panel's own
+  web installer wizard, the same self-service pattern already accepted
+  for n8n's owner setup. The real problem is usefulness: without the
+  Wings daemon paired to at least one node — a step requiring Docker
+  socket access, raw non-HTTP ports, and a manual token handoff that
+  can't happen before the Panel's own setup wizard is complete — the
+  deployed panel can't actually run a single game server. Recommend
+  `build_with_caveats`: worth building only if the recipe (or its
+  documentation) clearly separates "Panel deploys clean" from "Wings
+  pairing is a manual, non-scripted, second step," rather than promising
+  a plug-and-play game server host.
