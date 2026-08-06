@@ -1,0 +1,99 @@
+slug: readyset
+name: Readyset
+source_description: "Streaming SQL cache for Postgres and MySQL with automatic result invalidation"
+
+upstream:
+  url: https://readyset.io
+  repo_url: https://github.com/readysettech/readyset
+  license: BSL-1.1 (converts to Apache-2.0 four years after each release)
+  docker_image: readysettech/readyset:stable-260730
+
+version_health:
+  latest_version: stable-260730 (readyset 1.29.0)
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag stable-260730 (readyset package version 1.29.0) published
+    2026-07-31, less than a week before today (2026-08-05). GitHub release
+    history shows a consistent ~monthly cadence going back well over a year
+    (stable-260720 on 2026-07-21, stable-260630 on 2026-07-01,
+    stable-260528 on 2026-05-28, stable-260423 on 2026-04-23, etc. — tag
+    names encode the release date as stable-YYMMDD). No archival notice, no
+    maintenance-only signal; this is one of the more actively released
+    upstreams evaluated so far.
+
+catalogue_fit:
+  categories: [database, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: false  # it is not an HTTP app at all — it terminates the Postgres/MySQL wire protocol on a raw TCP port (default 5433 or 3307) plus a Prometheus /metrics port (6034); nothing here is servable behind Traefik on <slug>.<base_domain>
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes are a database caching/read-scaling
+    layer — this is a structurally different category (infra plumbing,
+    not an end-user application). It doesn't compete with anything in the
+    catalogue; it competes with a customer's Redis/Memcached instance or
+    query-cache middleware, and only for customers who already run a
+    Postgres/MySQL workload elsewhere that they want to speed up.
+  usefulness: low
+  usefulness_rationale: >
+    Real product with an active upstream, but it isn't a self-contained
+    "application" in the sense the rest of the catalogue is — it's a
+    caching proxy that must be pointed at a database the customer already
+    operates (via UPSTREAM_DB_URL, a full connection string with
+    credentials to an external, already-running Postgres/MySQL with
+    logical replication enabled). An AF recipe has no such external
+    database to attach to; bundling a fresh MySQL/Postgres in the same
+    recipe just to have something to cache produces an empty demo
+    instance with no real workload behind it, defeating the point of the
+    product. There is also no web UI at all — interaction is exclusively
+    via SQL client (CREATE CACHE statements) and a Prometheus metrics
+    endpoint, so it doesn't fit the "visit a domain, log in" pattern the
+    rest of the catalogue and the Traefik front-end assume.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - UPSTREAM_DB_URL (full connection string incl. credentials for the customer's existing external Postgres/MySQL database)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      UPSTREAM_DB_URL is an arbitrary, customer-specific connection string
+      (host, port, database name, username, and password) pointing at a
+      database the customer runs outside of this recipe. This is exactly
+      the "external API key / arbitrary customer-chosen credential" case
+      SCHEMA.md rules out — there is no channel today for af-api to accept
+      or inject a customer-supplied value at `/compose` time, and it is
+      not a hash that `generated_from` could project from the root
+      password (it's a plaintext DSN for a system entirely outside this
+      recipe's control).
+    - >
+      No web UI to gate or log into. Readyset's only interfaces are the
+      Postgres/MySQL wire protocol (SQL client) and a Prometheus
+      /metrics HTTP endpoint — Traefik `basic_auth` (our other supported
+      mechanism) protects HTTP routes, not a raw SQL wire-protocol TCP
+      port, so it doesn't apply here either.
+    - >
+      Even disregarding the secret-input problem, the app's value only
+      exists in front of a real, already-populated production database.
+      An AF single-instance recipe with no external DB to attach to
+      would ship as cosmetically "installed" but functionally useless out
+      of the box.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Readyset is an actively maintained (near-monthly releases, latest 5 days
+  before this analysis), BSL-1.1-licensed SQL caching proxy for Postgres
+  and MySQL. It fills no gap versus the current catalogue since nothing
+  else here does database-layer caching, but it is a poor fit for the AF
+  recipe model on two independent counts: it requires a customer-supplied
+  external database connection string with credentials as its core
+  bootstrap input (no expressible mechanism under the current
+  `generated_from`/`basic_auth` constraints), and it exposes no web UI at
+  all — only a raw SQL wire-protocol port and a metrics endpoint, so it
+  isn't reverse-proxy-compatible even if the secret problem were solved.
+  Recommend not_recommended; this is a developer infrastructure component
+  meant to sit in front of an existing production database, not a
+  standalone self-hosted application suited to a single-tenant AF
+  instance.
