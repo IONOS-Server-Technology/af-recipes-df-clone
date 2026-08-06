@@ -1,0 +1,69 @@
+slug: gopeed
+name: Gopeed
+source_description: High-speed multi-protocol download manager for HTTP and BitTorrent
+
+upstream:
+  url: https://gopeed.com
+  repo_url: https://github.com/GopeedLab/gopeed
+  license: GPL-3.0
+  docker_image: liwei2633/gopeed
+
+version_health:
+  latest_version: v1.9.3
+  latest_release_date: 2026-03-18
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Tagged releases ran roughly monthly from mid-2025 through v1.9.3
+    (2026-03-18), then stopped — no tag in the ~4.7 months since, against
+    today's date of 2026-08-05. Commit activity on `main` is not dormant
+    though: commits as recent as 2026-07-14 (extension API work, blob HTTP
+    transport). Reads as a release-cadence slowdown, not an abandoned
+    project — worth a re-check before committing to a recipe if the gap
+    stretches further without a new tag.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers download management (HTTP/BitTorrent/Magnet/
+    ed2k fetching). Syncthing is peer-to-peer file *sync* between a
+    customer's own devices, not general-purpose downloading from arbitrary
+    HTTP/torrent sources — different job. Gopeed would be a genuinely new
+    category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche appeal (self-hosted seedbox-lite / download-manager use
+    case) but a single-container Go+Flutter download client is a narrower
+    audience than the productivity/monitoring/security tools that dominate
+    the current 24 recipes. BitTorrent performance also degrades somewhat
+    when the only exposed path is the Traefik HTTP front (no forwarded
+    inbound peer port), though the app remains functional for HTTP/Magnet
+    downloads and outbound-initiated torrent swarms.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Gopeed is mechanically installable today: single container, one HTTP
+  port (9999), community-maintained but project-blessed image
+  (liwei2633/gopeed, the same image linked from upstream's own install
+  docs), no external API keys or OAuth needed. Its own auth is a
+  plaintext -u/-p flag or GOPEED_USERNAME/GOPEED_PASSWORD env vars — not
+  hash-based, so `generated_from` root-password projection doesn't apply
+  — but leaving that disabled and gating the whole app behind Traefik
+  `basic_auth: true` (the n8n/WUD pattern) covers it cleanly. The bigger
+  question is fit: it's a legitimate net-new category (no overlap with
+  Syncthing or anything else in the catalogue) but a narrower-appeal tool,
+  and its tagged-release cadence has gone quiet for ~4.7 months even
+  though commit activity continues — worth one more look before
+  `build_now` to confirm a new tag lands.
