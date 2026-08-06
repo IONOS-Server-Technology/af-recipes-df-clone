@@ -1,0 +1,84 @@
+slug: onlyoffice-docs
+name: ONLYOFFICE Docs
+source_description: "Self-hosted online office suite with MS Office-compatible collaborative editing"
+
+upstream:
+  url: https://www.onlyoffice.com/docs-enterprise.aspx
+  repo_url: https://github.com/ONLYOFFICE/DocumentServer
+  license: AGPL-3.0 (Community Edition; commercial licenses for Enterprise/Developer editions)
+  docker_image: onlyoffice/documentserver
+
+version_health:
+  latest_version: "9.4.0.1 (Docker tag; upstream source release v9.4.0)"
+  latest_release_date: "2026-05-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v9.4.0 shipped 2026-05-19, roughly 2.5 months before today (2026-08-05) —
+    within the project's normal cadence, not a gap. Release history is
+    steady: v9.0.0 (2026-06-18 [prior cycle]), v9.1.0 (2026-10-14), v9.2.0
+    (2026-12-01), v9.2.1 (2026-12-17), v9.3.0 (2026-02-24), v9.3.1
+    (2026-03-03), v9.4.0 (2026-05-19) — a new minor roughly every 6-10 weeks
+    with patch releases in between. The Docker Hub tag was last pushed ~15
+    days before this analysis, confirming the image is kept in sync with
+    source releases. No archive/EOL signal; this is an actively maintained,
+    commercially backed project (Ascensio System SIA).
+
+catalogue_fit:
+  categories: [productivity, office]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue provides MS Office-compatible
+    document editing (docx/xlsx/pptx). Paperless-ngx and paperless-ai are
+    document *archival/OCR* tools, not editors — no functional overlap.
+    However, ONLYOFFICE Docs (the "Document Server") is architecturally not
+    a standalone office suite with its own file storage or accounts: it is
+    an editing/rendering *API service* meant to be embedded behind a host
+    platform (Nextcloud, ownCloud, a DMS, a custom integration) that owns
+    file storage, user accounts, and calls the Document Server's API/iframe
+    to render and save documents. Standalone, the container only serves the
+    JWT-protected editing API plus an optional bundled "example" test page
+    (documentserver-example) that lets anyone create/edit throwaway files
+    with no login at all — it is explicitly a developer test harness, not a
+    file manager for end users. Since none of Nextcloud/ownCloud or another
+    document-management host is in our catalogue, this app has no in-house
+    integration partner to pair with today.
+  usefulness: low
+  usefulness_rationale: >
+    Deployed alone, a customer gets either a raw document-editing API (no
+    UI value without writing an integration) or the unauthenticated
+    example/test page, neither of which delivers "log in and manage your
+    documents" value on its own. It only becomes genuinely useful once
+    paired with a file-storage host that isn't in this catalogue, making it
+    a satellite/integration component rather than a complete product for an
+    AF customer today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, example_page_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: example_page_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Document Server has no admin login of its own (community edition has no account system at all), and the only user-facing surface when run standalone is the bundled unauthenticated example/test page — shipping it open to the internet is not acceptable, and gating it behind Traefik basic_auth (mechanically doable) does not solve the deeper product-fit problem below."
+    - "Product-fit gap, not a mechanism gap: without a companion file-storage/DMS host (Nextcloud, ownCloud, etc., none of which are in our catalogue) there is no real deliverable for the customer beyond the test page or a raw API — recommend against building until/unless such a host recipe exists to pair it with."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  ONLYOFFICE Docs (Document Server) is actively maintained (v9.4.0, May
+  2026, steady ~2-month release cadence) and mechanically clears the current
+  root-password-projection constraint — JWT_SECRET is a server-generated
+  value the customer never needs, and the one open surface it exposes (the
+  bundled example test page) can be closed with the existing Traefik
+  basic_auth gate. The real problem is product fit, not installability: run
+  by itself it is an embeddable editing API with no file storage, no
+  accounts, and no standalone workflow — its intended host (Nextcloud,
+  ownCloud, or a DMS) isn't in our catalogue, so a customer who installs it
+  alone gets a JWT-gated API and a disabled/gated test page rather than an
+  office suite they can actually use. Recommend not_recommended until a
+  companion document-storage host is also on the roadmap.
