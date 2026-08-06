@@ -25,7 +25,7 @@ version_health:
 catalogue_fit:
   categories: [productivity, engineering, design]
   has_web_ui: true
-  reverse_proxy_compatible: false
+  reverse_proxy_compatible: true
   overlaps_with: []
   differentiation: >
     Nothing in the current 24-recipe catalogue touches CAD/engineering
@@ -49,22 +49,28 @@ installability:
   secrets_expressible_today:
     - secret: basic_auth_password
       mechanism: traefik_basic_auth
-  blocking_issues:
-    - "linuxserver/docker-freecad exposes two ports: 3000 (the KasmVNC web UI, HTTP/HTTPS) and 3001 (a data websocket server used by the KasmVNC session). Traefik can front port 3000 on a single domain, but port 3001 is a second raw port the container needs reachable for the desktop session to work correctly, which is not the simple single-HTTP-port shape our other Traefik-fronted recipes use — marked reverse_proxy_compatible: false pending confirmation that both ports can be routed through one Traefik entrypoint (e.g. via websocket-aware routing on the same port, if the image supports that) rather than needing 3001 exposed separately."
+  blocking_issues: []
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: build_now
 
 summary: >
   FreeCAD itself is an actively maintained, real open-source CAD tool with
   no overlap in our current catalogue, but "browser-accessible" here means
-  wrapping it in LinuxServer.io's KasmVNC webtop image, not a native FreeCAD
-  web feature. The image ships with no built-in auth by default (its
-  optional CUSTOM_USER/PASSWORD env vars are documented by LinuxServer as
-  suitable only for a trusted local network, not internet exposure), so it
-  needs a mandatory Traefik basic_auth gate — expressible today via
-  generated_from projection of the customer's root password, same pattern
-  as Adminer/WUD/n8n. The remaining open question is the second exposed
-  port (3001, KasmVNC's data websocket) alongside the main UI port (3000),
-  which doesn't cleanly fit the single-HTTP-port-behind-Traefik shape most
-  of our recipes assume — worth a closer compose-level look before treating
-  this as a straightforward build_now.
+  wrapping it in LinuxServer.io's KasmVNC/Selkies webtop image, not a native
+  FreeCAD web feature. Corrected port research: 3000 (HTTP) and 3001 (HTTPS)
+  are the same desktop-GUI web interface exposed twice, not two required
+  services — Traefik should terminate TLS and front the single HTTP port
+  3000, the same one-HTTP-port shape as recipes/guacamole. The image's
+  separate websocket data channel (SELKIES_PORT/CUSTOM_WS_PORT, default
+  8082) is multiplexed over that same HTTP(S) connection via a standard
+  WebSocket upgrade — LinuxServer's own reverse-proxy guidance for this
+  webtop base image (SWAG/Apache examples) proxies everything through one
+  port with Upgrade-header handling, never exposing 8082 separately.
+  Traefik supports WebSocket upgrades on a normal HTTP router out of the
+  box, so no extra port or special routing is needed. The image ships with
+  no built-in auth by default (its optional CUSTOM_USER/PASSWORD env vars
+  are documented by LinuxServer as suitable only for a trusted local
+  network, not internet exposure), so it needs a mandatory Traefik
+  basic_auth gate — expressible today via generated_from projection of the
+  customer's root password, same pattern as Adminer/WUD/n8n. With the port
+  question resolved, this is a straightforward build_now.
