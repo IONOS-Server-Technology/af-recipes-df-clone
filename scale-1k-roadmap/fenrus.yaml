@@ -1,0 +1,81 @@
+slug: fenrus
+name: Fenrus
+source_description: "Self-hosted personal dashboard and home page with smart app widgets"
+
+upstream:
+  url: https://github.com/revenz/Fenrus
+  repo_url: https://github.com/revenz/Fenrus
+  license: MIT
+  docker_image: revenz/fenrus:23.08
+
+version_health:
+  latest_version: "23.08"
+  latest_release_date: "2023-08-18"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Fenrus does not use GitHub Releases or semver — the repo has zero
+    published Releases, and Docker Hub tags follow a YY.MM date scheme
+    (23.06, 23.07, 23.08, plus `latest`/`preview`/`develop`). The newest
+    published Docker image of any kind is the `develop` tag, last pushed
+    2024-04-04 (~2 years 4 months before today, 2026-08-05); the `latest`
+    and `23.08` tags (identical digest) were last pushed 2023-08-18 (~3
+    years before today) and are what a recipe would actually pin to, since
+    `develop` is not a stable channel. Source-repo commits continue
+    sporadically into 2026 (most recent seen: 2026-04-29, adding a
+    "Mediastarr" smart-app integration), so the project is not archived or
+    abandoned at the code level, but no new Docker image has shipped in
+    over 2 years — anyone deploying today gets ~3-year-old code regardless
+    of ongoing upstream commits. That mismatch between "repo still gets
+    occasional commits" and "no image has been cut since 2023" is why this
+    is classified maintenance-only/dormant rather than active.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes are a personal
+    homepage/link-launcher dashboard. Uptime Kuma covers uptime
+    *monitoring* with alerting, not a bookmark/widget landing page.
+    Fenrus's pitch (multi-user dashboards, "smart apps" that poll
+    Sonarr/Radarr/Jellyfin/etc. for live status, LiteDB file-based storage
+    with no external DB) is functionally the same category as `dashy`,
+    which already has an `apps-gaps/dashy.yaml` entry recommending
+    `build_now` — Dashy is actively released (near-daily tags) versus
+    Fenrus's ~3-year-stale image, so if the catalogue only wants one
+    dashboard recipe, Dashy is the stronger pick in this category today.
+  usefulness: low
+  usefulness_rationale: >
+    Same convenience-layer use case as Dashy (a landing page in front of a
+    customer's other self-hosted apps) but weaker: the shippable image is
+    frozen at 2023-era code, so bugs/features from the last ~3 years of
+    upstream commits aren't available, and a directly-competing candidate
+    (Dashy) is actively maintained and already flagged higher-confidence.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Fenrus is a single-container, MIT-licensed personal dashboard (port 3000,
+  LiteDB file storage, no external DB) that would be reverse-proxy
+  compatible and technically installable today by gating it behind
+  Traefik basic_auth — it has no built-in login pre-provisioning (the
+  first visitor to self-register on the login page becomes admin, with
+  no env var or API to seed credentials), so basic_auth is needed as a
+  gate before the customer ever reaches that registration form, the same
+  pattern already proposed for Dashy. However, the project has not
+  published a new Docker image since 2023-08-18 (over 3 years) despite
+  sporadic ongoing source commits through 2026, and it directly overlaps
+  in category with `dashy`, an already-analyzed, actively-released
+  alternative. Recommend not_recommended: the mechanism gap is solvable,
+  but there's no reason to ship a ~3-year-stale image in a category
+  already better covered by a fresher candidate.
