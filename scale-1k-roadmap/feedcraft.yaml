@@ -1,0 +1,102 @@
+slug: feedcraft
+name: FeedCraft
+source_description: "AI-powered RSS middleware for translation, summaries, and full-text extraction"
+
+upstream:
+  url: https://github.com/Colin-XKL/FeedCraft
+  repo_url: https://github.com/Colin-XKL/FeedCraft
+  license: GPL-3.0
+  docker_image: colinxkl/feed-craft (also published as ghcr.io/colin-xkl/feed-craft)
+
+version_health:
+  latest_version: "v3.1.0 (GitHub release tag; no matching versioned image tag exists — see notes)"
+  latest_release_date: "2026-03-21"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v3.1.0 was tagged 2026-03-21 (per the GitHub releases Atom feed,
+    authoritative timestamp), about 4.5 months before today (2026-08-05).
+    Release history before that is irregular: v3.0.0 (2026-01-26), v2.1
+    (2025-05-25), v2.0 (2024-08-21), v1.0.0 (2024-05-05) — gaps ranging from
+    2 months to 9+ months, so "sporadic" rather than "active" describes the
+    formal-release cadence. The repo itself is not dormant: git history
+    shows ongoing commits after v3.1.0 (an "Add embedding filter" merge as
+    recently as 2026-05-17, ~2.5 months ago), and the Docker Hub "dev" tag
+    was pushed 2026-07-28, about one week before today. Net: actively
+    developed, but formal tagged releases lag real development by months.
+
+catalogue_fit:
+  categories: [productivity, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch RSS feed processing. FeedCraft
+    sits between a customer's RSS reader and their feed sources, applying
+    full-text extraction, AI translation, AI summarization, and
+    natural-language filtering via URL-prefix "crafts" — a distinct,
+    real niche (closest catalogue adjacency is ollama/open-webui as
+    AI-adjacent tooling, but neither processes feeds).
+  usefulness: medium
+  usefulness_rationale: >
+    Full-text extraction and RSS proxying work standalone and are useful on
+    their own for RSS power users. But the headline value Hostinger's
+    description leads with — AI translation and AI summaries — depends on
+    an externally supplied LLM API key (FC_LLM_API_KEY) that our
+    provisioning mechanism has no channel to deliver (see
+    installability). A customer installing this recipe as-is gets a
+    working feed proxy/full-text extractor but not the AI features the
+    catalogue listing would advertise, unless they manually edit the
+    container's environment post-deploy outside the AF flow.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Neither Docker Hub (colinxkl/feed-craft) nor GHCR
+      (ghcr.io/colin-xkl/feed-craft) publish versioned image tags — only
+      'latest', 'dev'/'nightly', and 'main' exist (confirmed via the Docker
+      Hub and GHCR tag-list APIs), despite the project tagging proper
+      GitHub releases (v3.1.0, v3.0.0, ...). There is no tag on the
+      registry that corresponds to a stable release the way 'never pin
+      :latest, pin a tag visible on Docker Hub' expects; the only way to
+      pin reproducibly would be an image digest, which is not a
+      human-readable version and would need re-pinning on every recipe
+      review since it tracks no release notes."
+    - "The web login (username admin, password adminadmin) is a hardcoded
+      default with no documented environment variable to override or
+      pre-hash it at container start (checked the .env.example — no
+      FC_ADMIN_* var exists). Per SCHEMA.md this is not a blocker on its
+      own — gate the whole app behind Traefik basic_auth as the real auth
+      boundary — but it does mean the app's own login stays at the
+      well-known default underneath that gate."
+    - "FC_LLM_API_KEY (and its paired FC_LLM_API_BASE/FC_LLM_API_MODEL/
+      FC_LLM_API_TYPE), which power the AI translation/summary features
+      that are the whole point of Hostinger's 'AI-powered' description,
+      are read from the container environment at boot. Unlike
+      recipes/hermes-agent (which lets the customer paste an
+      OPENROUTER_API_KEY into an authenticated in-app dashboard
+      post-provision), no FeedCraft documentation surfaces an equivalent
+      in-app settings page for these specific vars — the only UI-editable
+      provider keys found relate to the separate 'search provider'
+      (Search-to-RSS) feature, not the core LLM config. Absent a
+      confirmed post-deploy input channel, there is no way for a customer
+      to supply this key through the current /compose mechanism."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FeedCraft is an actively developed (if sporadically tagged) RSS
+  middleware with a genuine catalogue gap to fill — no existing recipe
+  processes feeds — and it is mechanically installable behind Traefik
+  basic_auth with no customer-supplied secrets required to boot: full-text
+  extraction and plain RSS proxying work out of the box. But two caveats
+  keep this from a clean build_now: neither of its container registries
+  publish a version-pinned tag to build a recipe against (only
+  latest/dev/nightly/main), and the AI translation/summary features
+  Hostinger's own description leads with need an external LLM API key with
+  no confirmed post-deploy input channel today, so a customer would get a
+  working feed proxy but not the AI capability the listing implies.
