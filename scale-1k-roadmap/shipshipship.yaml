@@ -1,0 +1,103 @@
+slug: shipshipship
+name: ShipShipShip
+source_description: "Self-hosted changelog and roadmap with community voting and newsletters"
+
+upstream:
+  url: https://shipshipship.io/
+  repo_url: https://github.com/GauthierNelkinsky/ShipShipShip
+  license: Apache-2.0
+  docker_image: nelkinsky/shipshipship:v1.3.5
+
+version_health:
+  latest_version: "v1.3.5"
+  latest_release_date: "2026-02-18"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v1.3.5 (2026-02-18) is the latest tagged release and matches the last
+    commit to the repo (both `main` and `dev` branches) — no commit or
+    release in the ~5.5 months since, as of today (2026-08-05), despite a
+    very active cadence beforehand (multiple releases per month from
+    v1.1.3 in 2025-09 through v1.3.5 in 2026-02). The maintainer
+    (GauthierNelkinsky) directly confirmed the slowdown in
+    https://github.com/GauthierNelkinsky/ShipShipShip/issues/31
+    (2026-07-24): "I just don't have the time to actively work on this
+    right now, so it's more in maintenance mode than active development.
+    It's not abandoned though... Might pick it back up myself." Repo is
+    not archived and the maintainer says PRs are still reviewed, but there
+    is currently zero active development — treating this as
+    maintenance-only rather than active.
+
+catalogue_fit:
+  categories: [productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers a public changelog/roadmap
+    with community voting and newsletter announcements — this is a
+    genuinely uncovered category. (A prior gap analysis for Fider covers
+    similar "feedback board" ground but was found blocked_on_platform for
+    an unrelated reason — no password login at all, requiring SMTP/OAuth.
+    ShipShipShip is architecturally different: it does have its own
+    password login, but that login can't be projected today either, for a
+    different reason — see below.)
+  usefulness: medium
+  usefulness_rationale: >
+    A self-hosted "what's new / what's coming" page with voting is a real,
+    recurring ask for SaaS builders who want to keep product-update
+    communication in-house, and the category is otherwise empty in our
+    catalogue. Usefulness is capped at medium rather than high given the
+    maintenance-only status and the single-maintainer, still-young (first
+    tag 2025) project.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ADMIN_USERNAME / ADMIN_PASSWORD (the app's own content-authoring
+      login — used to create/publish changelog and roadmap entries, not
+      merely a perimeter gate)
+    - JWT_SECRET (server-side signing key, no customer input needed)
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ADMIN_PASSWORD is checked as a plaintext string equality
+      (`backend/middleware/auth.go`: `username == adminUsername &&
+      password == adminPassword`, read straight from the env var) — the
+      app has no bcrypt/argon2 hash-comparison path at all. `generated_from`
+      only ever projects a *hash* of the customer's root password, never
+      the plaintext, so there is no way to make ADMIN_PASSWORD equal the
+      customer's actual root password through the supported mechanism.
+    - >
+      Gating the whole app behind Traefik `basic_auth` does not substitute
+      here the way it does for n8n/WUD: ADMIN_USERNAME/ADMIN_PASSWORD is
+      the same credential the customer needs to log into ShipShipShip's
+      own admin UI to author changelog/roadmap content — it is not a
+      redundant security perimeter around an otherwise-open app. If we
+      randomize ADMIN_PASSWORD server-side (as we would for a true
+      no-customer-input secret), the customer can never log in to use the
+      app's actual admin functionality. This matches the schema's
+      "genuine requirement for the plaintext password" case, which is
+      called out as a structural blocker distinct from a merely
+      unsupported hash algorithm.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  ShipShipShip is a simple, single-container Go/SvelteKit app (SQLite,
+  one HTTP port, no other services) that would otherwise be an easy,
+  reverse-proxy-friendly fit and fills a category — public changelog/
+  roadmap with voting and newsletters — that our 24-recipe catalogue
+  currently lacks. It is blocked today because its admin login
+  (ADMIN_USERNAME/ADMIN_PASSWORD), which is the actual content-authoring
+  credential rather than a perimeter gate, is checked as plaintext with
+  no hash-comparison path, and `generated_from` can only ever supply a
+  hash of the customer's root password. Traefik `basic_auth` doesn't
+  substitute since the customer still needs working admin credentials to
+  publish content. Separately, the maintainer confirmed on 2026-07-24
+  that the project is now maintenance-only, not actively developed.
+  Recommend `blocked_on_platform`: revisit if a plaintext-password
+  projection channel is ever added, and re-check upstream activity before
+  building even then.
