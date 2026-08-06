@@ -1,0 +1,84 @@
+slug: rivet
+name: Rivet
+source_description: "Open-source runtime for stateful actors, AI agents, and durable workflows"
+
+upstream:
+  url: https://rivet.dev
+  repo_url: https://github.com/rivet-dev/rivet
+  license: "Apache-2.0"
+  docker_image: rivetdev/engine
+
+version_health:
+  latest_version: "2.3.10"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.3.10 is the latest non-RC tag (2026-07-26, ~10 days before today
+    2026-08-05); a v2.3.11-rc series is already cutting release candidates
+    (rc.1 through rc.5, the latter published within the last day), so the
+    project is shipping multiple times a week. GitHub org rivet-dev is
+    actively developed (rivet, agentos, godot-docker repos all recently
+    touched). Unambiguously active, not maintenance-only or archived.
+    Note on naming ambiguity: a second, unrelated GitHub project
+    (pulsesparkai/rivet — "security-first AI agent CLI + dashboard") also
+    uses the name "rivet". This analysis is about rivet-dev/rivet (the
+    actor-runtime/durable-workflow engine matching Hostinger's description
+    and docker_image rivetdev/engine), not the pulsesparkai project.
+
+catalogue_fit:
+  categories: [developer-tools, ai, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Rivet is a low-level actor/durable-execution runtime (in-memory stateful
+    actors, workflows, queues, WebSocket streaming) meant to be embedded
+    into a developer's own backend via the RivetKit SDK. Nothing in the
+    current 24 recipes operates at this layer: n8n is no-code workflow
+    automation for end users, hermes-agent/openclaw are ready-to-use
+    Telegram-facing AI agents, ollama serves LLM inference. Rivet doesn't
+    compete with any of them functionally — it's infrastructure a developer
+    would build a Rivet/openclaw/hermes-agent-like product on top of, not a
+    finished product itself.
+  usefulness: low
+  usefulness_rationale: >
+    Deploying just the `rivetdev/engine` container gives a customer an empty
+    runtime and an ops dashboard for inspecting actors — no actors exist,
+    and none will, until someone writes application code against the
+    RivetKit SDK and points it at this engine. Unlike every other AI/
+    automation recipe in the catalogue (n8n, hermes-agent, openclaw), there
+    is nothing to open and use on day one. This is the same category of
+    concern that already has `ollama` (raw inference API, no UI) shipped
+    `enabled: false` in this catalogue — Rivet has the identical
+    "developer infrastructure, not a customer-usable app" problem, only
+    with less of a downstream ecosystem (open-webui) to redeem it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "basic_auth_password (dashboard/API has no built-in login; auth.admin_token is unset by default, leaving the HTTP API and dashboard unauthenticated)"
+  secrets_expressible_today:
+    - secret: "basic_auth_password (dashboard/API has no built-in login; auth.admin_token is unset by default, leaving the HTTP API and dashboard unauthenticated)"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Rivet (rivet-dev/rivet, docker image rivetdev/engine, Apache-2.0) is
+  mechanically installable today: a single container on port 6420, a
+  filesystem-backed store is enough for a single-node deployment (Postgres/
+  FoundationDB only needed at multi-node scale), and its only first-boot
+  secret concern — the dashboard/API having no built-in login and being
+  wide open unless an admin_token is configured — maps cleanly onto the
+  existing Traefik basic_auth gate pattern (same as Adminer/WUD). Version
+  health is strong: active, frequent releases, no EOL signal. The blocker
+  is usefulness, not mechanism: Rivet is a bare actor/durable-workflow
+  runtime meant to be coded against via its SDK, not a product a customer
+  can use out of the box the way n8n or hermes-agent are. Deploying it
+  alone yields an empty engine and an ops dashboard with nothing in it.
+  Recommend not_recommended — building this recipe would produce something
+  installable but functionally inert for the self-hoster audience AF
+  targets, the same concern that already has `ollama` shipped disabled in
+  this catalogue.
