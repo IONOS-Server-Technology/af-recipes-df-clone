@@ -1,0 +1,104 @@
+slug: openhuman
+name: OpenHuman
+source_description: "Self-hosted personal AI core with memory, agents, and 118+ app integrations"
+
+upstream:
+  url: https://github.com/tinyhumansai/openhuman
+  repo_url: https://github.com/tinyhumansai/openhuman
+  license: GPL-3.0
+  docker_image: ghcr.io/tinyhumansai/openhuman-core
+
+version_health:
+  latest_version: "v0.63.9"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v0.63.9 shipped 2026-07-28, 8 days before this analysis
+    (2026-08-05). Release history shows multiple tags per month
+    (v0.57.44, v0.57.52, v0.57.53, v0.58.0, v0.58.7, v0.61.2, v0.61.8,
+    v0.63.0, v0.63.1, v0.63.9 across June-July 2026) — a genuinely active,
+    fast-moving project (36k+ GitHub stars, 3.6k forks), not dormant or
+    maintenance-only. Still pre-1.0 / "Early Beta" per upstream's own
+    framing, so breaking changes between releases are plausible.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: [hermes-agent, openclaw]
+  differentiation: >
+    OpenHuman's pitch is a persistent local-first "memory tree" (Markdown +
+    SQLite, Obsidian-compatible) plus a broad OAuth integration wallet
+    (118+ third-party services: Gmail, Notion, Slack, GitHub, etc.) and
+    agent-to-agent orchestration over Signal-protocol messaging. That's a
+    materially different value proposition from hermes-agent/openclaw
+    (messaging-triggered task agents with a web dashboard), but in
+    self-hosted/server mode OpenHuman ships none of the UI that makes that
+    differentiation usable — see installability below.
+  usefulness: low
+  usefulness_rationale: >
+    The differentiating features (memory tree browsing, OAuth integration
+    setup, agent orchestration UI) all live in the desktop app, not the
+    self-hostable core. A customer provisioning this recipe would get a
+    backend they cannot productively use without separately installing
+    desktop software on their own machine and manually pairing it with a
+    bearer token — a fundamentally different delivery model from every
+    other recipe in the catalogue, where provisioning yields a directly
+    usable browser web app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENHUMAN_CORE_TOKEN]
+  secrets_expressible_today:
+    - secret: OPENHUMAN_CORE_TOKEN
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No production browser-based web UI. Upstream's own Cloud Deploy docs
+      state explicitly that "the deployed core does not serve the full
+      React/Tauri UI as a production web app yet" — self-hosting only
+      stands up the headless openhuman-core JSON-RPC backend (GET /health,
+      POST /rpc, GET /events, GET /ws/dictation). The actual UI is the
+      desktop app (Tauri/React), which the customer would have to install
+      separately on their own computer and point at
+      OPENHUMAN_CORE_RPC_URL/OPENHUMAN_CORE_TOKEN to get any usable
+      product. There is nothing meaningful for Traefik to front for a
+      browser-only customer — this breaks the "provision → open URL in
+      browser → working app" model every current recipe assumes,
+      independent of the secrets question below.
+    - >
+      OPENHUMAN_CORE_TOKEN is technically auto-generatable server-side
+      (e.g. `openssl rand -hex 32`), so unlike an external API key it
+      doesn't strictly need a customer-input channel — but because there
+      is no web UI to log into, there is no natural surface to hand that
+      token back to the customer the way an admin-login page does for
+      other recipes. It would depend on the AF customer portal's generic
+      generated-parameter-reveal mechanism (as used for
+      hermes-agent/openclaw auto_generate params) rather than anything
+      in-app.
+    - >
+      Most of the advertised value (118+ OAuth integrations: Gmail,
+      Notion, Slack, GitHub, etc.) depends by default on the vendor's own
+      backend (api.tinyhumans.ai) for OAuth brokering, or on the customer
+      registering and supplying their own OAuth app credentials per
+      integration in "Run Custom" mode. Neither has an input channel in
+      the current `/compose` mechanism (no arbitrary customer-supplied
+      values, no per-service OAuth registration flow) — so even if the
+      web-UI gap above were solved, the integrations that differentiate
+      this app from hermes-agent/openclaw would still be inert on
+      first boot.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  OpenHuman is a genuinely active, fast-releasing project (weekly tags,
+  latest 8 days old), but its self-hosted "core" is a headless JSON-RPC
+  backend with no production web UI — upstream is explicit that the actual
+  interface is a separate desktop app the user must install and pair
+  locally, which is incompatible with the AF model of a browser-usable app
+  behind Traefik. On top of that, the feature set that would differentiate
+  it from already-catalogued agent recipes (hermes-agent, openclaw) — 118+
+  OAuth integrations — has no expressible input channel under the current
+  `/compose` mechanism. Not recommended: even resolving the secrets gap
+  (IF-1420/IF-1312) wouldn't fix the missing-UI structural blocker.
