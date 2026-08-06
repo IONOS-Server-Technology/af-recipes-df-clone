@@ -1,0 +1,78 @@
+slug: squidex
+name: Squidex
+source_description: "Open-source headless CMS with GraphQL, REST APIs, and content schemas"
+
+upstream:
+  url: https://squidex.io
+  repo_url: https://github.com/Squidex/squidex
+  license: MIT
+  docker_image: squidex/squidex
+
+version_health:
+  latest_version: 7.23.0
+  latest_release_date: "2026-04-16"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest tagged release 7.23.0 is 2026-04-16, ~3.7 months before this
+    analysis (2026-08-05). Release history up to mid-2025 was roughly
+    monthly-to-bimonthly (7.18.0 2025-03-09, 7.19.0 2025-05-28, 7.20.0
+    2025-05-30, 7.21.0 2025-07-23), then a ~9-month gap to 7.22.0
+    (2026-04-14) and 7.23.0 two days later — a real slowdown in formal
+    versioned releases. However the repo itself is not stagnant: commit
+    history shows activity as recent as 2026-08-05 (the day of this
+    analysis, "Security fixes (#1328)"), and the `dev` Docker Hub tag is
+    rebuilt roughly daily (dev-8652 pushed ~1 day before this check). Not
+    archived (GitHub `archived: false`), 2,509 stars, only 3 open issues.
+    Net read: ongoing development continues on the `dev` line, but the
+    project has slowed how often it cuts a stable, pinnable release —
+    worth re-checking cadence before shipping a recipe.
+
+catalogue_fit:
+  categories: [content-management, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a headless CMS / content
+    API. Squidex targets developers and content teams building websites or
+    apps who need structured content management with GraphQL/REST APIs,
+    schemas, and multi-language content — distinct from the catalogue's
+    existing automation (n8n), knowledge-base (Anytype), and dev-tooling
+    (Gitea, Opengist) recipes.
+  usefulness: high
+  usefulness_rationale: >
+    Headless CMS is a well-established, broadly demanded self-hosted
+    category with no current catalogue coverage; Squidex is a mature,
+    feature-complete option (schemas, GraphQL, asset management, rules/
+    webhooks) that would meaningfully widen the developer-audience
+    catalogue segment, though the .NET + MongoDB stack is heavier than most
+    single-container recipes here.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MongoDB internal credential]
+  secrets_expressible_today:
+    - secret: MongoDB internal credential
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Squidex (squidex/squidex, pin 7.23.0) is a two-container stack — the app
+  plus MongoDB as its event/content store — exposing a single HTTP port
+  (80) that sits cleanly behind Traefik, matching our reverse-proxy pattern
+  (n8n, paperless-ngx use the same Postgres/MongoDB-sidecar shape). Its
+  admin account setup requires no customer-supplied secret at deploy time:
+  leaving `IDENTITY__ADMINEMAIL`/`IDENTITY__ADMINPASSWORD` unset triggers a
+  first-visit setup wizard where the customer creates their own admin login
+  directly in the browser — the same precedented pattern already used by
+  the Gitea and Portainer recipes in this catalogue. The only other secret,
+  MongoDB's internal credential, is never customer-facing and can be
+  server-generated like Immich's or paperless-ngx's Postgres password.
+  Fully installable today with no platform blockers. Recommend build_now:
+  it fills a genuine catalogue gap (headless CMS, zero overlap) with a
+  mechanically low-risk deploy, though the formal release cadence has
+  slowed markedly in the last year and is worth re-checking again before
+  the recipe ships.
