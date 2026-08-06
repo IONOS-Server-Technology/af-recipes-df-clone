@@ -1,0 +1,97 @@
+slug: nopcommerce
+name: nopCommerce
+source_description: "Open-source .NET e-commerce platform with full admin panel and 1,700+ plugins"
+
+upstream:
+  url: https://www.nopcommerce.com/
+  repo_url: https://github.com/nopSolutions/nopCommerce
+  license: "nopCommerce Public License v4.0 (AGPL-3.0 + mandatory 'powered by nopCommerce' attribution on every UI screen, removable only via a paid per-URL copyright-removal key)"
+  docker_image: nopcommerceteam/nopcommerce:4.90.6
+
+version_health:
+  latest_version: "4.90.6"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    4.90.6 shipped 2026-07-08, about 1 month before this analysis
+    (2026-08-05) — a minor/patch release fully compatible with 4.90.0-4.90.5.
+    The 4.90.x line has been landing patch releases every few weeks
+    (4.90.4 on 2026-03-16, 4.90.5 on 2026-06-29, 4.90.6 on 2026-07-08), and
+    the official nopcommerceteam/nopcommerce Docker Hub image is kept in
+    step with each tag. Project has run continuously since 2008 with a
+    large plugin/theme marketplace and active GitHub repo (no archival
+    notice). Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [ecommerce, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers e-commerce/online
+    storefronts — closest neighbors (gitea, opengist, portainer, n8n) are
+    dev-tooling/ops, not customer-facing storefronts. nopCommerce (.NET/
+    ASP.NET Core, MSSQL/MySQL/PostgreSQL-backed, self-hosted Shopify/
+    Magento-style platform with a large plugin ecosystem) would be a
+    genuinely new category. Note this is not the only e-commerce candidate
+    already surfaced in apps-gaps — see bagisto.yaml and evershop.yaml,
+    both covering the same "self-hosted online store" gap and both
+    currently blocked or unbuilt for their own reasons; a human reviewer
+    should compare all three before committing build time to one.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted e-commerce is a real, commonly requested category with no
+    coverage today, and nopCommerce specifically is one of the most
+    established .NET-based options with a mature plugin/theme marketplace.
+    Usefulness is high on fit grounds; see installability below for why it
+    can't ship as a recipe today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_connection_string, admin_email, admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      nopCommerce has no unattended/env-var-driven install path at all.
+      First visit to the container redirects to an interactive browser
+      install wizard (/install) where a human must manually type the
+      database connection string (server, DB name, user, password) AND
+      create the admin account (email + plaintext password) through HTML
+      form fields. There is no CLI installer, no INSTALLATION_* / ADMIN_*
+      environment variables, and no documented way to pre-seed
+      DataSettings.json or the admin user record at container boot.
+      Upstream's own feature request to make DB settings configurable via
+      env vars (GitHub issue #4113) was closed/implemented for the
+      dataSettings.json *location*, but the admin-account creation step
+      itself still only happens through the wizard's form POST — there is
+      no channel of any kind (env var, CLI flag, or hash injection) for
+      `/compose` to supply either credential.
+    - >
+      Even if the admin-credential gap were closed, nopCommerce's public
+      storefront (/) and admin panel (/Admin) are served from the same
+      container on the same HTTP port, the same structural problem
+      documented for Bagisto (apps-gaps/bagisto.yaml): our Traefik
+      `basic_auth` gate applies to the whole public port/domain, not a
+      path prefix, so using it to protect the install wizard/admin area
+      would also lock genuine shoppers out of the storefront itself —
+      defeating the point of an e-commerce recipe. There is no path-scoped
+      basic_auth mechanism in the current platform to gate only
+      /install or /Admin while leaving / open.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  nopCommerce is an actively maintained, high-usefulness e-commerce
+  platform with an official, regularly updated Docker image and a real
+  catalogue gap to fill (no existing recipe covers self-hosted online
+  stores). It fails installability today on two independent counts: there
+  is no input channel whatsoever — not even a hash-projection path — for
+  the database connection or the admin account it requires at first boot,
+  since both are entered exclusively through an interactive browser install
+  wizard with no env-var or CLI equivalent; and separately, its storefront
+  and admin panel share one port/container, so a Traefik basic_auth gate
+  (our usual fallback) would have to lock out paying customers along with
+  the admin area. Recommend blocked_on_platform; revisit only if upstream
+  ships an unattended/env-var-driven installer or the platform gains
+  path-scoped basic_auth plus a plaintext-credential injection channel.
