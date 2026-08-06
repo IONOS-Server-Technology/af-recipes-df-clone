@@ -1,0 +1,81 @@
+slug: nightlio
+name: Nightlio
+source_description: "Privacy-first self-hosted mood tracker and daily journal with Markdown support"
+
+upstream:
+  url: https://nightlio.app
+  repo_url: https://github.com/shirsakm/nightlio
+  license: AGPL-3.0
+  docker_image: "ghcr.io/shirsakm/nightlio-api / ghcr.io/shirsakm/nightlio-frontend (two official images, no :latest-only — versioned tags exist, e.g. 0.1.7)"
+
+version_health:
+  latest_version: "0.1.7 (tag v0.1.7)"
+  latest_release_date: "2025-11-25"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Repo created 2025-08-09 (about 1 year old). No GitHub "Releases" are
+    published, only lightweight tags (v0.1.1 through v0.1.7, matching the
+    ghcr.io image tags for both nightlio-api and nightlio-frontend). The last
+    tag (v0.1.7) was cut 2025-11-25 — about 8.4 months before today
+    (2026-08-05) — but commit activity continued well past that tag,
+    with a burst of merges through 2026-05-23 (a "music" feature, bug
+    fixes) that were never cut into a new version tag. So :latest images on
+    ghcr.io are ahead of the last pinned tag. Since 2026-05-23 (about 2.4
+    months) there has been no further activity — plausibly a lull rather
+    than abandonment, given the repo is young, has 238 stars/16 forks, and
+    19 open issues still being triaged, but worth re-checking before build.
+    Not archived, not EOL.
+
+catalogue_fit:
+  categories: [productivity, personal, journaling]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover mood-tracking or personal
+    journaling. anytype-server is the nearest conceptual neighbor (personal
+    knowledge/notes) but is a general-purpose knowledge base, not a
+    structured daily mood log with streaks/analytics. Nightlio fills a
+    distinct personal-wellness/journaling niche a customer might specifically
+    search Hostinger's catalogue for (cf. commercial Daylio).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, narrow niche demand (self-hosted Daylio alternative) and a clean
+    two-container web app that fits our reverse-proxy model well, but it's a
+    single-user personal tool with a small install base (238 stars, ~1 year
+    old) rather than a broad-appeal app like the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SECRET_KEY (Flask app secret — server-generated, never customer-facing)
+    - JWT_SECRET (JWT signing key — server-generated, never customer-facing)
+    - basic_auth gate credential (app has no real login of its own in default single-user mode — see below)
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Nightlio is mechanically installable today: it's a two-container
+  Docker-Compose app (Flask API + Nginx-served React frontend) behind a
+  single public HTTP port, with SECRET_KEY/JWT_SECRET as patternless
+  server-generated secrets nothing customer-facing ever reads. Critically,
+  its default self-host mode has no real authentication — the
+  POST /api/auth/local/login endpoint issues a valid JWT for the sole
+  local user with no password check at all — so the app must ship gated
+  behind a Traefik basic_auth credential (same pattern as Adminer/WUD) to
+  avoid a customer's private mood/journal data sitting open on the
+  internet; optional Google OAuth is a multi-user alternative but out of
+  scope for our no-external-credential constraint. Recommend
+  build_with_caveats: it's a small, ~1-year-old hobby project (238 stars)
+  whose last version tag (0.1.7, 2025-11-25) trails its own commit history
+  by several months of unreleased work, and it fills a real but narrow
+  personal-journaling niche not covered by any of the current 24 recipes.
