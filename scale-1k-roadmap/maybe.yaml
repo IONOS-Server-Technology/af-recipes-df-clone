@@ -1,0 +1,74 @@
+slug: maybe
+name: Maybe
+source_description: "Open-source personal finance and wealth management application"
+
+upstream:
+  url: https://github.com/maybe-finance/maybe
+  repo_url: https://github.com/maybe-finance/maybe
+  license: AGPL-3.0
+  docker_image: ghcr.io/maybe-finance/maybe
+
+version_health:
+  latest_version: "v0.6.0"
+  latest_release_date: "2025-07-27"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    The maybe-finance/maybe GitHub repo was archived by its owner on
+    2025-07-27, the same date as the final v0.6.0 release, with the
+    maintainers stating the company is pivoting to a B2B product and "will
+    no longer be actively maintaining or accepting contributions to this
+    repository." As of today (2026-08-05) that is just over 12 months with
+    zero commits, zero releases, and no path to future patches (repo is
+    read-only). A community fork, we-promise/sure
+    (https://github.com/we-promise/sure), continues active development from
+    the same codebase but is a distinct upstream, not "Maybe" itself.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Personal finance / wealth management is not covered by any of the
+    current 24 recipes. Functionally Maybe overlaps heavily with the
+    "actual-budget" gap-analysis candidate (apps-gaps/actual-budget.yaml,
+    recommended build_now) — both are self-hosted personal-finance web
+    apps — but Maybe leans more toward net-worth/investment tracking with
+    optional AI insights, versus Actual's envelope-budgeting focus. Given
+    Actual is actively maintained and Maybe is archived, Actual is the
+    stronger pick if the catalogue only wants one finance app.
+
+  usefulness: low
+  usefulness_rationale: >
+    The underlying idea (self-hosted personal finance) has real consumer
+    demand, but shipping a recipe on top of an archived, single-release
+    upstream with no maintainer means any bug, CVE, or Rails/Postgres
+    compatibility break is permanent and unfixable upstream. The
+    actively-maintained community fork (we-promise/sure) or Actual Budget
+    are the ways to serve this same customer need without inheriting a
+    dead project.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Maybe is a multi-container Rails app (web + Sidekiq worker + Postgres +
+  Redis) exposing a single HTTP port (3000), so it is mechanically
+  reverse-proxy-compatible and would clear the /compose secret-projection
+  constraint cleanly: SECRET_KEY_BASE and the Postgres password are
+  server-generated randoms with no customer-facing use, and the admin
+  account is created by the customer through the app's own signup form on
+  first visit (no injected credential needed), the same pattern as
+  Actual Budget and Uptime Kuma. The blocker is not installability but
+  project health: the upstream repo was archived on 2025-07-27 (its final
+  release), over a year ago as of today, with the vendor explicitly
+  stating no further maintenance. Recommend not_recommended — build
+  Actual Budget instead for this category, or revisit the we-promise/sure
+  community fork as a separate candidate if the catalogue wants Maybe's
+  specific feature set kept alive by an active maintainer.
