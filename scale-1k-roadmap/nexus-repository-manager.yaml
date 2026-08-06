@@ -1,0 +1,94 @@
+slug: nexus-repository-manager
+name: Nexus Repository Manager
+source_description: "Universal artifact repository manager for Maven, npm, Docker, and PyPI"
+
+upstream:
+  url: https://help.sonatype.com/en/sonatype-nexus-repository.html
+  repo_url: https://github.com/sonatype/docker-nexus3
+  license: "Eclipse Public License 1.0 (Nexus Repository OSS); note the wrapping docker-nexus3 packaging repo is Apache-2.0"
+  docker_image: sonatype/nexus3
+
+version_health:
+  latest_version: "3.95.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.95.0 published the same day as this analysis (2026-08-05); the prior
+    tag, 3.94.1, shipped 12 days earlier. Sonatype's own version-status page
+    shows a steady monthly cadence through 2026 (3.92.0 on 05-07, 3.93.0 on
+    06-04, 3.94.0 on 07-09, 3.95.0 on 08-05) with 1 year GA support plus 6
+    months extended maintenance per release — a clearly active project, not
+    maintenance-only. One caveat unrelated to release cadence: Sonatype's
+    own FAQ warns that third-party community plugins often don't work with
+    recent Nexus Repository versions or PostgreSQL mode — doesn't affect the
+    core OSS product's health, but worth flagging.
+
+catalogue_fit:
+  categories: [developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is an artifact/package
+    repository. Gitea covers git source hosting and Portainer covers
+    container-host management, but neither stores or serves build
+    artifacts (Maven/npm/PyPI packages, Docker images) the way Nexus does.
+    This would be a genuinely new category serving dev teams / CI
+    pipelines that need a private package registry.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche and a single reverse-proxy-friendly web UI (plus
+    optional raw docker-registry ports customers wouldn't need for the
+    baseline HTTP-only setup), but it's a specialist devops tool aimed at
+    teams already running CI/CD — narrower appeal than broad
+    consumer/prosumer apps in the catalogue, and the JVM footprint (2GB+
+    RAM recommended) is heavier than most existing recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The official sonatype/nexus3 image has no documented environment
+      variable for setting the admin password. On first boot it generates
+      a random password itself and writes it to
+      /nexus-data/admin.password inside its data volume; the customer is
+      expected to read that file (via `docker exec ... cat
+      /nexus-data/admin.password` or volume access) to log in the first
+      time, then change the password through the setup wizard. Our
+      recipe mechanism has no channel to read a container-generated file
+      back out and hand it to the customer, nor to pre-seed the file
+      with our own hash.
+    - >
+      A community PR (sonatype/docker-nexus3#136, unmerged as of this
+      analysis) proposes a NEXUS_ADMIN_INIT_PASSWORD variable, but even if
+      merged it only accepts a **plaintext** password (it's hashed
+      internally via Apache Shiro CLI before being written to the
+      security database) — per SCHEMA.md, `generated_from` only ever
+      projects a hash, never plaintext, so this would remain a structural
+      blocker even with that PR merged.
+    - >
+      Traefik `basic_auth` can't substitute here either: Nexus does have
+      its own mandatory login (unlike Adminer/WUD-style loginless apps),
+      so gating the reverse-proxy port would just add a second wall in
+      front of an admin account the customer still has no way to
+      discover or set.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Nexus Repository Manager is an actively maintained (3.95.0 shipped the
+  same day as this analysis, steady monthly cadence, EPL-1.0-licensed) app
+  filling a real gap — no artifact/package repository exists in the
+  current 24-recipe catalogue — behind a single reverse-proxy-compatible
+  web UI. It's blocked today purely on the secrets mechanism: the official
+  image bootstraps its admin account with a self-generated password
+  written to a file inside the container, with no supported way to inject
+  or read back a hash, and Traefik basic_auth can't cover for a genuinely
+  missing admin credential the way it does for loginless apps. Recommend
+  `blocked_on_platform`, not `not_recommended` — the app itself is healthy
+  and worth building once a channel exists for either reading a
+  container-generated secret back out or accepting a plaintext admin
+  password input.
