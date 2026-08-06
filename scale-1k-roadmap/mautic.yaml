@@ -1,0 +1,85 @@
+slug: mautic
+name: Mautic
+source_description: "Open-source marketing automation for email campaigns, lead scoring, and journeys"
+
+upstream:
+  url: https://www.mautic.org/
+  repo_url: https://github.com/mautic/mautic
+  license: GPL-3.0-or-later
+  docker_image: mautic/mautic
+
+version_health:
+  latest_version: "7.1.3"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.1.3 shipped 2026-07-07, about 4 weeks before today (2026-08-05).
+    Mautic moved to a Long Term Support model starting with 7.0 (released
+    2026-01-20, "Columba Edition"): a 4-year support window per major
+    (1 year active, 1 year security, 2 years Extended LTS), with monthly
+    minor/patch releases (7.1 "Canis Major", 7.1.2, 7.1.3, and a 7.2 release
+    already at RC) committed under that plan. The predecessor 6.0 ("Orion
+    Edition", released 2025-03-26) is a shorter bridging release nearing its
+    own EOL around July 2026 per third-party EOL trackers, which is expected
+    under the new LTS cadence rather than a sign of abandonment. Repo is
+    under active commit/PR/release activity — reads as a healthy, actively
+    maintained project.
+
+catalogue_fit:
+  categories: [marketing, automation, crm]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers marketing automation
+    (email campaign builder, lead scoring, contact segmentation, automated
+    journeys/drip sequences). n8n is the closest adjacent tool but it is a
+    generic low-code workflow/integration engine, not a purpose-built
+    marketing platform with its own contact database, campaign UI, and
+    email-sending pipeline — a customer running an email marketing program
+    would reach for Mautic specifically, not build one in n8n. This would
+    be a genuinely new category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Email marketing/CRM-lite tooling is a common paid-SaaS category
+    (Mailchimp, ActiveCampaign, HubSpot) that a self-hosted alternative
+    directly displaces for small businesses and marketers who want to own
+    their contact data. Mature, widely deployed, GPL-3.0, no commercial-tier
+    gating unlike some of the other business-app candidates reviewed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MAUTIC_ADMIN_PASSWORD, MAUTIC_DB_PASSWORD, MYSQL_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: MAUTIC_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: MAUTIC_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mautic is a PHP app (official mautic/mautic image, pin to
+  7.1.3-apache) that needs a MySQL/MariaDB backend plus a recurring
+  cron/worker process for campaign triggers and email sending — a
+  three-plus-container stack similar in shape to the paperless-ngx
+  template, but with an extra always-on worker rather than paperless's
+  auxiliary services. It exposes a single HTTP port and is
+  Traefik-compatible with no other raw ports needed. The installer
+  accepts MAUTIC_ADMIN_EMAIL/MAUTIC_ADMIN_PASSWORD and MYSQL credentials
+  as plain env vars with no OAuth or external API key needed to boot, so
+  the admin password projects cleanly from the customer's root password
+  via generated_from (same pattern as Vaultwarden's ADMIN_TOKEN) and the
+  DB/root MySQL passwords are server-generated with no customer input —
+  clearing the /compose constraint with zero blocking issues. The caveat
+  is operational complexity, not mechanics: the cron worker needs a
+  scheduled task running Mautic console commands every minute, and actual
+  email delivery requires the customer to configure an SMTP transport
+  post-install (not a boot-time secret, so not blocking, but worth
+  surfacing). Recommend build_with_caveats — a high-value, genuinely new
+  category for the catalogue, installable today, but more involved to
+  build and operate than our single-container recipes.
