@@ -1,0 +1,82 @@
+slug: komga
+name: Komga
+source_description: "Self-hosted media server for comics, manga, magazines, and eBooks with OPDS and sync support"
+
+upstream:
+  url: https://komga.org/
+  repo_url: https://github.com/gotson/komga
+  license: MIT
+  docker_image: gotson/komga
+
+version_health:
+  latest_version: "1.25.0"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.25.0 released 2026-06-30, ~5 weeks before today (2026-08-05).
+    Preceding tags show a steady cadence: 1.24.0 (2026-01-28) -> 1.24.1
+    (2026-01-29, patch) -> 1.24.2 (2026-03-26) -> 1.24.3 (2026-03-27,
+    patch) -> 1.24.4 (2026-04-24) -> 1.25.0 (2026-06-30). Repo is not
+    archived (6.5k+ stars), has ongoing GitHub Actions CI, and issues/PRs
+    are actively triaged. Unambiguously active development.
+
+catalogue_fit:
+  categories: [media, ebooks, comics, self-hosting]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue manages a comics/manga/
+    ebook library. Immich is the closest shipped recipe by shape
+    (self-hosted personal media library, browser UI, mobile-app
+    ecosystem) but is photo/video-only. Two other gap-analysis candidates
+    cover very similar ground and have not been built either:
+    apps-gaps/kavita.yaml (comics/manga/ebook reader, recommended
+    build_now, no overlap noted there) and apps-gaps/calibre-web.yaml
+    (Calibre-metadata-driven ebook library with OPDS, slowing release
+    cadence). Komga, Kavita, and Calibre-Web would be three
+    near-duplicate entries covering the same "self-hosted comics/manga/
+    ebook server with OPDS" niche if all three were ever built — only one
+    (or a clearly differentiated pair) should ship. Komga's specific
+    edge over Kavita/Calibre-Web is native Kobo and KOReader sync support
+    and a lighter single-JAR/single-container footprint; its main
+    functional overlap is with Kavita in particular (both comics/manga-
+    first, both OPDS, both actively maintained).
+  usefulness: medium
+  usefulness_rationale: >
+    Komga is a well-regarded, actively developed comics/manga/ebook
+    server with a genuine niche audience and no functional gap in the
+    current catalogue, but it is the third overlapping candidate for the
+    same underlying use case (after Kavita and Calibre-Web) rather than a
+    unique addition — capped at medium pending a catalogue decision on
+    which one (or two) of the three actually gets built.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Komga (gotson/komga, pin e.g. 1.25.0) is a single-container app exposing
+  one HTTP port (25600 by default) with only /config and /data bind
+  mounts and no external database dependency — structurally close to
+  recipes/uptime-kuma or recipes/vaultwarden. It ships no default admin
+  credential: the first visitor to the web UI is presented with a
+  registration screen to set their own admin email and password directly
+  in-app, the same "first visitor claims the root account" pattern
+  already accepted unmitigated for n8n, Open WebUI, and Kavita's own gap
+  analysis. That means no generated_from projection or Traefik
+  basic_auth gate is required — the recipe needs only a domain parameter
+  — so it clears the /compose mechanism with zero blocking issues and is
+  installable_today. Upstream is actively maintained (steady release
+  cadence, most recently 1.25.0 on 2026-06-30, not archived). The
+  recommendation is build_with_caveats rather than a plain build_now
+  because Komga functionally overlaps with two other not-yet-built
+  gap-analysis candidates (Kavita, Calibre-Web) covering the same
+  comics/manga/ebook-server niche; before building, the catalogue should
+  decide which one (or which differentiated pair) to actually ship rather
+  than adding all three as near-duplicates.
