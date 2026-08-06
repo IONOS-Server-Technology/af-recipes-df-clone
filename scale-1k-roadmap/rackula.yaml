@@ -1,0 +1,73 @@
+slug: rackula
+name: Rackula
+source_description: "Drag-and-drop server rack layout designer for homelabs and data centers"
+
+upstream:
+  url: https://www.racku.la/
+  repo_url: https://github.com/RackulaLives/Rackula
+  license: MIT
+  docker_image: ghcr.io/rackulalives/rackula
+
+version_health:
+  latest_version: v26.7.0
+  latest_release_date: 2026-07-18
+  release_cadence: active
+  eol_status: active
+  notes: >
+    18 days since the latest release as of today (2026-08-05). Releases have
+    landed roughly every 1-3 weeks through 2026 (v26.6.0 on 06-05, v26.6.1
+    06-05, v26.6.2 06-06, v26.6.3 06-09, v26.6.4 06-28, v26.6.5 06-29, v26.6.6
+    07-01, v26.7.0 07-18) — an actively developed project, moved to CalVer
+    (YY.M.MICRO) mid-2026. 1,867+ commits on main, 1.6k GitHub stars.
+
+catalogue_fit:
+  categories: [infrastructure, homelab, network-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers rack/DC layout planning. It's a visual
+    drag-and-drop tool for laying out physical or virtual server racks using
+    real device art from the NetBox devicetype-library, exporting to
+    PNG/PDF/SVG or sharing via URL/QR code — a documentation/planning tool
+    for homelabbers and DC/AV/network teams, distinct from any monitoring,
+    file-storage, or automation app already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but well-executed and actively maintained; appeals specifically to
+    homelab and infra-minded customers who are already Application Factory's
+    core audience, though it's a planning/documentation tool rather than a
+    running service, so daily-use frequency is likely lower than e.g.
+    monitoring or password-manager recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic-auth gate credential (Traefik) — app has no built-in login when RACKULA_AUTH_MODE=none
+    - RACKULA_API_WRITE_TOKEN (backend API write-protection token)
+  secrets_expressible_today:
+    - secret: basic-auth gate credential (Traefik)
+      mechanism: traefik_basic_auth
+    - secret: RACKULA_API_WRITE_TOKEN (backend API write-protection token)
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Rackula is a two-container app (a static frontend proxying to a small
+  Node/Bun API, `ghcr.io/rackulalives/rackula(-api)`) with a single public
+  HTTP port (8080) and optional auth. Its `local` auth mode needs a
+  customer-chosen plaintext password handed to the app directly
+  (RACKULA_LOCAL_PASSWORD) rather than a hash, so `generated_from` can't
+  project a root-password hash into it — but running with
+  RACKULA_AUTH_MODE=none and gating the public port with Traefik
+  basic_auth (the same pattern used for WUD/n8n) fully covers the
+  no-login-of-its-own case, and the backend's RACKULA_API_WRITE_TOKEN is a
+  server-generated secret nothing customer-facing needs to know. No
+  catalogue overlap, actively maintained upstream, MIT-licensed. Recommend
+  building it now, using the basic_auth gate rather than local auth mode.
+  Note: a stale, inactive fork (github.com/PodJamz/rackula, 0 stars/forks/PRs)
+  and a similarly-named but unrelated project (github.com/Rackarr/Rackarr)
+  both surfaced in search — neither is the app analyzed here; the active
+  upstream is unambiguously RackulaLives/Rackula.
