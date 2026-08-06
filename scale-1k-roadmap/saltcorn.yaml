@@ -1,0 +1,89 @@
+slug: saltcorn
+name: Saltcorn
+source_description: "Open-source no-code application builder for database-driven apps"
+
+upstream:
+  url: https://saltcorn.com/
+  repo_url: https://github.com/saltcorn/saltcorn
+  license: "MIT"
+  docker_image: "saltcorn/saltcorn:1.6.2"
+
+version_health:
+  latest_version: "1.6.2"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Saltcorn does not publish GitHub Releases at all (the releases page is
+    empty), so version health has to be read from npm (@saltcorn/cli) and
+    Docker Hub instead — both agree. Stable 1.6.2 was published to npm and
+    to Docker Hub on 2026-08-05, i.e. yesterday relative to today
+    (2026-08-06). Cadence is fast and multi-branch: 1.6.0 on 2026-06-24,
+    1.6.1 on 2026-07-17, 1.6.2 on 2026-08-05, with maintained backport lines
+    still receiving patches on the same day (1.4.8 and 1.5.10, both
+    2026-08-05) and beta/rc tags roughly weekly. Repo master has commits
+    from 2026-08-05 and is not archived (~2.0k stars, MIT). No dormancy or
+    EOL signal whatsoever. The absence of GitHub Releases is a
+    release-hygiene quirk, not a health problem — but it does mean a recipe
+    must pin against Docker Hub tags, which is what RFC-002 wants anyway.
+
+catalogue_fit:
+  categories: [productivity, database, no-code, development]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a no-code/low-code
+    application builder. The nearest neighbour is n8n, which automates
+    workflows between existing systems but does not let a customer define
+    tables, views and forms and end up with a hosted CRUD application;
+    paperless-ngx and gitea are domain-specific stores, not builders.
+    Saltcorn is also distinct from the Airtable-style tools already gap-
+    analysed (NocoDB, Baserow): those present an existing database as a
+    spreadsheet, whereas Saltcorn's primary output is a deployed
+    application with its own pages, roles and workflow actions — closer to
+    Budibase/Appsmith than to Airtable.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuine category gap (self-hosted internal-app builder) with a
+    healthy MIT-licensed upstream and a clean single-web-port deployment.
+    Rated medium rather than high because it is markedly less well known
+    than Baserow/NocoDB/Budibase in the same slot, its plugin/pack ecosystem
+    pulls from an upstream store at runtime, and the audience (people who
+    will actually build an app) is narrower than for a ready-to-use tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SETUP_WIZARD_BASIC_AUTH, SALTCORN_SESSION_SECRET, PGPASSWORD]
+  secrets_expressible_today:
+    - secret: SETUP_WIZARD_BASIC_AUTH
+      mechanism: traefik_basic_auth
+    - secret: SALTCORN_SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: PGPASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Saltcorn is an actively developed (stable 1.6.2 published to npm and
+  Docker Hub on 2026-08-05, master commits the same day), MIT-licensed
+  no-code application builder that deploys as the upstream's own two-service
+  stack: saltcorn/saltcorn serving HTTP on a single port 3000 plus a
+  Postgres backing store, structurally the same shape as the shipped n8n
+  recipe. Upstream's example compose already carries Traefik router labels
+  for exactly the <slug>.<base_domain> pattern our recipes use, so reverse
+  proxying is proven rather than assumed. The only boot-time inputs are
+  SALTCORN_SESSION_SECRET and the Postgres password — both patternless
+  server-generated values no customer ever sees — plus one real gap: there
+  is no env var that seeds an admin, so the first visitor to the root URL
+  gets the setup wizard and becomes the instance admin. That first-come-
+  first-served window must be closed with a Traefik `basic_auth: true` gate
+  (the n8n/WUD/Open WebUI pattern) until the customer completes the wizard;
+  Saltcorn's CLI `create-user` path is plaintext-only and therefore not
+  usable via `generated_from`, but it is not needed. Recipe caveats for the
+  build pass, not blockers: the schema must be initialised (`reset-schema`,
+  or the initdb script upstream ships) before `serve`, and the instance's
+  Base URL is set post-install in the admin UI. Nothing here needs a
+  platform capability we lack — recommend build_now.
