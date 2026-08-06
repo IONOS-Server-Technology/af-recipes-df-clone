@@ -1,0 +1,96 @@
+slug: shiori
+name: Shiori
+source_description: "Self-hosted bookmark manager for saving and organizing web content offline"
+
+upstream:
+  url: https://github.com/go-shiori/shiori
+  repo_url: https://github.com/go-shiori/shiori
+  license: MIT
+  docker_image: ghcr.io/go-shiori/shiori
+
+version_health:
+  latest_version: "v1.8.0"
+  latest_release_date: "2025-09-26"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.8.0 was published 2025-09-26, about 10 months and 10 days before today
+    (2026-08-05). Preceding releases: v1.7.4 (2025-01-03), v1.7.3
+    (2025-01-01), v1.7.2 (2024-12-22), v1.7.1 (2024-10-05) — so the project
+    used to cut a release every 2-3 months and has now gone three times that
+    long without one. Commit history on `master` shows the same shape: a long
+    quiet stretch from 2025-09-29 to 2026-07-10 (~9.5 months with no
+    commits), then a small cluster of three fix commits on 2026-07-10
+    (including a genuine security fix, "prevent users from self-escalate to
+    owners"), which is the most recent activity as of this analysis (~4 weeks
+    ago). The repo is not archived, carries no unmaintained notice, has
+    ~11.6k stars, and issues/PRs are still being merged — so it is alive but
+    clearly low-throughput, not the steady pace of a year ago. Not dormant,
+    not EOL; the risk is response latency on a future CVE, not abandonment.
+    The official GHCR image is in step with upstream: `ghcr.io/go-shiori/shiori`
+    carries a clean `v1.8.0` tag (confirmed against the registry tag list)
+    alongside every earlier release tag, so a recipe can pin the current
+    version with no image lag.
+
+catalogue_fit:
+  categories: [productivity, bookmarks]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes manages bookmarks — the nearest catalogue
+    neighbours (Gitea, OpenGist) are code/snippet tools, not link
+    collections. Shiori's specific angle is offline archiving: it stores a
+    full readable snapshot (and optional ebook export) of every page it
+    saves, so the bookmark survives link rot, which is a stronger promise
+    than a plain link list. It is also a single static Go binary with SQLite
+    by default, so the recipe is one small container plus a data volume — no
+    database service, comparable in footprint to the Shaarli candidate and
+    much lighter than Linkwarden or Karakeep.
+  usefulness: medium
+  usefulness_rationale: >
+    Bookmarking with offline archival is a broadly understood self-hosting
+    use case with zero catalogue coverage today, and Shiori is one of the
+    best-known projects in that space (~11.6k stars) with browser extensions
+    and a documented REST API. Usefulness is medium rather than high because
+    it is a single-purpose personal tool with limited multi-user value, and
+    the slowed upstream cadence makes it a weaker long-term bet than a
+    similarly-scoped candidate with active releases.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    # Needed because Shiori auto-creates a hardcoded owner account
+    # shiori/gopher whenever the account table is empty (internal/cmd/root.go:
+    # AccountDTO{Username: "shiori", Password: "gopher", Owner: true}) and
+    # offers no env var to seed or override it — the login page therefore
+    # ships with publicly documented credentials until the customer changes
+    # them in the UI, so the app must not sit ungated on the internet.
+    - "Traefik basic-auth gate credential"
+    - SHIORI_HTTP_SECRET_KEY
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+    - secret: SHIORI_HTTP_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Shiori is a single-container, single-HTTP-port (8080) Go bookmark manager
+  with offline page archiving, SQLite by default (Postgres/MySQL optional),
+  an MIT licence and an official GHCR image carrying a pinnable `v1.8.0` tag;
+  upstream documents reverse-proxy operation (SHIORI_HTTP_ROOT_PATH for
+  subpaths, which our subdomain routing does not even need), so it fits
+  behind Traefik on shiori.<base_domain> like Uptime Kuma or Vaultwarden. It
+  fills a real catalogue gap — no shipped recipe manages bookmarks. Nothing
+  blocks it under the current /compose constraint: the session secret
+  (SHIORI_HTTP_SECRET_KEY) is a patternless value we can generate
+  server-side, and the hardcoded shiori/gopher owner account it self-creates
+  is handled the IF-1312 way — gate the app behind a Traefik basic_auth
+  credential projected from the customer's root password, making that the
+  real auth boundary. The caveat is upstream tempo, not mechanism: no release
+  in ~10 months and a ~9.5-month commit gap that only broke in July 2026, so
+  ship it with the expectation of slow upstream security response rather than
+  as a first-tier build.
