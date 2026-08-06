@@ -1,0 +1,118 @@
+slug: kibana
+name: Kibana
+source_description: "Open-source visualization UI for Elasticsearch with dashboards and search"
+
+upstream:
+  url: https://www.elastic.co/kibana
+  repo_url: https://github.com/elastic/kibana
+  license: "Elastic License 2.0 / SSPL-1.0 / AGPL-3.0 (triple-licensed since Aug 2024, customer picks); same model as Elasticsearch"
+  docker_image: docker.elastic.co/kibana/kibana
+
+version_health:
+  latest_version: "9.5.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    9.5.0 tagged 2026-08-04, i.e. yesterday relative to today (2026-08-05).
+    Kibana ships in lockstep with Elasticsearch's version numbers and
+    release cadence: 9.3.0 (2026-01-28), 9.4.0 (~April 2026), 9.4.1
+    (2026-05-13), 9.4.2 (2026-05-28), 9.4.3, 9.4.4 (2026-07-21), 9.5.0
+    (2026-08-04) — steady monthly minor/patch releases, plus a parallel
+    8.19.x backport line (8.19.19 shipped 2 days ago) still receiving
+    patches. Same well-funded Elastic team as Elasticsearch (see
+    apps-gaps/elasticsearch.yaml); unambiguously active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [analytics, observability, search]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Kibana is the visualization/dashboard front end for Elasticsearch —
+    conceptually the same role Grafana plays for Prometheus/Loki/Tempo
+    (apps-gaps/grafana.yaml), but locked to a single backend
+    (Elasticsearch) rather than pluggable data sources. Elasticsearch
+    itself was previously analyzed (apps-gaps/elasticsearch.yaml, low
+    usefulness precisely *because* it has no UI); Kibana is effectively
+    the missing UI half of that pair. None of the 24 shipped recipes
+    provide log/search dashboarding. Shipping Kibana as a recipe requires
+    also standing up an Elasticsearch instance underneath it (Kibana has
+    no other supported backend), making this a two-service stack rather
+    than a single container — closer in shape to recipes/immich/'s
+    multi-service pattern than to a single-container web app.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Kibana is the industry-standard log/search dashboard and, unlike a
+    bare Elasticsearch recipe, gives a customer an actual browser UI to
+    click through rather than a raw REST API — a meaningfully better fit
+    for this catalogue's end-user-facing profile than Elasticsearch alone.
+    Capped at medium rather than high because it is only useful once
+    something is actually indexing data into the bundled Elasticsearch
+    (Logstash/Beats/an app's own logs), which this recipe would not
+    itself provide — an empty Kibana+Elasticsearch pair is dashboards over
+    nothing, the same caveat noted for Grafana. It also inherits
+    Elasticsearch's heavier resource footprint (JVM heap, 2GB+ RAM
+    recommended for ES alone) atop Kibana's own footprint, disproportionate
+    to the single-tenant self-hosted profile this catalogue otherwise
+    targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "elastic superuser password (Kibana's login screen authenticates against Elasticsearch's native realm — same account analyzed in apps-gaps/elasticsearch.yaml)"
+    - "kibana_system service-account password/token (service-to-service credential Kibana uses to authenticate itself to Elasticsearch; not customer-facing)"
+  secrets_expressible_today:
+    - secret: "kibana_system service-account password/token"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The customer-facing login is the same elastic superuser analyzed in
+      apps-gaps/elasticsearch.yaml: Elasticsearch's Change Password API
+      accepts a pre-computed bcrypt hash, so generated_from:
+      "bcrypt:ROOT_PASSWORD" is structurally deliverable in principle, but
+      only after the same bootstrap chicken-and-egg is solved (start
+      Elasticsearch with a throwaway password, then overwrite via the
+      hash-accepting API) — install.sh logic beyond a plain metadata.yaml
+      parameter mapping, same as the ES-only case.
+    - >
+      This recipe adds a second bootstrap problem on top of that: modern
+      Elastic Stack (8.x+) wires Kibana to Elasticsearch via a
+      Fleet/Kibana enrollment token and a CA fingerprint generated at
+      Elasticsearch's first boot (or, for compose stacks, manually
+      configured ELASTICSEARCH_HOSTS + ELASTICSEARCH_SERVICEACCOUNTTOKEN
+      + xpack.security.http.ssl trust settings), all server-side and none
+      of it customer-facing — expressible, but meaningfully more install.sh
+      complexity than a single-container recipe, on top of the
+      already-nontrivial ES password bootstrap.
+    - >
+      Elasticsearch auto-configures TLS on its HTTP layer by default when
+      security is enabled; as in the ES-only analysis, the recipe needs to
+      explicitly disable that (xpack.security.http.ssl.enabled=false) so
+      Traefik can terminate public TLS cleanly, plus configure Kibana to
+      trust Elasticsearch's internal transport certs for the
+      service-to-service leg.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Kibana is Elasticsearch's actively-maintained (9.5.0, 2026-08-04),
+  industry-standard dashboard/visualization UI, and would fill the gap the
+  Elasticsearch-only gap-analysis flagged (no web UI, low usefulness
+  standalone). Mechanically it is installable today: the customer-facing
+  elastic-user login is expressible the same way as in the Elasticsearch
+  analysis (generated_from bcrypt hash via ES's Change Password API,
+  bootstrapped through a throwaway password), and the Kibana↔Elasticsearch
+  service-account credential is a server-generated secret with no
+  customer input needed. The catch is packaging cost, not a hard blocker:
+  this ships as a two-container stack (Kibana + Elasticsearch, since
+  Kibana has no other supported backend), needs the same TLS-disable and
+  password-bootstrap workaround as the ES analysis, plus enrollment/service
+  -token wiring between the two containers — more install.sh complexity
+  than most existing single-container recipes. Recommend build_with_caveats:
+  worth building as the "UI half" that makes Elasticsearch's data usable,
+  but usefulness to a customer still depends on them feeding data into it
+  (via Logstash/Beats/an app's own logs), which this recipe alone would
+  not provide.
