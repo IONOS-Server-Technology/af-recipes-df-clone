@@ -1,0 +1,93 @@
+slug: ocs-inventory-ng
+name: OCS Inventory NG
+source_description: "Open-source IT asset inventory and software deployment server with SNMP"
+
+upstream:
+  url: https://ocsinventory-ng.org/
+  repo_url: https://github.com/OCSInventory-NG/OCSInventory-ocsreports
+  license: GPL-2.0
+  docker_image: ocsinventory/ocsinventory-docker-image
+
+version_health:
+  latest_version: "2.12.5"
+  latest_release_date: "2026-07-23"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest release 2.12.5 (2026-07-23) is ~2 weeks before today
+    (2026-08-05), and the Docker image and ocsreports repos both show
+    pushes within the last 2 weeks (ocsreports itself was pushed the same
+    day as this analysis). But the tag history is irregular, not steady:
+    2.12.0 (2022-07-12) -> 2.12.1 (2022-10-02) -> 2.12.2 (2024-07-10) ->
+    2.12.3 (2024-09-26) -> 2.12.4 (2026-03-23) -> 2.12.5 (2026-07-23). A
+    ~21-month gap sits between 2.12.1 and 2.12.2, and another ~20 months
+    between 2.12.3 and 2.12.4. The two most recent releases are both
+    CVE-driven security patches (2.12.4 fixed CVE-2026-22675, 2.12.5 fixed
+    CVE-2026-16475), which is a healthy sign for triage responsiveness but
+    doesn't establish a steady feature-release cadence — hence "sporadic"
+    rather than "active". Not archived, 84 open issues still being
+    triaged, org (OCSInventory-NG on GitHub) is clearly not dormant.
+    OCS Inventory "3.0" is referenced by third-party summaries as a
+    from-scratch architectural rewrite, but no 3.0 tag or release exists
+    in the actual GitHub releases yet as of this analysis — treat that as
+    roadmap/marketing, not a shipped version.
+
+catalogue_fit:
+  categories: [it-operations, networking, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does IT asset
+    inventory/software-deployment for a fleet of computers. OCS Inventory
+    NG's niche is distinct from our two other IT-operations-flavored gap
+    candidates too: NetBox (apps-gaps/netbox.yaml) is IPAM/DCIM
+    documentation (what IP space and racks exist), LibreNMS
+    (apps-gaps/librenms.yaml) is SNMP polling of network devices
+    (switches/routers/APs), and OCS Inventory is agent-based inventory of
+    end-user computers (hardware/software audit, license tracking,
+    package deployment to Windows/Mac/Unix clients) plus a lighter,
+    secondary SNMP network-discovery feature. All three are worth keeping
+    conceptually separate rather than treated as redundant with each other.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-understood niche (desktop/laptop fleet inventory and
+    license auditing) with no existing coverage, but it's a specialist
+    IT-admin/MSP tool rather than a broad-appeal app, and its main value
+    (auto-discovering a customer's own computers via a deployed agent)
+    only materializes once the customer rolls out OCS agents across their
+    fleet — a heavier adoption lift than a single self-contained app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - OCS_DB_PASS (MySQL/MariaDB app-DB password)
+    - basic_auth gate credential for the web console
+  secrets_expressible_today:
+    - secret: OCS_DB_PASS (MySQL/MariaDB app-DB password)
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential for the web console
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OCS Inventory NG is a single-HTTP-port, Traefik-compatible web app
+  (Apache/PHP console + MySQL/MariaDB, confirmed against the official
+  docker-compose in OCSInventory-Docker-Image) whose only admin account is
+  a hardcoded "admin"/"admin" default created by the install script, with
+  no env var to set a different value at boot — this is exactly the
+  documented "fixed/default admin credential the app gives no way to
+  change" case, which the schema resolves by gating the whole app behind
+  Traefik basic_auth rather than treating it as a hard blocker. That makes
+  it mechanically installable today. Two caveats keep it at
+  build_with_caveats instead of a clean build_now: (1) first boot needs the
+  ocsreports install.php web wizard run (and then removed) to initialize
+  the database schema, which install.sh would need to automate via a
+  scripted HTTP request rather than relying on the interactive wizard; and
+  (2) release cadence is sporadic (multi-year gaps between patches
+  historically, even though the two most recent releases are recent
+  CVE fixes) and the niche (fleet inventory/deployment for
+  MSPs/IT-admins) is narrower than most of the current catalogue, so it's
+  a reasonable but not high-priority build.
