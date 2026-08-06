@@ -65,18 +65,25 @@ installability:
       our Traefik never sits in front of this app — so Traefik `basic_auth`
       is NOT available as a gating mechanism for anything Openship exposes.
     - >
-      No documented non-interactive way to bootstrap the first admin account
-      for the raw `docker/docker-compose.yml` path. The upstream README's
-      "interactive wizard creates the first admin" flow is part of the
-      `openship`/`openship up` CLI installer, not the plain `docker compose
-      up` path our recipe mechanism drives. It is unclear from upstream docs
-      whether the dashboard falls back to open self-registration (first
-      visitor becomes admin — a race an attacker can win before the real
-      customer visits) or refuses to boot without a CLI-provisioned admin.
-      Since the app's own edge can't be gated by our Traefik (see above),
-      an open-registration race would be unmitigated. This needs a direct
-      answer from upstream (or a support ticket) before it can be called
-      installable — not confirmed either way from public docs.
+      Confirmed by reading source (apps/api/src/modules/auth/auth.routes.ts,
+      apps/api/src/middleware/loopback-peer.ts): the open self-registration
+      race does NOT exist. A guard runs before Better Auth's catch-all and
+      unconditionally blocks POST /sign-up with 403 SIGNUP_DISABLED unless
+      (a) zero users exist yet AND (b) the request's kernel-reported TCP
+      peer address is loopback (127.0.0.0/8 or ::1) — not a spoofable
+      header. The real blocker this creates is structural, not racy: there
+      is no remotely-reachable channel to create the first admin at all.
+      The only path in is on-host (the `openship up` CLI, or a raw loopback
+      curl to the API's sign-up endpoint, which the compose file's
+      `127.0.0.1`-only port binding would permit if run from the host
+      during install.sh). But that loopback signup needs the customer's
+      actual plaintext password to produce a login that will later match
+      what the customer types — and our `/compose` mechanism only ever
+      hands install.sh a hash of ROOT_PASSWORD via `generated_from`, never
+      the plaintext (per apps-gaps/SCHEMA.md). So even the loopback path
+      cannot provision an admin account the customer can subsequently log
+      into. This is confirmed from the public repo, not an open question
+      for upstream.
     - >
       `api` mounts the host Docker socket (Docker-out-of-Docker, so it can
       build/run whatever the customer deploys) and optionally reaches the
@@ -95,9 +102,13 @@ summary: >
   match Hostinger's "deployment platform with built-in CI/CD" description) is
   a genuinely active, fast-moving self-hosted PaaS with a real differentiated
   niche (git-push CI/CD) versus our existing app-store/container-manager
-  recipes. It is blocked today primarily because it runs its own host-network
-  reverse-proxy edge (precedented, not fatal) combined with an unconfirmed
-  first-admin bootstrap story for the non-CLI compose path our mechanism
-  requires — until upstream confirms a safe, non-interactive admin bootstrap
-  (or ships one), there's no way to guarantee the first admin account isn't a
-  race open to anyone who reaches the domain first.
+  recipes. It is blocked today because there is no remotely-reachable way to
+  provision the first admin account at all: self-host sign-up is
+  unconditionally gated to loopback-only-while-zero-users (confirmed in
+  source, not a race), and even that loopback path needs the customer's
+  plaintext password to produce a working login, which our `/compose`
+  mechanism never has access to (only a hash, via `generated_from`).
+  Combined with its own host-network reverse-proxy edge (precedented, not
+  fatal, but meaning Traefik `basic_auth` can't front it either), this app
+  has no channel through which our current recipe mechanism could hand it a
+  customer-usable first login.
