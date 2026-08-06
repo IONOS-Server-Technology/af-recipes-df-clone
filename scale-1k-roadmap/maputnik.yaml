@@ -1,0 +1,70 @@
+slug: maputnik
+name: Maputnik
+source_description: "Visual editor for MapLibre and Mapbox GL JSON map styles with live preview"
+
+upstream:
+  url: https://maplibre.org/maputnik/
+  repo_url: https://github.com/maplibre/maputnik
+  license: MIT
+  docker_image: ghcr.io/maplibre/maputnik:main  # only rolling tag published, see blocking_issues
+
+version_health:
+  latest_version: v3.1.0
+  latest_release_date: 2026-07-06
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v3.1.0 shipped 2026-07-06, about one month before today (2026-08-05), so
+    the project is not dormant. But cadence is uneven: v3.1.0 followed
+    v3.0.0 (2025-09-09) by roughly ten months, and earlier majors (v2.0.0,
+    v2.1.0, v2.1.1) were bunched together in August 2024. Commit activity on
+    the repo is ongoing and issues/PRs are still triaged, so this reads as a
+    slow-moving but actively maintained project rather than abandoned.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches map-style authoring — this is
+    a genuinely novel category (a visual JSON editor for MapLibre/Mapbox GL
+    styles, client-side, with live preview). It would appeal to a narrow
+    slice of customers: developers or GIS teams building custom maps who
+    want a hosted style editor instead of running it locally.
+  usefulness: low
+  usefulness_rationale: >
+    Useful to a small, technical niche (map/GIS developers) rather than the
+    broad self-hosting audience the rest of the catalogue serves. It's also
+    a pure client-side tool with no server-side persistence — styles live in
+    the browser's local storage — so self-hosting it mainly saves running
+    `npx` locally rather than unlocking any multi-user or data-persistence
+    value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Upstream only publishes a rolling `ghcr.io/maplibre/maputnik:main` tag
+      — there are no versioned release tags (e.g. `v3.1.0`) in the GHCR
+      registry, only untagged digests behind `main`. This fails RFC-002's
+      `image-tag-pinned` rule in spirit even though the tag string isn't
+      literally `latest`: there is no way to pin to a specific stable
+      release image today, only to the perpetually-moving `main` build.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Maputnik is a client-side, no-backend map-style editor with no overlap in
+  our current catalogue and a genuinely novel use case, but it's a narrow
+  fit for a general self-hosting customer base. Mechanically it would only
+  need a Traefik basic-auth gate (no login of its own) to be installable
+  under today's secret-projection rules, but upstream's Docker registry
+  offers no pinned version tags — only a rolling `main` build — which blocks
+  it on the `image-tag-pinned` requirement until maintainers publish
+  versioned images. Given the niche audience and the missing pinned-tag
+  input, recommend holding rather than building now.
