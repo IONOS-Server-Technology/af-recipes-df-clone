@@ -1,0 +1,75 @@
+slug: reactive-resume
+name: Reactive Resume
+source_description: "Privacy-first open-source resume builder with 14+ templates and PDF export"
+
+upstream:
+  url: https://rxresu.me
+  repo_url: https://github.com/AmruthPillai/Reactive-Resume
+  license: MIT
+  docker_image: amruthpillai/reactive-resume
+
+version_health:
+  latest_version: "v5.2.5"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very tight release cadence: v5.2.5 (2026-07-30), v5.2.4 (2026-07-28),
+    v5.2.3 (2026-07-08), v5.2.2 (2026-07-07), v5.2.1 (2026-07-05) — five
+    tagged releases in the ~4 weeks before today (2026-08-05), several only
+    a day or two apart. Docker Hub image tags (v5.2.5, v5.2, v5, latest,
+    plus nightly builds) were pushed 6 days ago, matching the release
+    cadence. No archival or EOL signal; clearly active development.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers resume/CV building. This is a
+    new, broadly appealing consumer category — a self-hosted alternative to
+    Canva/Novoresume-style resume builders, with a strong "keep my job
+    search data off a third party's server" privacy pitch that fits the
+    same audience as Vaultwarden/Actual Budget.
+  usefulness: high
+  usefulness_rationale: >
+    Resume building is a mainstream, broadly-appealing use case (40k+
+    GitHub stars) distinct from the developer/ops-tool-heavy slant of most
+    existing recipes, and the app is simple to run (single container +
+    Postgres, no mandatory external services).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, auth_secret, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: auth_secret
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Reactive Resume is a single-HTTP-port (3000) Node.js app backed by
+  Postgres, with local-disk storage under /app/data by default (S3 storage,
+  SMTP, OAuth providers, and AI-provider API keys are all optional
+  features, not required at first boot) — matching the n8n/Postgres
+  recipe shape. Its data-layer secrets (Postgres password, AUTH_SECRET
+  JWT-signing key) are patternless random values the customer never needs
+  to see, so those generate server-side with no input channel required.
+  The one real wrinkle: the app has no admin/owner concept at all — every
+  account is equal, signups are open by default, and there is no supported
+  way to disable public signup while still creating a first account (env
+  flags to gate signups have a long history of not working reliably, per
+  upstream issues #1592/#1655/#2365). Left exposed, a customer's instance
+  could be claimed by a stranger before the customer ever visits it. That's
+  solved the same way as Adminer/n8n: a mandatory Traefik basic_auth gate
+  (projected from the customer's root password) in front of the app, behind
+  which the customer registers their own account normally. Release cadence
+  is very active (5 tags in the last month) with no EOL signal. Recommend
+  building the recipe now: it fills a genuinely new consumer category with
+  zero blocking issues once the basic_auth gate is in place.
