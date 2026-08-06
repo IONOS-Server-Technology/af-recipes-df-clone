@@ -1,0 +1,69 @@
+slug: traggo
+name: Traggo
+source_description: "Self-hosted tag-based time tracker for freelancers and small teams"
+
+upstream:
+  url: https://traggo.net/
+  repo_url: https://github.com/traggo/server
+  license: GPL-3.0
+  docker_image: traggo/server
+
+version_health:
+  latest_version: "0.8.3"
+  latest_release_date: "2026-03-01"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Repo is not archived; last push to master was 2026-07-31, so commit
+    activity continues well past the last tag. But tagged releases have
+    become sparse and irregular: v0.7.0/0.7.1 shipped April 2025, then a
+    ~9 month gap before v0.8.0/0.8.1/0.8.2 all landed within one week
+    (2026-01-01 to 2026-01-08), followed by v0.8.3 two months later
+    (2026-03-01). As of today (2026-08-05) it has been just over 5 months
+    since the last tagged release, with no newer tag despite ongoing
+    commits — consistent with "slowing" cadence rather than "active" or
+    "dormant". 1.6k GitHub stars, 61 open issues, still triaged.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover time tracking. Traggo's tag-based
+    model (spans tagged with arbitrary key/value pairs instead of
+    task/project hierarchies) plus built-in dashboards, calendar/list
+    views and multi-user support give freelancers and small teams a
+    lightweight, privacy-preserving alternative to SaaS trackers (Toggl,
+    Clockify) — a plausible-appeal niche add given the catalogue's existing
+    productivity-adjacent apps (n8n, paperless-ngx, gitea).
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, narrow use case (freelance/small-team time tracking) with a
+    functional, actively-committed web UI, but it's a single-purpose tool
+    competing with well-established SaaS incumbents and its own release
+    cadence has slowed — moderate rather than broad appeal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Traggo is a small, single-container, SQLite-backed Go app exposing one
+  HTTP port (3030) — structurally very close to uptime-kuma/vaultwarden and
+  fully reverse-proxy compatible. Its own admin-login env vars only accept
+  a plaintext password (hashed in-process at startup), so `generated_from`
+  cannot project the customer's root password into it directly; the
+  recipe instead needs a fixed default app-level credential kept behind a
+  mandatory Traefik basic_auth gate whose password is projected from the
+  root password. With that gate in place it is installable today. It fills
+  a genuine gap (no time tracker in the current 24 recipes) with medium,
+  niche-appeal usefulness, and upstream is active-but-slowing (no tagged
+  release in ~5 months, though commits continue) rather than at risk of
+  EOL.
