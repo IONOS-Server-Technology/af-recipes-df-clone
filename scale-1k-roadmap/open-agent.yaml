@@ -1,0 +1,83 @@
+slug: open-agent
+name: Open Agent
+source_description: "Self-hosted AI assistant with LLM, RAG, agent loops, and MCP tool support"
+
+upstream:
+  url: https://www.openagentai.org
+  repo_url: https://github.com/the-open-agent/openagent
+  license: Apache-2.0
+  docker_image: casbin/openagent
+
+version_health:
+  latest_version: "v2.87.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active: 7+ tagged releases between 2026-07-07 (v2.81.1) and
+    2026-08-03 (v2.87.1), i.e. multiple releases per week right up to two
+    days before today (2026-08-05). Docker Hub `casbin/openagent` shows the
+    same v2.87.1 tag pushed 3 days ago. Repo is not archived, has 5.5k+
+    stars, 2,400+ commits, 43 open issues with ongoing PR activity. No
+    indication of maintenance-only mode or slowdown.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [openclaw, hermes-agent, open-webui]
+  differentiation: >
+    Open Agent is a broader "agent platform" than any single existing
+    recipe: it combines a RAG knowledge-base/vector-store layer, a visual
+    agent-workflow builder, native MCP-server tool integration, and
+    computer-use/browser-use automation, on top of 28+ swappable LLM
+    providers. OpenClaw and Hermes Agent are narrower single-agent runtimes
+    driven through messaging apps (Telegram etc.); Open WebUI is a chat
+    front-end paired with Ollama for local inference. Open Agent's RAG +
+    MCP-tool + workflow-builder combination isn't fully covered by any one
+    of the three, but it sits squarely in the same "self-hosted AI agent/
+    assistant" niche as all three put together.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely more feature-rich than the existing agent recipes (RAG
+    stores, MCP tools, computer-use), so it's not a pure duplicate — but
+    the catalogue already has three entries competing for the same "AI
+    agent that needs a model-provider key" customer, and Open Agent's
+    differentiators (workflow builder, computer-use) are power-user
+    features that raise support-surface risk without an obviously distinct
+    buyer from OpenClaw/Hermes Agent.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Upstream docs and Dockerfile give no evidence of any built-in login
+      screen or admin account — `docker run -d -p 14000:14000
+      casbin/openagent` opens straight to the app UI with no auth step.
+      A Traefik basic_auth gate is therefore mandatory (not optional
+      hardening) to avoid the agent/RAG/tool-execution UI sitting open on
+      the internet; this is expressible today via traefik_basic_auth, so
+      it does not block installability, but it must be wired as a hard
+      requirement, not a toggle.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Open Agent (the-open-agent/openagent, "casbin/openagent" on Docker Hub) is
+  a single lightweight Go binary/container defaulting to embedded SQLite —
+  no external database required — exposing one HTTP port (14000), which
+  makes it mechanically simple to ship behind Traefik with a mandatory
+  basic_auth gate, matching the pattern already used for OpenClaw and
+  Hermes Agent. Upstream is unusually active (releases multiple times a
+  week, most recently two days before this analysis) with no EOL signals.
+  The blocker isn't platform mechanics but catalogue fit: it overlaps
+  meaningfully with three existing AI-agent recipes (OpenClaw, Hermes
+  Agent, Open WebUI), and while its RAG + MCP-tool + workflow-builder
+  feature set is a real differentiator, it's an incremental "more agent
+  features" pitch rather than a new category. Worth building if the
+  catalogue wants a fuller-featured agent platform, but not a priority pick
+  over its closer competitors already in the catalogue.
