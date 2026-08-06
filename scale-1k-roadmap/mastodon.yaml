@@ -1,0 +1,98 @@
+slug: mastodon
+name: Mastodon
+source_description: "Self-hosted federated microblogging server based on the ActivityPub standard"
+
+upstream:
+  url: https://joinmastodon.org
+  repo_url: https://github.com/mastodon/mastodon
+  license: AGPL-3.0
+  docker_image: ghcr.io/mastodon/mastodon
+
+version_health:
+  latest_version: "v4.6.4"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.6.4 landed 2026-07-27, about 9 days before today (2026-08-05).
+    Mastodon maintains four parallel release branches (4.6.x, 4.5.x, 4.4.x,
+    4.3.x) and ships security backports across all of them simultaneously —
+    e.g. a critical FFmpeg CVE (CVE-2026-8461) was patched in 4.6.2, 4.5.13,
+    and 4.4.20 within the same week in late June 2026. This is a large,
+    well-funded project (Mastodon gGmbH) with a fast, structured release
+    cadence and no signs of slowing.
+
+catalogue_fit:
+  categories: [social, federation, microblogging]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers social/federated publishing — this would be a
+    genuinely new category. The closest structural peers by "multi-service
+    stack behind one domain" are recipes/immich (Postgres + Redis + app) and
+    recipes/anytype-server (multi-service, non-HTTP sync backend), but
+    neither is a real functional overlap.
+  usefulness: high
+  usefulness_rationale: >
+    Mastodon is the flagship self-hosted ActivityPub server and a common,
+    recurring self-hosting request (personal or small-community
+    microblogging instance). It would be a strong catalogue addition on
+    demand alone, independent of installability concerns below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_ACCOUNT_PASSWORD, SMTP_CREDENTIALS]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Multi-service HTTP surface on one hostname: the official
+      docker-compose.yml runs three containers off two images — `web`
+      (Puma, port 3000) and `streaming` (Node, port 4000) both need to be
+      reachable under the *same* customer domain, with `/api/v1/streaming`
+      routed to the streaming service and everything else to web. Every
+      existing recipe in the catalogue maps one public HTTP port to one
+      Traefik Host-based route per domain; none does path-based splitting
+      of two HTTP services under a single hostname. This is plausible with
+      Traefik PathPrefix routers but has no precedent in the current
+      recipe/renderer mechanism and would need new plumbing, hence
+      `reverse_proxy_compatible: false` for today's mechanism.
+    - >
+      No channel to set the admin account's password. Mastodon has its own
+      local login, but the only account-provisioning path is the
+      `tootctl accounts create <user> --email <email> --confirmed` CLI
+      command run once inside the web container — it has no
+      `--password`/config-file field to accept a plaintext or pre-hashed
+      credential; it always generates its own random password and prints it
+      once to command output. This is not an "unsupported hash algorithm"
+      case (the last row of the SCHEMA.md decision table) — there is no
+      password input field of any kind, hash or plaintext, so
+      `generated_from: "<algo>:ROOT_PASSWORD"` has no destination to
+      project into. A Traefik `basic_auth` gate secures the perimeter but
+      does not solve this: it does not give the customer a usable Mastodon
+      admin login, since the real admin credential is a value the platform
+      would generate but currently has no mechanism to surface back to the
+      customer.
+    - >
+      SMTP is not required to boot (the app starts and `--confirmed`
+      bypasses the registration email), but standard operation — new member
+      signups, admin password-reset flows — depends on a working outbound
+      mail relay. Configuring that requires a customer-supplied external
+      SMTP host/login/password, which has no input channel in `/compose`
+      today. Not a hard blocker on its own since `--confirmed` avoids it at
+      first boot, but it is a real functional gap once running.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mastodon is a high-value, actively maintained project with no equivalent
+  in the current 24-recipe catalogue, but it fails installability on three
+  independent fronts today: it needs two HTTP services split by path under
+  one hostname (no precedent in our single-port-per-domain Traefik
+  mechanism), its admin account has no password-setting channel at all
+  (tootctl only ever generates and prints a random password, so
+  `generated_from` has nowhere to project a hash), and full functionality
+  depends on customer-supplied SMTP credentials with no input channel.
+  These are platform-mechanism gaps rather than a low-value app — recommend
+  revisiting once path-based Traefik routing and a way to surface
+  platform-generated first-boot secrets to the customer both exist.
