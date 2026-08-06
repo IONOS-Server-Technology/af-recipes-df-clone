@@ -1,0 +1,92 @@
+slug: juxtapose
+name: Juxtapose
+source_description: "Self-hosted notification router connecting webhooks to messaging platforms"
+
+upstream:
+  url: https://github.com/jc21/juxtapose
+  repo_url: https://github.com/jc21/juxtapose
+  license: MIT
+  docker_image: jc21/juxtapose
+
+version_health:
+  latest_version: "1.6.0"
+  latest_release_date: "2026-01-22"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Docker Hub's newest tag is 1.6.0, matching the repo's most recent
+    commits ("Adds ntfy support", "bump version", "CI Tweaks", all dated
+    2026-01-22) — about 6.5 months before today (2026-08-05). Formal GitHub
+    "Releases" objects stop at 1.4.4 (2018-10-29); every version since
+    (1.5.4 through 1.6.0) was cut only as a git tag/Docker Hub push with no
+    matching Release entry, so the project's own release notes have been
+    dark for ~8 years even though the code isn't. Commit history shows
+    long dormant stretches between bursts: Jul 2021 → Sep 2021, then
+    nothing until May 2022, then nothing until Nov 2024, then nothing until
+    Jan 2026 — a single maintainer (jc21, better known for nginx-proxy-
+    manager) picking this side project back up roughly once a year for a
+    small patch, not steady development. Not archived, but reads as a
+    minimally-maintained side project rather than an active product.
+
+catalogue_fit:
+  categories: [notifications, automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 built recipes are a dedicated webhook-to-chat
+    notification router, but the value-add over what's already possible is
+    thin: n8n (already in the catalogue) can ingest the same webhooks and
+    fan them out to Slack/Discord/etc. with far more flexibility and far
+    more active upstream development, and two other still-unbuilt gap
+    candidates already cover this exact niche more strongly — Gotify
+    (`gotify.yaml`, active, 15.6k stars, releases every 4-6 weeks) and
+    Apprise API (`apprise-api.yaml`, active, monthly releases, 120+ sink
+    services via a single relay endpoint). Juxtapose's specific selling
+    point — native Jira/Bitbucket/Gerrit/Zendesk/Jenkins source
+    integrations — is a narrower, dev-tool-era feature set (last
+    meaningfully extended in 2018) that a modern customer is more likely to
+    already get from n8n or their CI/chat platform's own webhook support.
+  usefulness: low
+  usefulness_rationale: >
+    The underlying idea (route webhooks to chat) is sound, but Juxtapose is
+    the weakest option among three overlapping candidates already
+    considered for this catalogue: it needs a heavier MariaDB/MySQL-backed
+    stack than the single-container Gotify or Apprise API, its UI and
+    integration list haven't materially changed since 2018, and its release
+    cadence is a once-a-year hobby patch rather than active maintenance.
+    Building this instead of (or alongside) Gotify/Apprise API would add
+    catalogue maintenance burden for a strictly inferior, redundant option.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Juxtapose's own admin login is created with a hardcoded default
+      (admin@example.com / changeme) on first database migration; there is
+      no environment variable or config-file field to seed it from a
+      customer-supplied or root-password-derived hash, so `generated_from`
+      has no channel into the app's native login. Per the schema's
+      fixed-default-credential rule this alone isn't a hard blocker — it
+      can be handled by gating the whole app behind Traefik `basic_auth`
+      instead — but it does mean the app's own login can never reflect the
+      customer's credential.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Juxtapose (image `jc21/juxtapose:1.6.0`) is a single HTTP-port,
+  MariaDB-backed web app that would be mechanically installable today by
+  gating its hardcoded default admin login behind a Traefik `basic_auth`
+  projection of the root-password hash — the same pattern used for other
+  no-input-channel apps in this catalogue. The blocker is fit, not
+  mechanism: it's a sporadically-maintained (roughly one patch burst a
+  year, no formal GitHub Release since 2018) webhook-to-chat router whose
+  job is already better covered by the actively-maintained n8n (already
+  built) and by two stronger unbuilt candidates in this same backlog,
+  Gotify and Apprise API. Recommend `not_recommended` — build one of the
+  more active, less redundant notification-relay candidates instead.
