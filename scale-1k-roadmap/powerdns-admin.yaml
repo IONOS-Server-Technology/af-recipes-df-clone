@@ -1,0 +1,81 @@
+slug: powerdns-admin
+name: PowerDNS-Admin
+source_description: "Web interface for managing PowerDNS zones, records, users, and access control"
+
+upstream:
+  url: https://github.com/PowerDNS-Admin/PowerDNS-Admin
+  repo_url: https://github.com/PowerDNS-Admin/PowerDNS-Admin
+  license: MIT
+  docker_image: powerdnsadmin/pda-legacy
+
+version_health:
+  latest_version: "v0.6.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Released yesterday (v0.6.0, 2026-08-05), two days after v0.5.1
+    (2026-08-03). Before that burst the project had gone quiet for a long
+    stretch: v0.4.2 shipped 2024-01-31 (~9.5 months after v0.4.1,
+    2023-04-11), then a ~30-month gap until v0.5.1 (2026-08-03). The image
+    name itself ("pda-legacy") is a
+    historical artifact from an earlier maintainer handoff; upstream docs
+    note it is still the actively-maintained image despite the name. Not
+    archived, not EOL, but the history shows long dormant stretches
+    punctuated by sudden bursts of activity rather than a steady cadence —
+    treat the current burst as encouraging, not as evidence of durable
+    ongoing cadence yet.
+
+catalogue_fit:
+  categories: [networking, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers authoritative DNS zone
+    hosting/management. pihole and adguard-home are recursive
+    resolvers/ad-blockers for a home or office network, not a public
+    authoritative nameserver with per-zone/per-user access control.
+    PowerDNS-Admin is a UI in front of a PowerDNS authoritative server
+    (which it does not itself bundle) — it would give customers a way to
+    run and administer their own DNS zones, a distinct use case from
+    anything else in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for a technical customer who wants to self-host authoritative
+    DNS (domain registrars, multi-tenant hosting, homelab-to-production DNS
+    migrations), but it's a niche/ops-facing tool, not broad-appeal. Its
+    value is also gated by whether we'd bundle a working PowerDNS backend +
+    database alongside it (see installability notes) — PowerDNS-Admin alone,
+    pointed at nothing, is not useful.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  PowerDNS-Admin has no admin-login env var of its own: the app's own
+  onboarding model is "the first user to register through the web UI
+  becomes Administrator," with no `ADMIN_PASSWORD`-style parameter to
+  project a `generated_from` hash into (only a server-side `SECRET_KEY`
+  Flask secret, which needs no customer input). That first-registration
+  race is exactly the "no login yet, should be gated" case in SCHEMA.md, so
+  a Traefik `basic_auth: true` gate (password via `generated_from` on the
+  root password) is the right mechanism to keep a stranger from claiming
+  the admin account before the customer logs in — same pattern as n8n. The
+  bigger caveat is scope: this app only manages zones on an existing
+  PowerDNS authoritative server; it does not ship one. To be useful
+  standalone the recipe would need to bundle a PowerDNS auth server plus a
+  backend DB (MySQL/Postgres) alongside PowerDNS-Admin, and the
+  customer would still need one manual post-login step to paste the
+  server-generated PDNS API key into Settings > PDNS to link the two —
+  there's no env var/API channel to automate that link at boot. Mechanically
+  installable today with the basic_auth gate; recommend building only with
+  the full PowerDNS-server bundle in scope and the manual linking step
+  documented in install guidance, not as a bare single-container recipe.
