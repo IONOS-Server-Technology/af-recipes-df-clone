@@ -1,0 +1,92 @@
+slug: ghost
+name: Ghost
+source_description: "Ghost is a powerful platform for professional publishing"
+
+upstream:
+  url: https://ghost.org
+  repo_url: https://github.com/TryGhost/Ghost
+  license: MIT
+  docker_image: ghost:6.56.0-bookworm
+
+version_health:
+  latest_version: "v6.56.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.56.0 shipped 2026-08-04, one day before this analysis (2026-08-05).
+    The prior ten releases (v6.55.0 2026-07-31, v6.54.1 2026-07-27, v6.54.0
+    2026-07-24, v6.53.0 2026-07-17, v6.52.1 2026-07-10, v6.52.0 2026-07-09,
+    v6.51.0 2026-07-03, v6.50.0 2026-07-02, v6.49.0 2026-06-26, v6.48.0
+    2026-06-25) show a dense weekly-or-tighter cadence with no gap over
+    ~2 weeks. The official Docker Hub image (`ghost`) was rebuilt the same
+    day as the v6.56.0 tag across all variants (bookworm/alpine, amd64/
+    arm32v7/arm64v8) — image and release cadence are in lockstep. GitHub
+    repo shows a push as recent as 2026-08-06, not archived. Clearly
+    active, well-resourced (Ghost Foundation-backed), not remotely
+    dormant.
+
+catalogue_fit:
+  categories: [cms, blogging, website-builder, publishing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a content-publishing platform —
+    closest neighbors (Gitea, Opengist) are source-control/snippet tools,
+    not a place to run a blog or newsletter. Ghost specifically targets
+    "professional publishing": built-in email newsletters, member
+    signups/gated content, and optional Stripe-backed paid subscriptions,
+    which differentiates it from a general-purpose website CMS like
+    WordPress/Drupal/ClassicPress (also unbuilt candidates in this
+    apps-gaps set, not existing recipes) — Ghost is narrower and more
+    opinionated (no plugin/theme sprawl, Node.js + a curated theme
+    ecosystem) and squarely aimed at writers/creators monetizing an
+    audience, a distinct customer intent from "build me a website."
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosting a blog/newsletter is one of the most commonly requested
+    use cases and the catalogue has no publishing-focused entry today.
+    Ghost is a well-known, actively maintained, MIT-licensed product with
+    a strong brand (used by large publications and independent writers
+    alike), so it broadens the catalogue into a genuinely new category
+    rather than duplicating an existing recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - mysql_root_and_app_db_password
+    - "Traefik basic-auth gate credential (temporarily protects the unauthenticated /ghost first-run setup wizard, where a visitor would otherwise be able to claim the Owner account before the customer does)"
+  secrets_expressible_today:
+    - secret: mysql_root_and_app_db_password
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Ghost is an actively maintained (v6.56.0, 2026-08-04, one day before this
+  analysis; weekly release cadence; official image rebuilt in lockstep),
+  MIT-licensed publishing platform that fills a real gap — none of the
+  current 24 recipes covers blogging/newsletter publishing. It's a single
+  container (official `ghost` image, port 2368) plus a MySQL 8 sidecar,
+  structurally close to a Gitea-style "app + DB" recipe, and Ghost's own
+  docs recommend exactly the reverse-proxy setup (HTTPS + X-Forwarded-*
+  headers) Traefik already provides for every other recipe. The one
+  caveat, same pattern already accepted for Bludit/Baikal/An Otter Wiki in
+  this apps-gaps set: the official image has no env var or config key to
+  pre-provision the admin ("Owner") account — it's created through an
+  unauthenticated browser wizard at /ghost on first visit, with no
+  plaintext-password-accepting CLI path either. install.sh must therefore
+  put a Traefik basic_auth gate (projected from the customer's root
+  password) in front of the app at first boot so a stranger can't race the
+  customer to claim ownership, with the customer expected to disable that
+  gate once they've completed the wizard so their public blog is
+  reachable without a password prompt — the same "temporary claim-race
+  protection, not a permanent lock" tradeoff already accepted for those
+  recipes. That clears the /compose constraint with zero hard blocking
+  issues, but the extra wizard-then-unlock step and lack of a bundled
+  MySQL/queue story (customer must keep the DB container healthy) keep this
+  at build_with_caveats rather than build_now.
