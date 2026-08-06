@@ -1,0 +1,94 @@
+slug: solidinvoice
+name: SolidInvoice
+source_description: "Open-source Symfony invoicing for freelancers and small businesses"
+
+upstream:
+  url: https://solidinvoice.co/
+  repo_url: https://github.com/SolidInvoice/SolidInvoice
+  license: MIT
+  docker_image: solidinvoice/solidinvoice:3.0.1
+
+version_health:
+  latest_version: "3.0.1"
+  latest_release_date: "2026-06-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.0.1 (2026-06-23) is the latest tagged release, about 6.5 weeks before
+    this analysis (2026-08-05) — a short gap, not a warning sign, given the
+    run-up that preceded it: 3.0.0-alpha1 (2026-02-21) → alpha2 (2026-03-22)
+    → beta1 (2026-05-22) → 3.0.0 (2026-06-18) → 3.0.1 (2026-06-23). The
+    Docker Hub `nightly` tag was rebuilt as recently as 2026-08-04 (one day
+    before this analysis) and dozens of `pr-*` build tags landed through
+    early July, confirming ongoing commit activity even without a new
+    stable tag in the interim. The legacy 2.3.x branch's last patch was
+    2.3.17 (2026-05-18), about a month before 3.0.0 shipped; no explicit
+    EOL/maintenance-mode announcement was found for 2.3.x, but the release
+    pattern (last 2.3.x patch predates 3.0.0, no 2.3.x activity since) reads
+    as upstream having moved on to the 3.x line as the one to track. Not
+    archived, not dormant.
+
+catalogue_fit:
+  categories: [business, finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers client
+    invoicing/quoting/recurring billing. Two other gap-analysis candidates
+    cover adjacent ground — apps-gaps/invoiceshelf.yaml (Laravel invoicing,
+    SQLite-capable single container) and apps-gaps/invoice-ninja.yaml
+    (Elastic-licensed invoicing with payment-gateway focus) — so if the
+    catalogue only has room for one invoicing app, SolidInvoice's
+    differentiators are: a permissive MIT license (cleaner than Invoice
+    Ninja's Elastic source-available license) and active 3.x development
+    (vs. InvoiceShelf's 2.x being in security-only maintenance while active
+    work moved to an alpha 3.0 line).
+  usefulness: medium
+  usefulness_rationale: >
+    Invoicing/quoting/recurring billing is a real SMB/freelancer need and a
+    hosting customer would plausibly want to self-host it instead of using
+    a SaaS. Rated medium rather than high because this is the third
+    invoicing candidate seen in this gap-analysis pass (after InvoiceShelf
+    and Invoice Ninja) covering materially the same customer need, and
+    online-payment collection (a headline feature) depends on the customer
+    configuring a payment gateway post-install, which no recipe mechanism
+    can automate today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, SOLIDINVOICE_APP_SECRET]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SOLIDINVOICE_APP_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SolidInvoice is a two-container stack (its own PHP/Symfony app image
+  solidinvoice/solidinvoice:3.0.1 plus a MySQL 8.0 database, per upstream's
+  docker-compose.yml and community guides), exposing a single HTTP port
+  (8765) — structurally close to invoiceshelf/n8n and reverse-proxy
+  friendly behind Traefik on <slug>.<base_domain>. Boot-time config is a
+  DATABASE_URL built from server-generated MySQL credentials plus a
+  SOLIDINVOICE_APP_SECRET (a patternless random string the platform can
+  generate with no customer input, same class of secret as a Laravel
+  APP_KEY) — no blocking issue there. The admin account itself is created
+  exclusively through a browser-based first-run setup wizard at /install,
+  with no env var or API channel to pre-seed a fixed admin credential, so
+  (like InvoiceShelf) the recipe cannot use generated_from root-password
+  projection on the app's own login; gating the whole app behind Traefik
+  basic_auth: true closes that unauthenticated-setup-wizard window the same
+  way, and the customer completes the wizard themselves afterward.
+  Mechanically installable today (build_now), with the caveat that this is
+  the third invoicing-app gap candidate found in this pass covering
+  overlapping ground with apps-gaps/invoiceshelf.yaml and
+  apps-gaps/invoice-ninja.yaml — worth a side-by-side pick rather than
+  building all three.
