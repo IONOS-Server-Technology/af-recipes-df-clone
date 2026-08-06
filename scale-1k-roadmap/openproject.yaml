@@ -1,0 +1,66 @@
+slug: openproject
+name: OpenProject
+source_description: "Open-source project management with Gantt charts, Agile boards, time tracking"
+
+upstream:
+  url: https://www.openproject.org/
+  repo_url: https://github.com/opf/openproject
+  license: GPL-3.0
+  docker_image: openproject/openproject
+
+version_health:
+  latest_version: "17.7.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (17.7.0) shipped the same day as this analysis
+    (2026-08-05); the project follows a regular multi-week minor-release
+    cadence (17.x line active through 2026) plus a nightly `dev`/`dev-slim`
+    floating tag. No signs of maintenance-only or archived status —
+    Community Edition is actively developed alongside the paid Enterprise
+    add-ons.
+
+catalogue_fit:
+  categories: [productivity, project-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers project/portfolio management (Gantt charts,
+    Kanban/Agile boards, time tracking, roadmaps). n8n is workflow
+    automation, not PM; nothing else in the 24-recipe catalogue is adjacent.
+    OpenProject would be a genuinely new category for the catalogue and is
+    a well-known Jira/Asana-class alternative, likely to draw its own
+    customer segment.
+  usefulness: high
+  usefulness_rationale: >
+    Widely recognized open-source PM tool with an active community and a
+    single reverse-proxyable web UI; fills a real gap (no PM/Gantt/Kanban
+    tool currently offered) rather than duplicating an existing recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin_login_gate
+  secrets_expressible_today:
+    - secret: admin_login_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OpenProject is a single-web-UI, Postgres-backed multi-container stack
+  (web/worker/cron/seeder + Postgres + memcached), structurally similar to
+  the n8n/paperless-ngx recipes already in the catalogue, and is actively
+  maintained with a release the same day as this analysis. Its admin
+  account ships with a fixed default login (admin/admin) that can only be
+  changed via a plaintext env var (OPENPROJECT_SEED_ADMIN_USER_PASSWORD) —
+  not expressible via generated_from, which only carries a hash — but per
+  the "fixed default credential" case this is not a blocker: gating the
+  whole app behind Traefik basic_auth makes the weak default credential a
+  non-issue, exactly as done for other login-having apps in the catalogue.
+  All other secrets (Postgres password, Rails SECRET_KEY_BASE) are
+  server-generated and never customer-facing. No overlap with any existing
+  recipe; recommend building now.
