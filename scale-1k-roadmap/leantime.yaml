@@ -1,0 +1,92 @@
+slug: leantime
+name: Leantime
+source_description: "Open-source project management system designed for non-project managers"
+
+upstream:
+  url: https://leantime.io
+  repo_url: https://github.com/Leantime/leantime
+  license: AGPL-3.0
+  docker_image: leantime/leantime
+
+version_health:
+  latest_version: "3.9.8"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.9.8 released 2026-07-08, about 4 weeks before today (2026-08-05).
+    Release history through 2026 is dense: v3.9.0 (2026-06-12) through
+    v3.9.8 (2026-07-08) is nine patch releases in under a month, following
+    monthly-or-faster minor releases back through v3.8.0 (2026-05-27). Repo
+    is not archived, CHANGELOG.md is actively maintained, and the official
+    Docker image (leantime/leantime) is tagged in lockstep with each
+    release. Clearly active, well-maintained project.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers project/task management.
+    Leantime is a goals-and-tasks PM tool (kanban, Gantt, sprints, time
+    tracking) aimed explicitly at non-project-managers/ADHD-friendly teams —
+    a distinct customer search ("project management", "Monday.com/Trello
+    alternative") from anything already shipped (n8n is workflow automation,
+    Gitea is source control, not task tracking).
+  usefulness: high
+  usefulness_rationale: >
+    Project management is one of the most commonly self-hosted SaaS
+    replacements (Monday.com/Asana/Trello alternative), broad appeal beyond
+    developers, and the app is architecturally simple: single PHP app
+    container + MySQL, one HTTP port, standard Traefik-fronted deployment
+    with no raw ports or protocols.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, LEAN_SESSION_PASSWORD, MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD]
+  secrets_expressible_today:
+    - secret: LEAN_SESSION_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the official docker-leantime repo's sample.env and
+      README: Leantime has no admin-username/admin-password environment
+      variable at all. The app boots with zero users and directs the first
+      visitor to a public /install setup wizard where they create the sole
+      admin account interactively in the browser — whoever reaches that
+      wizard first owns the instance. This is the same structural shape
+      documented in apps-gaps/2fauth.yaml and apps-gaps/airtrail.yaml: there
+      is no `type: password` parameter on Leantime's own login to target
+      with `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential
+      is created client-side through the setup wizard, not injected via env
+      var at container start.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the open race to reach /install first, but per the
+      2FAuth/AirTrail precedent it only relocates the problem one layer out:
+      the customer still needs their own distinct credential for the in-app
+      wizard, and today's basic_auth mechanism has no channel to hand the
+      customer a *second* credential beyond the single root-password
+      projection already consumed by the gate itself.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Leantime is an active, well-maintained, high-value catalogue candidate —
+  self-hosted project management fills a real gap distinct from all 24
+  current recipes, and its architecture (single app container + MySQL, one
+  HTTP port) is straightforwardly Traefik-compatible. It fails the
+  installability test for the same structural reason as 2FAuth and
+  AirTrail: the sole admin account is provisioned through an open,
+  first-visitor web setup wizard with no env-var hook, which neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  resolve. The internal LEAN_SESSION_PASSWORD and MySQL credentials are
+  trivially server-generated and not blocking on their own. Revisit once
+  upstream adds an env-var-driven initial-admin flow, or the platform gains
+  a second customer-facing credential channel beyond root-password
+  projection.
