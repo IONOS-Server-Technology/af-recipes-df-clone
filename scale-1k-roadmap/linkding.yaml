@@ -1,0 +1,78 @@
+slug: linkding
+name: Linkding
+source_description: "Linkding is a minimal, fast, self-hosted bookmark manager"
+
+upstream:
+  url: https://linkding.link/
+  repo_url: https://github.com/sissbruecker/linkding
+  license: MIT
+  docker_image: sissbruecker/linkding
+
+version_health:
+  latest_version: "1.45.0"
+  latest_release_date: "2026-01-06"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.45.0 tagged 2026-01-06, ~7 months before today (2026-08-05) — longer
+    than the roughly 1-2 month gaps between the preceding releases (1.44.0
+    2025-10-05, 1.44.1 2025-10-11, 1.44.2 2025-12-13, 1.45.0 2026-01-06), so
+    tagged-release cadence has slowed. However commit activity on `master`
+    is current as of 2026-08-05 (commits the day before this analysis), so
+    the project is actively developed, just without a recent tag cut — not
+    dormant or abandoned.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover bookmark management. Linkding adds
+    a lightweight, single-container, cross-device bookmark manager with
+    tagging, full-text search, browser extensions, and automatic archiving
+    (Wayback Machine snapshots) — a distinct productivity use case not
+    served by anything in the catalogue today.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad appeal for anyone wanting a private, self-hosted alternative to
+    browser-synced or third-party bookmark services; small footprint and
+    single container make it an easy, low-maintenance addition if it were
+    installable.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Linkding has no self-registration and no anonymous/public-access
+      mode — the only way to create a usable account is the container's
+      LD_SUPERUSER_NAME / LD_SUPERUSER_PASSWORD env vars, checked directly
+      in the upstream source
+      (bookmarks/management/commands/create_initial_superuser.py):
+      `user.set_password(superuser_password)`. Django's `set_password()`
+      takes the raw plaintext and re-hashes it internally (PBKDF2 by
+      default) — it does not accept a pre-computed verifier hash the way
+      Vaultwarden's ADMIN_TOKEN does. `generated_from` only ever produces a
+      hash of the customer's root password, never the plaintext, so there
+      is no way to provision this superuser account through the current
+      mechanism.
+    - >
+      A Traefik basic_auth gate does not substitute here: it would only
+      protect network reachability, not solve the app's own login. Without
+      a superuser account, the customer has no credentials to authenticate
+      into Linkding itself and the instance is unusable on first boot.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Linkding is a well-maintained, single-container, single-HTTP-port (9090)
+  bookmark manager behind no existing recipe, and would be a clean addition
+  to the catalogue on merit. It's blocked today because its only account-
+  provisioning path (LD_SUPERUSER_PASSWORD) requires the plaintext admin
+  password, not a hash, and af-api's root-password projection only ever
+  produces a hash — there is no plaintext-credential input channel today,
+  and Traefik basic_auth can't stand in for the app's own login. Revisit
+  once a plaintext-projection mechanism exists, or if upstream adds a way
+  to seed the superuser from a pre-hashed password.
