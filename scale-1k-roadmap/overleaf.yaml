@@ -1,0 +1,70 @@
+slug: overleaf
+name: Overleaf
+source_description: "Open-source collaborative LaTeX editor for scientific and academic writing"
+
+upstream:
+  url: https://www.overleaf.com
+  repo_url: https://github.com/overleaf/overleaf
+  license: AGPL-3.0
+  docker_image: sharelatex/sharelatex
+
+version_health:
+  latest_version: "6.2.2"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    16 days since the 6.2.2 image push as of 2026-08-05. Release cadence over
+    the last year has been mostly regular (6.1.0 2026-01-20, 6.1.1 2026-01-20,
+    6.1.2 2026-02-19) but had one ~4-month quiet stretch between 6.1.2
+    (2026-02-19) and 6.2.0-RC1 (2026-06-18) before resuming a tight 1-4 week
+    cadence through 6.2.0/6.2.1/6.2.2 (2026-06-24 to 2026-07-20). 28k+ commits
+    on the main branch, active issue triage and PR activity. No archival or
+    EOL signal — this is the actively maintained upstream (the historical
+    "ShareLaTeX" project was rebranded/merged into Overleaf years ago; the
+    Docker Hub repo `sharelatex/sharelatex` is the current official Community
+    Edition image, not an abandoned fork).
+
+catalogue_fit:
+  categories:
+    - productivity
+    - developer-tools
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers collaborative document/scientific-writing
+    editing. Closest catalogue neighbors (gitea, opengist) are code
+    collaboration, not LaTeX/academic-writing tooling — this is a distinct
+    use case (labs, universities, journal submission workflows) with no
+    overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand (academic/research users who want to self-host instead
+    of paying for overleaf.com), but a narrower audience than general
+    productivity or dev tools, and the app is heavy (bundled TeX Live +
+    compile workers) relative to typical AF recipe footprints.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Overleaf Community Edition needs three containers (sharelatex app + mongo
+  with a replica set + redis) behind a single HTTP port (80), so it fits
+  Traefik reverse-proxying fine. Its admin account is created through a
+  first-visit web wizard (/launchpad) rather than any env var — there is no
+  parameter to project a root-password hash into, so nothing is structurally
+  blocked by the current generated_from/basic_auth constraint, but the
+  open /launchpad page is a first-user-wins race between deploy and the
+  customer's first login (the same pattern already accepted for open-webui
+  in this catalogue). Upstream is actively maintained with a recent release
+  16 days old. Recommend build_with_caveats: no platform blocker, but flag
+  the mongo replica-set init step and heavier resource footprint (bundled
+  TeX Live) as build-time caveats, and consider adding a Traefik
+  basic_auth gate (mechanism available, not required) as defense-in-depth
+  around the open launchpad race.
