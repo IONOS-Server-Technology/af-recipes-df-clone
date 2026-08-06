@@ -1,0 +1,76 @@
+slug: karakeep
+name: Karakeep
+source_description: "Karakeep is a self-hosted bookmark manager with AI-powered tagging and search"
+
+upstream:
+  url: https://karakeep.app/
+  repo_url: https://github.com/karakeep-app/karakeep
+  license: AGPL-3.0
+  docker_image: ghcr.io/karakeep-app/karakeep
+
+version_health:
+  latest_version: "v0.33.1"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Core-app tag releases roughly every 6-10 weeks (v0.29.3 → v0.30.0 →
+    v0.31.0 → v0.32.0 → v0.33.1), plus separate sdk/mcp/cli/ios/android tags
+    updating even more frequently (last mobile tags 2026-07-25/26). Latest
+    core release (v0.33.1) landed 2026-08-01, only 4 days before today
+    (2026-08-05). No archival, deprecation, or EOL signal; formerly named
+    "Hoarder", rename completed and project remains under active
+    development.
+
+catalogue_fit:
+  categories: [productivity, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers bookmark/link management. Anytype Server and
+    Paperless-ngx/Paperless-AI are the closest analogues in spirit
+    (personal knowledge / document organization with AI assistance) but
+    target notes and scanned documents respectively, not saved web links,
+    screenshots, and full-page archives. Karakeep would open a new
+    "save and organize what I read" use case for the catalogue.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted bookmarking with AI auto-tagging and full-text/semantic
+    search is a popular, differentiated niche (successor to the
+    well-known "Hoarder" project) with genuine consumer appeal, but it is
+    a smaller and more niche audience than password managers, monitoring,
+    or budgeting tools already in or being added to the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today:
+    []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Karakeep is a multi-container stack (Next.js web app + headless Chrome
+  for archival/screenshots + Meilisearch for search) but only the web
+  service's port 3000 needs to be public, so it is reverse-proxy
+  compatible behind Traefik on <slug>.<base_domain> like our existing
+  multi-service recipes (n8n, anytype-server). It needs two internal
+  secrets at boot, NEXTAUTH_SECRET and MEILISEARCH_MASTER_KEY, but neither
+  is customer-facing — both are opaque random strings the app itself
+  generates/consumes, never surfaced to or entered by the customer, so
+  they map cleanly to server_generated_no_customer_input and need no
+  projection channel. Authentication follows the same pattern as Uptime
+  Kuma / Actual Budget: there is no baked-in admin account or env-injected
+  password — the first visitor creates their own account via an in-app
+  signup form and becomes the owner. Optional OPENAI_API_KEY (or
+  compatible LLM endpoint) env var enables AI auto-tagging but is not
+  required to boot or use the app, so it doesn't block installability,
+  only trims a headline feature until af-api gains a customer-supplied
+  API-key channel. Net: clears the current /compose constraint with zero
+  blocking issues and fills a genuinely new niche (bookmark/read-it-later
+  management) not covered by the 24 existing recipes. Recommend building
+  now, with a note that AI tagging will need manual post-install
+  configuration by the customer until an API-key input mechanism exists.
