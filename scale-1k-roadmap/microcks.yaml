@@ -1,0 +1,100 @@
+slug: microcks
+name: Microcks
+source_description: "CNCF API mocking and contract testing platform for multi-protocol services"
+
+upstream:
+  url: https://microcks.io
+  repo_url: https://github.com/microcks/microcks
+  license: Apache-2.0
+  docker_image: quay.io/microcks/microcks
+
+version_health:
+  latest_version: "1.15.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (1.15.0) published today, 2026-08-05, per the GitHub
+    Releases API. Prior releases: 1.15.0-rc1 (2026-06-22), 1.14.0
+    (2026-04-29), 1.13.2 (2026-01-06), 1.13.1 (2025-12-08), 1.13.0
+    (2025-10-25), 1.12.1 (2025-07-21), 1.12.0 (2025-05-28) — a steady
+    ~4-10 week cadence over the past year with no gaps. Repo is not
+    archived, is a CNCF incubating project (not a sandbox/graduated-only
+    signal but an active governance structure with a real TOC checkpoint
+    cadence), and ships an official Kubernetes Operator and Helm chart
+    alongside the core app. Clearly active, well-governed upstream.
+
+catalogue_fit:
+  categories: [developer-tools, api-testing]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers API mocking / contract
+    testing — the closest adjacent recipes (n8n for automation, Gitea for
+    source hosting) address a different stage of the dev lifecycle
+    entirely. Microcks would be a genuinely new category (mock a
+    REST/SOAP/GraphQL/gRPC/AsyncAPI service from its spec, so consumer
+    teams can build/test against it before the real backend exists) with
+    no overlap against anything currently shipped.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-regarded tool in its niche (CNCF incubating, used by
+    several enterprises for contract testing), but it targets API/platform
+    engineering teams specifically rather than the broader self-hosting
+    audience the rest of the catalogue serves — a narrower addressable
+    customer than e.g. n8n or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [keycloak_realm_admin_login, basic_auth_gate_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Upstream's reference docker-compose ships two structurally different
+      topologies, both incompatible with our current single-domain,
+      single-HTTP-port-behind-Traefik model. The "standard" stack fronts
+      the app with Keycloak for OIDC login: the app container publishes
+      8080 (HTTP API/UI) AND 9090 (gRPC mock port), Keycloak publishes a
+      separate port (18080 in the reference compose), and the app's JVM
+      options bake in a KEYCLOAK_PUBLIC_URL/OIDC issuer-uri tied to that
+      exact second hostname:port at boot — this needs two publicly
+      routable endpoints on two different hostnames/ports, not one
+      <slug>.<base_domain> mapping.
+    - >
+      The Keycloak-fronted login credential itself has no channel we
+      support: the customer-facing account (admin / microcks123) is
+      provisioned from a bcrypt hash baked into a static realm-import JSON
+      file, not from an env var — it cannot be projected via
+      generated_from: "<algo>:ROOT_PASSWORD" without us maintaining a
+      templated realm JSON per install, which the platform doesn't do
+      today.
+    - >
+      The "devmode" compose variant (KEYCLOAK_ENABLED=false) drops
+      Keycloak and would in principle let us gate the whole thing behind
+      Traefik basic_auth per the Adminer/WUD pattern — but doing so also
+      gates the mock-serving ports (8080 HTTP mocks, 9090 gRPC mocks, plus
+      Kafka 9092/19092 in the async profile) that Microcks' actual product
+      value depends on: external test clients calling a mocked
+      SOAP/GraphQL/gRPC/Kafka endpoint can't practically speak HTTP basic
+      auth on those raw protocols, so gating breaks the feature the app
+      exists for. There's no way to gate only the admin UI while leaving
+      mock endpoints open without a per-path/per-port auth split the
+      platform doesn't support today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Microcks is an active, well-governed CNCF project (1.15.0 released
+  2026-08-05, steady multi-month cadence, not archived) that would fill a
+  genuinely new "API mocking / contract testing" category with zero
+  overlap against the current 24 recipes. It is not installable under the
+  current mechanism, though: its reference architecture is inherently
+  multi-port and multi-protocol (HTTP UI, gRPC mocks, optional Kafka
+  mocks), needs either a second public hostname for Keycloak or gating
+  that would break the raw mock ports it exists to serve, and its
+  customer-facing login credential is baked into a static Keycloak realm
+  file with no generated_from-compatible input channel. Revisit if the
+  platform gains multi-port-per-recipe support and a templated
+  Keycloak-realm provisioning path; until then this is blocked on
+  platform capability, not a "don't build" call on the app itself.
