@@ -1,0 +1,94 @@
+slug: maloja
+name: Maloja
+source_description: "Self-hosted music scrobble database with personal listening charts"
+
+upstream:
+  url: https://github.com/krateng/maloja
+  repo_url: https://github.com/krateng/maloja
+  license: GPL-3.0
+  docker_image: krateng/maloja
+
+version_health:
+  latest_version: "v3.2.4"
+  latest_release_date: "2025-02-10"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Latest tag v3.2.4 shipped 2025-02-10 — 18 months before this analysis
+    (2026-08-05). The last commit to master of any kind was 2025-05-18
+    (a single PR merge); before that the most recent substantive commits
+    were 2025-02-14/15/17. So it's been roughly 15 months since any code
+    change and 18 months since the last tagged release, despite 114 open
+    issues and 14 open PRs sitting untouched. The repo is not formally
+    archived and no EOL has been announced, but the maintainer (krateng,
+    a solo developer) shows no activity pattern consistent with ongoing
+    upkeep. Treat as effectively dormant/maintenance-only rather than
+    "active" — this is the kind of stall this analysis should flag rather
+    than take at face value from the "actively maintained" framing on
+    third-party mirror pages (e.g. LinuxLinks, awesome-docker-compose).
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal music-listening
+    tracking/scrobbling. Immich and Lychee cover photos, Paperless covers
+    documents — Maloja would be the only recipe serving the "track and
+    chart my own music listening history" niche (a self-hosted
+    Last.fm-style stats page fed by scrobbler clients/plugins).
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow niche — music-scrobble tracking appeals to a small
+    slice of self-hosting hobbyists, well below the broad utility of
+    monitoring, password-management, or automation tools already in the
+    catalogue. Combined with the dormant upstream (no release in 18
+    months, no commits in 15), this isn't a project worth building a
+    recipe on top of even before the installability question.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Maloja's admin login is set via the `MALOJA_FORCE_PASSWORD`
+      environment variable, but the app takes this value as a **plaintext**
+      password and hashes it itself internally (confirmed in
+      `maloja/setup.py`: `auth.change_pw(password=forcepassword)`, feeding
+      straight into `doreah.auth.AuthManager`). There is no env var or
+      settings key that accepts a pre-hashed credential. Our only
+      per-customer secret channel, `generated_from: "<algo>:ROOT_PASSWORD"`,
+      only ever produces an argon2/bcrypt hash digest — it cannot supply a
+      plaintext value. This is the genuine-plaintext-required case
+      (distinct from an unsupported-hash-algo case): no `generated_from`
+      algorithm, present or future, can satisfy this parameter.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app does not
+      substitute here, because Maloja's own login is not just an
+      open/unprotected front door to gate — it's how the customer must
+      authenticate to reach admin features they need for the app to be
+      useful at all (registering scrobbler API keys, manual scrobbling,
+      editing listening data). Gating at Traefik with the root-password
+      hash and leaving `MALOJA_FORCE_PASSWORD` server-generated/unknown to
+      the customer would lock the customer out of Maloja's own admin UI
+      entirely, since they'd have no way to learn or set that password.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Maloja is mechanically close but not installable today: its single
+  customer-facing credential (the admin login used for scrobbler API key
+  setup and data management) can only be provisioned via a plaintext env
+  var that the app hashes itself, and our root-password projection
+  mechanism only ever carries a hash, never plaintext — no current or
+  planned `generated_from` algorithm closes that gap, and a Traefik
+  basic_auth gate can't substitute since the customer genuinely needs to
+  log into Maloja's own UI. Even setting the installability question
+  aside, upstream has had no commits in ~15 months and no release in ~18
+  (v3.2.4, 2025-02-10), against a backlog of 114 open issues — a solo
+  maintainer project that looks dormant. Given the niche appeal (no
+  catalogue overlap, but a narrow audience) and the dormant upstream, this
+  is not a priority even if a future generic plaintext-credential channel
+  emerges.
