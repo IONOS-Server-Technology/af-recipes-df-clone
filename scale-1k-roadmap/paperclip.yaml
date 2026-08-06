@@ -1,0 +1,115 @@
+slug: paperclip
+name: Paperclip
+source_description: "Paperclip is an AI/ML orchestration platform for autonomous teams"
+
+upstream:
+  url: https://paperclip.ing
+  repo_url: https://github.com/paperclipai/paperclip
+  license: MIT
+  docker_image: ghcr.io/paperclipai/paperclip
+
+version_health:
+  latest_version: "v2026.722.0"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~2 weeks since the latest release as of 2026-08-05 (v2026.722.0,
+    2026-07-22), consistent with the project's observed cadence of a tagged
+    release every 1-2 weeks since its public launch (v2026.525.0, 2026-05-25).
+    Project is very young (~5 months old) but growing fast (75.7k GitHub
+    stars, 14.1k forks, 3,480 commits, 453K image pulls) with active commit
+    and release activity — no sign of slowing. The official container
+    registry (ghcr.io/paperclipai/paperclip) only publishes `latest`,
+    `buildcache`, and `sha-<commit>` tags rather than tags matching the
+    named releases above, so a real recipe would need to pin to a specific
+    `sha-<commit>` rather than a clean semver-looking tag.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [hermes-agent, openclaw, n8n]
+  differentiation: >
+    Unlike hermes-agent and openclaw, which each run a single AI agent
+    against messaging apps, Paperclip is a meta-orchestrator that sits above
+    multiple agent runtimes at once (OpenClaw, Claude Code, Codex, Cursor,
+    or arbitrary HTTP bots) and coordinates them via an org chart with
+    roles, reporting lines, per-agent budgets, and an audit trail — closer
+    to a fleet-management console than a single agent. It's not a workflow
+    engine like n8n either (no node-based flow builder); its unit of work is
+    an autonomous agent with a role, not a wired-together pipeline.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiator for a customer already running several AI agents
+    and wanting governance/budget/audit across them, but that's a narrower
+    and more advanced audience than hermes-agent/openclaw's "run one agent
+    against Telegram" use case. Popularity (75k+ stars) is a strong signal
+    of interest but the project is only ~5 months old, so durability of
+    that interest is unproven.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - BETTER_AUTH_SECRET
+    - dashboard basic-auth gate credential
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: dashboard basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Paperclip's own admin account is created through a first-run web
+      signup (name/email/password entered in the UI), not through an env
+      var the recipe can populate at container start — so there is no
+      metadata parameter to project a `generated_from:
+      "<algo>:ROOT_PASSWORD"` hash into, unlike Vaultwarden's ADMIN_TOKEN.
+      Left ungated, the first visitor to reach the instance after boot could
+      claim the admin account. Recommend the Traefik `basic_auth: true`
+      pattern already used for hermes-agent's dashboard as the practical
+      gate, even though Paperclip technically has its own (just
+      not-boot-time-settable) login — same precedent, applied to a
+      slightly different shape of problem.
+    - >
+      Functioning agents need at least one LLM provider API key
+      (Anthropic/OpenAI/OpenRouter/etc.), which has no customer-supplied
+      input channel today. This does not block *installability* — like
+      hermes-agent and openclaw, Paperclip boots and is reachable/loggable
+      into with zero agents configured, and the customer adds provider keys
+      post-provision via the authenticated dashboard's Connections UI — but
+      it does mean the app is inert out of the box until the customer brings
+      their own key.
+    - >
+      Name/ecosystem note: search results surfaced numerous GitHub repos
+      across unrelated accounts (Made-By-Adem/paperclipai-docker,
+      penclipai/paperclip-cn, osodevops/docker-paperclip,
+      operator888/paperclip, codingmatty/paperclip-ai,
+      agencyenterprise/paperclip-ai) all carrying the identical tagline
+      "Open-source orchestration for zero-human companies" as unofficial
+      Docker packaging/mirrors of the same project. The canonical upstream
+      is confirmed as github.com/paperclipai/paperclip (75.7k stars, MIT,
+      Paperclip Labs, Inc.) — a recipe should pull from
+      ghcr.io/paperclipai/paperclip only, never from any of these
+      third-party mirrors.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Paperclip is a legitimate, MIT-licensed, actively-developed (weekly-ish
+  releases) multi-agent orchestration platform with a single reverse-proxy-
+  friendly web UI (Node.js server + Postgres), genuinely differentiated from
+  our existing hermes-agent/openclaw/n8n recipes by its org-chart/governance
+  layer over multiple agent runtimes at once. It's installable today —
+  server-generated secrets cover the DB/auth secrets, and a Traefik
+  basic_auth gate can stand in for the fact that Paperclip's own admin login
+  isn't settable via env at boot — and it works with zero LLM provider keys
+  configured, with the customer adding their own via the dashboard after
+  first login. Caveats: the project is only ~5 months old with an unproven
+  long-term trajectory despite fast early growth, the official image only
+  ships `latest`/`sha-*` tags rather than clean version tags to pin against,
+  and the audience (teams already running several AI agents) is narrower
+  than most of our current catalogue.
