@@ -1,0 +1,63 @@
+slug: libredesk
+name: LibreDesk
+source_description: "Open-source helpdesk with omnichannel ticketing, live chat, and SLA management"
+
+upstream:
+  url: https://libredesk.io/
+  repo_url: https://github.com/abhinavxd/libredesk
+  license: AGPL-3.0
+  docker_image: libredesk/libredesk
+
+version_health:
+  latest_version: v2.6.1
+  latest_release_date: 2026-07-31
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 2-4 weeks (v2.2.0/v2.2.1 2026-04-25, v2.3.0
+    2026-05-29, v2.3.1 2026-06-01, v2.4.0 2026-06-18, v2.5.0 2026-07-11,
+    v2.6.0/v2.6.1 2026-07-31) — latest release is 5 days before today
+    (2026-08-05). Actively developed, no signs of maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [productivity, communication, support]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers helpdesk/ticketing or omnichannel customer
+    support. Closest catalogue neighbors (n8n, Gitea, Anytype) are
+    automation/dev-collaboration tools, not customer-support desks. LibreDesk
+    adds a distinct category: shared inbox, live chat widget, SLA rules,
+    macros/automation, and CSAT surveys for teams handling customer inquiries.
+  usefulness: medium
+  usefulness_rationale: >
+    Helpdesk software is a common SMB need and nothing similar exists in the
+    current 24-recipe catalogue, so it would fill a real gap. Usefulness is
+    "medium" rather than "high" because it's a fairly narrow (support-team)
+    use case and the app is comparatively young (first stable-ish releases
+    within the last ~year based on cadence), unlike a category-defining
+    incumbent.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LIBREDESK_SYSTEM_USER_PASSWORD, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: LIBREDESK_SYSTEM_USER_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LibreDesk is a Go-based, single-binary omnichannel helpdesk (Postgres +
+  Redis + app, one public HTTP port 9000, Traefik-friendly) with an active
+  upstream (latest release 5 days old) and no overlap in our current
+  catalogue. Its only login is a single "System" admin account whose
+  password is set via the LIBREDESK_SYSTEM_USER_PASSWORD env var, which maps
+  cleanly onto the generated_from:ROOT_PASSWORD mechanism the same way
+  Vaultwarden's ADMIN_TOKEN does, and the Postgres password is a
+  server-generated secret the customer never needs. No blocking issues;
+  recommend building a recipe now.
