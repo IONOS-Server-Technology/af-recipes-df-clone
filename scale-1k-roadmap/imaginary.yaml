@@ -1,0 +1,70 @@
+slug: imaginary
+name: Imaginary
+source_description: "Fast HTTP microservice for high-performance image processing powered by libvips"
+
+upstream:
+  url: https://github.com/h2non/imaginary
+  repo_url: https://github.com/h2non/imaginary
+  license: MIT
+  docker_image: h2non/imaginary
+
+version_health:
+  latest_version: "v1.2.4"
+  latest_release_date: "2020-08-12"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v1.2.4 in August 2020 — 6 years as of
+    2026-08-05. The repo is not archived and still receives sporadic
+    commits (most recent seen: a Dockerfile build fix merged
+    2025-11-08), but that work has not been cut into a new version or
+    a refreshed `h2non/imaginary` Docker Hub image, which itself hasn't
+    been pushed in about 6 years. Effectively unmaintained-but-not-dead:
+    fine for a stable, narrowly-scoped image-resizing microservice, but a
+    6-year-old base image is a real supply-chain/CVE concern for anything
+    shipped as a recipe today.
+
+catalogue_fit:
+  categories: [developer-tools, media]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a generic image-processing/resizing
+    API. Immich does its own internal thumbnail generation but doesn't
+    expose it as a reusable service; Imaginary would be a standalone
+    HTTP microservice a developer could point their own app at for
+    on-the-fly resize/crop/convert operations.
+  usefulness: low
+  usefulness_rationale: >
+    It's a backend-only JSON/binary HTTP API with no UI and no concept of
+    end-user accounts — there's nothing for a non-technical customer to
+    open or click on. Value is limited to developers wiring it into their
+    own app as an image-processing backend, which is a narrow slice of the
+    AF customer base, and the stale (6-year-old) upstream image dampens
+    appeal further.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Imaginary is a single-container, single-HTTP-port (8088) Go microservice
+  with no web UI and no built-in login — it optionally supports an
+  `-key`/API-Key header scheme, but that key is an app-launch flag, not
+  something a customer types into a login form. Left unauthenticated it
+  would be an open image-processing endpoint on the internet, so it needs
+  to be gated the same way as Adminer/WUD: a domain param plus Traefik
+  `basic_auth: true`, with that password projected via the customer's root
+  password (`generated_from`). Mechanically installable today, but not
+  recommended to build now: it has no web UI (low appeal to most
+  customers, developer-only use case), no functional overlap need in the
+  current catalogue to justify urgency, and the upstream image is 6 years
+  stale with only sporadic, unreleased commit activity — build only if a
+  concrete developer-facing image-processing use case emerges.
