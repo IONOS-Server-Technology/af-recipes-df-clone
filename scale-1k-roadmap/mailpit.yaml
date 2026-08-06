@@ -1,0 +1,65 @@
+slug: mailpit
+name: Mailpit
+source_description: "Open-source SMTP email testing tool with a browser-based inbox for developers"
+
+upstream:
+  url: https://mailpit.axllent.org
+  repo_url: https://github.com/axllent/mailpit
+  license: MIT
+  docker_image: axllent/mailpit
+
+version_health:
+  latest_version: "v1.30.6"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.30.6 published 2026-07-28, ~8 days before today
+    (2026-08-05). Release history shows a steady cadence of roughly one
+    release every 1-3 weeks through 2026 (v1.29.0 on 2026-02-01 up to
+    v1.30.6), with no gaps. Repo is not archived, single maintainer
+    (axllent) but consistently active. Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers SMTP/email testing for
+    developers. Mailpit is a single-binary SMTP catcher (default port 1025)
+    with a web inbox (default port 8025) that lets a customer point any
+    app's outgoing mail at it during development/staging and inspect,
+    search, and HTML-check what would have been sent, without a real mail
+    provider. It's a distinct, self-contained developer-tools use case, not
+    covered by any monitoring, CMS, or ops recipe already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for developers building/staging apps that send email
+    (the same audience already served by n8n, gitea, opengist), but it's a
+    single-purpose testing tool rather than something with broad end-user
+    appeal, so demand is likely narrower than general-purpose recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_admin_password]
+  secrets_expressible_today:
+    - secret: ui_admin_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mailpit is a single-container, single-primary-HTTP-port (8025) app that
+  works cleanly behind Traefik on <slug>.<base_domain>; its SMTP port
+  (1025) needs a raw TCP port exposed alongside the HTTP one, the same
+  precedent as Gitea's SSH port or wg-easy's UDP port, so it's not a
+  structural blocker. Unlike most no-login apps in this catalogue, Mailpit
+  ships its own web UI authentication (MP_UI_AUTH_FILE / MP_UI_AUTH),
+  supporting a password file with bcrypt-encoded credentials — so its admin
+  login can be projected directly via `generated_from: "bcrypt:ROOT_PASSWORD"`
+  rather than needing a Traefik basic_auth gate. Combined with an actively
+  maintained upstream (weekly-to-biweekly releases through 2026, MIT
+  license, official multi-arch Docker image), this is directly installable
+  today and worth building.
