@@ -1,0 +1,97 @@
+slug: homebridge
+name: Homebridge
+source_description: "HomeKit bridge for non-Apple smart home devices using plugins"
+
+upstream:
+  url: https://homebridge.io/
+  repo_url: https://github.com/homebridge/homebridge
+  license: Apache-2.0
+  docker_image: homebridge/homebridge
+
+version_health:
+  latest_version: "2.2.1"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Core homebridge npm package is at v2.2.1 (2026-07-19), preceded by
+    v2.2.0 (2026-07-18), v2.1.1 (2026-07-12) and v2.1.0 (2026-06-04) —
+    roughly monthly or faster, and only ~2.5 weeks before today
+    (2026-08-05). The official homebridge/homebridge Docker image tracks
+    this closely: its `latest`/`ubuntu`/date-tagged (e.g. `2026-08-05`)
+    tags were rebuilt about 16 hours before this analysis. Homebridge v2
+    (2026) added Matter-standard support alongside HomeKit, showing
+    continued active development, not maintenance-only. Repo is not
+    archived; commits and releases are ongoing.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [home-assistant, domoticz]
+  differentiation: >
+    Homebridge is not really a general home-automation hub like Home
+    Assistant/Domoticz — it's a narrower HomeKit compatibility shim:
+    it exposes non-HomeKit smart devices (via community plugins) as
+    HomeKit accessories so they show up in Apple's Home app. Its entire
+    value proposition depends on two local-network mechanisms that a
+    cloud VM cannot provide: (1) mDNS/Bonjour advertisement so the
+    customer's iPhone/iPad on their home Wi-Fi can discover and pair
+    with the bridge, and (2) direct LAN reachability to the smart
+    devices/hubs it bridges (Zigbee/Z-Wave USB dongles, local WiFi
+    devices, etc. attached to the customer's home network). Both
+    require Homebridge to run inside the customer's home LAN broadcast
+    domain, not on an IONOS cloud VM reachable only via a public domain.
+  usefulness: low
+  usefulness_rationale: >
+    Even ignoring the installability question, hosting this app on a
+    cloud VM does not deliver its core function: without being on the
+    same LAN as the customer's iPhone and smart devices, HomeKit
+    pairing and device bridging simply do not work (short of the
+    customer building their own site-to-site VPN back to their home
+    network — a heavy, unsupported workaround, not something a hosting
+    recipe can set up). This is a fundamentally local-network appliance,
+    not a cloud-hostable web app, unlike Home Assistant/Domoticz whose
+    web dashboards at least remain reachable and partially useful
+    remotely even when local-device control is limited.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The official docker-homebridge image documents network_mode: host
+      as required for HomeKit accessory discovery (Bonjour/mDNS,
+      ENABLE_AVAHI) — the container needs to share the host's network
+      stack to participate in the customer's home LAN broadcast domain.
+      That's already a poor fit for our bridge-network + Traefik model,
+      but the deeper problem is architectural, not just a Docker
+      networking flag: an IONOS cloud VM is not on the customer's home
+      LAN at all, so even with host networking granted, the bridge
+      cannot discover or reach the smart devices it exists to bridge,
+      nor be discovered by the customer's phone for HomeKit pairing.
+      There is no recipe mechanism (present or planned) that closes this
+      gap — it is not something IF-1420/1312 or a future secrets
+      channel would fix.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Homebridge (image homebridge/homebridge, actively released, latest
+  core v2.2.1 from 2026-07-19) is a HomeKit compatibility bridge, not a
+  general home-automation hub — it exposes a customer's local smart
+  devices to Apple's Home app via mDNS/Bonjour and community plugins.
+  Its Homebridge Config UI X web login ships with a fixed admin/admin
+  default with no env var to change it at boot, which would ordinarily
+  be solvable with a Traefik basic_auth gate (installable per the
+  secrets-projection mechanism). But that doesn't address the real
+  blocker: Homebridge's core function requires it to physically sit on
+  the customer's home LAN (for Bonjour discovery by their phone and
+  reachability to their local Zigbee/WiFi devices), which a cloud VM at
+  IONOS cannot provide. This is a structural, product-level mismatch
+  with cloud hosting, not a platform feature gap — not recommended, and
+  distinct from the home-assistant/domoticz overlap in the catalogue
+  which at least retain a usable remote web dashboard.
