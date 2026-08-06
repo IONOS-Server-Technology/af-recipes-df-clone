@@ -1,0 +1,75 @@
+slug: memgraph
+name: Memgraph
+source_description: "In-memory graph database for real-time analytics on connected data"
+
+upstream:
+  url: https://memgraph.com/
+  repo_url: https://github.com/memgraph/memgraph
+  license: BSL 1.1 (converts to Apache-2.0 after 4 years per-version) with a free-use license for most production use; MAGE algorithm library is Apache-2.0
+  docker_image: memgraph/memgraph
+
+version_health:
+  latest_version: "3.12.0"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.12.0 released 2026-07-15, 21 days before today (2026-08-05). GitHub
+    releases show a steady monthly cadence: v3.9.0 (2026-03-25), v3.10.0
+    (2026-05-13), v3.10.1 (2026-05-15), v3.11.0 (2026-06-17), v3.12.0
+    (2026-07-15). Docker Hub confirms the same tags pushed on matching
+    dates. Actively developed, well outside dormant/maintenance territory.
+    Note: the standalone "Memgraph Platform" all-in-one image
+    (memgraph/memgraph-platform) was deprecated after 2.14.1 in favor of a
+    docker-compose pairing of memgraph/memgraph (or memgraph/memgraph-mage)
+    with memgraph/lab — the images to pin for a recipe are the split ones,
+    not memgraph-platform.
+
+catalogue_fit:
+  categories: [database, developer-tools, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a graph database. It's a
+    genuinely different data model from anything shipped today (no
+    Postgres/MySQL-admin UI, no vector/document store recipe either), and
+    Memgraph specifically markets itself for GraphRAG / AI-agent-memory /
+    real-time relationship analytics use cases, which pairs conceptually
+    with the existing open-webui/ollama/hermes-agent AI recipes without
+    duplicating any of them. Bundled with Memgraph Lab it ships as a
+    complete self-contained graph platform, not a bare admin tool needing a
+    pre-existing external database (contrast apps-gaps/adminer.yaml, which
+    needs a customer to bring their own DB).
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for developers building graph-shaped or AI-agent-memory
+    apps, but it's a technical/niche tool rather than broad-appeal — most
+    AF customers won't have a direct use for a Cypher query console. Being
+    a complete bundle (DB + UI in one recipe) rather than "manage a DB you
+    already run" nudges it above Adminer's usefulness tier.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Memgraph itself is a headless bolt-protocol (port 7687) graph database
+  with no HTTP surface and no auth enabled by default; the web-facing piece
+  is the separate Memgraph Lab image (port 3000), a Cypher query console
+  with no login screen of its own — architecturally the same exposure shape
+  as Adminer. A two-service compose (memgraph + lab, Lab's bolt endpoint
+  kept internal-only on the docker network) is directly installable today
+  by fronting Lab's port 3000 with the domain param and a mandatory Traefik
+  basic_auth:true gate, with that gate's password projected from the
+  customer's root password via generated_from. The project is actively
+  maintained on a monthly release cadence with no EOL signal. Recommend
+  building the recipe: it's a net-new data model for the catalogue with a
+  believable AI/agent-memory angle, though its audience is narrower than a
+  general-purpose app.
