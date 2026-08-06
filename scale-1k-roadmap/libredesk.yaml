@@ -41,11 +41,13 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [LIBREDESK_SYSTEM_USER_PASSWORD, POSTGRES_PASSWORD]
+  secrets_required_at_first_boot: [LIBREDESK_SYSTEM_USER_PASSWORD, POSTGRES_PASSWORD, encryption_key]
   secrets_expressible_today:
     - secret: LIBREDESK_SYSTEM_USER_PASSWORD
       mechanism: generated_from_root_password
     - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: encryption_key
       mechanism: server_generated_no_customer_input
   blocking_issues: []
   installable_today: true
@@ -58,6 +60,9 @@ summary: >
   catalogue. Its only login is a single "System" admin account whose
   password is set via the LIBREDESK_SYSTEM_USER_PASSWORD env var, which maps
   cleanly onto the generated_from:ROOT_PASSWORD mechanism the same way
-  Vaultwarden's ADMIN_TOKEN does, and the Postgres password is a
-  server-generated secret the customer never needs. No blocking issues;
+  Vaultwarden's ADMIN_TOKEN does. The Postgres password and the app's
+  config.toml [app] encryption_key (mounted into the container; must be a
+  32-character value generated via `openssl rand -hex 16`, no safe default)
+  are both server-generated secrets the customer never needs to see or
+  supply, the same pattern as Directus's KEY/SECRET. No blocking issues;
   recommend building a recipe now.
