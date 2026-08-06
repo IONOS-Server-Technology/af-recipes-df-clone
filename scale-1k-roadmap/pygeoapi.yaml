@@ -1,0 +1,76 @@
+slug: pygeoapi
+name: pygeoapi
+source_description: "Python OGC API server publishing geospatial data with a built-in HTML browser"
+
+upstream:
+  url: https://pygeoapi.io
+  repo_url: https://github.com/geopython/pygeoapi
+  license: MIT
+  docker_image: geopython/pygeoapi:0.24.0
+
+version_health:
+  latest_version: "0.24.0"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.24.0 was published 2026-07-28, 8 days before today (2026-08-05); the
+    matching Docker Hub tag was pushed the same window. Cadence over the
+    last ~18 months is healthy and fairly regular: 0.20.0 (2025-03-27),
+    0.21.0 (2025-08-03), 0.22.0 (2025-11-07), 0.23.0 (2026-03-06), 0.23.1
+    (2026-03-18), 0.23.2 (2026-03-25), 0.23.3 (2026-04-22), 0.23.4
+    (2026-04-27), 0.23.5 (2026-07-14, a security release), 0.24.0
+    (2026-07-28). Repo `pushed_at` is 2026-08-04 (1 day before today), not
+    archived, 39 open issues actively triaged under the OSGeo-affiliated
+    geopython org. Clearly active, no EOL signal.
+
+catalogue_fit:
+  categories:
+    - geospatial
+    - data-publishing
+    - developer-tools
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches geospatial data
+    publishing. pygeoapi implements the OGC API family (Features, Records,
+    Maps, Processes, Coverages, etc.) over a customer's own datasets and
+    ships an HTML browser alongside the machine-readable OpenAPI endpoints,
+    so it reads as a genuinely new category rather than a variant of an
+    existing recipe (it is not a dashboard, a note-taking tool, or a
+    generic file store — it is a standards-compliant API server for
+    geospatial data a customer already has).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, if niche, demand: GIS teams, researchers, and public-sector open-
+    data programs that want a standards-compliant OGC API endpoint without
+    running full ArcGIS/GeoServer infrastructure. Audience is narrower than
+    the catalogue's general productivity/infra recipes, but for that
+    audience pygeoapi is a well-known, community-standard reference
+    implementation (geopython/OSGeo), which raises confidence relative to
+    an obscure alternative.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - TRAEFIK_BASIC_AUTH_PASSWORD
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  pygeoapi is an actively maintained (latest 0.24.0, 2026-07-28), single-
+  container OGC API server with a pinned official Docker image, a single
+  HTTP port, and no database requirement — file-based providers (GeoJSON,
+  CSV, SQLite) are enough for a working instance, with PostGIS/Elasticsearch
+  available as opt-in providers if a customer wants them. It fills a gap
+  the current 24-recipe catalogue does not cover (geospatial data
+  publishing) and is mechanically installable today provided the recipe
+  gates the app behind Traefik basic_auth, since pygeoapi ships with no
+  login of its own. Recommend build_with_caveats: real but niche audience,
+  straightforward to package, requires the basic_auth gate by design rather
+  than as an afterthought.
