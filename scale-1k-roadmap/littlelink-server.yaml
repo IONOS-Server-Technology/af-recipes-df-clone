@@ -1,0 +1,98 @@
+slug: littlelink-server
+name: Littlelink-Server
+source_description: "Stateless self-hosted Linktree alternative for personal link-in-bio pages"
+
+upstream:
+  url: https://github.com/techno-tim/littlelink-server
+  repo_url: https://github.com/techno-tim/littlelink-server
+  license: MIT
+  docker_image: ghcr.io/timothystewart6/littlelink-server (dockerhub timothystewart6/littlelink-server also supported)
+
+version_health:
+  latest_version: "latest (no versioned/semver tags published — Docker Hub and GHCR only ship a rolling `:latest` tag; the GitHub repo has zero tagged releases and zero git tags)"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    No formal releases or version tags exist at all — checked both GitHub
+    Releases (empty, "There aren't any releases here") and `git ls-remote
+    --tags` (no tags returned) as of 2026-08-05. Docker Hub shows the
+    `latest` image tag last pushed ~4 days before today (2026-08-05), and
+    the repo has 817 commits and 1.1k stars, so development is active and
+    current — just never cut into discrete versions. This means a recipe
+    could not pin `app_version`/`image` to a stable tag the way RFC-002
+    expects; the only option would be pinning to a specific image digest
+    (sha256@...) and manually bumping it, since there is no semver tag to
+    track.
+
+catalogue_fit:
+  categories: [productivity, personal-website]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers a public "link in
+    bio" landing page. The closest neighbors in apps-gaps (linkding,
+    linkwarden, linkace) are private bookmark managers behind a login —
+    a different use case from a single public page of outbound links meant
+    to be shared on social media. If installable, it would be a genuinely
+    new, low-footprint category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad appeal (content creators, small businesses, personal branding)
+    and a tiny single-container footprint make this attractive in the
+    abstract — but its entire value proposition is the customer's own
+    name, bio, avatar, and links, which (see installability below) cannot
+    actually be supplied through the platform today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      LittleLink-Server has no login, no admin UI, and no database — it is
+      explicitly stateless. Every piece of page content (NAME, BIO,
+      AVATAR_URL, META_TITLE, social/link URLs, custom buttons, theme,
+      analytics IDs) is supplied only via container environment variables
+      read at request time, and the only way to change any of it is to set
+      new env vars and restart the container. There is no in-app
+      onboarding or settings screen the customer could use after boot, the
+      way most other recipes rely on the app's own first-run wizard.
+    - >
+      Unlike the credential cases this schema is built around (root-
+      password projection, Traefik basic_auth), what's missing here isn't
+      a secret at all — it's the platform's total absence of a channel
+      for *any* customer-supplied value beyond a domain and a root-
+      password hash. `/compose` cannot pass through free-text content like
+      a name, bio, or a list of social links. Deployed as-is, the recipe
+      would boot successfully but publish either the upstream maintainer's
+      own placeholder links (Techno Tim's bio/socials from the shipped
+      `.env.example`/`docker-compose.yml` defaults) or a blank page — never
+      the customer's actual profile, which is the entire point of the app.
+    - >
+      This is a broader gap than IF-1420 (hash projection) or IF-1312
+      (basic_auth gate) can close; those solve one-credential-at-a-time
+      login provisioning, not arbitrary multi-field content input. There's
+      no existing IONOS platform ticket tracking generic customer content
+      fields for `/compose`, as far as this analysis found.
+    - >
+      Separately, no versioned tag exists upstream to pin (see
+      version_health) — a secondary blocker for RFC-002's
+      image-tag-pinned rule, though a digest pin could work around that
+      one alone.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  LittleLink-Server is a well-maintained, single-container, single-port,
+  MIT-licensed link-in-bio page generator with no direct equivalent in the
+  current catalogue. It cannot ship as a recipe today, though, because its
+  only configuration path is free-text environment variables (name, bio,
+  avatar, links) with no login or in-app editor to fall back on, and
+  `/compose` has no channel for arbitrary customer-supplied content — only
+  a domain and a hash of the root password. That gap is structural and
+  broader than the root-password-projection or basic_auth mechanisms in
+  flight (IF-1420/IF-1312) address. It also has no versioned upstream
+  release to pin against. Revisit if/when the platform gains a general
+  customer-content input channel for `/compose`.
