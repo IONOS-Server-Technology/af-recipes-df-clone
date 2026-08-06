@@ -1,0 +1,94 @@
+slug: horilla
+name: Horilla
+source_description: "Free open-source HR and CRM platform for payroll, recruitment, and attendance"
+
+upstream:
+  url: https://www.horilla.com/
+  repo_url: https://github.com/horilla-opensource/horilla
+  license: LGPL-2.1
+  docker_image: horilla/horilla
+
+version_health:
+  latest_version: "1.6.1"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged GitHub release is 1.6.1 (2026-07-09), with a commit as
+    recent as 2026-08-03 (2 days before this analysis) on the "2.0" default
+    branch — the project is clearly under active development. However, the
+    project runs two parallel version lines: a "v1" line (1.x tags, latest
+    1.6.1) explicitly marked in the repo as "deprioritized, fixes considered
+    case-by-case", and a "v2" line that is the new default branch but whose
+    only GitHub tags are pre-releases (v2.0.0-beta.1, 2025-10-25;
+    release/v2.1.0, 2025-11-11 — both flagged prerelease, no finalized
+    "2.0" or "2.1" stable tag exists on GitHub as of this analysis). The
+    project's own marketing changelog (horilla.com/changelog) separately
+    claims a "v2.0 — April 2025" release, which does not correspond to any
+    GitHub tag — the two version schemes are inconsistent, a sign of loose
+    release hygiene despite high commit activity. Most concerning for a
+    recipe: the official Docker Hub image (horilla/horilla) has only two
+    tags published, 1.4 and 1.3.2 — no image has been published for 1.5.0,
+    1.6.0, or 1.6.1. The published container is at least two stable
+    releases behind the tagged source.
+
+catalogue_fit:
+  categories: [productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover HR/CRM/payroll workflows (employee
+    records, recruitment pipelines, attendance/leave tracking, payroll
+    runs). This would be a genuinely new category for the catalogue rather
+    than a variant of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    HR/CRM tooling is a real SMB/self-hoster use case with no current
+    catalogue entry, so demand plausibly exists. But payroll and employee
+    PII are high-stakes data classes to run on an unmaintained-image,
+    dual-versioning project, and the maintainers' own "v1 deprioritized"
+    notice plus the stale Docker Hub image undercut confidence this is a
+    safe long-term pick today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The container's entrypoint.sh hardcodes the admin account via
+      `python3 manage.py createhorillauser --username admin --password
+      admin --email admin@example.com` with no environment-variable
+      override for username/password/email — the app itself gives no way
+      to change this credential at boot, and no `generated_from` hash-based
+      login field exists to project the customer's root-password hash into.
+      Per SCHEMA.md this is not a hard blocker by itself: it is handled by
+      putting the whole app behind a Traefik `basic_auth` gate, which is
+      the mechanism recorded above — but it does mean the `admin/admin`
+      Horilla login remains reachable (with default creds) to anyone who
+      gets past that gate, so the gate is the only real auth boundary.
+    - >
+      The official upstream `docker-compose.yaml` builds the app from a
+      Dockerfile and bind-mounts the app source and media directories from
+      the host (`./horilla:/app/horilla`, `./media:/app/media`) rather than
+      running self-contained from the published image — the documented
+      deployment path is closer to "clone repo and build" than "pull a
+      pinned tag and run." A recipe would need to diverge from upstream's
+      own compose file and pin `horilla/horilla:1.4` directly, which is
+      already 2+ releases stale (see version_health).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Horilla fills a real gap (no HR/CRM recipe in the current 24) and is
+  mechanically installable today by gating the whole app behind Traefik
+  basic_auth, since its admin/admin login is hardcoded with no override
+  channel. However, the official Docker Hub image is stale (1.4, missing
+  1.5.0/1.6.0/1.6.1), the project runs two inconsistent version/tag
+  schemes, and the maintainers themselves have deprioritized the v1 line
+  the image is built from. Given payroll/HR data sensitivity, recommend
+  build_with_caveats rather than build_now — worth revisiting once the
+  image catches up to a current tag on the v2 line.
