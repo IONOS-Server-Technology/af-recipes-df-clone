@@ -1,0 +1,92 @@
+slug: librebooking
+name: LibreBooking
+source_description: "Open-source resource scheduling system for rooms, equipment, and shared assets"
+
+upstream:
+  url: https://librebooking.readthedocs.io/
+  repo_url: https://github.com/LibreBooking/librebooking
+  license: GPL-3.0
+  docker_image: librebooking/librebooking
+
+version_health:
+  latest_version: "5.3.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly (sometimes sub-monthly) release cadence throughout 2026 —
+    5.0.0 (2026-05-03), 5.0.1/5.0.2 (early-to-mid May), 5.0.3 (2026-06-03),
+    5.1.0 (2026-06-07), 5.2.0 (2026-07-03), 5.3.0 (2026-08-03, 2 days before
+    this analysis). Repo has 5,000+ commits, dozens of open issues/PRs under
+    active triage. Clearly active, not maintenance-only. Project is a
+    continuation of the discontinued open-source "Booked Scheduler"
+    (phpScheduleIt lineage), rebranded LibreBooking after Booked Scheduler
+    went closed-source/SaaS-only in 2020 — LibreBooking itself has diverged
+    substantially since and is the actively maintained upstream, not an
+    abandoned fork.
+
+catalogue_fit:
+  categories: [scheduling, resource-management, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover room/equipment/shared-asset
+    booking or scheduling. Closest neighbors (Uptime Kuma, Portainer,
+    Gitea) are unrelated domains. This would be a net-new category for the
+    catalogue — useful to small orgs, coworking spaces, or teams wanting to
+    schedule meeting rooms/equipment without a SaaS subscription.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case with no in-catalogue competitor, but resource
+    booking is a narrower niche than the productivity/automation/AI tools
+    that dominate the current catalogue — likely lower demand than a
+    generic top-of-funnel app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LB_DB_USER_PWD, LB_INSTALL_PWD]
+  secrets_expressible_today:
+    - secret: LB_DB_USER_PWD
+      mechanism: server_generated_no_customer_input
+    - secret: LB_INSTALL_PWD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+  # notes retained here rather than a nonexistent schema field:
+  # LibreBooking needs a MariaDB companion container (single extra
+  # service, same shape as n8n/paperless-ngx — no raw ports beyond the one
+  # HTTP port, fully Traefik-compatible).
+  # LB_DB_USER_PWD/LB_INSTALL_PWD are consumed entirely server-side: when
+  # set via env vars before first container start, LibreBooking's Docker
+  # entrypoint writes config/config.php automatically (documented as "used
+  # on first invocation when config/config.php does not yet exist"),
+  # bypassing the interactive /install wizard. Neither value needs to be
+  # known by or communicated to the customer, so both fit
+  # server_generated_no_customer_input the same way n8n's
+  # POSTGRES_PASSWORD/N8N_ENCRYPTION_KEY do today.
+  # Admin account creation itself is a self-service registration form
+  # inside the app (customer supplies their own email/username/password
+  # directly through the UI, no env-var channel needed or expected) — this
+  # is the same "first visitor claims admin" pattern our n8n recipe
+  # already ships with unmodified, so it is not treated as a blocker here.
+  # Caveat (not blocking): docs flag that reminder emails need a job
+  # scheduler (cron) hitting a URL periodically — not required to boot or
+  # use the app, but worth a documented cron/sidecar container follow-up
+  # in a real recipe.
+
+summary: >
+  LibreBooking is an active, GPL-3.0 room/equipment/resource-booking web app
+  with an official single-container Docker image (needs a MariaDB
+  companion), a single HTTP port, and monthly releases through August 2026 —
+  no EOL or dormancy concerns. It fills a category gap none of the current
+  24 recipes cover. The two env-var secrets it needs at first boot
+  (DB password, install-wizard gate password) are both consumed purely
+  server-side during the automated Docker bootstrap and never need to reach
+  the customer, so they map cleanly to server_generated_no_customer_input —
+  no blocker under the current /compose mechanism. Admin account creation
+  is a normal in-app self-registration step, the same pattern already
+  shipping in the n8n recipe. Recommend build_now, with usefulness rated
+  medium given the narrower niche relative to the catalogue's
+  productivity/automation/AI focus.
