@@ -1,0 +1,100 @@
+slug: outline
+name: Outline
+source_description: "Outline is a modern team wiki and knowledge base with real-time collaboration"
+
+upstream:
+  url: https://www.getoutline.com
+  repo_url: https://github.com/outline/outline
+  license: "BSL-1.1 (converts to Apache-2.0 on 2030-07-13, or 4 years from v1.9.1's first public distribution, whichever is earlier; self-hosting for internal/non-commercial use is permitted now, offering it back out as a hosted \"Document Service\" to third parties is not)"
+  docker_image: outlinewiki/outline
+
+version_health:
+  latest_version: "1.9.2"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.9.2 released 2026-07-21 — 15 days before today (2026-08-05). Recent
+    tag history shows a steady monthly-or-faster cadence: 1.9.1
+    (2026-07-13), 1.9.0 (2026-07-09), 1.8.2-0 (2026-06-10), 1.8.1
+    (2026-06-06), 1.8.0 (2026-06-01), 1.7.1 (2026-05-04) — no gap over
+    ~5 weeks anywhere in the recent history. Docker Hub also publishes a
+    daily `nightly-YYYYMMDD` build (most recent seen: nightly-20260806, a
+    few hours before this analysis), and GitHub shows commit activity as
+    recently as 2026-08-04. Not archived, clearly active.
+
+catalogue_fit:
+  categories: [productivity, collaboration, knowledge-base]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [an-otter-wiki]
+  differentiation: >
+    None of the current 24 shipped recipes is a wiki/knowledge-base tool.
+    `an-otter-wiki.yaml` is an already-analyzed candidate for the same
+    general niche, but it's a much lighter git-backed Markdown wiki with
+    open self-registration. Outline is a heavier, Notion/Confluence-class
+    product: real-time multiplayer document editing, nested docs,
+    structured collections, comments, and a proper API — a materially
+    richer feature set that would target teams wanting a Notion
+    alternative rather than a personal Markdown wiki. That differentiation
+    is real, but moot given the installability blocker below.
+  usefulness: high
+  usefulness_rationale: >
+    "Self-hosted Notion/Confluence alternative" is a strong, frequently
+    requested self-hosting use case and a genuine gap in the catalogue.
+    Usefulness is rated on capability alone; see installability for why
+    that doesn't currently translate into a buildable recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SECRET_KEY
+    - UTILS_SECRET
+    - POSTGRES_PASSWORD
+    - OAuth/OIDC client_id + client_secret for at least one identity provider (Slack, Google, Azure AD/Entra, Discord, or generic OIDC)
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: UTILS_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Outline has no built-in username/password login at all — confirmed
+      from the shipped `.env.sample`, which requires at least one OAuth/OIDC
+      provider block (Slack, Google, Azure AD, Discord, or generic OIDC) to
+      be configured before the app will let anyone sign in. There is no
+      "local admin account" fallback the way Vaultwarden/n8n/Paperless-ngx
+      have. Provisioning any of these requires the customer to first
+      register an OAuth application with a third party (or stand up and
+      configure their own OIDC IdP, e.g. Authentik/Authelia, which then has
+      the exact same problem one level down) and hand back a client_id and
+      client_secret — an external credential our `/compose` mechanism has
+      no channel to accept today (per apps-gaps/SCHEMA.md's table: "Domain
+      + OAuth app registration / third-party account linking" → no).
+    - >
+      Traefik `basic_auth` cannot substitute here the way it does for
+      login-less apps (Adminer, WUD): Outline does have its own
+      login/account system, it's just entirely OAuth-backed, so gating the
+      whole app behind basic_auth would sit in front of a UI that still
+      can't complete first-run sign-in without a working OAuth/OIDC
+      provider already configured.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Outline (outline/outline) is an actively maintained, actively released
+  (v1.9.2, 15 days old) self-hosted Notion/Confluence-style team wiki with
+  real-time collaboration — a genuinely useful, currently-unfilled niche
+  distinct from the lighter-weight an-otter-wiki candidate. It is blocked
+  today because Outline has no built-in password login of any kind: every
+  account, including the first admin, is provisioned through an external
+  OAuth/OIDC identity provider (Slack, Google, Azure AD, Discord, or
+  generic OIDC), which the customer must pre-register and whose
+  client_id/client_secret our `/compose` mechanism has no channel to
+  accept — this isn't a root-password hash and Traefik basic_auth doesn't
+  help since Outline's own login flow still requires a working OAuth
+  provider to complete. Recommend blocked_on_platform: worth revisiting if
+  Outline ever ships a local-credentials auth mode, or once the platform
+  gains a channel for customer-supplied third-party API/OAuth credentials.
