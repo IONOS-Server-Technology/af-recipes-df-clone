@@ -1,0 +1,131 @@
+slug: opensearch
+name: OpenSearch
+source_description: "Open-source search and analytics engine, community fork of Elasticsearch"
+
+upstream:
+  url: https://opensearch.org/
+  repo_url: https://github.com/opensearch-project/OpenSearch
+  license: Apache-2.0
+  docker_image: opensearchproject/opensearch
+
+version_health:
+  latest_version: "3.8.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.8.0 tagged 2026-08-05 (today), per the GitHub Releases API
+    (published_at 2026-08-05T17:20:33Z) and confirmed present on Docker Hub
+    (opensearchproject/opensearch:3.8.0, last_updated 2026-08-04). Recent
+    history on the 3.x active line: 3.4.0 (2025-12-16), 3.5.0 (2026-02-10),
+    3.6.0 (2026-04-07), 3.7.0 (2026-06-09), 3.8.0 (2026-08-05) — a steady
+    ~8-week minor-release cadence, matching the project's own stated goal
+    ("release a new minor version approximately every eight weeks").
+    OpenSearch also maintains a parallel 2.x maintenance line receiving
+    backported patches (2.19.4 2025-11-06, 2.19.5 2026-05-13, 2.19.6
+    2026-07-02). Repo is not archived, was pushed to today
+    (2026-08-05T17:20:16Z), has 13.4k stars and 3k+ open issues under
+    active triage. This is an AWS-backed, CNCF-adjacent fork with a large
+    contributor base; unambiguously active, not maintenance-only.
+
+catalogue_fit:
+  categories: [search, analytics, database, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OpenSearch is architecturally identical in role to Elasticsearch
+    (apps-gaps/elasticsearch.yaml, analyzed separately, also not a shipped
+    recipe) — a headless REST search/analytics backend with no web UI of
+    its own, with OpenSearch Dashboards as its Kibana-equivalent UI
+    counterpart (same relationship as apps-gaps/kibana.yaml describes for
+    the Elastic Stack). Its one real differentiator is licensing and
+    provenance: OpenSearch is the Apache-2.0-licensed fork AWS created in
+    2021 specifically in response to Elastic relicensing Elasticsearch
+    under the (non-OSI) Elastic License/SSPL, so it's the option for a
+    customer who wants an Elasticsearch-API-compatible engine without
+    Elastic's licensing terms. None of the 24 shipped recipes provide a
+    search/analytics backend; if either engine were built, the licensing
+    difference — not any technical capability gap — would be the deciding
+    factor between them, not a reason to build both.
+  usefulness: low
+  usefulness_rationale: >
+    Same structural ceiling as the Elasticsearch analysis: OpenSearch
+    ships no web UI at all on its own (port 9200 is a raw JSON REST API);
+    its natural consumer is a developer wiring up their own application
+    or a companion tool (OpenSearch Dashboards, or an app's own search/
+    RAG feature) against the API, not an end user clicking through a
+    dashboard the way every other recipe in this catalogue works. It also
+    carries the same disproportionate-for-single-tenant footprint (JVM
+    heap, ulimits for memlock/nofile, 2GB+ RAM realistic minimum even for
+    a single-node demo config) as Elasticsearch. Slightly more relevant
+    than a plain "low" given growing self-hosted interest in OpenSearch as
+    a vector-search/RAG backend and its permissive license, but that
+    doesn't change the fundamental no-UI, developer-only audience problem
+    for this catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "admin user password (Security plugin's demo-config bootstrap account, OPENSEARCH_INITIAL_ADMIN_PASSWORD env var, required since 2.12 or the container refuses to start)"
+  secrets_expressible_today:
+    - secret: "admin user password"
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD itself only accepts plaintext — the
+      container's demo-config bootstrap script bcrypt-hashes whatever
+      string it's given at first startup, so a `generated_from` hash
+      cannot be passed through that env var directly. But OpenSearch's
+      Security plugin exposes an Internal Users API (`PUT
+      _plugins/_security/api/internalusers/admin`) that accepts a `hash`
+      field carrying a pre-computed hash instead of plaintext, and its
+      default `plugins.security.password.hashing` algorithm is bcrypt —
+      one of the two algorithms `generated_from` already supports. This is
+      the same two-step bootstrap pattern already flagged for
+      Elasticsearch (apps-gaps/elasticsearch.yaml): start the container
+      with a throwaway OPENSEARCH_INITIAL_ADMIN_PASSWORD to get a live
+      credential, then call the Internal Users API to overwrite the admin
+      account with the customer's projected `generated_from:
+      "bcrypt:ROOT_PASSWORD"` hash. Workable, but more install.sh bootstrap
+      logic than a plain metadata.yaml parameter mapping.
+    - >
+      The Security plugin's demo configuration auto-enables TLS on the
+      REST layer (port 9200) with a self-signed cert by default. To sit
+      cleanly behind Traefik (which terminates public TLS itself), the
+      recipe needs to explicitly set `plugins.security.ssl.http.enabled:
+      false` in opensearch.yml — a supported, documented setting, not a
+      blocker, but a config detail that must be set correctly or the
+      container ships double/mismatched TLS. (Transport-layer TLS, port
+      9300, is mandatory and unrelated to public exposure since that port
+      is never published.)
+    - >
+      Even with the credential mechanism and TLS wired up correctly,
+      there is still no web UI for a customer to log into — the "login"
+      being protected is a REST API credential meant for a customer's own
+      code/client, a different usage pattern than every other recipe's
+      browser-based admin login. (OpenSearch Dashboards would be the UI
+      layer, but that's a separate product/separate recipe question, same
+      caveat apps-gaps/kibana.yaml raises for the Elastic Stack.)
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OpenSearch is an actively-maintained (3.8.0 tagged today, 2026-08-05,
+  on an ~8-week cadence), AWS-backed Apache-2.0 fork of Elasticsearch,
+  created specifically to offer an Elasticsearch-API-compatible engine
+  without Elastic's non-OSI license — that licensing difference, not any
+  technical gap, is its only real differentiator from the already-analyzed
+  apps-gaps/elasticsearch.yaml, since the two are architecturally
+  identical (headless REST search backend, no web UI, OpenSearch
+  Dashboards/Kibana as the respective companion UI). Its admin credential
+  is mechanically expressible via `generated_from: "bcrypt:ROOT_PASSWORD"`
+  using the same two-step bootstrap Elasticsearch needs (throwaway initial
+  password, then overwrite via the Internal Users API's hash field), plus
+  disabling the Security plugin's auto-configured REST-layer TLS so it
+  sits cleanly behind Traefik. Recommend build_with_caveats: mechanically
+  buildable on the same terms as Elasticsearch, but low standalone value
+  for this catalogue's end-user-facing audience absent a UI layer — if
+  only one of the two forks is worth building, the choice comes down to
+  which license a target customer segment prefers, not which is easier to
+  package.
