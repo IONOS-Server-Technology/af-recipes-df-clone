@@ -1,0 +1,93 @@
+slug: hasura-graphql-engine
+name: Hasura GraphQL Engine
+source_description: "Open-source GraphQL engine with instant APIs over any database"
+
+upstream:
+  url: https://hasura.io/
+  repo_url: https://github.com/hasura/graphql-engine
+  license: Apache-2.0
+  docker_image: hasura/graphql-engine
+
+version_health:
+  latest_version: "v2.48.15"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows v2.48.15 pushed ~4 days before the 2026-08-05 analysis
+    date, and it exists specifically to patch a CVE in the Ubuntu base image
+    — i.e. active security maintenance, not just feature releases. GitHub
+    releases show a steady stream of point releases on the v2.x line.
+    Hasura v3 (DDN / new engine) exists in parallel as a separate product;
+    this analysis targets v2, the OSS self-hostable engine matching the
+    Hostinger description.
+
+catalogue_fit:
+  categories: [development, database, api]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes offer instant GraphQL/REST API generation
+    over an existing database. Hasura sits in front of a customer's own
+    Postgres (or other) database and auto-generates a queryable/mutable
+    GraphQL schema plus a web console for managing permissions and
+    relationships — a distinct "backend-as-a-service" category versus our
+    existing automation (n8n), monitoring (uptime-kuma), or file/photo apps
+    (immich, paperless-ngx).
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable for developers who want a fast BaaS-style layer on their own
+    Postgres without hand-writing an API, but it is a developer tool rather
+    than an end-user app, and its core value (the admin console + GraphQL
+    API) is exactly what our current secret-provisioning mechanism can't
+    safely hand to the customer — see installability below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - HASURA_GRAPHQL_ADMIN_SECRET
+    - POSTGRES_PASSWORD (backing database, if bundled rather than customer-supplied)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      HASURA_GRAPHQL_ADMIN_SECRET is verified by direct plaintext string
+      equality — the client sends the literal secret value in the
+      `x-hasura-admin-secret` header on every console/API request, and
+      Hasura compares it byte-for-byte against the env var. This is
+      structurally different from the password fields our `generated_from`
+      mechanism targets (e.g. Vaultwarden's ADMIN_TOKEN), where the app
+      itself hashes whatever the customer types and compares against a
+      stored hash. Projecting `argon2:ROOT_PASSWORD` into
+      HASURA_GRAPHQL_ADMIN_SECRET would mean the stored value IS a hash
+      string, and the customer would have to type that exact hash (which
+      they never see) as the header value to authenticate — their actual
+      root password would not work. There is no verification-time hashing
+      step on Hasura's side for this field, so `generated_from` cannot
+      bridge it.
+    - >
+      Gating the whole app behind Traefik `basic_auth` does not solve this
+      either: Hasura's actual product value (the admin console for managing
+      schema/permissions, and the GraphQL/REST API itself) requires the
+      customer to know and supply HASURA_GRAPHQL_ADMIN_SECRET directly to
+      use the app at all. If we instead server-generate that secret
+      randomly and never expose it to the customer (the "random secret
+      nothing customer-facing reads" case), the customer can never actually
+      administer Hasura or call its API as admin — which defeats the
+      purpose of installing it. Unlike Adminer or n8n, there's no way to
+      make this secret purely internal.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Hasura GraphQL Engine is an actively maintained, well-differentiated
+  candidate (instant GraphQL API over a database, a category none of the 24
+  current recipes cover) but is blocked by the current provisioning
+  mechanism: its one required secret (HASURA_GRAPHQL_ADMIN_SECRET) is
+  checked via plaintext equality rather than app-side hash verification, so
+  neither `generated_from` root-password projection nor a Traefik
+  basic_auth gate can hand the customer a working, self-known credential
+  without either exposing a raw hash string or removing their ability to
+  administer the app. Revisit once the platform supports projecting a
+  plaintext (not hashed) customer-known credential into an app env var, or
+  once Hasura exposes an alternative auth path our mechanism can drive.
