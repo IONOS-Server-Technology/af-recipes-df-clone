@@ -1,0 +1,91 @@
+slug: krayin-crm
+name: Krayin CRM
+source_description: "Open-source Laravel CRM for leads, pipelines, quotes, and contact management"
+
+upstream:
+  url: https://krayincrm.com/
+  repo_url: https://github.com/krayin/laravel-crm
+  license: MIT
+  docker_image: webkul/krayin
+
+version_health:
+  latest_version: "v2.2.5"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.2.5 landed 2026-08-04, one day before this analysis (2026-08-05); the
+    repo's `pushed_at` is also 2026-08-05, i.e. same-day commit activity.
+    Release history is dense throughout 2026 (v2.2.0 on 03-17, v2.2.1/2.2.2
+    both on 05-01, v2.2.3 on 05-18, v2.2.4 on 07-23, v2.2.5 on 08-04) — no
+    gap longer than ~2 months, no archival notice. Clearly active upstream.
+    Caveat: the official `webkul/krayin` Docker image lags well behind
+    source — its newest published tag is `2.2.0` (pushed 2026-03-20), so
+    the five most recent releases (v2.2.1 through v2.2.5, covering ~4.5
+    months including a documented installer auth-bypass security fix) have
+    no corresponding published image yet. A recipe today could only pin to
+    the stale `2.2.0` image, not current `main`.
+
+catalogue_fit:
+  categories: [crm, business, sales]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover CRM/sales-pipeline management —
+    n8n (automation) and Anytype (notes/productivity) are the nearest
+    adjacent recipes but neither substitutes for lead/pipeline/quote
+    tracking. Krayin would join three other still-open CRM/ERP gap
+    analyses covering similar or adjacent ground —
+    apps-gaps/espocrm.yaml, apps-gaps/civicrm.yaml, and
+    apps-gaps/dolibarr.yaml — so if more than one ships, the catalogue
+    would carry multiple CRM options; worth a deliberate pick rather than
+    merging all of them. Krayin's angle is a lightweight, Laravel-native,
+    plain-MIT-licensed CRM (no AGPL/BSL obligations, unlike EspoCRM/CiviCRM)
+    aimed specifically at sales/lead pipelines rather than Dolibarr's
+    broader ERP scope.
+  usefulness: high
+  usefulness_rationale: >
+    CRM is a common self-hoster/small-business ask with no current
+    catalogue representation; Krayin is actively developed, permissively
+    licensed (MIT), and has an official Docker image, making it a
+    reasonable candidate on demand and license grounds alone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DB_PASSWORD
+    - BASIC_AUTH_CREDENTIAL
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Krayin CRM is an actively developed, MIT-licensed Laravel CRM with an
+  official single-container Docker image (webkul/krayin, backed by its
+  own MySQL, matching the paperless-ngx/Dolibarr-style two-container
+  pattern) and a plain HTTP port, reverse-proxy-compatible behind Traefik.
+  It has no external-API/OAuth dependency, and its DB credential is
+  server-generated with zero customer input. Its one real friction is a
+  hardcoded, non-overridable default admin login (admin@example.com /
+  admin123, no env var to change it) — resolvable today, per the
+  SCHEMA.md fixed-credential pattern, with a mandatory Traefik basic_auth
+  gate as the actual customer-facing auth boundary, so it clears
+  installable_today with zero hard blocking_issues. Two softer caveats
+  keep this at build_with_caveats rather than an unqualified build_now:
+  (1) the official image's newest published tag is 2.2.0 (2026-03-20),
+  about 4.5 months and five releases behind the current v2.2.5
+  (2026-08-04), including a documented installer auth-bypass fix, so a
+  recipe built today would need to either accept the stale tag or wait for
+  Webkul to publish a newer one; (2) the upstream krayin-docker
+  docker-compose scaffold is a developer-setup flow (git clone + composer
+  install + a post-boot `docker exec ... artisan migrate:fresh --seed`
+  step), not boot-and-go, so a recipe should build on the pre-built
+  webkul/krayin image instead. Also worth a portfolio decision alongside
+  the other open CRM/ERP gap analyses (espocrm, civicrm, dolibarr) if more
+  than one is greenlit.
