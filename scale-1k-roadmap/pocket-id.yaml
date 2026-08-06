@@ -1,0 +1,96 @@
+slug: pocket-id
+name: Pocket ID
+source_description: "Passkey-only OIDC provider for passwordless SSO across self-hosted apps"
+
+upstream:
+  url: https://pocket-id.org/
+  repo_url: https://github.com/pocket-id/pocket-id
+  license: BSD-2-Clause
+  docker_image: pocketid/pocket-id
+
+version_health:
+  latest_version: "v2.12.0"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.12.0 shipped 2026-07-29, about a week before today (2026-08-05), and
+    is described upstream as containing security fixes with an explicit
+    "highly recommended to update" note. Releases through 2026 have landed
+    roughly every 2-4 weeks (v2.6.1/v2.6.2 on 2026-04-21, v2.7.0 on 2026-05-11,
+    v2.8.0 on 2026-05-31, v2.9.0 on 2026-06-16, v2.10.0/v2.11.0 in July,
+    v2.12.0 on 2026-07-29). Repo is not archived; this is a genuinely
+    active, fast-moving project.
+
+catalogue_fit:
+  categories: [security, identity, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes provide identity/SSO functionality.
+    Pocket ID occupies the same conceptual niche already flagged for
+    Authentik and Keycloak in prior gap analyses (neither shipped yet) but
+    is a much lighter-weight alternative: a single Go binary + embedded
+    SQLite by default, no worker/Postgres services, purpose-built for
+    homelab/small-team OIDC SSO rather than full enterprise IAM. It
+    specifically differentiates on being passkey-only (no password/TOTP
+    login path at all), which is a distinct selling point for customers who
+    want WebAuthn-based SSO without running a heavier IdP.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted SSO is a recurring ask for customers running several AF
+    recipes side by side, and Pocket ID's low resource footprint (SQLite,
+    single container) makes it a much easier operational fit than
+    Authentik/Keycloak for that same demand. Passkey-only auth is also a
+    genuine differentiator worth having in the catalogue on its own merits.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ENCRYPTION_KEY, pocket_id_first_admin_passkey]
+  secrets_expressible_today:
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Pocket ID has no admin-bootstrap environment variable of any kind
+      (confirmed against the full env-var list in
+      backend/internal/common/env_config.go — no ADMIN_* or *_PASSWORD*
+      field exists). The first admin account is provisioned entirely
+      client-side: whoever first navigates to https://<app-url>/setup
+      registers a WebAuthn passkey and becomes the sole admin. There is no
+      plaintext password or hash involved at any point — a passkey is a
+      public-key credential generated on the visitor's own device — so this
+      is categorically outside what `generated_from: "<algo>:ROOT_PASSWORD"`
+      can produce (it only ever emits a password hash, never a key pair).
+      This is a harder blocker than Authentik/Keycloak's plaintext/
+      unsupported-hash problem: there is no hash-shaped value to project at
+      all.
+    - >
+      A Traefik `basic_auth` gate in front of the whole app does not
+      cleanly substitute either, for two independent reasons: (1) Pocket
+      ID's own login/setup UI is the ongoing product surface end users
+      must keep reaching for SSO into other apps, not just an admin panel
+      being protected — the same reasoning that ruled out a gate for
+      Authentik; and (2) even used narrowly to close the /setup race
+      window, "gate + client-side self-registration behind it" is the same
+      shape already flagged as unvalidated on 2FAuth's gap analysis, not an
+      accepted combo today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Pocket ID is an active, lightweight, BSD-licensed passkey-only OIDC
+  provider that would fill the same real catalogue gap already identified
+  for Authentik and Keycloak — self-hosted SSO — with a notably smaller
+  footprint (single container, embedded SQLite, no worker/DB services).
+  Mechanically it's a clean single-port web app, fully reverse-proxy
+  compatible. It fails installability today for a more fundamental reason
+  than its heavier IdP cousins: there is no admin-bootstrap credential of
+  any kind to project, because the first admin account is created via an
+  open /setup race and a client-generated WebAuthn passkey rather than any
+  password or hash. Revisit as `build_now` once the platform gains either a
+  way to pre-seed/lock the first-admin setup flow to the deploying customer,
+  or a genuinely validated "gate then self-register" pattern — until then
+  this sits alongside Authentik/Keycloak as blocked on the same class of
+  platform gap.
