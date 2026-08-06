@@ -1,0 +1,97 @@
+slug: grafana-loki
+name: Grafana Loki
+source_description: "Prometheus-inspired log aggregation system with bundled Grafana query UI"
+
+upstream:
+  url: https://grafana.com/oss/loki/
+  repo_url: https://github.com/grafana/loki
+  license: AGPL-3.0
+  docker_image: grafana/loki
+
+version_health:
+  latest_version: "3.7.5"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.7.5 shipped 2026-08-05 (today), a bugfix release (packaging, an
+    ingester flush race condition, and security patches for compression and
+    crypto libraries) on top of the 3.7.x line. Recent history: v3.6.14
+    (2026-08-04), v3.6.13 (2026-07-23), v3.7.4 (2026-07-22), v3.7.3 /
+    v3.6.12 (2026-06-24), v3.7.2 / v3.6.11 (2026-05-13) — two parallel
+    maintained minor lines (3.6.x and 3.7.x) both receiving patches every
+    3-5 weeks. Clearly active development, not archived or maintenance-only.
+
+catalogue_fit:
+  categories: [monitoring, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers log aggregation/observability.
+    Uptime Kuma checks whether a service is up; Loki+Grafana lets a
+    customer centralize and query logs from multiple apps/containers
+    (including several already in this catalogue) via LogQL, with
+    dashboards, alerting rules, and a proper query UI. Distinct niche from
+    anything currently offered.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for a self-hosted-stack customer running several other AF
+    apps who wants a single place to search logs, but it's a
+    developer/ops-facing tool rather than a consumer app, and on its own
+    (without log shippers like Promtail/Alloy pointed at other containers)
+    it has nothing to ingest — most of its value depends on setup work
+    outside what a recipe installs.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [grafana_admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      "Bundled Grafana query UI" (per Hostinger's description) means the
+      customer-facing login is Grafana's own admin account, set via
+      GF_SECURITY_ADMIN_PASSWORD. Like Gotify's GOTIFY_DEFAULTUSER_PASS,
+      this env var is applied only once at first boot and only accepts a
+      plaintext password — Grafana hashes it internally but gives no way to
+      supply a pre-hashed value. `generated_from` only ever carries a hash
+      of the customer's root password, so it cannot populate this field.
+    - >
+      Unlike Gotify, gating the whole app behind Traefik `basic_auth`
+      instead is a weaker fit here: Grafana already ships a real,
+      differentiated per-user login/RBAC system that a customer would
+      reasonably expect to use (e.g. read-only viewer accounts for a team),
+      and papering over it with a single shared basic-auth credential
+      discards that. It is not a hard blocker (the same "gate the whole app"
+      pattern from Gotify/Adminer is mechanically available), but it is a
+      worse compromise than in cases where the app has no real login of its
+      own — flagging for reviewer judgment rather than treating as a clean
+      build_now.
+    - >
+      Loki itself (the log-storage/query API on port 3100) has no
+      authentication of its own and is not designed to be exposed directly
+      to customers — only Grafana's UI should be public; Loki should stay
+      on the internal docker network only. This is a recipe-design detail,
+      not a structural blocker, but worth noting since it affects the
+      ports/parameters section of any future recipe draft.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Grafana Loki (image `grafana/loki`, pin `3.7.5`) is a log aggregation
+  backend with no UI or auth of its own; the customer-facing product per
+  Hostinger's description is Loki + a bundled Grafana container as the
+  query UI, a clean two-container stack behind Traefik (only Grafana's
+  port needs to be public — Loki's API port 3100 stays internal). Its
+  actual login boundary is Grafana's GF_SECURITY_ADMIN_PASSWORD, which like
+  Gotify's admin password is plaintext-only and first-boot-only, so
+  `generated_from` cannot project the customer's root-password hash into
+  it; the fallback Traefik `basic_auth` gate is mechanically available but
+  a lossier compromise than usual since it would sit on top of (and
+  effectively hide) Grafana's own real login/RBAC system. Upstream is
+  actively maintained (two parallel patch lines, releases every 3-5 weeks,
+  a release as recent as today). Fills a genuine observability gap not
+  covered by the current 24 recipes, but is a narrower ops-tooling play
+  with most of its value dependent on external log-shipper setup —
+  recommend `build_with_caveats`, flagging the basic_auth-vs-Grafana-RBAC
+  tradeoff for reviewer sign-off.
