@@ -1,0 +1,74 @@
+slug: mayan-edms
+name: Mayan EDMS
+source_description: "Open-source document management with OCR, full-text search, and workflows"
+
+upstream:
+  url: https://www.mayan-edms.com
+  repo_url: https://gitlab.com/mayan-edms/mayan-edms
+  license: GPL-2.0-only
+  docker_image: mayanedms/mayanedms
+
+version_health:
+  latest_version: "4.11.5"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    4.11.5 (2026-07-16) is about 3 weeks before today (2026-08-05).
+    Patch releases (4.11.1 through 4.11.5) have shipped roughly every
+    3-5 weeks since 4.11.0, and the 4.10.x -> 4.11.x minor bump before
+    that shows a steady cadence. The project (single maintainer,
+    Roberto Rosario, plus community contributors) has published
+    continuously since 2011 with no gaps suggesting maintenance-only
+    or abandonment.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx]
+  differentiation: >
+    Heavy overlap with recipes/paperless-ngx: both are self-hosted
+    document management systems offering OCR ingestion and full-text
+    search of scanned/uploaded documents. Mayan EDMS additionally ships
+    a workflow/state-machine engine, document versioning/signatures, and
+    a cabinet/tag-based organization model that paperless-ngx lacks, but
+    the core "digitize and search my documents" use case Hostinger's
+    description highlights is already served by paperless-ngx. Per
+    CLAUDE.md's overlap policy this is not a rejection reason by itself,
+    but it does mean the case for building this rests on the workflow
+    features specifically, not on filling an empty category.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuine customers exist for the workflow/versioning features
+    (compliance-driven document lifecycles), but for the common
+    "scan and search my documents" ask paperless-ngx already covers it
+    with a much lighter resource footprint. Value is real but narrower
+    than the source description implies once paperless-ngx is in the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MAYAN_AUTOADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: MAYAN_AUTOADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mayan EDMS is active and well-maintained (patch releases every 3-5
+  weeks, no EOL signals) and is mechanically installable today: the
+  official image reads MAYAN_AUTOADMIN_USERNAME/MAYAN_AUTOADMIN_PASSWORD
+  (documented Django smart-settings env vars) to provision the initial
+  admin account non-interactively, which maps cleanly onto
+  generated_from root-password projection, and the web UI sits behind a
+  single HTTP port compatible with Traefik. The main caveat is
+  resource weight, not installability: the upstream reference stack
+  needs Postgres, Redis, RabbitMQ, and (optionally) Elasticsearch plus
+  several dedicated Celery worker containers, materially heavier than
+  paperless-ngx's Postgres+Redis pair for largely overlapping OCR/search
+  functionality. Recommend building only if the workflow-engine /
+  document-versioning differentiation is something we specifically want
+  to offer beyond what paperless-ngx already provides.
