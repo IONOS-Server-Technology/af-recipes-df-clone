@@ -1,0 +1,110 @@
+slug: mirotalk
+name: MiroTalk
+source_description: "Self-hosted P2P video conferencing with unlimited rooms and screen sharing"
+
+upstream:
+  url: https://mirotalk.com/
+  repo_url: https://github.com/miroslavpejic85/mirotalk
+  license: AGPL-3.0 (commercial/dual license also sold separately via CodeCanyon by the author)
+  docker_image: mirotalk/p2p
+
+version_health:
+  latest_version: "1.8.75 (package.json; no git tags or versioned Docker Hub tags exist)"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    No GitHub Releases and no git tags exist for this repo — it ships as a
+    rolling `master` branch with `package.json` bumped ad hoc (currently
+    1.8.75) and a single `mirotalk/p2p:latest` Docker Hub tag (no versioned
+    tags at all, last pushed 2026-07-31, 5 days before this analysis).
+    Commit history is dense and recent (5 commits in the week before this
+    analysis: dep bumps, a Node 24 base image bump, UI fixes), 4,665
+    GitHub stars, repo not archived, 0 open issues. Clearly active
+    development, but the lack of any versioned tag (git or Docker) means a
+    recipe could only pin by image digest, not a human-readable version —
+    unusual among our current recipes and worth flagging even though it
+    isn't disqualifying.
+
+catalogue_fit:
+  categories: [communication, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers real-time video/audio
+    conferencing. Two other video-conferencing candidates (Jitsi Meet,
+    Ant Media Server CE) were previously analyzed in apps-gaps/ but neither
+    is an actual recipe yet, so overlaps_with is empty. MiroTalk's pure
+    P2P architecture (no SFU/media bridge — video/audio flows directly
+    between browsers) is the key differentiator from Jitsi Meet: it needs
+    only the one HTTP signaling port, so unlike Jitsi it does not require
+    a raw public UDP port for a video bridge and fits our single-HTTP-port
+    Traefik model cleanly.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted video conferencing is a broadly appealing category
+    (privacy-conscious teams/schools/communities wanting a Zoom/Meet
+    alternative) with no equivalent in the catalogue today. MiroTalk is
+    lightweight (single container, single port) compared to Jitsi's
+    multi-service stack, making it a much easier first video-conferencing
+    recipe to ship.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No versioned Docker tag exists (see version_health.notes) — only
+      `:latest`. A recipe would have to pin by image digest instead of a
+      human-readable tag, which is workable but a deviation from how
+      every other recipe pins today; flagging for a human decision rather
+      than treating it as disqualifying on its own.
+    - >
+      MiroTalk's own host-protection feature (`HOST_PROTECTED` /
+      `HOST_USER_AUTH`, default `false` in .env.template) stores
+      credentials in `HOST_USERS`, a JSON array of one-or-more plaintext
+      `{"username","password"}` pairs read directly from the env file —
+      not a single hashed field. This does not fit `generated_from`
+      (which only ever carries a hash of the root password, never a
+      plaintext value) and also does not fit the single-credential model
+      even if it did (the sample default ships two accounts, admin and
+      guest). The app's own login is therefore not expressible today; the
+      recipe would instead have to leave `HOST_PROTECTED=false` (its
+      default — no login, anyone with the room link can create/join) and
+      rely on the Traefik `basic_auth` gate as the actual auth boundary.
+    - >
+      Same product trade-off flagged for Jitsi Meet: MiroTalk's core value
+      is letting external guests join a room via a shared link with no
+      account of their own. Gating the whole domain behind Traefik
+      `basic_auth` secures the deployment but also blocks those guests
+      unless the host shares the basic-auth credential with them too —
+      workable, but changes the app's intended sharing model. A human
+      should decide if that trade-off is acceptable for a shipped recipe.
+    - >
+      No TURN server is configured by default (only public Google STUN).
+      This is not an install blocker — calls between peers on unrestricted
+      networks work fine — but customers on stricter corporate/mobile NATs
+      may see failed connections without a TURN relay, which the recipe
+      cannot provision without an external customer-supplied TURN
+      credential (out of scope for this analysis but worth noting as a
+      real-world usability caveat).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  MiroTalk is an actively developed (weekly commits, 2026-07-31 last push),
+  lightweight, single-container P2P video conferencing app that would fill a
+  genuine gap in the catalogue and is architecturally simpler to host than
+  Jitsi Meet since it needs no raw UDP media-bridge port — just one HTTP
+  port behind Traefik. It is mechanically installable today by leaving its
+  own host-protection off and gating the domain with Traefik basic_auth
+  (its built-in HOST_USERS login is plaintext-only and multi-account, so it
+  cannot be projected via generated_from). The two open questions for a
+  human before building are whether a basic_auth gate is acceptable given
+  it also blocks the guest-link joining that is MiroTalk's core use case,
+  and whether digest-only pinning (no versioned tag exists upstream) is
+  acceptable for a recipe.
