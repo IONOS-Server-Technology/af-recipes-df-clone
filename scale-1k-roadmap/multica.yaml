@@ -1,0 +1,95 @@
+slug: multica
+name: Multica
+source_description: "Open-source managed agents platform for coding AI agents and team workflows"
+
+upstream:
+  url: https://github.com/multica-ai/multica
+  repo_url: https://github.com/multica-ai/multica
+  license: "Apache-2.0 with additional commercial/branding conditions (self-hosted backend-only use — server, daemon, CLI — is exempt from branding restrictions but must retain attribution)"
+  docker_image: "ghcr.io/multica-ai/multica-backend, ghcr.io/multica-ai/multica-web (plus pgvector/pgvector:pg17 for the database)"
+
+version_health:
+  latest_version: "v0.4.19"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Shipping releases roughly every 1-2 days (v0.4.10 on 2026-07-24 through
+    v0.4.19 on 2026-08-05, i.e. today). Pre-1.0 (v0.4.x) but clearly under
+    heavy active development, not dormant or abandoned.
+
+catalogue_fit:
+  categories: [ai, automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OpenClaw and Hermes Agent are single-agent personal automation runtimes
+    driven through messaging apps (Telegram). Multica is a team-facing
+    coordination platform: it assigns tasks/issues to multiple named coding
+    agents (Claude Code, Codex, Copilot CLI, etc.), tracks their progress via
+    WebSocket, and stores completed work as reusable "skills" across a
+    workspace. No existing recipe covers this multi-agent, team-workflow
+    orchestration use case, so there is no functional duplication — only a
+    thematic adjacency (both are "AI agent" recipes).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely novel category for the catalogue (dev-team agent orchestration
+    hub) and the core web+API+Postgres stack is easy to containerize and
+    front with Traefik. Rated medium rather than high because the actual
+    coding agents run as a separate daemon process on the customer's own
+    machine(s) with their own CLI credentials — the hosted instance is only
+    the coordination/dashboard layer, so its standalone value depends on the
+    customer already running that local daemon setup.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "RESEND_API_KEY (transactional email provider used to deliver login verification codes)"
+    - "site-access gate credential (app has no built-in admin/root password of its own — signup is open and email-code based)"
+  secrets_expressible_today:
+    - secret: "site-access gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Multica's only login mechanism is email-based: a user requests a
+      verification code and Multica emails it via Resend
+      (RESEND_API_KEY). There is no username/password admin account and no
+      parameter that a root-password hash could be projected into — the app
+      needs a real, working external email-delivery API key to let anyone
+      log in at all. There is no customer-supplied-value channel for this
+      today.
+    - >
+      The only alternative to Resend is MULTICA_DEV_VERIFICATION_CODE, a
+      fixed PLAINTEXT verification code documented upstream as "dev-only,
+      dangerous in production." generated_from only ever yields a hash, so
+      it cannot populate a field that must be compared against a plaintext
+      code typed into a UI — this is the genuine-plaintext-requirement case
+      the schema calls out as a structural blocker, not just a
+      missing-algorithm gap.
+    - >
+      A Traefik basic_auth gate can keep the deployment closed to the
+      public internet, but it doesn't solve the above: once through the
+      gate, the customer still cannot complete the app's own login flow
+      without a working Resend key or the insecure dev code.
+    - >
+      Optional Google OAuth login (GOOGLE_CLIENT_ID/SECRET) has no
+      registration channel either, but since it's optional and email-code
+      login is the primary path, this is secondary to the Resend blocker
+      above.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Multica is a legitimately new addition to the catalogue's AI-agent
+  category — team-oriented coding-agent task orchestration, distinct from
+  the personal/messaging-driven OpenClaw and Hermes Agent recipes already
+  present — and upstream is under very active daily development. It is not
+  installable today, however: its only account-creation path is an
+  email-verification code sent via Resend (an external API key with no
+  customer-input channel), and the sole production alternative is a
+  plaintext dev-only code that generated_from's hash-only output cannot
+  supply. A Traefik basic_auth gate can hide the deployment but cannot
+  substitute for Multica's own login flow. Revisit once either a
+  customer-suppliable external-API-key channel exists or upstream adds a
+  password-based admin login that generated_from can target.
