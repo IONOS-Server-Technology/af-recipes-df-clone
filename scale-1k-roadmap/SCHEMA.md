@@ -6,6 +6,15 @@ issue researches one app and writes exactly one file here — no recipe files,
 no PR. This is analysis only, to triage which apps are worth a real
 `af-create-recipe` pass.
 
+The structure below is documented for humans; [`schema.json`](schema.json)
+is the machine-checkable version (JSON Schema, applies directly to the
+parsed YAML). Validate all files with:
+
+```bash
+pip install pyyaml jsonschema
+python3 bin/validate-apps-gaps
+```
+
 ## Why this exists: no customer-supplied parameters today
 
 Confirmed against `IF-1420` (root-password projection, `generated_from:

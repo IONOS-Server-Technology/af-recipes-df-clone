@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hteichmann-strato/af-recipes-clone/apps-gaps/schema.json",
+  "title": "apps-gaps gap-analysis file",
+  "description": "Structure for apps-gaps/<slug>.yaml, as documented in apps-gaps/SCHEMA.md. Validated by bin/validate-apps-gaps.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["slug", "name", "source_description", "upstream", "version_health", "catalogue_fit", "installability", "summary"],
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "source_description": { "type": "string", "minLength": 1 },
+
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "repo_url", "license", "docker_image"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "repo_url": { "type": ["string", "null"] },
+        "license": { "type": "string", "minLength": 1 },
+        "docker_image": { "type": ["string", "null"] }
+      }
+    },
+
+    "version_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latest_version", "latest_release_date", "release_cadence", "eol_status", "notes"],
+      "properties": {
+        "latest_version": { "type": ["string", "null"] },
+        "latest_release_date": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "release_cadence": { "enum": ["active", "slowing", "sporadic", "dormant"] },
+        "eol_status": { "enum": ["active", "maintenance-only", "archived", "eol"] },
+        "notes": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "catalogue_fit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["categories", "has_web_ui", "reverse_proxy_compatible", "overlaps_with", "differentiation", "usefulness", "usefulness_rationale"],
+      "properties": {
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "has_web_ui": { "type": "boolean" },
+        "reverse_proxy_compatible": { "type": "boolean" },
+        "overlaps_with": { "type": "array", "items": { "type": "string" } },
+        "differentiation": { "type": "string", "minLength": 1 },
+        "usefulness": { "enum": ["high", "medium", "low"] },
+        "usefulness_rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "installability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recipe_type_guess", "secrets_required_at_first_boot", "secrets_expressible_today", "blocking_issues", "installable_today", "recommendation"],
+      "properties": {
+        "recipe_type_guess": { "enum": ["docker-compose", "native"] },
+        "secrets_required_at_first_boot": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "secrets_expressible_today": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["secret", "mechanism"],
+            "properties": {
+              "secret": { "type": "string", "minLength": 1 },
+              "mechanism": {
+                "enum": ["generated_from_root_password", "traefik_basic_auth", "server_generated_no_customer_input"]
+              }
+            }
+          }
+        },
+        "blocking_issues": { "type": "array", "items": { "type": "string" } },
+        "installable_today": { "type": "boolean" },
+        "recommendation": { "enum": ["build_now", "build_with_caveats", "blocked_on_platform", "not_recommended"] }
+      }
+    },
+
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}
