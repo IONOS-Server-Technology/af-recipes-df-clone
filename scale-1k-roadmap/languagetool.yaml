@@ -1,0 +1,73 @@
+slug: languagetool
+name: LanguageTool
+source_description: "Open-source grammar, style, and spell checker for 25+ languages"
+
+upstream:
+  url: https://languagetool.org
+  repo_url: https://github.com/languagetool-org/languagetool
+  license: LGPL-2.1-or-later
+  docker_image: null # no official image maintained by languagetool-org; erikvl87/languagetool is the de-facto community standard
+
+version_health:
+  latest_version: "v6.8"
+  latest_release_date: "2026-05-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3 months since v6.8 as of 2026-08-05. Tag history shows a steady ~6-7
+    month cadence: v6.5 (2024-09-27), v6.6 (2025-03-28, ~6mo), v6.7
+    (2025-10-10, ~7mo), v6.8 (2026-05-05, ~7mo). 14.8k GitHub stars, no
+    archived flag, issues still triaged. The community Docker image
+    (erikvl87/languagetool) tracks these releases closely — its 6.8 tag
+    was pushed within ~2 months of the upstream release. Reads as active,
+    not sporadic or dormant.
+
+catalogue_fit:
+  categories: [productivity, utility]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover grammar/style/spell-checking.
+    LanguageTool would let a customer self-host a private grammar-check
+    backend (for the LibreOffice/browser-extension/desktop clients that
+    support a custom server URL) instead of sending text to the public
+    languagetool.org cloud API — a real privacy/self-hosting motivation
+    distinct from anything already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable self-hosted use case (privacy-conscious writers,
+    orgs that can't send text to a third-party API), but it's a headless
+    API service, not a product someone opens in a browser and uses
+    directly — narrower audience than a password manager or automation
+    tool, and the customer still needs to configure a client (browser
+    extension, LibreOffice, editor plugin) to point at it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LanguageTool ships no built-in authentication of any kind — the upstream
+  HTTP server binds to localhost unless `--public` is passed, with no
+  login, no admin account, and no env-var-driven credential to project a
+  root-password hash into. That makes it a clean fit for the
+  Traefik-`basic_auth`-gate pattern already used for apps with no login of
+  their own (n8n, WUD, Immich): gate the whole `/v2/check` endpoint behind
+  basic auth so it isn't a wide-open, unmetered text-checking API on the
+  public internet, generate that gate credential the same way as
+  Hermes Agent's dashboard password. There's no official Docker image —
+  languagetool-org doesn't publish one — so the recipe would need to pin
+  a community image (erikvl87/languagetool:6.8 is the most actively
+  maintained option, tracking upstream releases within ~2 months). No web
+  UI exists; this is a headless grammar-checking API, so the "value" a
+  customer gets is a server URL to plug into a compatible client, not a
+  page to visit. Upstream itself is active and LGPL-licensed. Recommend
+  build_now, with the caveat that it's a lower-visibility, API-only
+  product compared to the catalogue's UI-driven recipes.
