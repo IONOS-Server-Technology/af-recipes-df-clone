@@ -1,0 +1,68 @@
+slug: sqlpage
+name: SQLPage
+source_description: "SQL-only web application builder that renders interactive sites from queries"
+
+upstream:
+  url: https://sql-page.com/
+  repo_url: https://github.com/sqlpage/SQLPage
+  license: MIT
+  docker_image: lovasoa/sqlpage
+
+version_health:
+  latest_version: "v0.45.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v0.45.0 shipped 2026-07-21, about two weeks before this
+    analysis (2026-08-05). Prior tags (v0.44.1 2026-06-11, v0.44.0
+    2026-05-29, v0.43.0 2026-03-08, v0.42.0 2026-01-17) show a steady
+    roughly-monthly cadence with an active security-fix release (v0.44.1,
+    an OIDC auth-bypass patch) in the mix. Repo is not archived and
+    development is ongoing.
+
+catalogue_fit:
+  categories: [developer-tools, low-code, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a SQL-driven low-code web app
+    builder. n8n covers workflow automation and Adminer-style DB browsing
+    isn't in the catalogue at all yet either. SQLPage lets a customer write
+    plain .sql files and get a rendered UI (tables, forms, charts) on top
+    of a database, which is a distinct developer/data-analyst use case from
+    anything currently offered.
+  usefulness: medium
+  usefulness_rationale: >
+    Compelling for developers/data analysts who want to spin up small
+    internal tools or dashboards without a full app stack, but it's a
+    technical builder tool rather than a ready-made application, and the
+    customer must write their own SQL/site content before it's useful for
+    anything beyond a default/demo page.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SQLPage is a single-container, single-HTTP-port (8080) Rust binary with an
+  official `lovasoa/sqlpage` Docker image, defaulting to an embedded SQLite
+  database (DATABASE_URL="sqlite://sqlpage.db?mode=rwc") so it boots with no
+  external dependencies. It has no built-in admin login of its own — auth is
+  opt-in via OIDC config, and "without OIDC configuration, your SQLPage
+  application will be accessible without authentication" per upstream docs.
+  Since the app's whole purpose is running customer-authored SQL against a
+  live database connection, leaving it open to the internet by default is
+  the same risk pattern as Adminer, so it should ship gated behind a
+  mandatory Traefik basic_auth, with that password projected from the
+  customer's root password via generated_from. That makes it directly
+  installable today under the current mechanism. Release cadence is active
+  (roughly monthly, most recently 2026-07-21) with no overlap in the
+  existing catalogue, so recommend building the recipe.
