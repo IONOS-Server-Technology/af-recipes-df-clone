@@ -1,0 +1,115 @@
+slug: sftpgo
+name: SFTPGo
+source_description: "Full-featured SFTP, FTP, and WebDAV server with web-based administration"
+
+upstream:
+  url: https://sftpgo.com/
+  repo_url: https://github.com/drakkan/sftpgo
+  license: >
+    AGPL-3.0-only with additional terms (see NOTICE, invoked under AGPL
+    sections 7.3(b) and 13.1). SFTPGo Enterprise is a separate proprietary
+    product; only the AGPL Community/Open Source edition is relevant here.
+  docker_image: drakkan/sftpgo
+
+version_health:
+  latest_version: "v2.7.5"
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Verified against the GitHub releases page and Docker Hub tag metadata,
+    not recall. v2.7.5 was released 2026-07-17 — 20 days before today
+    (2026-08-06) — a bug/security-fix release (httpd share connection
+    close; improper handling of malformed SSH channel requests). Preceding
+    releases: v2.7.4 (2026-06-27), v2.7.3 (2026-05-30), v2.7.1
+    (2026-03-13), v2.7.0 (2025-10-23, a feature release: post-quantum
+    mlkem768x25519-sha256 key exchange, go-jose JWT rewrite, French/German
+    WebUI translations, share-page disclaimers; it also *removed* Git and
+    rsync support on security grounds), plus continued 2.6.x maintenance
+    (v2.6.6 on 2026-02-24, v2.6.5 on 2026-02-07). The official image is
+    rebuilt in lockstep — v2.7.5/v2.7.5-alpine/latest pushed 2026-07-17,
+    the rolling 2.7.x and edge tags as recently as 2026-08-04. Repo is not
+    archived, ~10k stars, active issue traffic. One structural caveat a
+    reviewer should know: since SFTPGo Enterprise launched, upstream states
+    plainly that primary development effort goes to the Enterprise edition
+    (faster cadence, major new features first) while the Open Source
+    edition "remains maintained" with bug fixes and essential updates and
+    only selective backports. That is a slower-feature-flow signal, not an
+    EOL one — the OSS line still shipped genuinely new features in v2.7.0
+    and four fix releases in the last five months — so `active` is the
+    honest reading, but the open-source edition should be expected to lag
+    the commercial one feature-wise.
+
+catalogue_fit:
+  categories: [productivity, infrastructure, file-transfer]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a file-transfer *server*.
+    recipes/syncthing/ is the nearest neighbour but solves the opposite
+    problem — peer-to-peer replication between devices the customer
+    controls, with no standard-protocol endpoint a third party can connect
+    to. SFTPGo's value is precisely that: it exposes per-user, quota'd,
+    virtual-folder-scoped accounts over SFTP (and optionally FTPS/WebDAV)
+    with a real web admin UI plus an end-user WebClient for browsing,
+    upload links and public shares, backed by local disk or S3/GCS/Azure
+    Blob. Typical customer need: "give my client/agency/CI job an SFTP
+    drop-box on my own server" — the classic replacement for hand-rolling
+    OpenSSH chroot users, which nothing in the catalogue covers.
+    `reverse_proxy_compatible: false` in the strict sense of this field:
+    the web admin/client is a single plain-HTTP port (8080) and sits behind
+    Traefik on <slug>.<base_domain> without trouble, but the app's core
+    function needs a raw published TCP port for SFTP (2022 by default),
+    which Traefik does not front — the same shape as recipes/syncthing/'s
+    22000 or recipes/wg-easy/'s UDP port, both of which the recipe schema
+    already handles via `http: false` port entries.
+  usefulness: high
+  usefulness_rationale: >
+    A managed SFTP/WebDAV server with per-user accounts and a web admin UI
+    is a common, concrete self-hosting need with no catalogue coverage at
+    all, and SFTPGo is the strongest OSS option in that niche (single Go
+    binary, SQLite by default, multi-arch official image, small footprint).
+    It also composes well with the rest of the catalogue as the "give
+    something else a place to drop files" building block.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SFTPGO_DEFAULT_ADMIN_PASSWORD
+  secrets_expressible_today:
+    - secret: SFTPGO_DEFAULT_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SFTPGo is a single-container Go app (drakkan/sftpgo pinned at v2.7.5) with
+  a SQLite data provider by default, so no sidecar database: web
+  admin/WebClient on HTTP 8080 for Traefik, plus a raw published TCP 2022
+  for SFTP itself (FTPD and WebDAVD are bound to port 0 — disabled — in the
+  shipped sftpgo.json, so a first recipe would sensibly ship SFTP + web UI
+  and leave FTPS, which additionally needs its own TLS material and a
+  passive-port range, off). It clears the /compose constraint cleanly: the
+  only customer-facing credential is the first admin login, created at
+  startup from SFTPGO_DEFAULT_ADMIN_USERNAME (a fixed recipe value such as
+  "admin") and SFTPGO_DEFAULT_ADMIN_PASSWORD with
+  SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 — and, verified in
+  internal/dataprovider/admin.go, `Admin.hashPassword()` stores the value
+  verbatim when it already carries an internal hash prefix, so a
+  pre-computed hash from `generated_from: "bcrypt:ROOT_PASSWORD"` (or
+  argon2) is accepted directly and the customer logs in with their own root
+  password. Host keys, tokens and the DB are all generated by SFTPGo
+  itself, and there is no external API key or OAuth registration in the
+  boot path (the OIDC block is opt-in and empty by default). Two things for
+  the recipe author to verify rather than assume: (1) `internalHashPwdPrefixes`
+  is exactly `$argon2id$` and `$2a$` — a bcrypt hash emitted with the `$2b$`
+  or `$2y$` prefix would be treated as plaintext, re-hashed, and lock the
+  customer out, so the projection must produce `$2a$`-prefixed bcrypt (Go's
+  x/crypto default) or an alexedwards/argon2id-style `$argon2id$v=19$...`
+  string; (2) upstream's AGPL NOTICE adds attribution terms that bite
+  exactly our case — an app offered through our own frontend must carry
+  clear attribution to the SFTPGo project and a link to the corresponding
+  source — cheap to satisfy but worth doing deliberately. Recommend
+  build_now.
