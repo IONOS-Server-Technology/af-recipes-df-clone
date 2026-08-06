@@ -1,0 +1,86 @@
+slug: jelly-clipper
+name: Jelly-Clipper
+source_description: "Open-source Jellyfin companion for creating and sharing clips from your library"
+
+upstream:
+  url: https://github.com/arnolicious/jelly-clipper
+  repo_url: https://github.com/arnolicious/jelly-clipper
+  license: MIT
+  docker_image: ghcr.io/arnolicious/jelly-clipper (pin to a version tag, e.g. v1.3.6 — do not follow upstream's :latest example)
+
+version_health:
+  latest_version: "v1.3.6"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v1.3.6 shipped 2026-08-03, two days before today
+    (2026-08-05). Preceding tags (v1.3.5, v1.3.4, v1.3.3, v1.3.2, ...) land
+    within days of each other, driven by Renovate dependency-bump PRs plus
+    the sole maintainer's own fixes — a healthy, near-daily-to-weekly
+    cadence for what the author describes as "my first open source
+    project." Repo not archived, 261 commits on main, 90 stars, 6 forks, 11
+    open issues. Clearly active, single-maintainer project (bus-factor risk
+    worth noting but not an EOL signal).
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does clip creation/sharing
+    from a media library — Immich covers photo/video backup and
+    organization, but not clipping from an existing Jellyfin library. The
+    catch is that Jelly-Clipper is a pure companion app: it has no media
+    library, no transcoding pipeline, and no user accounts of its own — it
+    is useless without an already-running Jellyfin server for it to attach
+    to. We do not offer Jellyfin (or any media-server recipe) in the
+    current catalogue, so this app only pays off for a customer who
+    already self-hosts Jellyfin elsewhere (their own box, another
+    provider, or a manually-run container outside AF) and wants an add-on
+    for it.
+  usefulness: low
+  usefulness_rationale: >
+    Well-scoped, actively developed niche tool, but its entire value
+    proposition depends on a Jellyfin instance that AF does not host and
+    is not proposing to host. Standalone, it is a login screen pointing at
+    nothing. Usefulness would jump to medium/high if/when a Jellyfin
+    recipe is added to the catalogue; on its own today it is a thin,
+    dependent add-on in the same vein as Jackett/Bazarr (upstream/downstream
+    dependents with no anchor app present).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No blocker in the /compose sense: the app ships with no admin
+      account of its own and no environment variable for a Jellyfin
+      server URL/API key — deploy-time config is just JELLY_CLIPPER_ORIGIN
+      (the public app URL) and optional cron/log-level settings, all
+      non-secret. End users instead enter their own Jellyfin server
+      address and Jellyfin username/password directly in the
+      Jelly-Clipper login screen at runtime (delegated auth against
+      Jellyfin's API), which is an in-app user action, not a
+      customer-supplied /compose parameter, so it needs no
+      generated_from/basic_auth projection."
+    - "Real-world blocker is architectural, not platform-mechanism: the
+      app is non-functional without a Jellyfin server to log into, and we
+      have no Jellyfin recipe. This is a 'nothing to point it at' problem
+      the schema's secret-projection rules don't capture."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Mechanically this is one of the simplest recipes imaginable — a single
+  container, one HTTP port (3000), SQLite on a volume, no admin
+  credential of its own to project, and no external API key baked into
+  deploy-time config (Jellyfin login happens interactively in the app's
+  own UI, not through /compose). installable_today is true on pure
+  platform-mechanism grounds. But recommendation is not_recommended: the
+  app is a companion to a Jellyfin server we don't offer anywhere in the
+  24-recipe catalogue, so shipping it alone gives customers a login
+  screen with nothing to authenticate against. Revisit if/when a Jellyfin
+  recipe is ever added — this would then be a natural, low-effort
+  companion recipe.
