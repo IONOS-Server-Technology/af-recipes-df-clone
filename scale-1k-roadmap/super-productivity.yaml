@@ -1,0 +1,76 @@
+slug: super-productivity
+name: Super Productivity
+source_description: "Super Productivity is a task manager with time tracking and Pomodoro"
+
+upstream:
+  url: https://super-productivity.com/
+  repo_url: https://github.com/super-productivity/super-productivity
+  license: MIT
+  docker_image: johannesjo/super-productivity
+
+version_health:
+  latest_version: "v18.16.0"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly tagged releases (v18.12.0 on 2026-06-20 through
+    v18.16.0 on 2026-07-25, four releases in five weeks). Latest release
+    was 11 days before today (2026-08-05). No archival or EOL signal;
+    actively developed with a healthy feature-release cadence. Note the
+    project moved from the `johannesjo/super-productivity` personal
+    namespace to the `super-productivity/super-productivity` GitHub org at
+    some point in its history; the Docker Hub image repo is still under
+    the original `johannesjo/` namespace.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a personal task manager /
+    time-tracker / Pomodoro tool. n8n (automation) and paperless-ngx/
+    paperless-ai (document management) are the closest adjacent
+    productivity-category entries, but neither covers todo-list-style
+    personal task management. This would be a genuinely new niche for the
+    catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal task management has broad appeal, and Super Productivity has
+    a loyal following among developers (Jira/GitHub integration, Pomodoro,
+    time tracking). However, the app is fundamentally a client-side PWA —
+    all task data lives in the browser's IndexedDB, not on the server —
+    so a bare self-hosted instance mainly buys the customer "my own URL to
+    load the app from" rather than genuine server-side data ownership or
+    cross-device sync, which requires the separate WebDAV/SuperSync
+    backend the upstream compose file ships alongside it. That caveat
+    tempers the value versus a typical self-hosted app where the server is
+    the source of truth.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Super Productivity's official image (johannesjo/super-productivity,
+  currently v18.16.0) is a single-container static web app serving a PWA on
+  port 80, with no database and no built-in authentication whatsoever —
+  the upstream docs explicitly say "no built-in authentication; users
+  should implement external solutions if needed." That maps cleanly onto
+  the Traefik basic_auth gate pattern (n8n, WUD, Open WebUI) with zero
+  blocking issues: just a domain param plus a mandatory basic-auth
+  credential projected from the customer's root password. It clears the
+  installability bar today and the project is actively maintained
+  (releases every 1-2 weeks). The caveat worth flagging before building:
+  since all task data lives client-side in the browser, not on the server,
+  this recipe delivers less "self-hosted value" than most of the
+  catalogue unless a future iteration also wires up the optional
+  WebDAV/SuperSync sync backend from upstream's docker-compose.yaml —
+  recommend build_with_caveats rather than an unqualified build_now.
