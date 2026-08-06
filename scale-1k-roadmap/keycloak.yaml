@@ -1,0 +1,83 @@
+slug: keycloak
+name: Keycloak
+source_description: "Open-source identity and access management with SSO, OAuth2, and SAML"
+
+upstream:
+  url: https://www.keycloak.org/
+  repo_url: https://github.com/keycloak/keycloak
+  license: Apache-2.0
+  docker_image: quay.io/keycloak/keycloak
+
+version_health:
+  latest_version: "26.7.1"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Minor releases (26.x) ship roughly monthly (26.6.1 in 2026-04, 26.6.2 in
+    2026-05, 26.6.3 in 2026-06, 26.7.0 in 2026-07, 26.7.1 shortly after) —
+    about 3 weeks since the last release as of 2026-08-05. CNCF-adjacent,
+    Red Hat-backed (upstream of Red Hat build of Keycloak / RHBK), very
+    active issue triage and security patching. No EOL or maintenance-only
+    signal.
+
+catalogue_fit:
+  categories: [security, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes provide identity/access management,
+    SSO, OAuth2/OIDC, or SAML. Keycloak would let a customer stand up a
+    central auth provider that other self-hosted apps (or their own
+    external apps) delegate login to — a genuinely new capability, not a
+    variant of anything already in the catalogue. Guacamole/Vaultwarden
+    are the closest security-category neighbors but solve different
+    problems (remote desktop gateway, password vault) with no IAM overlap.
+  usefulness: high
+  usefulness_rationale: >
+    SSO/IAM is a common ask for small businesses and dev teams once they
+    run more than one self-hosted app; Keycloak is the de facto open-source
+    standard for it, well documented, and Red Hat-backed for longevity.
+    Complexity of configuring realms/clients post-install is real, but
+    that's normal for this class of app and doesn't reduce its value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - KC_BOOTSTRAP_ADMIN_PASSWORD
+    - KC_DB_PASSWORD
+  secrets_expressible_today:
+    - secret: KC_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Keycloak's initial admin account is created from KC_BOOTSTRAP_ADMIN_USERNAME
+      / KC_BOOTSTRAP_ADMIN_PASSWORD (or the _FILE variants) at first boot.
+      Keycloak takes the plaintext password and hashes it itself with its
+      own internal credential-storage scheme (PBKDF2-based, configurable
+      per realm) — it does not accept a pre-computed hash as input. This is
+      a genuine plaintext-password requirement, not a hash in an
+      unsupported algorithm, so generated_from cannot project a customer
+      value into it.
+    - >
+      Gating the whole app behind Traefik basic_auth instead is not a
+      substitute here: Keycloak's entire purpose is that the customer logs
+      into its own admin console to configure realms/clients/SSO. A
+      basic_auth wrapper would not give the customer a usable admin
+      identity inside the app itself, only network-level access to a login
+      screen whose credential we still can't set to something they chose.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Keycloak is an active, Red Hat-backed IAM/SSO project with no equivalent
+  in the current 24-recipe catalogue and clear customer demand for
+  self-hosted SSO. It's a single reverse-proxy-friendly web app with a
+  Postgres backend, structurally straightforward to package. The blocker is
+  purely mechanical: its admin bootstrap requires a plaintext password that
+  our root-password-hash projection can't supply, and a Traefik basic_auth
+  gate doesn't substitute for a real admin login the customer can use.
+  Revisit once the platform gains a channel for a customer-chosen plaintext
+  admin credential (not just a hash) — this is exactly the kind of
+  high-value app worth building the moment that lands.
