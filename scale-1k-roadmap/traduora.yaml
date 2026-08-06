@@ -1,0 +1,103 @@
+slug: traduora
+name: Traduora
+source_description: "Modern self-hosted translation management platform for teams and developers"
+
+upstream:
+  url: https://traduora.co
+  repo_url: https://github.com/ever-co/ever-traduora
+  license: AGPL-3.0
+  docker_image: everco/ever-traduora
+
+version_health:
+  latest_version: "v0.21.0"
+  latest_release_date: "2025-06-22"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest tagged release v0.21.0 shipped 2025-06-22 — about 13.5 months
+    before this analysis (2026-08-05). Tag history is uneven: v0.19.5-v0.19.7
+    all cut the same day in 2023-03-05, then a ~19-month gap to v0.20.0
+    (2024-10-27), then v0.20.1 two weeks later, v0.20.4 in 2025-04-07, and
+    v0.21.0 in 2025-06-22 — no tag since. However the repo itself is far from
+    dormant: `pushed_at` and commit history show active work on the
+    `develop` branch through today (2026-08-05, e.g. an Angular 16→19
+    migration merged 2026-07-16), and 99 open issues are being triaged. Repo
+    is not archived. This reads as an actively developed project that has
+    simply stopped cutting version tags for over a year, not an abandoned one.
+
+
+    Name ambiguity: the original project lived at
+    github.com/anthonynsimon/traduora (and a github.com/traduora/traduora
+    org, which now 301-redirects). That repo's README states it "is being
+    migrated to a new home at github.com/ever-co/", and its own commit
+    history stops at 2021-04-15 — effectively abandoned in place. The active
+    successor is github.com/ever-co/ever-traduora ("Ever® Traduora™"), which
+    is what this analysis targets. Several other GitHub accounts
+    (haringsrob, neuroradiology, AymericG, TakumiHQ, doc-ai) merely host
+    stale forks of the original repo, not distinct projects — ruled out as
+    noise, not candidates.
+
+catalogue_fit:
+  categories:
+    - developer-tools
+    - productivity
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers i18n/translation-string
+    management (import/export of translation files, collaborative
+    translation workflows, REST API for CI/CD translation delivery). Closest
+    existing recipes (Gitea, Opengist) are developer tools but serve a
+    different purpose (code/snippet hosting, not localization workflow).
+    This would appeal to development teams shipping multi-language software
+    who want a self-hosted Phrase/Lokalise/Crowdin alternative.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche (self-hosted i18n workflow tool), single lightweight
+    container with SQLite support (no external DB dependency required), and
+    genuinely distinct from anything else in the catalogue. Audience is
+    narrower than general productivity tools — mainly dev teams with active
+    localization pipelines — and the stalled release cadence (see
+    version_health) is a caveat worth flagging even though development
+    itself continues.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_password
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Traduora (now maintained as ever-co/ever-traduora after migrating from the
+  original anthonynsimon/traduora, which stalled in 2021) is a single
+  lightweight container with no mandatory external database (SQLite
+  supported), fronting fine behind Traefik on one HTTP port, and fills a
+  genuine gap — no i18n/translation-management tool exists in the current
+  24-recipe catalogue. Development is active on `develop` (commits as
+  recently as today), but no version tag has shipped in over 13 months,
+  which is worth flagging even though it isn't outright abandonment.
+
+  Installability needs a workaround, not a straight port: Traduora seeds a
+  default admin (TR_SEED_DATA=true, TR_ADMIN_EMAIL/TR_ADMIN_PASSWORD), but
+  per its own source (api/src/seeds/user.seed.ts → UserService.create) the
+  password must arrive as plaintext — the app itself runs
+  `bcrypt.hash(password, 10)` on whatever string is supplied, so it cannot
+  accept a pre-computed hash and there is no `generated_from` channel to
+  seed a customer-specific admin login. It also defaults to open self-signup
+  (TR_SIGNUPS_ENABLED=true) with per-project roles rather than one
+  instance-wide admin, so anyone reaching the URL could create their own
+  account. The fix: set TR_SIGNUPS_ENABLED=false, treat the seeded default
+  admin as an internal detail no customer needs, and gate the whole app
+  behind Traefik basic_auth with `generated_from: "bcrypt:ROOT_PASSWORD"` —
+  the same "fixed/default credential behind a gate" pattern SCHEMA.md
+  treats as acceptable (see Adminer), making Traefik the real customer-
+  facing auth boundary instead of Traduora's own login. Recommend
+  build_with_caveats: worth building, but the recipe must document and
+  enforce TR_SIGNUPS_ENABLED=false plus the basic_auth gate rather than
+  exposing Traduora's own login UI as the primary credential.
