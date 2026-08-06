@@ -1,0 +1,85 @@
+slug: fusio
+name: Fusio
+source_description: "Open-source API management platform to build, operate, and monetize REST APIs"
+
+upstream:
+  url: https://www.fusio-project.org/
+  repo_url: https://github.com/apioo/fusio
+  license: Apache-2.0
+  docker_image: fusio/fusio
+
+version_health:
+  latest_version: "7.1.0"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly monthly-to-bimonthly cadence over the past year: v5.2.2
+    (2025-04-12), v5.2.3 (2025-05-04), v5.2.4 (2025-06-11), v5.2.5
+    (2025-06-21), v6.0.0 (2025-09-06), v6.1.0 (2025-10-10), v6.2.0
+    (2026-01-01), v6.3.0 (2026-02-01), v7.0.0 (2026-05-23), v7.1.0
+    (2026-07-18). Only 18 days since the last release as of 2026-08-05.
+    Repo is not archived and shows continued feature development (taxonomy
+    system, agent/AI adapter concepts, MCP server, OAuth2 authorization
+    server) across the recent releases.
+
+catalogue_fit:
+  categories: [development, api-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers API gateway / API management
+    (build, document, and expose REST APIs with a backend admin UI,
+    consumer developer portal, and OpenAPI/ReDoc docs). Closest existing
+    recipes (n8n, activepieces-style automation) are workflow tools, not an
+    API-first backend platform; Fusio would be a genuinely new category for
+    developer-facing customers who want to stand up and monetize APIs.
+  usefulness: medium
+  usefulness_rationale: >
+    API management is a real, distinct niche with clear appeal to
+    developer/technical customers, but it's a narrower audience than the
+    productivity/monitoring/media tools already in the catalogue and
+    requires the customer to already have an API-building use case in
+    mind.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [FUSIO_BACKEND_PW]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Fusio's own official docker-entrypoint.sh provisions the initial
+      backend admin account by running `php bin/fusio adduser
+      --password="$FUSIO_BACKEND_PW"`, which Fusio hashes and stores
+      internally, then verifies via normal password_verify() at login.
+      This requires FUSIO_BACKEND_PW to literally be the plaintext
+      password the customer will type at every subsequent login — there
+      is no pre-hashed-credential comparison mode (unlike Vaultwarden's
+      ADMIN_TOKEN) that would let a `generated_from` hash of the
+      customer's root password stand in for the real login credential.
+      Since `generated_from` only ever carries a hash, never the
+      plaintext, this is a genuine plaintext-password requirement and a
+      structural blocker, not just an unsupported-algorithm gap.
+    - >
+      Gating the whole app behind a Traefik `basic_auth` credential
+      (hash of the root password) does not solve this either: Fusio has
+      its own separate backend login that the customer still needs valid
+      credentials for once past the gate, and there is no channel today
+      to surface a server-generated backend password back to the
+      customer.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Fusio is a single-container (plus MySQL) API management platform with a
+  web backend UI, reverse-proxy compatible on one HTTP port, actively
+  maintained with frequent releases and no overlap with the current
+  catalogue. It is blocked from installability today because its official
+  Docker image provisions the initial admin account via a plaintext
+  FUSIO_BACKEND_PW environment variable used directly as the login
+  password, which the platform's root-password-hash projection mechanism
+  cannot express and which Traefik basic_auth cannot substitute for since
+  it doesn't gate Fusio's own separate login. Recommend revisiting once a
+  channel exists for customers to supply or retrieve a real login
+  credential beyond hash projection.
