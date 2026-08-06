@@ -1,0 +1,75 @@
+slug: linkwarden
+name: Linkwarden
+source_description: "Linkwarden is a self-hosted bookmark manager with full-page archiving"
+
+upstream:
+  url: https://linkwarden.app/
+  repo_url: https://github.com/linkwarden/linkwarden
+  license: AGPL-3.0
+  docker_image: ghcr.io/linkwarden/linkwarden
+
+version_health:
+  latest_version: v2.16.0
+  latest_release_date: 2026-07-28
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.16.0 published 2026-07-28, 8 days before today (2026-08-05). Release
+    history shows a steady cadence (v2.15.1 on 2026-07-11, v2.15.0 on
+    2026-07-10, v2.14.1 on 2025-04-22, v2.14.0 on 2025-03-25) — a real gap
+    between the 2.14.x and 2.15.x lines but recent activity has picked back
+    up with two releases in the last month plus ongoing feature work
+    (redesigned UI, mobile offline mode). No signs of archival or
+    maintenance-only status; 19.3k GitHub stars and active commit history.
+
+catalogue_fit:
+  categories: [bookmarks, productivity, knowledge-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [linkace]
+  differentiation: >
+    Directly overlaps with the just-analyzed LinkAce recipe candidate — both
+    are self-hosted bookmark managers with full-page/archive capture,
+    tagging, and collaboration. Linkwarden differentiates on UX polish
+    (modern Next.js UI, native mobile apps, browser extension, in-app
+    reader/annotation view) and richer archive formats (screenshot + PDF +
+    monolithic HTML snapshot vs. LinkAce's Wayback-style capture), but does
+    not open a category neither app already covers.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted bookmark/read-it-later managers are a real niche need with
+    no coverage in our current 24-recipe catalogue, so either Linkwarden or
+    LinkAce would add value. Usefulness is capped at "medium" because it is
+    the second of two structurally near-identical candidates seen in this
+    review batch — shipping both would be redundant; the catalogue likely
+    only needs one bookmark-manager recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [NEXTAUTH_SECRET, POSTGRES_PASSWORD, MEILI_MASTER_KEY, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MEILI_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Linkwarden is a Next.js app (official image ghcr.io/linkwarden/linkwarden)
+  backed by Postgres and Meilisearch, one public HTTP port (3000),
+  Traefik-friendly. Like LinkAce, it has no env-var-driven admin bootstrap:
+  the first person to register becomes the admin (user id 1, controlled by
+  NEXT_PUBLIC_ADMIN), so open self-registration must be gated behind a
+  Traefik basic_auth wall (root-password-derived) before the customer
+  registers their own admin account; NEXTAUTH_SECRET, POSTGRES_PASSWORD, and
+  MEILI_MASTER_KEY are all server-generated and never customer-facing. No
+  structural blocking issues, but recommendation is build_with_caveats
+  rather than build_now given the direct feature overlap with the LinkAce
+  candidate already analyzed in this batch — the catalogue should pick one
+  bookmark manager, not ship both.
