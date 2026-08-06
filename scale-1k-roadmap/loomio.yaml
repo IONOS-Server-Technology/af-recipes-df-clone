@@ -1,0 +1,95 @@
+slug: loomio
+name: Loomio
+source_description: "Open-source platform for group discussions, polls, and collaborative decisions"
+
+upstream:
+  url: https://loomio.com
+  repo_url: https://github.com/loomio/loomio
+  license: AGPL-3.0
+  docker_image: loomio/loomio
+
+version_health:
+  latest_version: "3.1.7"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: 8 releases (v3.1.0 through v3.1.7) in the two weeks
+    2026-07-21 to 2026-08-04, several of them security patches (SSRF
+    protection, Active Storage RCE fix, API auth hardening). Latest release
+    is 2 days before today (2026-08-05/06). No sign of slowdown or
+    maintenance-only mode; repo is not archived.
+
+catalogue_fit:
+  categories: [collaboration, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers group discussion/decision-making/polling. This
+    is a genuinely new category for the catalogue (closest thing in spirit,
+    n8n/anytype-server, are automation/note-taking tools, not deliberation
+    tools) — a customer running a co-op, NGO, or open-source project would
+    have a real reason to want this that nothing else in the 24 recipes
+    addresses.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (governance/consensus-decision tooling for co-ops,
+    activist groups, open-source communities) but a narrower target audience
+    than most of the current catalogue's general-purpose productivity/AI/
+    infra tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SMTP_SERVER / SMTP_USERNAME / SMTP_PASSWORD (customer's own outbound mail account)
+    - DEVISE_SECRET
+    - SECRET_COOKIE_TOKEN
+    - POSTGRES_PASSWORD
+    - dashboard basic-auth gate (no login of its own until an SMTP-verified user signs up)
+  secrets_expressible_today:
+    - secret: DEVISE_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_COOKIE_TOKEN
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: dashboard basic-auth gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Loomio has no username/password admin account at all — Loomio's own
+      auth model is passwordless: the first person to sign up receives a
+      6-digit code / magic link by email and that establishes the group's
+      admin. There is no `generated_from: ROOT_PASSWORD`-projectable login
+      parameter to target because the app itself has no password field.
+    - >
+      The app is non-functional without working outbound SMTP (SMTP_SERVER/
+      SMTP_USERNAME/SMTP_PASSWORD in loomio-deploy's env_template) — every
+      sign-in and notification goes through customer-supplied third-party
+      mail-provider credentials. This is exactly the "external
+      credential the app can't function without, no input channel" case in
+      the installability table; a Traefik basic_auth gate keeps the
+      unconfigured instance from sitting open, but does not solve the
+      deeper problem that the app cannot complete first-boot without an
+      arbitrary customer-owned SMTP account.
+    - >
+      Bundled haraka service listens on raw port 25 for inbound mail
+      routing (MX-record based reply-by-email); this is optional but if
+      enabled it's a non-HTTP port outside the reverse-proxy model our
+      recipes rely on.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Loomio is an actively maintained (weekly-release-cadence, AGPL-3.0),
+  genuinely differentiated addition — group deliberation/decision-making is
+  not covered by any of the 24 current recipes. It is blocked today, though,
+  because it has no password-based admin login to project a hashed root
+  password into (auth is 100% email-magic-link based) and it cannot boot
+  into a usable state without a customer-supplied third-party SMTP account,
+  which has no input channel in the current `/compose` mechanism. A Traefik
+  basic_auth gate (IF-1312) covers the "don't sit open on the internet"
+  half of the problem but not the "app needs a working outbound-mail
+  credential to do anything" half. Revisit once there is a generic
+  arbitrary-secret input channel, not just root-password projection.
