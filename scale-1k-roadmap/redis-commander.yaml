@@ -1,0 +1,71 @@
+slug: redis-commander
+name: Redis Commander
+source_description: "Web-based Redis management UI with key browser and command console"
+
+upstream:
+  url: https://joeferner.github.io/redis-commander/
+  repo_url: https://github.com/joeferner/redis-commander
+  license: MIT
+  docker_image: ghcr.io/joeferner/redis-commander
+
+version_health:
+  latest_version: "0.9.1"
+  latest_release_date: "2025-07-21"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v0.9.1 tagged 2025-07-21; one more commit landed on master 2025-09-11
+    (a small null-check fix) but was never cut into a tag, so the repo has
+    gone ~13 months without a new release and ~11 months without a new
+    commit as of 2026-08-05. Not dormant, though: an open PR
+    (#611, "chore(release): bump version to 0.9.2") proposes the next tag
+    but is unmerged, and issues are still being opened and triaged into
+    2026 (most recently #612, updated 2026-05-24). Single de-facto
+    maintainer (Stefan Seide) doing periodic security-dependency bumps.
+    Docker Hub's `rediscommander/redis-commander` image is explicitly
+    deprecated by upstream in favor of `ghcr.io/joeferner/redis-commander`
+    ("new versions are not published to Dockerhub right now") and its
+    `latest` tag is ~5 years stale — do not use it.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes exposes a Redis browser/admin UI.
+    Redis itself already runs as an internal, non-exposed dependency inside
+    immich and paperless-ngx, but customers have no way to inspect keys or
+    run commands against it. Redis Commander would ship as a self-contained
+    stack (bundles its own Redis server alongside the UI, per upstream's
+    own docker-compose.yml), giving customers a standalone cache/keystore
+    with a management console, independent of any other recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for developers who want a managed Redis instance plus
+    a browsable UI without hand-rolling a compose file, but it's a
+    technical/developer tool rather than broad-appeal, similar in audience
+    to Adminer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [http_auth_password]
+  secrets_expressible_today:
+    - secret: http_auth_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Redis Commander ships its own HTTP Basic Auth login (HTTP_USER /
+  HTTP_PASSWORD_HASH env vars) and, notably, natively accepts a bcrypt
+  password hash rather than requiring the plaintext password — a direct,
+  exact-fit match for the `generated_from: "bcrypt:ROOT_PASSWORD"`
+  projection mechanism, no Traefik basic_auth gate needed. Single HTTP
+  port (8081), reverse-proxy friendly. Release cadence has slowed
+  (last tag mid-2025, last commit Sep 2025) but the project is not
+  archived or EOL — periodic security-dependency bumps continue and issues
+  are still triaged into 2026. Recommend building now, pinning to the
+  `ghcr.io/joeferner/redis-commander` image (not the stale, deprecated
+  Docker Hub image) at tag `0.9.1`.
