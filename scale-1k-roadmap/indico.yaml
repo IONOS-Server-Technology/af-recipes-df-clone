@@ -1,0 +1,121 @@
+slug: indico
+name: Indico
+source_description: "Open-source conference and event management system created at CERN"
+
+upstream:
+  url: https://getindico.io
+  repo_url: https://github.com/indico/indico
+  license: MIT
+  docker_image: getindico/indico
+
+version_health:
+  latest_version: "v3.3.12"
+  latest_release_date: "2026-03-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.3.12 shipped 2026-03-23, ~4.5 months before today (2026-08-05) — the
+    longest gap between releases in the recent history (v3.3.9 2025-12-11,
+    v3.3.10 2026-02-17, v3.3.11 2026-02-27, v3.3.12 2026-03-23 show a
+    monthly-or-faster cadence up to that point). However, the `master`
+    branch on GitHub shows commits as recent as 2026-08-05 (same day as this
+    analysis), so upstream development is clearly ongoing; the gap looks
+    like a slower release-cutting cycle rather than a stalled or abandoned
+    project. Maintained by CERN with 100+ historical contributors.
+
+catalogue_fit:
+  categories: [productivity, events, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Indico is a conference/event-lifecycle management tool (call for
+    abstracts, registration forms, timetabling, room booking, badge
+    printing, video-conferencing integration) — nothing in the current
+    24-recipe catalogue covers this space. Closest catalogue neighbor by
+    audience (small orgs/teams self-hosting collaboration tooling) is
+    Gitea or n8n, but neither overlaps functionally.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand from academic/research institutions, user groups, and
+    conference organizers who want a mature, CERN-built, MIT-licensed
+    alternative to commercial event platforms. Audience is narrower than
+    general productivity tools — most self-hosters running a personal
+    homelab have no use for conference/abstract-review workflows — but the
+    project is credible and well-established (in production at CERN and
+    many physics/academic institutions since 2002).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [postgres_password, admin_login_credential]
+  secrets_expressible_today:
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No official hardened/production Docker image exists. The only image
+      upstream publishes, `getindico/indico` on Docker Hub (built from
+      github.com/indico/indico-containers), carries an explicit warning in
+      its own Docker Hub description: "DO NOT use this in production as it
+      is. There are important things missing, such as HTTPS support." The
+      indico-containers README repeats this: "we do not use this setup
+      ourselves so it is not as battle-tested as one of our official
+      installation guides... a good working knowledge of Docker is
+      recommended." Indico's actual recommended/canonical deployment path
+      is a bare-metal/venv install documented at
+      docs.getindico.io/en/stable/installation/production/, not Docker.
+    - >
+      The reference stack (indico-prod/docker-compose.yml in
+      indico-containers) is a 5-service topology: indico-web (uwsgi),
+      indico-celery, indico-celery-beat, indico-redis, indico-postgres, plus
+      an nginx reverse-proxy container in front of the web container for
+      static-file serving — comparable in complexity to
+      recipes/immich/ or recipes/anytype-server/, not a single-container
+      app. Our Traefik-fronted model would replace the bundled nginx, which
+      is workable, but it means adopting a stack upstream itself doesn't
+      stand behind for production use.
+    - >
+      No env-var or config-file driven initial-admin bootstrap exists. The
+      only way to create the first admin account is the `indico user
+      create --admin` CLI command (indico/cli/user.py), which is fully
+      interactive: it calls `click.prompt(...)` for email/first name/last
+      name/affiliation/username and `prompt_pass()` for the password —
+      there are no `--email`/`--password` flags to script it non-
+      interactively. Beyond that, the identity's password setter
+      (indico/modules/auth/models/identities.py, backed by
+      indico/util/passwords.py's bcrypt-based `BCryptPassword`) takes and
+      hashes a **plaintext** password itself; it has no path to accept a
+      pre-computed hash. Per apps-gaps/SCHEMA.md's own test — "an admin
+      credential the app will only accept... a genuine requirement for the
+      plaintext password (not any hash) is a structural blocker, since
+      generated_from only ever carries a hash" — this is exactly that case:
+      `generated_from: "<algo>:ROOT_PASSWORD"` can only ever produce a hash
+      of the customer's root password, and Indico has no way to consume
+      that hash directly for its own login.
+    - >
+      A Traefik `basic_auth: true` gate could be placed in front of the
+      whole app to prevent an outside visitor from reaching the interactive
+      setup at all before the customer runs it — but that only re-creates
+      the 2FAuth/Activepieces/AirTrail/Iceshrimp shape: it still requires a
+      second, distinct credential for the actual Indico admin account
+      beyond the single root-password projection already spent on the
+      gate, and our one-shot bootstrap has no mechanism to run an
+      interactive CLI prompt sequence with customer-specific values, nor a
+      lifecycle hook to remove the gate once the customer completes setup.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Indico is a credible, actively developed (same-day commits on master),
+  MIT-licensed CERN project with no functional overlap in the current
+  catalogue and a real, if narrow, academic/events audience. It's blocked
+  today on two independent grounds: upstream itself disclaims its only
+  published Docker image as unfit for production (recommending a bare-metal
+  install instead), and initial admin provisioning requires an interactive
+  CLI prompt for a plaintext password with no non-interactive or hash-based
+  entry point — a structural mismatch with the `generated_from:
+  ROOT_PASSWORD` mechanism, which only ever carries a hash. Recommend
+  `blocked_on_platform`: revisit only if upstream ships a hardened
+  container image plus a non-interactive/env-var admin-bootstrap path, or
+  the platform gains a channel for handing an app a plaintext customer
+  secret at first boot.
