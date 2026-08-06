@@ -1,0 +1,103 @@
+slug: pinepods
+name: PinePods
+source_description: "Self-hosted multi-user podcast manager with cross-device playback sync"
+
+upstream:
+  url: https://www.pinepods.online/
+  repo_url: https://github.com/madeofpendletonwool/PinePods
+  license: GPL-3.0
+  docker_image: madeofpendletonwool/pinepods
+
+version_health:
+  latest_version: "0.9.0"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.9.0 released 2026-06-26, about 6 weeks (~1.4 months) before this
+    analysis (2026-08-05) — "Video, CarPlay, Android Auto, and a Whole New
+    Look", a 220+-commit release. Prior releases: v0.8.2 (2025-11-04, i18n
+    for 36 languages), v0.8.1 (2025-09-23, bugfix), v0.8.0 (2025-09-19,
+    Rust API rewrite), v0.7.10 (2025-07-17), v0.7.9 (2025-07-10), v0.7.8
+    (2025-05-14). Cadence was roughly monthly through mid-2025 then widened
+    to ~7.5 months between v0.8.2 and v0.9.0, but that gap corresponds to a
+    large architectural release rather than a slowdown in maintenance — a
+    `nightly` image tag is still being published (~5 hours before this
+    check) and v0.9.1 is listed as in development on the docs site. Not
+    archived, not in maintenance-only mode; clearly active.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers podcast subscription
+    management. Immich and Paperless-ngx are media/document archives with a
+    completely different content type; nothing else touches
+    audio/RSS-feed consumption. PinePods adds a genuinely new "self-hosted
+    Spotify-for-podcasts" category: multi-user subscriptions, per-episode
+    progress synced across web/desktop/mobile (including CarPlay/Android
+    Auto as of v0.9.0), a built-in gpodder-compatible sync server so
+    third-party apps like AntennaPod can point at it, and OIDC/SSO plus
+    MFA/TOTP support.
+  usefulness: high
+  usefulness_rationale: >
+    Podcast management is a mainstream, everyday-use category (unlike
+    niche utilities such as flight-logging or file-drop tools already
+    triaged in this pipeline) and PinePods is one of the more complete,
+    actively developed options in the self-hosted-podcast space, with
+    native mobile clients reducing the "web UI only" friction typical of
+    self-hosted media tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PASSWORD, admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      PinePods' official docker-compose example provisions the sole admin
+      account via USERNAME/PASSWORD/FULLNAME/EMAIL environment variables,
+      consumed by the startup.sh script (which exports them verbatim and
+      hands off to a compiled pinepods-db-setup binary) with no documented
+      support for accepting a pre-hashed value — unlike Vaultwarden's
+      ADMIN_TOKEN, which explicitly supports either a plaintext or an
+      Argon2-hash comparison. PASSWORD appears to be treated as the literal
+      passphrase the admin will type at every future login. Our platform's
+      only projection channel, `generated_from: "<algo>:ROOT_PASSWORD"`,
+      supplies a hash of the customer's root password, never the
+      plaintext — setting PASSWORD to that hash would create an account
+      whose real credential is an opaque hash string the customer doesn't
+      know, not their actual root password, so they could never log back
+      in. This is the same structural "app needs the literal plaintext"
+      problem documented in apps-gaps/picoshare.yaml.
+    - >
+      If USERNAME/PASSWORD/FULLNAME/EMAIL are omitted entirely, PinePods
+      instead boots with zero users and presents an open account-creation
+      screen to the first visitor of the public URL — whoever reaches it
+      first becomes the sole admin. This is the identical "first-visitor
+      self-registration race" already documented as a platform blocker in
+      apps-gaps/airtrail.yaml, apps-gaps/2fauth.yaml, and
+      apps-gaps/activepieces.yaml: a Traefik `basic_auth: true` gate in
+      front would stop a random internet stranger from reaching the
+      registration form, but it only supplies one root-password-derived
+      credential for the gate itself — it cannot also hand the customer a
+      second, distinct credential for the in-app signup form, so the race
+      is only pushed one layer deeper (to "first person through the shared
+      basic_auth gate").
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PinePods is an active, actively-developed (release 6 weeks ago, nightly
+  builds ongoing), reverse-proxy-friendly (single port 8040, internal nginx
+  fronts both the main API and the gpodder-sync API) podcast manager that
+  would be a genuinely new, high-appeal category for the catalogue — nothing
+  else in the current 24 recipes touches podcasts. It is blocked today for
+  the same reason as PicoShare and AirTrail: its only two provisioning
+  paths for the initial admin account are (a) an env var that appears to
+  require the literal plaintext password, which `generated_from` cannot
+  supply since it only ever carries a hash, or (b) an open first-visitor
+  self-registration screen that a `basic_auth` gate cannot fully secure end
+  to end. Revisit if the platform gains a plaintext-capable secret channel,
+  or if upstream documents pre-hashed PASSWORD support.
