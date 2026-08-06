@@ -1,0 +1,86 @@
+slug: gotify
+name: Gotify
+source_description: "Self-hosted push notification server with a simple REST API"
+
+upstream:
+  url: https://gotify.net
+  repo_url: https://github.com/gotify/server
+  license: MIT
+  docker_image: gotify/server
+
+version_health:
+  latest_version: "v3.0.0"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.0.0 (OIDC login support, session elevation for sensitive actions,
+    inactive-client/session pruning, hashed session tokens, new CLI with
+    migrate/version commands) shipped 2026-07-18, about 2.5 weeks before
+    today (2026-08-05). Prior releases: v2.9.1 (2026-02-28), v2.9.0
+    (2026-02-13), v2.8.0 (2026-01-02), v2.7.3 (2025-09-21) — roughly one
+    release every 4-6 weeks over the past year, with the `master` Docker tag
+    pushed as recently as 5 days before today. 924+ commits, 15.6k GitHub
+    stars, 73 open issues, 13 open PRs, active CI. Reads as actively
+    maintained, not archived or maintenance-only.
+
+catalogue_fit:
+  categories: [notifications, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers push/notification delivery —
+    the closest neighbors (Uptime Kuma, AdGuard Home, Home Assistant) are
+    monitoring/network tools that might *send* an alert but none *are* a
+    generic notification relay. Gotify fills a distinct "self-hosted
+    ntfy/Pushover alternative" niche: a REST API + WebSocket server that any
+    script, CI job, or other self-hosted app (including several already in
+    or adjacent to this catalogue) can POST messages to, plus native
+    Android/desktop clients and a web UI to view/manage them.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely new capability with a real audience (homelab/self-hosted
+    users wanting alerts from cron jobs, monitoring tools, CI, etc. without
+    depending on a third-party push service), and it's a single lightweight
+    Go binary with minimal resource needs. Scored medium rather than high
+    because it's a narrower, more developer-facing utility than most of the
+    existing catalogue (password managers, photo libraries, automation
+    platforms) — valuable to a subset of customers rather than broad appeal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Gotify's own admin login is configured via GOTIFY_DEFAULTUSER_PASS,
+      which is applied only once when the database is first created and
+      must be supplied as a plaintext password (bcrypt-hashed internally by
+      the app, but the app does not accept a pre-hashed value as input).
+      `generated_from` only ever carries a hash of the customer's root
+      password, so it cannot populate this field — there is no channel to
+      project the customer's actual credential into Gotify's native login.
+      Left unset, Gotify defaults to a hardcoded admin/admin account.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Gotify is a single-container Go app (image `gotify/server`, pin
+  `v3.0.0`) listening on one HTTP port (80 in-container, commonly mapped to
+  8080) with a single volume (`/app/data` for its SQLite DB, images, certs)
+  — a clean Traefik target with no raw ports or extra services needed.
+  Its native admin login can't be wired to the customer's root password
+  because Gotify only accepts a plaintext GOTIFY_DEFAULTUSER_PASS at
+  first-boot, not a hash, so `generated_from` has no channel here; per the
+  schema's fixed-default-credential rule, the fix is to leave Gotify's
+  internal admin/admin as-is and gate the whole app behind Traefik
+  `basic_auth` projected from the root-password hash, making that the real
+  customer-facing auth boundary. With that gate, it is installable under
+  the current mechanism today. Actively maintained (release ~2.5 weeks ago,
+  steady 4-6 week cadence, 15.6k stars) and fills a real gap (no
+  notification/alerting relay exists in the current 24 recipes) — recommend
+  `build_with_caveats` to flag the basic_auth-as-primary-gate design choice
+  for reviewer sign-off rather than a clean `build_now`.
