@@ -1,0 +1,110 @@
+slug: inventree
+name: InvenTree
+source_description: "Open-source parts inventory and BOM management for engineering teams"
+
+upstream:
+  url: https://inventree.org/
+  repo_url: https://github.com/inventree/InvenTree
+  license: MIT
+  docker_image: inventree/inventree:1.4.3
+
+version_health:
+  latest_version: "1.4.3"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.4.3 released 2026-07-29, ~1 week before today (2026-08-05). Recent tag
+    history from GitHub releases confirms a fast, steady cadence: 1.3.0
+    (2026-04-11) → 1.3.1 (2026-04-26) → 1.3.2 (2026-05-05) → 1.3.3
+    (2026-05-28) → 1.3.4 (2026-06-07) → 1.3.5 (2026-06-11) → 1.3.6
+    (2026-06-18) → 1.4.0 (2026-06-24) → 1.4.1 (2026-07-01) → 1.4.2
+    (2026-07-16) → 1.4.3 (2026-07-29) — roughly one tagged release every
+    1-3 weeks over the last four months. GitHub repo is not archived
+    (~7,300 stars, ~1,490 forks, 202 open issues, ongoing PR activity), and
+    the `inventree/inventree:latest` Docker Hub tag was pushed within the
+    last day of this analysis. Clearly active, no maintenance-only or EOL
+    signal.
+
+catalogue_fit:
+  categories: [productivity, business, inventory-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    InvenTree is a parts inventory and Bill-of-Materials (BOM) management
+    system aimed at hardware/electronics engineering teams — stock
+    tracking, part categories, supplier/manufacturer records, build orders,
+    and BOM comparison across part revisions. Nothing in the current
+    24-recipe catalogue covers inventory or manufacturing workflows; the
+    closest adjacent recipe by "structured records + search" shape is
+    paperless-ngx (document management), which solves a completely
+    different problem. This would be a genuinely new category for the
+    catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted parts/BOM tracking is a common, recurring need for hardware
+    startups, makerspaces, and small manufacturers who don't want to pay for
+    a SaaS PLM/inventory tool or hand supplier/stock data to a third party.
+    InvenTree is one of the most popular open-source options in this space
+    (~7.3k GitHub stars) with an immediate, standalone use once deployed —
+    unlike a bare database or dev-only tool, a customer can start entering
+    parts and BOMs right after first login.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - INVENTREE_ADMIN_USER
+    - INVENTREE_ADMIN_PASSWORD
+    - db_password (Postgres)
+    - INVENTREE_SECRET_KEY
+  secrets_expressible_today:
+    - secret: db_password (Postgres)
+      mechanism: server_generated_no_customer_input
+    - secret: INVENTREE_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      InvenTree's own admin account (the one a customer must actually use
+      to log in and operate the app — add parts, categories, BOMs, etc.)
+      is only created via the plaintext `INVENTREE_ADMIN_USER` /
+      `INVENTREE_ADMIN_PASSWORD` (or `INVENTREE_ADMIN_PASSWORD_FILE`) env
+      vars at container first-start, or manually afterwards via an
+      interactive `docker compose run inventree-server invoke superuser`
+      shell command. There is no web-based first-run signup/setup wizard:
+      self-registration exists for additional users, but a new
+      self-registered user is not granted superuser and still needs an
+      existing admin to promote them, so it can't bootstrap the first
+      account.
+    - >
+      `generated_from` only ever carries a hash (argon2/bcrypt) of the
+      customer's root password, never the plaintext — and
+      `INVENTREE_ADMIN_PASSWORD` needs the literal plaintext string (Django
+      hashes it internally on account creation), so the hash-projection
+      channel cannot target this field. This is the genuine
+      "app requires the plaintext, not any hash" case, which the schema
+      treats as a structural blocker rather than a soft gap.
+    - >
+      A Traefik `basic_auth` gate does not substitute here the way it does
+      for admin-panel-less apps (Adminer, ImmuDB): InvenTree's admin login
+      is the customer-facing product itself, not a backend overlay, so a
+      wall in front of a randomly server-generated admin password would
+      lock the customer out of using the app they just deployed.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  InvenTree is an actively developed (release every 1-3 weeks), MIT-licensed
+  parts inventory and BOM management app with a genuine, differentiated use
+  case not covered by any of the current 24 recipes, and it runs cleanly
+  behind a single reverse-proxied HTTP port (bundled Caddy proxy container).
+  It is blocked today purely on the platform mechanism: its only
+  first-boot admin account channel (`INVENTREE_ADMIN_USER` /
+  `INVENTREE_ADMIN_PASSWORD`) demands a plaintext credential the customer
+  must actually use to operate the app, and there is no self-service signup
+  flow to fall back on — `generated_from` cannot help because it only ever
+  carries a hash, and a Traefik `basic_auth` wall can't substitute for a
+  customer-usable admin login. Recommend `blocked_on_platform`: revisit if
+  a plaintext (not hash-only) customer-secret channel is ever added to the
+  bootstrap mechanism, or if InvenTree adds a first-run web setup wizard
+  upstream.
