@@ -1,0 +1,98 @@
+slug: fittrackee
+name: FitTrackee
+source_description: "Self-hosted outdoor activity tracker with GPX uploads and workout statistics"
+
+upstream:
+  url: https://codeberg.org/FitTrackee/FitTrackee
+  repo_url: https://github.com/SamR1/FitTrackee
+  license: AGPL-3.0-only
+  docker_image: fittrackee/fittrackee:v1.3.4
+
+version_health:
+  latest_version: "1.3.4"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. v1.3.4 (Jul 29, 2026) is about one week old.
+    History going back a few months is dense: v1.3.3 (Jul 14, 2026) →
+    v1.3.2 (May 24, 2026) → v1.3.1 (May 20, 2026) → v1.3.0 (May 17, 2026) →
+    v1.2.2 (Apr 19, 2026) — multiple releases most months, including
+    security-fix patch releases shipped within days of discovery (v1.3.4
+    fixed a token-blacklisting-on-logout security issue). Upstream is not
+    archived and development is clearly ongoing (v1.3.0 added photo
+    attachments and geospatial/PostGIS filtering, Python 3.14 support
+    landed recently). No maintenance-only or EOL signal — this is an
+    actively developed project. Note: the primary repo lives on Codeberg;
+    GitHub (SamR1/FitTrackee) is an official read-through mirror used for
+    CI/package builds, not a fork — treated as the canonical upstream for
+    this analysis since that's where releases, the Docker image, and the
+    docker-compose.yml this analysis is based on are published. A
+    separate, now-archived repo `SamR1/docker-fittrackee` (archived
+    2024-12-30) previously hosted a standalone compose setup; that one is
+    obsolete and superseded by the docker-compose.yml shipped inside the
+    main FitTrackee repo — not used as a source here.
+
+catalogue_fit:
+  categories: [fitness, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal fitness/activity
+    tracking. FitTrackee lets a customer keep GPX-based workout history
+    (running, cycling, hiking, etc.) and statistics off Strava/Garmin
+    Connect and on their own server — a genuinely different pitch
+    ("own your workout data") than anything currently in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche appeal to privacy-conscious athletes who want off
+    third-party fitness platforms, but it's a narrower audience than our
+    typical productivity/media/AI-tool customer and has no network effects
+    (no social feed, no device-sync ecosystem) to drive adoption the way
+    Immich or Vaultwarden do.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_SECRET_KEY, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: APP_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      FitTrackee has no admin-bootstrap env var. The only way to get an
+      account at all is self-service registration through the web UI
+      after boot (the customer picks their own username/password directly
+      in the app — no root-password projection needed for this part, same
+      pattern already shipping in Vaultwarden/Immich). But turning that
+      first account into an *admin* account requires a separate,
+      customer-inaccessible step: `docker compose exec fittrackee ftcli
+      users update <username> --set-admin true`, run by whoever controls
+      the container shell. AF customers have no exec access to their
+      containers, so there is no path today for a customer to ever obtain
+      admin rights (registration management, backend config, moderation)
+      on their own instance. Ordinary workout tracking as a non-admin user
+      still works, so this is a capability gap rather than a full boot
+      blocker — flagging as a caveat, not `blocking_issues` in the harder
+      sense used for Friendica-style total blocks.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FitTrackee is a light single-web-app stack (fittrackee/fittrackee image +
+  postgis/postgis for Postgres, with an optional redis + worker pair only
+  needed for outbound email/async tasks), one HTTP port (5000), and both
+  of its startup secrets (APP_SECRET_KEY, POSTGRES_PASSWORD) are
+  patternless values the server can generate with no customer input —
+  structurally close to Vaultwarden/n8n. It would be the first fitness-
+  tracking entry in the catalogue with a real, if narrow, audience. The
+  one real gap: promoting the customer's own self-registered account to
+  admin needs a container-exec CLI command with no customer-facing
+  equivalent, so a customer can use the app as a normal user but can never
+  become its admin through the product itself. Recommend
+  `build_with_caveats` — worth building, but note the missing admin path
+  as a known limitation (or investigate whether install.sh can safely
+  auto-promote the first-ever registered account server-side, which would
+  close the gap without any new customer input channel).
