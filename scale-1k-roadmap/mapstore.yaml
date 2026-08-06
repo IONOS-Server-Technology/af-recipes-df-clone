@@ -1,0 +1,72 @@
+slug: mapstore
+name: MapStore
+source_description: "Open-source WebGIS framework for interactive maps, dashboards, and 3D geostories"
+
+upstream:
+  url: https://mapstore.geosolutionsgroup.com/
+  repo_url: https://github.com/geosolutions-it/MapStore2
+  license: GPL-3.0 (GeoSolutions dual-licenses commercial support, but the OSS distribution is GPL-3.0)
+  docker_image: geosolutionsit/mapstore2
+
+version_health:
+  latest_version: "v2026.02.01"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released the day before this analysis (2026-08-05 vs. today 2026-08-06).
+    Project follows a published release calendar with releases roughly every
+    4-5 weeks (v2026.01.00 2026-03-25, .01 2026-04-29, .02 2026-05-27,
+    v2026.02.00 2026-07-01, v2026.02.01 2026-08-05, next planned 2026-09-02).
+    Actively maintained by GeoSolutions, no signs of slowdown.
+
+catalogue_fit:
+  categories: [gis, mapping, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers GIS/mapping. MapStore lets a customer build,
+    style, and share interactive 2D/3D maps, dashboards, and "geostories"
+    from their own data (WMS/WFS layers, uploaded shapefiles, etc.) — a
+    distinct use case from anything in the current 24-recipe catalogue
+    (automation, monitoring, storage, dev tooling).
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand (GIS analysts, local government, environmental/
+    utility customers) but a narrower audience than general-purpose
+    recipes like n8n or Vaultwarden. Worth having as a differentiator for
+    a specific customer segment rather than a high-volume catalogue item.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      MapStore ships with a hardcoded default admin login (admin/admin).
+      There is no documented environment variable or first-boot config to
+      set/change this at deploy time — it can only be changed after login,
+      through the UI or direct GeoStore DB manipulation. Per SCHEMA.md
+      guidance this is not a hard blocker on its own: gating the app behind
+      Traefik basic_auth makes the fixed admin/admin credential a
+      non-customer-facing risk, same treatment as Adminer/n8n-style
+      no-login apps.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  MapStore is an actively maintained, single-web-UI GIS platform with no
+  overlap in our current catalogue, making it a plausible differentiator
+  for GIS-focused customers. The official docker-compose stack (MapStore +
+  Postgres/PostGIS + Nginx) is straightforward and reverse-proxy compatible.
+  The only structural wrinkle is its hardcoded admin/admin login with no
+  first-boot override mechanism; per SCHEMA.md this is addressed by
+  fronting the whole app with a Traefik basic_auth gate rather than relying
+  on the app's own (unconfigurable) login, so it is installable today with
+  that caveat. Recommend building with the basic_auth gate as the intended
+  auth boundary, documented clearly for the customer.
