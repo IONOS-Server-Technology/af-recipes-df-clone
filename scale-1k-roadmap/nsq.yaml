@@ -1,0 +1,102 @@
+slug: nsq
+name: NSQ
+source_description: "Realtime distributed messaging platform for high-throughput event streams"
+
+upstream:
+  url: https://nsq.io/
+  repo_url: https://github.com/nsqio/nsq
+  license: MIT
+  docker_image: "nsqio/nsq:v1.3.0"
+
+version_health:
+  latest_version: "v1.3.0"
+  latest_release_date: "2024-12-27"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    v1.3.0 tagged 2024-12-27 — about 20 months before today (2026-08-05).
+    Prior tags: v1.2.1 (2021-08-16), v1.2.0 (2019-08-28), v1.1.0
+    (2018-08-19) — historically one release roughly per year, so a
+    20-month gap since the last tag is consistent with, if a bit longer
+    than, that cadence rather than a sudden stop. The master branch is
+    not dead: commits landed 2026-07-20 (a dependency bump) and
+    2025-06-20/06-29 (a genuine new feature, `max-defer-delay`), and a
+    January 2025 PR merged topology-aware message delivery — real,
+    if infrequent, ongoing development. No archive notice, no announced
+    EOL. Calling this "active" would overstate it (no tagged release in
+    over a year+ and the repo explicitly warns "master is our
+    _development_ branch and may not be stable at all times"); calling it
+    dormant would understate real commit activity in the last 6 weeks.
+    Landing on maintenance-only / sporadic-cadence as the honest read.
+
+catalogue_fit:
+  categories: [messaging, infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker of any kind. NSQ is a
+    realtime distributed pub/sub messaging platform aimed at connecting a
+    customer's own applications/microservices (comparable audience to the
+    also-analyzed NATS and LavinMQ), built around three cooperating
+    daemons: nsqd (the broker itself, stores/delivers messages),
+    nsqlookupd (a discovery service nsqd instances register with), and
+    nsqadmin (a read-mostly web UI for cluster stats/topic-channel
+    management). Unlike NATS or LavinMQ, a useful NSQ deployment is a
+    small cluster (at least one nsqd + one nsqlookupd) rather than a
+    single container, which is a heavier footprint than the other broker
+    candidates for the same "give a customer a message bus" job.
+  usefulness: low
+  usefulness_rationale: >
+    Same narrow, technical audience problem as NATS/LavinMQ — the entire
+    point is other software connecting to it via a client library, not a
+    browser-usable end-user tool — compounded by NSQ needing multiple
+    cooperating daemons to be useful at all (nsqadmin alone shows nothing
+    without at least one nsqd registered with an nsqlookupd) and a
+    20-month-stale release with only sporadic upstream activity since.
+    Capped at low, below NATS/LavinMQ's medium, because it combines the
+    narrow-audience ceiling both share with a materially weaker version
+    trajectory and a heavier multi-daemon deployment shape for the same
+    underlying customer need.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - nsqadmin_basic_auth_gate (Traefik gate for the nsqadmin web UI on port 4171 — nsqadmin ships with no built-in authentication of its own; upstream's documented answer is to put a reverse proxy with basic auth in front of it)
+  secrets_expressible_today:
+    - secret: nsqadmin_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      nsqd's client protocol port (4150, raw TCP — what publishing/
+      consuming applications actually connect to) and nsqlookupd's
+      TCP port (4160, what nsqd instances use to register) are not HTTP
+      and cannot sit behind Traefik; they would need direct raw TCP
+      exposure, the same accepted pattern already used by wg-easy and
+      Syncthing in this catalogue, not a structural blocker on its own —
+      but it does mean nsqadmin alone (the only piece that could be
+      Traefik-fronted) is not a functioning deployment; a real recipe
+      needs nsqd + nsqlookupd + nsqadmin as three services with two raw
+      ports opened, for a broker whose primary interface has no
+      authentication mechanism at all (not even a hash-based one) to
+      layer beyond the external Traefik gate on the admin UI.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  NSQ is a real, MIT-licensed message broker with no catalogue overlap —
+  it would join NATS and LavinMQ as a message-broker-style candidate — but
+  it is the weakest of the three on every axis evaluated. Its last tagged
+  release (v1.3.0) is 20 months old against a historical roughly-yearly
+  cadence, landing it in maintenance-only territory (real but infrequent
+  master-branch activity, no archive notice). It is mechanically
+  installable today only in a narrow sense: nsqadmin's lack of built-in
+  auth maps cleanly to a Traefik basic_auth gate, but nsqadmin alone isn't
+  a useful deployment — a working recipe needs nsqd and nsqlookupd too,
+  both raw-TCP services with zero built-in authentication of any kind
+  (nothing for generated_from to project into), sitting on the public
+  internet behind nothing but network exposure choices. Combined with the
+  narrow technical-integrator audience already noted for NATS/LavinMQ and
+  a heavier multi-daemon footprint for the same underlying need,
+  recommend not_recommended — this is a worse pick than NATS or LavinMQ
+  for the same "give a customer a message bus" slot in the catalogue.
