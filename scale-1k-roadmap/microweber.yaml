@@ -1,0 +1,102 @@
+slug: microweber
+name: Microweber
+source_description: "Open-source drag-and-drop website builder and CMS with built-in e-commerce"
+
+upstream:
+  url: https://microweber.com
+  repo_url: https://github.com/microweber/microweber
+  license: MIT
+  docker_image: microweber/microweber
+
+version_health:
+  latest_version: "v2.0.20"
+  latest_release_date: "2025-08-14"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Last tagged GitHub release is v2.0.20 (2025-08-14) — 356 days before
+    today (2026-08-05), i.e. just under a year with zero releases. Release
+    history before that shows a real cadence declining over time: roughly
+    monthly through 2024 (v2.0.11 2024-02-16 through v2.0.17 2024-11-26),
+    then a big slowdown in 2025 (v2.0.18 2025-01-20, v2.0.19 2025-02-19,
+    v2.0.20 2025-08-14, nothing since). The `master`/`dev` branches are
+    similarly stale (last commits 2025-08-14 and 2025-02-25 respectively).
+    However, the repo is not dormant: GitHub's event feed shows the sole
+    active maintainer (peter-mw) pushing to an unmerged `filament-5`
+    branch almost daily as recently as today (2026-08-05), evidently a
+    from-scratch admin-panel rewrite (swapping to the Filament PHP admin
+    framework) that has not shipped a release or merged to master in a
+    year. Repo is not archived, issues are still open/triaged (382 open).
+    Net read: single-maintainer project mid-rewrite with an unusually long
+    release gap and real uncertainty about when/whether the rewrite ships
+    — not abandoned, but risky to build a recipe against right now.
+
+catalogue_fit:
+  categories: [cms, website-builder, e-commerce]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers a general-purpose
+    CMS/website builder or self-hosted e-commerce storefront — the closest
+    adjacent apps (Gitea, Portainer, Uptime Kuma, etc.) are all
+    developer/ops tooling, not customer-facing site building. Microweber
+    would be a genuinely new category: a WordPress-style drag-and-drop
+    builder for customers who want to stand up a marketing site, blog, or
+    small online shop without touching code.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-understood demand (website builder + basic e-commerce is a
+    classic hosting-provider upsell), but Microweber is a minor,
+    single-maintainer player next to WordPress/Ghost/Strapi-class
+    alternatives, and the version-health picture (near year-long release
+    gap, in-flight unmerged rewrite) makes it a riskier bet than a more
+    actively-shipping CMS would be for the same catalogue slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, MICROWEBER_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MICROWEBER_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Official Docker Hub image is stale: the newest published tag is
+      v2.0.19 (2025-02-19); there is no image at all for the latest
+      GitHub release v2.0.20 (2025-08-14), and the unversioned `latest`
+      tag was itself last pushed 2025-05-05. A recipe would have to pin to
+      an already-outdated image or build a fresh image from source in CI,
+      neither of which is the normal 'pin the official tag' path used by
+      the rest of the catalogue."
+    - "First-boot setup has no env-var-driven config: Microweber's own web
+      install wizard and its `php artisan microweber:install` CLI
+      equivalent take the DB connection and the initial admin
+      username/email/password as literal form fields or CLI flags, not
+      environment variables baked into the image/compose file. This is
+      still mechanically installable — install.sh can run the CLI
+      installer non-interactively with server-generated random values for
+      db and admin passwords (same 'no customer input needed'
+      justification already used for Gitea/Vaultwarden-style auto-generated
+      admin secrets) — but it requires bespoke install.sh scripting around
+      the artisan command rather than a plain compose env var, and ties the
+      recipe to whatever CLI flags v2.0.19/v2.0.20 happen to support."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Microweber (MIT, microweber/microweber) is mechanically installable
+  under the current mechanism — its CLI installer's DB and admin
+  credentials can all be server-generated with zero customer input, no
+  external API keys or OAuth needed, and it's a single reverse-proxy-
+  friendly HTTP port. It would fill a real gap (no CMS/website-builder/
+  e-commerce recipe exists today) but comes with two real caveats: the
+  official Docker image hasn't been rebuilt to match the last GitHub
+  release and is over a year stale, and first-boot config runs through a
+  bespoke CLI installer rather than env vars, so install.sh would need
+  non-trivial custom scripting. Combined with a near-year release gap and
+  all current development sitting unmerged on a rewrite branch, this is a
+  build-with-caveats candidate, not an obvious build-now — worth revisiting
+  once the `filament-5` rewrite ships or stalls out further.
