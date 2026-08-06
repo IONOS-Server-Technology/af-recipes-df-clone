@@ -1,0 +1,76 @@
+slug: jenkins
+name: Jenkins
+source_description: "Jenkins is an open-source automation server for CI/CD pipelines"
+
+upstream:
+  url: https://www.jenkins.io/
+  repo_url: https://github.com/jenkinsci/jenkins
+  license: MIT
+  docker_image: jenkins/jenkins (official image maintained by the Jenkins project, built from https://github.com/jenkinsci/docker; the older unnamespaced `jenkins` image on Docker Hub is deprecated and has not been updated in 2+ years — do not use it)
+
+version_health:
+  latest_version: "2.568.2-lts (LTS line); 2.576 (weekly release line)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    2.568.2 LTS shipped today, 2026-08-05, with "important security fixes";
+    the prior two LTS releases were 2.568.1 (2026-07-08) and 2.555.3
+    (2026-06-10) — a steady ~monthly LTS cadence, on top of the separate
+    weekly release train currently at 2.576. This is one of the most
+    actively maintained projects considered in this catalogue: continuous
+    CVE patching, an enormous plugin ecosystem still receiving updates, and
+    no sign of slowdown, archival, or EOL.
+
+catalogue_fit:
+  categories: [developer-tools, ci-cd]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes are a build/test/deploy pipeline server.
+    Gitea (developer-tools) is a git host with a lightweight built-in
+    Actions feature, and n8n (automation) is general-purpose SaaS/API
+    workflow automation with a drag-and-drop canvas — neither is a
+    general-purpose CI/CD engine with Jenkins's plugin-driven job model.
+    Unlike GoCD (analyzed separately, not yet built), Jenkins can execute
+    builds on its own controller node out of the box — no paired agent
+    container is required for a useful first-run experience, though a
+    customer would add agents for real workloads. Jenkins is also the most
+    widely recognized CI/CD brand by a large margin, which drives
+    name-recognition demand distinct from a feature comparison alone.
+  usefulness: high
+  usefulness_rationale: >-
+    Extremely well-known tool with a huge existing user base and plugin
+    ecosystem; a natural next step for a customer already self-hosting Gitea
+    who wants "real" CI/CD. Single-container, reverse-proxy-friendly web UI
+    matches the rest of the catalogue's shape well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JENKINS_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: JENKINS_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Jenkins is an actively and predictably maintained project (near-monthly
+  LTS releases, no EOL signal) that would fill a genuine gap in the
+  catalogue — no existing recipe covers general-purpose CI/CD. The default
+  official-image boot flow (interactive setup wizard reading a random
+  initialAdminPassword file inside the container) is not itself usable via
+  our provisioning flow, but Jenkins core exposes
+  `HudsonPrivateSecurityRealm#createAccountWithHashedPassword(user, hash)`,
+  which accepts a pre-computed bcrypt hash directly — the same shape as
+  Vaultwarden's ADMIN_TOKEN. Combined with `-Djenkins.install.runSetupWizard=false`
+  (JAVA_OPTS) to skip the wizard and a mounted `init.groovy.d` script that
+  calls that API at boot, a `generated_from: "bcrypt:ROOT_PASSWORD"` value
+  can seed the initial admin account non-interactively, giving the customer
+  a working login on first boot without ever seeing the wizard. This is
+  mechanically installable today, but it is a materially more custom
+  install.sh (a hand-written Groovy init hook + JVM flag) than the
+  env-var-only pattern most current recipes use, so recommend
+  build_with_caveats rather than a plain build_now.
