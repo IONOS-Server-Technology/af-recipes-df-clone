@@ -1,0 +1,99 @@
+slug: fmd-find-my-device
+name: FMD (Find My Device)
+source_description: "Self-hosted, privacy-friendly Find My Device server for Android phones"
+
+upstream:
+  url: https://fmd-foss.org
+  repo_url: https://gitlab.com/fmd-foss/fmd-server
+  license: GPL-3.0-or-later
+  docker_image: registry.gitlab.com/fmd-foss/fmd-server:0.16.0
+
+version_health:
+  latest_version: "v0.16.0"
+  latest_release_date: "2026-06-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    20 tagged releases since v0.3.1 (2021-11-14), most recently v0.16.0
+    (2026-06-17), v0.15.0 (2026-05-09), v0.14.2 (2026-03-23) — roughly
+    monthly cadence sustained for the past year, as of today (2026-08-05)
+    the latest release is ~7 weeks old. Actively developed by fmd-foss
+    (maintainer Thore Göbel, continuing the project originally started by
+    Nulide in 2021). No archival or EOL signal.
+
+catalogue_fit:
+  categories: [security, personal-utility]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal device
+    location-tracking/recovery. Closest adjacent recipes (Vaultwarden,
+    2FAuth-style security tools) are credential managers, not device
+    tracking — this would be a genuinely new personal-security category:
+    a self-hosted alternative to Google's Find My Device / Apple Find My,
+    with location pings end-to-end-encrypted client-side before upload.
+  usefulness: medium
+  usefulness_rationale: >
+    Real privacy appeal (host your own device-tracking backend instead of
+    trusting Google) but it's a single-user, single-purpose companion
+    service to one specific Android app (FMD Android) — narrower audience
+    than general-purpose tools like Vaultwarden or Syncthing, and it has no
+    utility at all without installing that companion app on a phone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [registration_token]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      FMD Server has no admin web login of its own to project a root-
+      password hash into. Per-device accounts (an ID + password pair) are
+      generated inside the FMD Android app itself at registration time and
+      are not customer-chosen, so there is nothing analogous to
+      Vaultwarden's ADMIN_TOKEN here.
+    - >
+      The actual gate is `RegistrationToken` (config.yml / env var
+      `FMD_REGISTRATIONTOKEN`): "if RegistrationToken is non-empty, FMD
+      Server requires the FMD app to provide this token during
+      registration." This is a single shared secret that the customer must
+      type verbatim into their own Android app's settings, and (unlike
+      Vaultwarden's bcrypt ADMIN_TOKEN) there is no documented hashed
+      comparison for it — it reads as a plain server-side string match, so
+      the server needs the literal plaintext value, not a hash. Our
+      platform's only per-customer-secret channel (`generated_from:
+      "<algo>:ROOT_PASSWORD"`) only ever carries a hash of the root
+      password, never the plaintext. Per SCHEMA.md, a genuine requirement
+      for the plaintext (not any hash) is a structural blocker, not a
+      missing-algorithm case like the pbkdf2 example.
+    - >
+      Leaving `RegistrationToken` empty (open registration) is not a safe
+      substitute: it would put an unauthenticated device-location-tracking
+      server on the public internet, letting anyone register an account
+      and use the service — an unacceptable default for a privacy/security
+      app.
+    - >
+      Gating the whole app behind Traefik `basic_auth` instead (our other
+      supported mechanism) is also not a clean substitute here: the FMD
+      Android app talks directly to the server's HTTP API (not through a
+      browser), and it is not confirmed whether that app supports supplying
+      HTTP Basic credentials (e.g. via embedded URL userinfo) — if it
+      doesn't, a basic_auth gate would break the app's core sync/locate
+      function rather than just adding a login prompt, unlike WUD/n8n/Open
+      WebUI where basic_auth only fronts a browser-facing UI.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  FMD Server is an actively maintained (monthly release cadence), genuinely
+  differentiated addition — nothing in our current catalogue does personal
+  device-location tracking. But its core access-control primitive,
+  RegistrationToken, is a shared plaintext secret the customer's own phone
+  app must be given verbatim, and our platform can only project a hash of
+  the root password, never plaintext — this is a structural mismatch, not a
+  missing-algorithm gap. Leaving registration open is unacceptable for a
+  privacy-focused app, and fronting it with Traefik basic_auth risks
+  breaking the Android client's direct API calls. Not recommended for a
+  recipe today; revisit only if the platform ever adds a genuine plaintext
+  passthrough channel or FMD Server changes RegistrationToken to a hashed
+  comparison.
