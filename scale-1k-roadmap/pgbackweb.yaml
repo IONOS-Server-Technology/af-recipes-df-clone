@@ -1,0 +1,81 @@
+slug: pgbackweb
+name: pgBackWeb
+source_description: "PostgreSQL backup manager with scheduling, S3 storage, and web UI"
+
+upstream:
+  url: https://github.com/eduardolat/pgbackweb
+  repo_url: https://github.com/eduardolat/pgbackweb
+  license: AGPL-3.0
+  docker_image: eduardolat/pgbackweb
+
+version_health:
+  latest_version: "v0.5.1"
+  latest_release_date: "2025-10-06"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v0.5.1 tagged 2025-10-06, ~10 months before today (2026-08-05). Prior
+    release v0.5.0 landed 2025-09-27, just 9 days earlier, and before that
+    the 0.4.x line (0.4.0/0.4.1/0.4.2) shipped together on 2025-02-06 — so
+    releases cluster in short bursts with multi-month gaps between bursts
+    (~7.5 months between the 0.4.x burst and the 0.5.x burst). Last commit
+    to main was 2025-11-21 (a sponsor-credit merge, not a feature/fix), so
+    there has been no code or tag activity for roughly 8.5 months as of
+    today. Repo is not archived (2,614 stars, 99 open issues, not flagged
+    read-only). Notably, the README carries an active notice that the
+    project is rebranding to "UFO Backup" to expand beyond
+    PostgreSQL-only backups — no separate UFO Backup repo/image is
+    publicly published yet, so the rename is announced but not yet
+    executed. Treat this as an early signal to re-check before committing
+    build effort: a rename could mean a new image name/repo shortly after
+    this analysis.
+
+catalogue_fit:
+  categories: [backup, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue has no dedicated database-backup tool today. backrest
+    and duplicati (both analyzed, not yet built) cover generic
+    file/filesystem backup; pgBackWeb is purpose-built for scheduling
+    pg_dump-based PostgreSQL backups with retention, health checks, and
+    restore, to local disk or S3-compatible storage. It would pair well
+    with any of the Postgres-backed recipes already in the catalogue
+    (n8n, paperless-ngx, gitea, etc.) as an add-on backup tool for their
+    databases, or for a customer's own external Postgres instance.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful and clearly differentiated (no existing recipe does scheduled
+    Postgres-specific backup), but it's a narrower, more technical
+    audience than a general backup tool — customers need to already be
+    running Postgres somewhere to get value from it. Combined with the
+    slowing release cadence and in-flight rebrand, this tempers
+    "high" despite the real gap it fills.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  pgBackWeb has no env var or CLI flag to preset its own admin account —
+  on first boot, whichever visitor reaches the app first is shown a
+  "create first user" form and picks an arbitrary name/email/password
+  themselves (internal/view/web/auth/create_first_user.go), identical in
+  shape to n8n's owner-setup wizard. That makes it installable today the
+  same way: gate the whole app behind Traefik basic_auth (projected from
+  the customer's root password via generated_from), so only the customer
+  can reach the create-first-user page and no one else can race them to
+  claim the admin account. It's a single container plus a bundled
+  Postgres backing service (same shape as recipes/n8n), single HTTP port
+  8085, no other raw ports — reverse-proxy-compatible. The main caveat is
+  version health: releases have gone quiet for ~8.5 months and the
+  project has an announced-but-unexecuted rebrand to "UFO Backup" that
+  could change the image/repo name; worth a quick re-check before
+  scheduling a real af-create-recipe pass.
