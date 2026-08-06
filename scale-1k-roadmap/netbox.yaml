@@ -1,0 +1,85 @@
+slug: netbox
+name: NetBox
+source_description: "Open-source network infrastructure modeling for IPAM, DCIM, and documentation"
+
+upstream:
+  url: https://netboxlabs.com/docs/netbox/
+  repo_url: https://github.com/netbox-community/netbox
+  license: Apache-2.0
+  docker_image: netboxcommunity/netbox
+
+version_health:
+  latest_version: "v4.6.7 (app); netbox-docker release-image tags track the same v4.6.x line"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.6.7 released 2026-07-30, about 6 days before today (2026-08-05).
+    NetBox ships frequent patch releases within the 4.6 line (v4.6.3 on
+    06-16, v4.6.4 on 06-30, v4.6.5 on 07-14, v4.6.6 on 07-28, v4.6.7 on
+    07-30) — roughly every 1-2 weeks, a clearly active cadence. Now
+    stewarded commercially by NetBox Labs but the core app and the
+    official netbox-community/netbox-docker packaging remain Apache-2.0
+    and actively updated; no archival or EOL signal.
+
+catalogue_fit:
+  categories: [networking, it-operations, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers IPAM/DCIM or network
+    source-of-truth documentation. Portainer and Guacamole touch
+    infrastructure/remote-access management but neither models IP address
+    space, racks, or device inventory. NetBox would be a genuinely new
+    category for technical/IT-admin customers managing their own network
+    infrastructure.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (no overlap) and a single HTTP web UI that fits
+    our Traefik-fronted model well, but it's a specialist tool for network
+    engineers/MSPs rather than a broad-appeal app — narrower audience than
+    most of the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SUPERUSER_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      NetBox's own admin login is bootstrapped exclusively via the
+      netbox-docker entrypoint's SUPERUSER_NAME/SUPERUSER_PASSWORD/
+      SUPERUSER_EMAIL environment variables (SKIP_SUPERUSER defaults to
+      true, i.e. no superuser exists unless these are set), and
+      SUPERUSER_PASSWORD is consumed as a **plaintext** value passed to
+      Django's `createsuperuser --no-input` via DJANGO_SUPERUSER_PASSWORD
+      — there is no hashed-password input path for this variable. Per the
+      SCHEMA.md decision table, a genuine plaintext-password requirement
+      (not merely an unsupported hash algorithm) is a hard structural
+      blocker: `generated_from` only ever produces a hash, never the
+      plaintext root password itself.
+    - >
+      Gating the app behind Traefik `basic_auth` instead does not fix
+      this: with SKIP_SUPERUSER left at its default, NetBox boots with no
+      user account at all, so a customer landing on the (now
+      basic-auth-gated) login page still has no NetBox credentials to
+      sign in with. Unlike Adminer/WUD-style "no login of its own" apps,
+      NetBox does have its own mandatory login — basic_auth would only
+      add a second gate in front of a still-unusable app, not substitute
+      for the missing admin account.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  NetBox is an actively maintained (v4.6.7, released 6 days before this
+  analysis), Apache-2.0 licensed app with a real, non-overlapping niche
+  (IPAM/DCIM/network documentation) and a single reverse-proxy-friendly
+  web UI — a good structural fit for the catalogue otherwise. It's blocked
+  today purely on the secrets mechanism: the only supported way to
+  bootstrap its admin account, SUPERUSER_PASSWORD, requires the plaintext
+  password rather than any hash, which `generated_from` cannot supply, and
+  Traefik `basic_auth` can't substitute since NetBox still needs its own
+  account to be usable at all. Recommend `blocked_on_platform` — revisit
+  if a plaintext-capable projection channel (distinct from the current
+  hash-only `generated_from`) is ever added, not `not_recommended`, since
+  the app itself is healthy and the gap is purely platform-side.
