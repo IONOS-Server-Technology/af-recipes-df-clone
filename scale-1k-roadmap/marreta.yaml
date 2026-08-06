@@ -1,0 +1,91 @@
+slug: marreta
+name: Marreta
+source_description: "Self-hosted article proxy for clean, ad-free reading with intelligent caching"
+
+upstream:
+  url: https://marreta.link
+  repo_url: https://github.com/manualdousuario/marreta
+  license: GPL-3.0
+  docker_image: ghcr.io/manualdousuario/marreta  # pinned tags exist (e.g. 3.0.3); upstream compose.yml defaults to :latest
+
+version_health:
+  latest_version: v3.0.3
+  latest_release_date: 2026-07-27
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.0.3 shipped 2026-07-27, about 9 days before today (2026-08-05) — very
+    active. The v3.x line (Laravel rewrite) shipped four releases in three
+    days (3.0.0-3.0.3, 2026-07-25 to 2026-07-27) stabilizing the rewrite,
+    preceded by v2.3.10 (2026-07-18) and a long gap back to v2.3.9
+    (2026-04-01). Reads as a healthy, actively developed project mid major
+    version transition, not dormant.
+
+catalogue_fit:
+  categories: [productivity, web-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does this: paste a URL and get back a
+    cleaned, de-paywalled, tracking-stripped, cached version of the article.
+    It's a genuinely distinct use case from our existing media/productivity
+    recipes (Paperless, Immich, n8n, etc). Note the app is explicitly
+    branded upstream as a "paywall bypasser" (GitHub topics: bypasser,
+    paywall, paywall-bypasser) — Hostinger's "clean, ad-free reading"
+    framing undersells what it actually does, and the project itself
+    maintains a DMCA-domain blocklist in response to takedown requests
+    already received. That's a legal/reputational consideration for the
+    catalogue, separate from the technical fit.
+  usefulness: medium
+  usefulness_rationale: >
+    Would appeal to a real, if narrow, slice of self-hosters (readers who
+    want ad/tracker-free article rendering with their own cache), but the
+    paywall-circumvention branding and DMCA history are a real risk profile
+    for a hosting-company-curated catalogue — this needs a business call,
+    not just a technical one, before building.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, ADMIN_EMAIL, ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ADMIN_EMAIL/ADMIN_PASSWORD gate the app's own `/admin` panel, which is
+      where a customer would manage custom domain rules, extra blocked
+      domains, and DMCA exclusions — the one piece of ongoing, customer-
+      facing configuration this app has. Traced the seeder
+      (database/seeders/AdminUserSeeder.php): it reads
+      `config('marreta.admin.password')` (the plaintext `ADMIN_PASSWORD` env
+      var) and calls `Hash::make($password)` itself at boot — there is no
+      way to feed it a pre-computed bcrypt/argon2 hash instead. Per
+      SCHEMA.md this is a genuine plaintext-password requirement, not a
+      hash-algorithm gap, so `generated_from` (which only ever carries a
+      hash of ROOT_PASSWORD) cannot express it. A Traefik `basic_auth` gate
+      on the whole app doesn't substitute either — it would let the
+      customer reach the login page but not log into it, since Marreta's
+      own admin credentials would still be an unknown, server-generated
+      value.
+    - >
+      Companion service `lightpanda/browser` (required for JS-heavy page
+      rendering via `BROWSER_WS_ENDPOINT`) is only published under a
+      `:nightly` tag in upstream's own compose.yml — no pinned stable
+      release tag, which would separately fail `image-tag-pinned`.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Marreta is an actively maintained, novel-to-our-catalogue app (article
+  de-paywalling/cleanup proxy) with a real if narrow audience, but two
+  issues block it under the current mechanism: its admin panel — the
+  customer's only way to manage per-domain rules — needs a plaintext
+  password that the app hashes itself server-side, which `generated_from`
+  cannot supply, and its required browser sidecar has no pinned release tag.
+  The core anonymous "paste a URL" flow needs no login and would work fine
+  behind Traefik, but shipping it without working admin access loses the
+  feature that makes the tool configurable. Recommend holding as
+  `blocked_on_platform` pending a plaintext-secret input channel, and
+  flagging the paywall-bypass/DMCA framing for a business decision
+  independent of the technical gap.
