@@ -139,6 +139,91 @@ These rules enforce RFC-001 §4.6 — every customer-visible recipe has a logo, 
 - **How to check:** Validate the hex shape; compute `sha256(logo_file.read_bytes())`; compare.
 - **Why:** Tamper-evidence. Without the hash check, a logo file could be edited in git (or replaced in S3) without anyone noticing — this rule pins the metadata to the exact bytes shipped.
 
+#### Icon spec rules (IF-1416)
+
+The rules below enforce the design requirements from [IF-1416](https://hosting-jira.1and1.org/browse/IF-1416): **SVG format, square viewBox, image centred with excess whitespace minimized, transparent background, primary colour version only.** They run against `recipes/<id>/logo.svg` whenever `logo_url` is declared.
+
+The first four need nothing beyond the standard library. The rest rasterize the SVG and measure the alpha channel, which requires the optional `af-api[logo]` extra (`resvg-py` + `pillow`, both MIT with pure wheels — no system packages). CI installs it via `uv pip install './af-api-src[logo]'`; without it those checks are skipped and reported as `logo-render-checks-skipped` rather than silently passing.
+
+Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github.com/IONOS-Server-Technology/af-api/blob/main/src/af_api/core/logo_validator.py); change them there, not in a recipe. Note the library lives in af-api since IF-1327 — the standalone af-core repo is frozen.
+
+#### `logo-svg-wellformed`
+
+- **Level:** ERROR
+- **What:** `logo.svg` is at most 2 MiB, parses as XML, and its root element is `<svg>`.
+- **How to check:** Reject above the byte ceiling, then `xml.etree.ElementTree.fromstring` and compare the root tag.
+- **Why:** Everything downstream assumes a parseable SVG. A truncated or mislabelled file would otherwise fail at render time in the customer's browser. The size ceiling is both a sanity check (the largest real logo is 71 KiB) and a bound on entity-expansion attacks, since the parser is fed third-party artwork.
+
+#### `logo-no-script`
+
+- **Level:** ERROR
+- **What:** No `<script>` element, no `<foreignObject>`, no `on*` event-handler attribute.
+- **How to check:** Regex the file source.
+- **Why:** SVG is an executable XML document. A logo is third-party artwork rendered in the control panel, so it must carry no executable content — otherwise the catalogue becomes an XSS surface fed by upstream repositories.
+
+#### `logo-viewbox-square`
+
+- **Level:** ERROR
+- **What:** A usable `viewBox` is present and its width equals its height (tolerance 0.01).
+- **How to check:** Parse the `viewBox` attribute; compare the third and fourth values.
+- **Why:** IF-1416 requirement 2. Without a `viewBox` the file cannot be scaled predictably; with a non-square one the mark renders distorted or off-centre in a square thumbnail. Both were real defects: `n8n` shipped 500×200 with no `viewBox`, `portainer` shipped 1064×131.
+
+#### `logo-raster-embedded`
+
+- **Level:** ERROR below 480px on the longest edge, otherwise WARN
+- **What:** The SVG does not wrap a raster image. If it does, the embedded raster is at least 480px on its longest edge.
+- **How to check:** Look for `<image>` or a `data:image/` URI; decode the base64 payload and read the pixel size from the PNG `IHDR` or JPEG `SOFn` header.
+- **Why:** IF-1416 requirement 1 asks for SVG, and a PNG in an SVG wrapper satisfies the file extension while delivering none of the benefit. 480px is the floor at which a 256px tile still looks sharp at 2× DPI; below it the tile is visibly blurry. `open-webui` shipped a 500px raster this way and `hermes-agent` a 150px one. The WARN above the floor is deliberate: some projects publish no vector at all, so a good raster is allowed but never silent.
+
+#### `logo-safe-area`
+
+- **Level:** ERROR
+- **What:** The rendered ink occupies 90% of the canvas on its longest edge, ±3.0 percentage points.
+- **How to check:** Rasterize, threshold alpha at 12, take the ink bounding box, compare `max(w, h) / canvas` against 90%.
+- **Why:** IF-1416 requirement 2, "excess whitespace/padding minimized", made numeric. Before this, recipe logos ranged from 49% to 100% fill, so the catalogue grid looked ragged even though every file was individually fine. 90% leaves the mark clear of the tile edge; a change to this number re-frames every logo and therefore costs a `recipe_version` bump per recipe.
+
+#### `logo-centered`
+
+- **Level:** ERROR
+- **What:** The ink bounding box's centre is within 1.5% of the canvas centre.
+- **How to check:** Compare the bbox midpoint with the canvas midpoint, as a percentage of canvas width.
+- **Why:** IF-1416 requirement 2, "image centered". The tolerance absorbs asymmetric artwork; anything larger reads as misaligned when tiles sit next to each other.
+
+#### `logo-transparent-bg`
+
+- **Level:** ERROR when a flat plate is detected, WARN for a solid multi-colour mark
+- **What:** No opaque background plate behind the mark. ERROR when the ink bounding box is over 95% fully opaque **and** over 70% of it is a single flat colour; WARN when it is over 95% opaque but multi-colour.
+- **How to check:** Rasterize; count pixels with alpha > 250; bucket their colours into 24-step RGB bins and take the largest bin.
+- **Why:** IF-1416 requirement 4. Both conditions are required because opacity alone is not evidence of a plate — a solid geometric mark is legitimately 100% opaque. `wg-easy`'s asset was 98.3% opaque with 75.8% one colour (a real dark-red plate), while `portainer`'s brand tile is 99.1% opaque with only 52.4% dominant. Treating the second as an error would reject a mark the brand ships that way, so it is a WARN for a human to accept.
+
+#### `logo-mark-not-wordmark`
+
+- **Level:** ERROR outside 0.50–2.00, WARN outside 0.77–1.30
+- **What:** The rendered ink's aspect ratio is close to square.
+- **How to check:** Divide the ink bounding box width by its height.
+- **Why:** IF-1416 requirement 2 says square "whenever possible". A wordmark or horizontal lockup padded into a square canvas renders as an unreadable sliver — `portainer` was 8.0:1, `claude-code` 4.65:1, `adguard-home` 3.94:1, `n8n` 3.66:1. The WARN band exists because some marks are genuinely non-square upstream (Pi-hole's Vortex is 0.68:1, Gitea's teacup 1.62:1) and no better asset exists.
+
+#### `logo-contrast`
+
+- **Level:** WARN
+- **What:** The ink is neither near-white (luminance > 235) nor near-black (< 20).
+- **How to check:** Rasterize; average relative luminance over the highest alpha threshold of (200, 128, 32) that covers at least 2% of the ink bounding box.
+- **Why:** IF-1416 requirement 3 forbids a second colour variant, so a mark that vanishes against one tile background cannot be fixed inside the recipe — the consuming UI has to own the background. It is a WARN for that reason. Its more valuable job is catching the **wrong variant** being picked: `ollama` shipped the white `favicon.svg`, which is not merely low-contrast but invisible on a light tile. The stepped alpha threshold matters — averaging over `alpha > 32` dilutes a solid white mark with its anti-aliased edges and reported 77 instead of 255, while using only `alpha > 200` divides by an empty population for a soft gradient mark and reports a false 0.
+
+#### `logo-renders`
+
+- **Level:** ERROR
+- **What:** The SVG rasterizes, and to something visible.
+- **How to check:** Render it; fail if the renderer errors or the result has no pixels above the alpha threshold.
+- **Why:** A file can be well-formed XML and still draw nothing — an empty `<svg/>`, a path with no geometry, or artwork that depends on an external resource that is not fetched. Such a logo shows as a blank card.
+
+#### `logo-render-checks-skipped`
+
+- **Level:** WARN
+- **What:** Emitted once per recipe when the optional renderer is not installed.
+- **How to check:** Attempt to import `resvg_py` and `PIL`.
+- **Why:** The pixel-level rules are the ones that catch the defects a reviewer would notice. Silently skipping them would let a run report success having checked almost nothing, so their absence is always visible in the output. Install `af-api[logo]` in CI.
+
 ### 3.4 Parameters
 
 #### `param-name-upper-snake`
@@ -303,7 +388,7 @@ Cross-recipe checks
 
 A recipe is **ready for handoff** when there are zero ERROR-level findings. WARN-level findings are reported but do not block; the developer decides.
 
-`af-validate` from af-core emits findings tagged with the same slugs. That gives parity between agent self-check, CI logs, and human review without two divergent rule lists.
+`af-validate` from af-api emits findings tagged with the same slugs. That gives parity between agent self-check, CI logs, and human review without two divergent rule lists.
 
 ## 6. Maintenance sweep
 
@@ -316,7 +401,7 @@ The `af-update-recipes` skill (in `.claude/skills/`) implements this sweep — p
 - Rules may be **added** in a PR that lands the rule and any catalogue fixes triggered by it together.
 - Rules may be **removed** (or downgraded ERROR → WARN) in a PR that explains why the rule is no longer load-bearing.
 - Slugs are **never reused**. A removed rule's slug stays retired — if the same conceptual rule comes back with different semantics, give it a different slug.
-- A rule may be **renamed** if its existing slug becomes misleading. In that case the PR maps the old slug to the new in af-core (so old logs are still grep-able for one release), and updates this RFC.
+- A rule may be **renamed** if its existing slug becomes misleading. In that case the PR maps the old slug to the new in af-api (so old logs are still grep-able for one release), and updates this RFC.
 
 ## 8. Open items
 
