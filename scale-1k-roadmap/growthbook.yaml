@@ -27,7 +27,7 @@ version_health:
 catalogue_fit:
   categories: [developer-tools, productivity]
   has_web_ui: true
-  reverse_proxy_compatible: true
+  reverse_proxy_compatible: false
   overlaps_with: []
   differentiation: >
     Nothing in the current 24-recipe catalogue does feature flagging or
@@ -37,17 +37,25 @@ catalogue_fit:
     category: ship-behind-a-flag / gradual-rollout / experiment-analysis
     tooling that competes with LaunchDarkly/Optimizely/Split as a
     self-hosted alternative, a well-understood pitch for a technical
-    customer base.
+    customer base. Note: `reverse_proxy_compatible: false` above is
+    because GrowthBook splits its Node.js app across two HTTP ports on one
+    container — 3000 (frontend, APP_ORIGIN) and 3100 (API, API_HOST) —
+    and upstream docs are explicit that "the back-end and the front-end
+    must run on unique ports... currently GrowthBook does not support
+    running both the API and the front-end on the same port"
+    (docs.growthbook.io/self-host/env). The two must additionally share a
+    root domain for session cookies to work, so fronting this with
+    Traefik would need two subdomains under the same base domain — the
+    same split-port shape as apps-gaps/chartbrew.yaml, and likewise a
+    deviation from the single-port pattern every existing recipe uses.
   usefulness: high
   usefulness_rationale: >
     Feature flags and A/B testing are a common need for any team shipping
     a web or mobile product, and "self-hosted LaunchDarkly alternative" is
     a clear, specific pitch with no catalogue overlap today. Architecture
     is a bit heavier than our typical single-container recipes (Node.js
-    app + MongoDB, split frontend/API ports that must share a root domain
-    for auth cookies to work), which is solvable via two Traefik-fronted
-    subdomains on the same base domain but adds routing complexity beyond
-    our usual single-port pattern.
+    app + MongoDB, split frontend/API ports), adding routing complexity
+    beyond our usual single-port pattern.
 
 installability:
   recipe_type_guess: docker-compose
@@ -76,14 +84,6 @@ installability:
       sign-up form, so the underlying provisioning gap (no automated,
       customer-exclusive admin account at first boot) is not resolved, just
       moved one layer out.
-    - >
-      Separately, GrowthBook's split frontend (APP_ORIGIN, default port
-      3000) and API (API_HOST, default port 3100) must share a root domain
-      for session cookies to work — not a hard blocker (two subdomains
-      under the same base domain via Traefik would satisfy this) but it's
-      a real deviation from the single-port-per-recipe pattern the rest of
-      the catalogue uses, worth flagging even though it isn't the reason
-      this is blocked today.
   installable_today: false
   recommendation: blocked_on_platform
 
