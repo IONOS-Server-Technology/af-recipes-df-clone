@@ -1,0 +1,79 @@
+slug: openemr
+name: OpenEMR
+source_description: "Open-source electronic health records and practice management for clinics"
+
+upstream:
+  url: https://www.open-emr.org
+  repo_url: https://github.com/openemr/openemr
+  license: GPL-3.0
+  docker_image: openemr/openemr
+
+version_health:
+  latest_version: "8.2.0"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    8.2.0 shipped 2026-07-08, ~4 weeks before this analysis (2026-08-05).
+    Preceding releases were security-focused point releases on a roughly
+    monthly cadence: 8.0.0.3 (2026-03-25, 18 fixes incl. SQL injection/XSS/
+    authorization issues), 8.0.0.2 (2026-03-18, critical RCE in backup.php
+    plus multiple XSS/SSRF patches), 8.0.0 (2026-02-11). The Docker Hub
+    repo publishes an immutable dated build tag per release track
+    (e.g. `8.2.0-2026-08-06`) and updated `latest`/`next`/`dev` tags within
+    the last day, confirming the pipeline is live, not stale. Repo shows
+    13k+ commits, 822 open issues, 183 open PRs, and active CI (syntax,
+    unit/integration tests, FHIR certification, Docker lint) — a mature,
+    actively maintained project, not a side project.
+
+catalogue_fit:
+  categories: [healthcare, practice-management, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    A full clinical EHR + practice-management suite (scheduling, clinical
+    notes, e-billing, patient portal, FHIR API) — a distinct healthcare
+    vertical with no equivalent in the current 24-recipe catalogue, which
+    has nothing aimed at clinics/medical practices.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists (OpenEMR is the most-deployed open-source EHR,
+    ~5.4k GitHub stars), but it's a narrow vertical compared to general
+    business/dev tools already catalogued, and running an EHR self-hosted
+    carries the customer's own regulatory burden (HIPAA/PHI handling, BAAs,
+    backups, audit logging) that AF doesn't currently address in any
+    special way for this app versus a generic docker-compose deployment.
+    Worth having for clinics evaluating self-hosted options, but adoption
+    is likely to be lower-volume than general-purpose recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASS, MYSQL_PASS, OE_PASS]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASS
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASS
+      mechanism: server_generated_no_customer_input
+    - secret: OE_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OpenEMR is a mature, actively maintained EHR with a real gap in our
+  catalogue (no healthcare/practice-management app today) and is
+  mechanically installable under the current mechanism: the official
+  `openemr/openemr` image needs a companion MariaDB container (standard
+  two-container compose, same shape as Guacamole/n8n) and configures its
+  admin login and DB credentials purely via env vars at first boot
+  (`OE_USER`/`OE_PASS`, `MYSQL_ROOT_PASS`, `MYSQL_PASS`) that are already
+  handled by the existing `auto_generate` pattern — the same approach used
+  today for Guacamole's `GUACADMIN_PASSWORD` and Pi-hole's `WEBPASSWORD`.
+  No `generated_from`/`basic_auth` gap, no external API key or OAuth
+  requirement. The main caveat is non-technical: this app stores PHI, and
+  going to market with a hosted EHR raises compliance questions (HIPAA/BAA,
+  backup/retention expectations) that are a product/legal decision, not an
+  installability blocker — hence `build_with_caveats` rather than an
+  unqualified `build_now`.
