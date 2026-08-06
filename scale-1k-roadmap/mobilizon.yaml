@@ -1,0 +1,104 @@
+slug: mobilizon
+name: Mobilizon
+source_description: "Federated event organizer for communities without ads or surveillance"
+
+upstream:
+  url: https://joinmobilizon.org/
+  repo_url: https://framagit.org/kaihuri/mobilizon
+  license: AGPL-3.0-or-later
+  docker_image: kaihuri/mobilizon
+
+version_health:
+  latest_version: "5.2.4"
+  latest_release_date: "2026-06-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Mobilizon was originally a Framasoft project; Framasoft handed the
+    project over to a new French non-profit, Kaihuri (funded by NLnet), in
+    July 2024 after five years of in-house development — 4.1.0 was
+    Framasoft's last release. Under Kaihuri the repo and Docker images moved
+    from the `framasoft` namespace to `kaihuri` (framagit.org/kaihuri/mobilizon,
+    Docker Hub `kaihuri/mobilizon`); the old `framasoft/mobilizon` image on
+    Docker Hub is stale (last tag 3.0.3) and must not be used. Under the new
+    maintainer, releases continue at a steady pace: 5.1.5 (2025-07-11),
+    5.2.0 (2025-10-17), 5.2.1-beta1 (2025-12-12), 5.2.2 (2026-01-11), 5.2.3
+    (2026-03-23), 5.2.4 (2026-06-29) — about 5 weeks before this analysis
+    (2026-08-05). This is a genuine maintainer handover, not an
+    abandonment: cadence and activity look healthy post-handover.
+
+catalogue_fit:
+  categories: [community, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers federated community
+    event organizing. Mobilizon is a Facebook-Events/Meetup alternative
+    for communities and activist groups: it lets an instance's users
+    create groups, publish events, and federate with other Mobilizon (and
+    wider ActivityPub/Fediverse) instances, with no ads or tracking.
+  usefulness: high
+  usefulness_rationale: >
+    Privacy-conscious communities and non-profits looking to leave
+    Meetup/Facebook Events for event organizing are a distinct audience
+    from anything else in the catalogue, and the federation angle (same
+    space PeerTube/Mastodon-style tools occupy) has real pull for
+    self-hosters already running other Fediverse software.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MOBILIZON_ADMIN_PASSWORD, MOBILIZON_SECRET_KEY_BASE, MOBILIZON_SECRET_KEY, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: MOBILIZON_SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+    - secret: MOBILIZON_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Mobilizon has no admin-account env var at all. The only way to create
+      the first admin/moderator user is a post-boot CLI command
+      (`mobilizon_ctl users.new <email> --admin --password <plaintext
+      password>` via `docker compose exec`), which takes the password as a
+      plaintext CLI argument rather than reading a pre-hashed value from an
+      env var the way Vaultwarden's `ADMIN_TOKEN` does. `generated_from`
+      only ever projects a hash of the root password, never the plaintext,
+      so it cannot supply this argument. This is structurally the same
+      blocker that keeps the existing `gitea` recipe disabled
+      (`enabled: false`) — CLI-driven, plaintext-password admin creation
+      with no env-var hash input.
+    - >
+      Unlike apps such as n8n/WUD where the app itself has no meaningful
+      login and Traefik `basic_auth` fully substitutes as the auth
+      boundary, Mobilizon's own login is the actual product surface —
+      organizers must authenticate as that user to create/manage groups
+      and events. Gating the domain with `basic_auth` instead would secure
+      the instance but not give the customer any way to actually use it as
+      an event organizer, so it isn't a substitute mechanism here the way
+      it is for login-less apps.
+    - >
+      Secondary, non-blocking caveat: Mobilizon needs SMTP credentials to
+      send registration-confirmation and notification emails for a fully
+      functional multi-user instance. This isn't a hard blocker on its own
+      (an admin-only/invite-based instance can run without it), but a
+      built recipe would need to decide how to source or default this.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mobilizon is an actively maintained (steady ~quarterly releases post its
+  2024 Framasoft→Kaihuri handover, latest 5.2.4 on 2026-06-29), single-HTTP-port,
+  Postgres/PostGIS-backed federated event platform that would be a genuinely
+  novel addition to the catalogue (no overlap with any of the current 24
+  recipes) for communities wanting a Meetup/Facebook-Events alternative.
+  It is blocked under the current recipe mechanism, though: the only way to
+  create its first admin user is a post-boot CLI command taking a plaintext
+  password, which neither `generated_from` (hash-only) nor a Traefik
+  `basic_auth` gate (doesn't cover the app's own organizer login, which is
+  customer-facing, not just an admin-panel lock) can supply — the same
+  structural gap that already disabled the `gitea` recipe. Worth
+  revisiting once the platform gains a channel for a customer-usable
+  plaintext credential, or if Mobilizon adds an env-var-based admin
+  bootstrap.
