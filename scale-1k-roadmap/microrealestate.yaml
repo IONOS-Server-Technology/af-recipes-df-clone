@@ -1,0 +1,93 @@
+slug: microrealestate
+name: MicroRealEstate
+source_description: "Open-source rental property management for landlords, leases, rents and tenants"
+
+upstream:
+  url: https://github.com/microrealestate/microrealestate
+  repo_url: https://github.com/microrealestate/microrealestate
+  license: MIT
+  docker_image: ghcr.io/microrealestate/microrealestate/gateway (plus 8 sibling service images under the same org — no single "the" image; see notes)
+
+version_health:
+  latest_version: "1.0.0-alpha.3"
+  latest_release_date: "2024-11-14"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest tagged GitHub release is 1.0.0-alpha.3 from 2024-11-14 — 21
+    months before today (2026-08-05). Only three releases exist total, all
+    alpha (1.0.0-alpha.1 2024-01-06, alpha.2 2024-10-19, alpha.3
+    2024-11-14), and the project has never cut a stable 1.0. However the
+    repo itself is not dark: `pushed_at` is 2026-02-11 and commit history
+    shows ongoing activity through at least 2025-12-09 (bug fixes, a
+    feature request landed 2025-09-12, vulnerability fixes 2025-06-08).
+    Not archived, 1,161 stars, 34 open issues. Docker images are published
+    via CI on every push to a mutable `:latest` tag or a git-commit-SHA
+    tag (`MRE_VERSION`) — there is no versioned/pinned stable image tag
+    corresponding to a cut release, which is itself a signal of
+    pre-1.0/alpha status rather than active abandonment.
+
+catalogue_fit:
+  categories: [business, real-estate, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches rental/property
+    management, leases, or tenant billing — this would be a genuinely new
+    category. The public surface is a single gateway container (port 8080)
+    that reverse-proxies internally to /landlord and /tenant frontends, so
+    it fronts fine behind Traefik on one hostname despite being a 9-service
+    stack internally (mongo, redis, gateway, authenticator, api, tenantapi,
+    pdfgenerator, emailer, landlord-frontend, tenant-frontend).
+  usefulness: low
+  usefulness_rationale: >
+    The category is novel, but the app is stuck in alpha almost two years
+    after its last tagged release with no stable image to pin, and — more
+    importantly — its core authentication flow requires a working outbound
+    email service before either the landlord or any tenant can even log
+    in (see installability). That combination makes it a poor bet
+    independent of the customer-parameter blocker below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [landlord_admin_account, outbound_email_credentials]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      There is no admin-password env var at all. The landlord logs in via
+      an interactive signup flow in the web UI (`SIGNUP: 'true'` on the
+      landlord frontend/authenticator) rather than a credential set at
+      deploy time, so `generated_from: "<algo>:ROOT_PASSWORD"` has nothing
+      to project onto — the app never reads a pre-set admin password from
+      an env var.
+    - >
+      Both the landlord's own password-reset flow and — critically — every
+      tenant login (tenant portal has no password of its own; it signs
+      tenants in via emailed magic links) depend on the `emailer` service
+      actually delivering mail. That requires the customer to supply one
+      of: a Gmail address + app password, a Mailgun API key + domain, or
+      SMTP host/port/username/password — all external third-party
+      credentials with no input channel in the current `/compose`
+      mechanism. Without one of these, the tenant-facing half of the app
+      (arguably its main point, since landlords invite tenants to self-serve)
+      is simply non-functional.
+    - >
+      No official stable/pinned image tag exists to pin a recipe to (see
+      version_health) — only a mutable `:latest` or a git-SHA, which RFC-002
+      pinning rules would reject even before the secrets issue.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  MicroRealEstate would fill a genuinely uncovered category (rental/lease
+  management), and its public footprint — one gateway container on one
+  port — is reverse-proxy-compatible in principle. But it fails
+  installability on two independent grounds: the landlord account is
+  created via interactive signup rather than an env-var password, so the
+  root-password projection mechanism has nothing to attach to, and the
+  tenant login flow (and landlord password reset) hard-requires the
+  customer's own SMTP/Gmail/Mailgun credentials with no channel to supply
+  them today. Combined with the project never having shipped past alpha in
+  21 months and having no pinnable stable image tag, this is a clear
+  not_recommended rather than a build-with-caveats.
