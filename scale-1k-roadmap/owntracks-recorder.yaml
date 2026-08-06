@@ -1,0 +1,78 @@
+slug: owntracks-recorder
+name: OwnTracks Recorder
+source_description: "Self-hosted backend storing and visualizing OwnTracks phone location data"
+
+upstream:
+  url: https://owntracks.org
+  repo_url: https://github.com/owntracks/recorder
+  license: MIT
+  docker_image: owntracks/recorder
+
+version_health:
+  latest_version: "1.0.1"
+  latest_release_date: "2025-08-12"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Tagged releases are infrequent and slowing: 0.9.7 (2024-02-06), 0.9.8
+    (2024-07-23), 0.9.9 (2024-10-25), 1.0.0 (2025-03-19), 1.0.1
+    (2025-08-12) — roughly 12 months since the last tag as of today
+    (2026-08-05), longer than any prior gap in that history. The published
+    `owntracks/recorder` Docker Hub image is pinned to that same 1.0.1
+    build and has not been rebuilt in ~12 months either. However, the
+    `master` branch on GitHub is clearly not dormant: commits as recent as
+    2026-07-29 (build-dependency fixes, a new SECURITY.md, a new `ws`
+    endpoint, payload-decryption warnings). So the project itself is
+    active, it just batches source changes for a long time before cutting
+    a tag/image — a real caveat for freshness of whatever image we'd pin,
+    but not archived, maintenance-only, or EOL.
+
+catalogue_fit:
+  categories: [monitoring, personal, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal GPS/location
+    tracking. OwnTracks Recorder is the backend companion to the OwnTracks
+    mobile app (iOS/Android): it ingests location pings from a customer's
+    own phone and serves a live map + history via a small built-in web UI
+    and REST API. It's a genuinely distinct, privacy-focused niche (a
+    self-hosted alternative to Google/Apple location history) that none of
+    the existing recipes address.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to a privacy-conscious self-hoster segment wanting to own their
+    location history, but it's a narrower, more technical use case than
+    most of the catalogue (requires installing and configuring a separate
+    mobile app to get any value) rather than a broad-appeal turnkey
+    service.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OwnTracks Recorder is a single-container app with no built-in
+  authentication of its own — confirmed from upstream docs and community
+  deployment guides, which uniformly rely on a fronting reverse proxy for
+  HTTP Basic auth to protect both the map/API web UI and the `/pub`
+  endpoint the phone app posts to. Run with `OTR_PORT=0` it needs no
+  external MQTT broker either, so it fits our single-HTTP-port,
+  Traefik-fronted pattern cleanly (same shape as Adminer/WUD): gate the one
+  public port with `basic_auth: true`, with the password projected from
+  the customer's root password via `generated_from`. The customer then
+  configures the OwnTracks mobile app with that same domain and basic-auth
+  credentials to start reporting location — a real setup step, but not a
+  platform blocker. Version health is the main caveat: tagged releases and
+  the published Docker image have gone quiet for about a year even though
+  upstream source commits continue, so `installable_today` is true but the
+  pinned image would already be a year stale on day one. Recommend
+  build_now, with a note to re-check the Docker Hub tag right before
+  authoring the recipe in case a fresher build has landed by then.
