@@ -11,23 +11,28 @@ upstream:
 version_health:
   latest_version: "1.0.0-rc.2"
   latest_release_date: "2025-12-17"
-  release_cadence: slowing
+  release_cadence: sporadic
   eol_status: active
   notes: >
-    Last tagged *stable* release is v0.5.3 (2025-02-06) — about 18 months
-    before today (2026-08-05). Since then the project has been sitting in
-    an extended pre-release phase: 1.0.0-rc.0 (~2025-08, "almost 2 years"
-    per Docker Hub at the time of checking), 1.0.0-rc.1 (~2025-08, "about 1
-    year" ago), and 1.0.0-rc.2 (~2025-12, "8 months" ago) — none promoted
-    to a 1.0.0 stable tag in over a year. The `latest` tag on Docker Hub is
-    frozen at the same near-2-year-old build as rc.0, so pulling `:latest`
-    today gets a stale, pre-rc image rather than current code. Source commit
-    history on `main` is current through at least 2025-12-22 (UI refactors,
-    dependency bumps), so the project is not abandoned — development
-    continues, it's just stuck cutting a real release. Net: active
-    development, slowing/stalled release cadence, and an image-tagging
-    practice (`latest` far behind `main`) that would need a specific pinned
-    tag (`1.0.0-rc.2`) rather than `latest` if this were built.
+    Dates re-verified against github.com/yourselfhosted/slash/tags and the
+    Docker Hub tags API (hub.docker.com/v2/repositories/yourselfhosted/slash/tags);
+    all elapsed times below are computed against today, 2026-08-05.
+    The last tagged *stable* release is v0.5.3 (2024-02-06, Docker image
+    pushed 2024-02-07) — roughly 30 months / 2.5 years ago. Everything since
+    has been pre-release: v1.0.0-rc.0 (2024-11-03, ~21 months ago),
+    v1.0.0-rc.1 (2025-05-07, ~15 months ago), v1.0.0-rc.2 (2025-12-17, ~7.5
+    months ago). The 1.0.0 line has therefore been in RC for ~21 months with
+    no stable promotion, and the RCs themselves land at irregular 6-12 month
+    intervals — hence `sporadic` rather than `slowing`. The Docker Hub
+    `latest` tag was last pushed 2024-10-21 (~21 months stale), i.e. it
+    predates even rc.0, so `:latest` is not a usable pin. Commit history on
+    `main` runs through 2025-12-22 (shadcn UI refactor, CI dependency bumps)
+    with a visible gap before that (previous commit 2025-08-18), and nothing
+    since — ~7.5 months of code silence. The repo is not archived and there
+    is no EOL announcement; users are still filing issues (most recent #503
+    opened 2026-05-13), so `eol_status: active` stands, but this is a
+    low-momentum, single-maintainer project shipping in bursts, not a
+    steadily released one.
 
 catalogue_fit:
   categories: [productivity]
@@ -51,8 +56,8 @@ catalogue_fit:
     app with no external dependencies by default (SQLite). Usefulness is
     medium rather than high because it targets a narrower team-productivity
     audience than security/monitoring recipes already in the catalogue, and
-    the stalled-release version health (see above) is a real caveat for a
-    net-new addition.
+    the 2.5-year-old stable release line (see version_health) is a real
+    caveat for a net-new addition.
 
 installability:
   recipe_type_guess: docker-compose
@@ -70,11 +75,14 @@ summary: >
   recipe, so there is no customer-supplied secret to project and no
   Traefik basic_auth gate is structurally required. Mechanically it would be
   installable today with no blocking issues. The caveat is entirely version
-  health: upstream hasn't cut a stable tag since v0.5.3 (2025-02-06, ~18
-  months ago) and has been stuck in a 1.0.0-rc.* pre-release phase for over a
-  year, with the Docker Hub `latest` tag frozen well behind `main` — a
-  recipe would need to pin the specific `1.0.0-rc.2` image and accept it's
-  tracking a pre-release build. Recommend build_with_caveats: worth
-  building given the clean install story and genuine catalogue gap, but flag
-  the pre-release pin and watch for whether upstream ever ships 1.0.0 stable
-  or stalls further.
+  health, and it is a serious one: upstream hasn't cut a stable tag since
+  v0.5.3 (2024-02-06, ~30 months / 2.5 years ago), has been sitting in
+  1.0.0-rc.* for ~21 months, has no commits on `main` since 2025-12-22
+  (~7.5 months), and leaves Docker Hub `latest` frozen at a 2024-10-21 build.
+  Recommend build_with_caveats rather than build_now: the install story is
+  clean and the catalogue gap is real, but any recipe would have to pin
+  `1.0.0-rc.2` (a pre-release, since `latest` and the last stable are both
+  ~21-30 months old) and accept a project that ships in rare bursts. It is
+  not `not_recommended` — the repo is unarchived, un-EOL'd, and was actively
+  refactored as recently as December 2025 — but if the next check finds still
+  no commits and no 1.0.0 stable, this should be downgraded rather than built.
