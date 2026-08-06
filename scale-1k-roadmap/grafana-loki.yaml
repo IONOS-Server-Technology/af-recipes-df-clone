@@ -45,53 +45,58 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [grafana_admin_password]
-  secrets_expressible_today: []
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
   blocking_issues:
     - >
-      "Bundled Grafana query UI" (per Hostinger's description) means the
-      customer-facing login is Grafana's own admin account, set via
-      GF_SECURITY_ADMIN_PASSWORD. Like Gotify's GOTIFY_DEFAULTUSER_PASS,
-      this env var is applied only once at first boot and only accepts a
-      plaintext password — Grafana hashes it internally but gives no way to
-      supply a pre-hashed value. `generated_from` only ever carries a hash
-      of the customer's root password, so it cannot populate this field.
+      Same underlying issue as apps-gaps/grafana.yaml, since "bundled
+      Grafana query UI" (per Hostinger's description) means the
+      customer-facing login is Grafana's own admin account, normally set
+      via a plaintext-only, first-boot-only GF_SECURITY_ADMIN_PASSWORD that
+      `generated_from` cannot populate (it only ever carries a hash of the
+      customer's root password). Resolved the same way as grafana.yaml:
+      Grafana supports fully disabling its own login
+      (GF_AUTH_ANONYMOUS_ENABLED=true, GF_AUTH_ANONYMOUS_ORG_ROLE=Admin,
+      GF_AUTH_DISABLE_LOGIN_FORM=true), which removes the in-app credential
+      requirement and shifts the sole auth boundary to a Traefik
+      basic_auth gate - an expressible mechanism today.
     - >
-      Unlike Gotify, gating the whole app behind Traefik `basic_auth`
-      instead is a weaker fit here: Grafana already ships a real,
-      differentiated per-user login/RBAC system that a customer would
-      reasonably expect to use (e.g. read-only viewer accounts for a team),
-      and papering over it with a single shared basic-auth credential
-      discards that. It is not a hard blocker (the same "gate the whole app"
-      pattern from Gotify/Adminer is mechanically available), but it is a
-      worse compromise than in cases where the app has no real login of its
-      own — flagging for reviewer judgment rather than treating as a clean
-      build_now.
+      Unlike a bare Grafana recipe, this app is marketed specifically for
+      its per-user login/RBAC (viewer/editor/admin roles a customer would
+      reasonably expect to assign to a team), so disabling native auth in
+      favor of one shared basic-auth credential is a lossier compromise
+      here than in grafana.yaml. Not a hard blocker - mechanically
+      identical to the accepted grafana.yaml resolution - but flagged as a
+      caveat for reviewer judgment rather than a clean build_now.
     - >
       Loki itself (the log-storage/query API on port 3100) has no
       authentication of its own and is not designed to be exposed directly
-      to customers — only Grafana's UI should be public; Loki should stay
+      to customers - only Grafana's UI should be public; Loki should stay
       on the internal docker network only. This is a recipe-design detail,
       not a structural blocker, but worth noting since it affects the
       ports/parameters section of any future recipe draft.
   installable_today: true
   recommendation: build_with_caveats
-
 summary: >
   Grafana Loki (image `grafana/loki`, pin `3.7.5`) is a log aggregation
   backend with no UI or auth of its own; the customer-facing product per
   Hostinger's description is Loki + a bundled Grafana container as the
   query UI, a clean two-container stack behind Traefik (only Grafana's
-  port needs to be public — Loki's API port 3100 stays internal). Its
-  actual login boundary is Grafana's GF_SECURITY_ADMIN_PASSWORD, which like
-  Gotify's admin password is plaintext-only and first-boot-only, so
-  `generated_from` cannot project the customer's root-password hash into
-  it; the fallback Traefik `basic_auth` gate is mechanically available but
-  a lossier compromise than usual since it would sit on top of (and
-  effectively hide) Grafana's own real login/RBAC system. Upstream is
-  actively maintained (two parallel patch lines, releases every 3-5 weeks,
-  a release as recent as today). Fills a genuine observability gap not
-  covered by the current 24 recipes, but is a narrower ops-tooling play
-  with most of its value dependent on external log-shipper setup —
-  recommend `build_with_caveats`, flagging the basic_auth-vs-Grafana-RBAC
-  tradeoff for reviewer sign-off.
+  port needs to be public - Loki's API port 3100 stays internal). Its
+  login boundary is Grafana's own admin account, the identical issue
+  already resolved in apps-gaps/grafana.yaml: Grafana's anonymous-auth
+  settings (GF_AUTH_ANONYMOUS_ENABLED=true,
+  GF_AUTH_ANONYMOUS_ORG_ROLE=Admin, GF_AUTH_DISABLE_LOGIN_FORM=true) disable
+  the plaintext-only, first-boot-only GF_SECURITY_ADMIN_PASSWORD entirely
+  and shift the sole auth boundary to a Traefik basic_auth gate - an
+  expressible mechanism today via `generated_from` on BASIC_AUTH_GATE.
+  Upstream is actively maintained (two parallel patch lines, releases every
+  3-5 weeks, a release as recent as today). Fills a genuine observability
+  gap not covered by the current 24 recipes, but is a narrower ops-tooling
+  play with most of its value dependent on external log-shipper setup, and
+  the basic_auth gate is a lossier compromise here than in grafana.yaml
+  since this app's differentiator is specifically its per-user RBAC -
+  recommend `build_with_caveats`, flagging that RBAC-loss tradeoff for
+  reviewer sign-off.
