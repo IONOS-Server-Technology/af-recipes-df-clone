@@ -1,0 +1,105 @@
+slug: starrocks
+name: StarRocks
+source_description: "High-performance open-source OLAP database for sub-second analytics"
+
+upstream:
+  url: https://www.starrocks.io
+  repo_url: https://github.com/StarRocks/starrocks
+  license: Apache-2.0
+  docker_image: "starrocks/allin1-ubuntu (single-container FE+BE quickstart image; production topologies use separate starrocks/fe-ubuntu and starrocks/be-ubuntu images), pinned tag 4.1.4"
+
+version_health:
+  latest_version: "4.1.4 (latest branch); 4.0.13 and 3.5.20 (parallel maintained lines)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    4.1.4 published 2026-08-05 — the same day as this analysis. Three
+    branches are getting regular patches in parallel: 4.1.x (4.1.1 May-29,
+    ..., 4.1.4 Aug-05), 4.0.x (4.0.9 Apr-16, 4.0.10 May-09, 4.0.11 Jun-05,
+    4.0.12 Jun-25, 4.0.13 Jul-16), and 3.5.x LTS (3.5.17 May-13, 3.5.18
+    Jun-05, 3.5.19 Jun-26, 3.5.20 Jul-23) — roughly a release every 2-4
+    weeks across the three lines. StarRocks became a Linux Foundation
+    project in 2023 and shows no slowdown or archival signal; this is one
+    of the most actively released upstreams seen in this batch.
+
+catalogue_fit:
+  categories: [database, analytics, data-warehouse]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is an analytics/OLAP database — this
+    would be a genuinely new category. Structurally near-identical to two
+    other database gap-analyses already on file: apps-gaps/clickhouse.yaml
+    (same OLAP niche, different engine) and apps-gaps/apache-doris.yaml
+    (StarRocks originated as a fork of Apache Doris/Baidu Palo and still
+    shares its FE/BE architecture, MySQL wire protocol on port 9030, and
+    root-account model). If either of those ships, StarRocks would be a
+    third, largely redundant entry in the same niche rather than a
+    distinct one.
+  usefulness: low
+  usefulness_rationale: >
+    Real demand exists for a self-hosted OLAP/analytics backend, but
+    StarRocks specifically targets larger-scale distributed deployments:
+    the FE has a minimal web console at :8030 for cluster/query monitoring,
+    not a query authoring surface, and the actual product value (SQL
+    analytics for BI tools, ad-hoc queries, data-lake federation) is
+    delivered over the raw MySQL wire protocol on :9030, not through a
+    browser. That's the same "database is the product, not an app on top
+    of one" shape as ClickHouse and Doris, aimed at data engineers rather
+    than end users — a narrow, developer-only audience for an AF customer
+    base, and one already covered twice over by existing gap analyses.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["root account password (shared by the FE web console at :8030 and MySQL-protocol access at :9030)"]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      StarRocks provisions the root account with an empty password by
+      default and offers no init-time hook to set one on the vanilla
+      Docker image (starrocks/allin1-ubuntu, fe-ubuntu, be-ubuntu) — the
+      only documented path is connecting via MySQL client with the empty
+      password after boot and running `SET PASSWORD = PASSWORD('<plain>')`
+      or `SET PASSWORD = '<sha1-hash>'` by hand. The only pre-boot
+      mechanism found anywhere in the project is the Kubernetes operator's
+      Helm chart (`starrocks.initPassword.password` / `.passwordSecret`),
+      which explicitly takes a **plaintext** password (or a Secret holding
+      one), not a hash — and that mechanism doesn't exist in the plain
+      Docker Compose deployment path this recipe would use anyway. Since
+      `generated_from` only ever projects a hash, never plaintext, and the
+      one config surface upstream provides for this is plaintext-only,
+      this is a genuine structural blocker per the schema's "only a
+      genuine requirement for the plaintext password ... is a hard
+      blocker" guidance — not merely an unsupported hash algorithm the way
+      Doris's fe.conf `root_password` (SHA1-hash-only) is.
+    - >
+      Even setting the credential issue aside, StarRocks' primary
+      interface is the raw MySQL wire protocol on port 9030, not HTTP —
+      the FE web console on :8030 is a monitoring/status surface, not the
+      way customers get analytics value out of the app. A recipe would
+      either need to expose :9030 as a raw (non-HTTP) public port, which
+      sits outside the Traefik-fronted browser flow every current recipe
+      assumes, or restrict the app to internal-only use, which defeats the
+      point of a standalone analytics database recipe.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  StarRocks is an aggressively active, Linux Foundation-governed OLAP
+  database (a release landed the same day as this analysis, three branches
+  in parallel maintenance) and would technically be a new category for the
+  catalogue. But it fails installability for a harder reason than its
+  closest gap-analysis sibling, Apache Doris: the only init-time password
+  mechanism found anywhere upstream (the Kubernetes operator's Helm value)
+  is explicitly plaintext-only, and the plain Docker path has no password
+  hook at all — a genuine plaintext-password requirement, not just an
+  unsupported hash algorithm, so this is a hard blocker rather than
+  `blocked_on_platform`. Its core value also lives on the raw MySQL-wire-
+  protocol port 9030 rather than behind a browsable, Traefik-frontable web
+  UI. Combined with the fact that this exact niche (self-hosted OLAP
+  analytics database) is already covered by two prior gap analyses
+  (apps-gaps/clickhouse.yaml, apps-gaps/apache-doris.yaml) that are at
+  least mechanically closer to installable, a third redundant entry in the
+  same niche is not worth prioritizing. Recommend not_recommended.
