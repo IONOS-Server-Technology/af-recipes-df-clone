@@ -1,0 +1,85 @@
+slug: snapdrop
+name: Snapdrop
+source_description: "Local file sharing in your browser inspired by Apple AirDrop"
+
+upstream:
+  url: https://snapdrop.net/
+  repo_url: https://github.com/SnapDrop/snapdrop
+  license: GPL-3.0
+  docker_image: null
+
+version_health:
+  latest_version: null
+  latest_release_date: null
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    Project has never used GitHub Releases/tags — there is no versioned
+    release history at all, only rolling commits to master. Last commit
+    ("chore: update README.md") was 2025-02-10, roughly 18 months before
+    today (2026-08-05); before that the last substantive commits were
+    2024-08-31. Repo itself is not marked archived and still has 19.7k
+    stars, but the project has effectively been acquired by LimeWire
+    (announced on the repo), whose focus is a hosted/commercial product —
+    the open-source repo is left "as-is" for self-hosters rather than
+    under active maintenance. The most telling third-party signal:
+    LinuxServer.io, who packaged the only well-known Docker image for
+    this app, has formally deprecated `linuxserver/snapdrop` ("This image
+    is deprecated. We will not offer support for this image and it will
+    not be updated.") and directs users to the community fork PairDrop
+    instead. That is an external maintainer voting with their feet on
+    this exact upstream going stale — a stronger dormant signal than the
+    commit gap alone.
+
+catalogue_fit:
+  categories: [productivity, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does ephemeral, no-account
+    peer-to-peer file transfer between devices in a browser tab (WebRTC
+    data channels, WebSocket signaling only, nothing persisted server-side
+    beyond routing). Syncthing is the closest neighbor but solves a
+    different problem — continuous background folder sync with durable
+    state — not "drag a file, have it land instantly on another open tab."
+  usefulness: low
+  usefulness_rationale: >
+    The AirDrop-style pitch depends on ambient discovery of nearby devices
+    on the same local network; deployed as a single customer's hosted
+    instance behind a domain, that discovery model is moot (it becomes
+    "anyone with the link who has the tab open at the same time," not
+    "devices on my WiFi"), so most of the product's actual value
+    proposition doesn't survive the reverse-proxy/hosted deployment
+    model. Combined with a stale, releaseless upstream and a deprecated
+    reference Docker image, this reads as a novelty rather than a
+    durable catalogue addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official Docker image from upstream; the only widely-used third-party image (linuxserver/snapdrop) is formally deprecated by its own maintainer with no further updates, and no ports/tags will move going forward."
+    - "App itself has no login of any kind, so it would sit fully open on the internet without a Traefik basic_auth gate — expressible, but underscores how thin the app's own security model is for public exposure."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Snapdrop is a small, well-known "AirDrop in the browser" toy — a single
+  static/Node.js service (no official Docker image; the community
+  reference image is linuxserver/snapdrop) doing WebRTC file transfer
+  between browser tabs via WebSocket signaling. Upstream has no versioned
+  releases ever and has gone quiet since 2025-02-10 following its
+  acquisition by LimeWire, and LinuxServer.io — the maintainer of the only
+  commonly-used Docker packaging — has explicitly deprecated that image
+  and points users at the PairDrop fork instead. Mechanically it could be
+  gated behind Traefik basic_auth like other login-less apps, but the
+  app's core value (same-LAN device discovery) doesn't really translate to
+  a single hosted customer instance behind a domain, and building on a
+  deprecated, unmaintained image is a poor foundation regardless. Recommend
+  not_recommended; if there's real customer demand for this style of tool,
+  PairDrop (the actively maintained fork LinuxServer itself now
+  recommends) would be the app to evaluate instead.
