@@ -1,0 +1,102 @@
+slug: mail-archiver
+name: Mail-Archiver
+source_description: "Self-hosted email archiving with IMAP sync, full-text search, and export"
+
+upstream:
+  url: https://mail-archiver.org
+  repo_url: https://github.com/s1t5/mail-archiver
+  license: GPL-3.0
+  docker_image: s1t5/mailarchiver
+
+version_health:
+  latest_version: "2607.5"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 2607.5 published 2026-08-03, two days before today
+    (2026-08-05). Uses a CalVer-style YYMM.N scheme and has shipped roughly
+    weekly since at least 2606.1 (June 2026) through 2607.5 (early August
+    2026) — new IMAP/M365 sync features, OIDC/tenant management, and search
+    fixes landing every release. Repo is not archived; this is a clearly
+    active project, not maintenance-only.
+  # Name-ambiguity note: several unrelated open-source projects share the
+  # generic "mail archiver" name — daygle/daygle-mail-archiver (Python),
+  # LogicLabs-OU/OpenArchiver (a.k.a. "Open Archiver", TypeScript, targets
+  # Google Workspace/M365/PST at compliance/eDiscovery scale), and
+  # RobinWeitzel/MailArchiver (Node.js, unmaintained). s1t5/mail-archiver was
+  # selected as the best match: its docker image tag (`s1t5/mailarchiver`),
+  # feature set (IMAP sync, full-text search, export, folder sync,
+  # attachment support), and Cloudron/Unraid community packaging line up
+  # closely with Hostinger's source description and the `mail-archiver`
+  # slug. The others were ruled out as distinct projects.
+
+catalogue_fit:
+  categories: [productivity, backup, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers email archiving/retention. Paperless-ngx is
+    the closest structural sibling (single web app + Postgres, turns a
+    stream of documents into a searchable archive) but for scanned paper
+    documents, not mailboxes — a customer who wants to pull IMAP/M365/Gmail
+    mailboxes into one searchable, exportable archive (compliance retention,
+    mailbox consolidation before decommissioning an account, personal
+    backup) has no equivalent in the current 24 recipes.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, common need (mailbox backup/retention/consolidation) with broader
+    appeal than a niche dev tool, but it's a single-purpose utility rather
+    than a platform most customers touch daily — closer to Adminer/Uptime
+    Kuma in scope than to n8n or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ConnectionStrings__DefaultConnection (Postgres password, internal)
+    - Authentication__Password (app's own built-in admin login)
+    - basic_auth_password (Traefik gate in front of the app)
+  secrets_expressible_today:
+    - secret: ConnectionStrings__DefaultConnection
+      mechanism: server_generated_no_customer_input
+    - secret: Authentication__Password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Authentication__Password is read as plaintext at container start (it
+      seeds the initial admin user via CreateUserAsync(username, email,
+      plaintextPassword, isAdmin) in Program.cs, which hashes it internally)
+      — it is not a `generated_from`-projectable field, since that mechanism
+      only ever supplies a pre-computed hash, never a plaintext value. This
+      is not a hard blocker, though: the app's own login can be treated as
+      an internal implementation detail — generate Authentication__Password
+      randomly server-side (the customer never needs to know or use it) and
+      make the Traefik `basic_auth` gate (projected from the customer's root
+      password) the actual customer-facing auth boundary, same pattern as
+      Adminer/WUD for apps with a fixed/unchangeable/irrelevant native login.
+    - >
+      OIDC login (OAuth__Enabled etc.) is optional and not required at first
+      boot — no channel needed for it, just noting it's unused here.
+    - >
+      Per-mailbox IMAP/M365/Gmail credentials are added by the admin inside
+      the UI after first login, not at container boot, so they don't block
+      `/compose` — same as Paperless-ngx's document sources.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mail-Archiver (s1t5/mail-archiver) is an actively developed (weekly
+  CalVer releases, latest 2 days before today), GPL-3.0, single-HTTP-port
+  (5000) web app backed by Postgres — structurally close to Paperless-ngx
+  and fully Traefik-compatible. It fills a real gap (no email
+  archiving/retention tool in the current 24 recipes) though it's a
+  narrower-appeal utility than the catalogue's general-purpose apps. It is
+  installable today: its own admin login takes a plaintext password (not
+  `generated_from`-compatible) but that can be generated randomly
+  server-side and never surfaced, with the customer-facing auth boundary
+  being a Traefik `basic_auth` gate projected from their root password —
+  the same "unchangeable native login behind a real gate" pattern already
+  used for Adminer.
