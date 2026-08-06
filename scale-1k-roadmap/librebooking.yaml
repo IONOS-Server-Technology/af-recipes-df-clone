@@ -45,48 +45,73 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [LB_DB_USER_PWD, LB_INSTALL_PWD]
+  secrets_required_at_first_boot: [LB_DATABASE_PASSWORD, LB_INSTALL_PASSWORD]
   secrets_expressible_today:
-    - secret: LB_DB_USER_PWD
+    - secret: LB_DATABASE_PASSWORD
       mechanism: server_generated_no_customer_input
-    - secret: LB_INSTALL_PWD
+    - secret: LB_INSTALL_PASSWORD
       mechanism: server_generated_no_customer_input
-  blocking_issues: []
-  installable_today: true
-  recommendation: build_now
-  # notes retained here rather than a nonexistent schema field:
-  # LibreBooking needs a MariaDB companion container (single extra
-  # service, same shape as n8n/paperless-ngx — no raw ports beyond the one
-  # HTTP port, fully Traefik-compatible).
-  # LB_DB_USER_PWD/LB_INSTALL_PWD are consumed entirely server-side: when
-  # set via env vars before first container start, LibreBooking's Docker
-  # entrypoint writes config/config.php automatically (documented as "used
-  # on first invocation when config/config.php does not yet exist"),
-  # bypassing the interactive /install wizard. Neither value needs to be
-  # known by or communicated to the customer, so both fit
-  # server_generated_no_customer_input the same way n8n's
-  # POSTGRES_PASSWORD/N8N_ENCRYPTION_KEY do today.
-  # Admin account creation itself is a self-service registration form
-  # inside the app (customer supplies their own email/username/password
-  # directly through the UI, no env-var channel needed or expected) — this
-  # is the same "first visitor claims admin" pattern our n8n recipe
-  # already ships with unmodified, so it is not treated as a blocker here.
-  # Caveat (not blocking): docs flag that reminder emails need a job
-  # scheduler (cron) hitting a URL periodically — not required to boot or
-  # use the app, but worth a documented cron/sidecar container follow-up
-  # in a real recipe.
+  blocking_issues:
+    - >
+      Setting LB_DATABASE_PASSWORD/LB_INSTALL_PASSWORD only gets LibreBooking
+      partway there. Per the official docker/RUN.md and docker/SETUP.md
+      (github.com/LibreBooking/docker) and bin/entrypoint.sh, the Docker
+      entrypoint only sed-patches config/config.php with the DB connection
+      string and the install-password value — it does NOT create the
+      database schema/tables or the admin account. Completing setup still
+      requires visiting /install in a browser, entering the install
+      password to unlock the wizard, clicking through "Create the
+      database" and "Create the database user", then filling in and
+      submitting a registration form (email/username/password) for the
+      application administrator — all described in SETUP.md as one
+      continuous /install-gated sequence, not a step reachable separately.
+      install.sh could plausibly script these as server-side HTTP form
+      posts using the server-generated LB_INSTALL_PASSWORD (no customer
+      involvement needed for the DB-creation steps), the same way it
+      already shells out for container orchestration. But the admin
+      registration step is the actual blocker: that form takes a plaintext
+      password and LibreBooking hashes it itself on submission, so there
+      is no way to hand it a pre-computed hash the way
+      generated_from:ROOT_PASSWORD projection expects (that mechanism is
+      built for apps that read a hash directly off a config/env value, e.g.
+      Vaultwarden's ADMIN_TOKEN — not for one that hashes whatever plaintext
+      a form receives). install.sh never has the customer's plaintext root
+      password, only a hash of it, so it cannot submit that registration
+      form with a password the customer will actually be able to log in
+      with later. Nor is this the n8n pattern (first visitor sets their own
+      password live, in-app, no wizard gate): SETUP.md gives no evidence of
+      a public registration route the customer could reach without first
+      supplying the server-only install password, so we could not confirm a
+      path for the customer to end up with a self-chosen admin credential
+      at all. Resolving this would need either a documented
+      install-password-independent registration endpoint (unconfirmed) or a
+      new secret-delivery channel beyond generated_from/basic_auth
+      (doesn't exist today) — flagging as a genuine blocker rather than
+      glossing over it as a simple env-var equivalence to n8n.
+  installable_today: false
+  recommendation: build_with_caveats
+  # Caveat (not blocking on its own): docs flag that reminder emails need a
+  # job scheduler (cron) hitting a URL periodically — not required to boot
+  # or use the app, but worth a documented cron/sidecar container follow-up
+  # if this is revisited.
 
 summary: >
   LibreBooking is an active, GPL-3.0 room/equipment/resource-booking web app
   with an official single-container Docker image (needs a MariaDB
   companion), a single HTTP port, and monthly releases through August 2026 —
   no EOL or dormancy concerns. It fills a category gap none of the current
-  24 recipes cover. The two env-var secrets it needs at first boot
-  (DB password, install-wizard gate password) are both consumed purely
-  server-side during the automated Docker bootstrap and never need to reach
-  the customer, so they map cleanly to server_generated_no_customer_input —
-  no blocker under the current /compose mechanism. Admin account creation
-  is a normal in-app self-registration step, the same pattern already
-  shipping in the n8n recipe. Recommend build_now, with usefulness rated
-  medium given the narrower niche relative to the catalogue's
+  24 recipes cover. However, the Docker entrypoint only pre-populates
+  config.php with the DB connection string and install-wizard password; it
+  does not create the DB schema or the admin account. Per upstream's own
+  docker/SETUP.md, admin registration is bundled inside the same
+  install-password-gated /install wizard as the DB-creation steps, and that
+  registration form takes a plaintext password the app hashes itself —
+  incompatible with the generated_from:ROOT_PASSWORD mechanism (which only
+  ever carries a hash), and with no confirmed customer-reachable path to
+  set their own credential the way n8n's first-visitor flow allows. This is
+  a real, unresolved gap under the current /compose mechanism, not a clean
+  env-var equivalence to n8n — recommend build_with_caveats pending a
+  hands-on spike to confirm whether a customer-reachable registration route
+  exists independent of the install-password gate. Usefulness rated medium
+  given the narrower niche relative to the catalogue's
   productivity/automation/AI focus.
