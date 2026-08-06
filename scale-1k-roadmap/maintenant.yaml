@@ -1,0 +1,67 @@
+slug: maintenant
+name: Maintenant
+source_description: "Zero-config Docker and Kubernetes monitoring with endpoints and certificates"
+
+upstream:
+  url: https://maintenant.dev/
+  repo_url: https://github.com/kolapsis/maintenant
+  license: AGPL-3.0 (commercial license also offered)
+  docker_image: ghcr.io/kolapsis/maintenant:1.3.8
+
+version_health:
+  latest_version: "1.3.8"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    One week since v1.3.8 (2026-07-29) as of today (2026-08-05). Release
+    history shows ~10 tagged releases between 2026-06-03 (v1.2.15) and
+    2026-07-29 (v1.3.8) — roughly weekly cadence, clearly active
+    development, no archival or EOL signal.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma, wud]
+  differentiation: >
+    Maintenant bundles what uptime-kuma (HTTP/TCP endpoint + certificate
+    monitoring) and WUD (container/image-update monitoring) cover
+    separately into one ~20MB Go binary, plus adds native Kubernetes
+    support (in-cluster API auto-discovery, read-only RBAC) that neither
+    existing recipe offers. For a customer only running Docker Compose
+    apps, though, it is largely a redundant all-in-one over two things we
+    already ship.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for anyone running more than a couple of containers
+    who wants one dashboard instead of stitching together uptime-kuma +
+    WUD, and the Kubernetes angle is unique in our catalogue. But it
+    substantially overlaps two existing recipes' functionality, and unlike
+    WUD it has zero built-in authentication, which raises the bar for safe
+    installability.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential (app has no login of its own)"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Maintenant is an actively developed (weekly releases), AGPL-3.0 licensed
+  Go monitoring tool that unifies Docker/Kubernetes container monitoring,
+  HTTP/TCP endpoint checks, and TLS certificate expiry tracking in a single
+  container behind one HTTP port — mechanically installable today via a
+  Traefik basic_auth gate, the same pattern already used for WUD, since the
+  app ships with no built-in login. Its main drawback for our catalogue is
+  overlap: it re-covers ground already held by uptime-kuma and WUD, so the
+  case for adding it rests mainly on the unified single-pane-of-glass UX
+  and Kubernetes support rather than filling a functional gap. Worth
+  building as a differentiated "monitor everything in one place" offering,
+  but not urgent, and the no-built-in-auth requirement for basic_auth
+  should be called out explicitly during recipe authoring (mirroring WUD's
+  IF-808 caveat).
