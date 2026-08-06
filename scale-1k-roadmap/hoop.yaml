@@ -1,0 +1,82 @@
+slug: hoop
+name: Hoop
+source_description: "Infrastructure access gateway with automatic data masking and audit trails"
+
+upstream:
+  url: https://hoop.dev
+  repo_url: https://github.com/hoophq/hoop
+  license: MIT
+  docker_image: hoophq/hoop
+
+version_health:
+  latest_version: "1.133.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows tag 1.133.1 pushed within hours of today (2026-08-05),
+    with a dense sequence of same-day/next-day patch and minor releases
+    immediately before it (1.133.0, 1.132.0, 1.131.0, 1.130.0 all within the
+    prior ~24-36 hours) plus a steady multi-week run of 1.12x.x releases
+    before that. This is a fast-moving, actively developed project — release
+    cadence is effectively daily, not just "active."
+
+catalogue_fit:
+  categories: [infrastructure, security, access-management]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [guacamole]
+  differentiation: >
+    Hoop and Guacamole are both "gateway in front of infrastructure" tools,
+    but they solve different problems: Guacamole streams remote-desktop
+    protocols (RDP/VNC/SSH) into a browser with no inspection of session
+    content. Hoop is a wire-protocol-aware proxy for databases, Kubernetes,
+    SSH, RDP, and MCP/LLM traffic that adds policy enforcement on top —
+    ML-based PII/PHI masking of query results, blocking dangerous commands
+    (DROP TABLE, rm -rf), Slack/Teams approval workflows for risky
+    operations, and full session recording/replay for audit. It targets
+    platform/security teams governing engineer (and now AI-agent) access to
+    an existing fleet of internal systems, not an end-user application.
+  usefulness: low
+  usefulness_rationale: >
+    The stated use case (governed, audited, masked access to a company's
+    existing databases/clusters/servers, with Slack-based approval flows)
+    assumes an enterprise platform/security team and pre-existing internal
+    infrastructure to gate. Our self-hosting customer base is buying and
+    running a single application, not deploying a compliance/audit control
+    plane in front of a fleet they already operate elsewhere. A standalone
+    Hoop instance with nothing registered behind it does nothing useful out
+    of the box, unlike every other recipe in the catalogue which is
+    immediately useful on its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["local-auth admin account credential", "Traefik basic-auth gate credential (fallback if no admin-seeding channel exists)"]
+  secrets_expressible_today:
+    - secret: "JWT_SECRET_KEY / JWK_KEY (local auth signing key)"
+      mechanism: server_generated_no_customer_input
+    - secret: "POSTGRES_DB_URI (internal Postgres password for Hoop's own metadata store)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "No env-var channel to pre-provision a local-auth admin credential. AUTH_METHOD=local (the default, no-OIDC path) relies on a first-authentication auto-signup flow that assigns the user to a default org; the older ADMIN_USERNAME/AUDITOR_USERNAME/API_KEY vars are explicitly marked deprecated in current docs, and we could not confirm from public docs whether the first signed-up user is auto-elevated to the admin group or requires a separate 'hoop admin' CLI step post-boot. Without a confirmed bootstrap path there is nothing to project generated_from:\"<algo>:ROOT_PASSWORD\" into."
+    - "Even with a Traefik basic_auth gate as a stopgap, that only blocks anonymous access to the signup page — it does not solve who becomes admin once someone (the gated customer) reaches it, so it doesn't fully substitute for a real admin-seeding mechanism."
+    - "The full feature set (data masking, the headline capability) requires the separate Presidio analyzer + anonymizer ML services in the upstream docker-compose.yml, which is a materially heavier stack than a typical recipe (extra containers, ML model downloads/runtime)."
+    - "The product's core function requires raw TCP ports beyond the web UI — gRPC (8010), SSH tunnel (12222), RDP tunnel (13389), Postgres tunnel (15432) — for proxying actual infrastructure protocols, not just an HTTP admin console. This is architecturally different from a Traefik-fronted single-port web app and would need per-protocol port exposure the way wg-easy needs a raw UDP port."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Hoop is a fast-moving, actively released (near-daily tags), MIT-licensed
+  infrastructure access gateway aimed at platform/security teams governing
+  engineer and AI-agent access to databases, Kubernetes, SSH/RDP, and
+  MCP/LLM traffic, with ML-based data masking, command blocking, approval
+  workflows, and session recording. It is conceptually adjacent to
+  Guacamole but solves a different, more enterprise-shaped problem
+  (governance/audit over infra you already run) that doesn't map to a
+  standalone self-hosted app our customers install for its own sake. It is
+  also not mechanically installable today: local-auth admin bootstrapping
+  has no confirmed env-var or generated_from-compatible channel, the
+  headline masking feature depends on a heavier Presidio ML sidecar stack,
+  and its actual gateway function needs several raw TCP ports beyond a
+  single Traefik-fronted HTTP port. Recommend not_recommended — both the
+  fit and the installability case are weak.
