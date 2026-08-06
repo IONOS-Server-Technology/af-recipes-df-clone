@@ -1,0 +1,84 @@
+slug: hiccup
+name: Hiccup
+source_description: "Static start page for bookmarks and links with multi-provider search"
+
+upstream:
+  url: https://github.com/ashwin-pc/hiccup
+  repo_url: https://github.com/ashwin-pc/hiccup
+  license: MIT
+  docker_image: bleckbeard/hiccup:v0.5.0
+
+version_health:
+  latest_version: "v0.5.0"
+  latest_release_date: "2024-09-14"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Latest tagged release is v0.5.0 (2024-09-14) — about 23 months before
+    today (2026-08-05). One commit landed after that tag ("feat: support
+    per-link target configuration (#62)", 2025-08-09, about 12 months
+    before today) but was never cut into a new release, so the published
+    Docker image (also stuck on v0.5.0/`latest`, per Docker Hub, "almost 2
+    years ago") does not include it. Release history is uneven rather than
+    steady: 0.3.x/0.4.x tags landed every few months through 2022, then a
+    ~1 year gap to v0.4.3 (2023-05-12), then a further ~16 month gap to
+    v0.5.0 (2024-09-14). No archive flag or explicit EOL notice on the
+    repo, and the one 2025 commit shows the maintainer isn't gone, but
+    cadence has clearly been slowing for years — treat as maintenance-only,
+    not actively developed.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes are a bookmark/startpage app.
+    Hiccup is a purely client-side static page (all edits live in browser
+    localStorage; no backend, no database) for a grid of link "cards" with
+    a multi-provider search bar — closest in spirit to a personal
+    new-tab-page replacement. This is the same startpage/dashboard niche
+    already covered by five other pending gap-analysis candidates —
+    heimdall.yaml, flame.yaml, dashy.yaml, fenrus.yaml, and glance.yaml —
+    all rated has_web_ui/reverse_proxy_compatible true with medium
+    usefulness. Hiccup would be a sixth near-duplicate for the same slot;
+    it is also the least capable of the six (no live widgets, no
+    Docker-socket app discovery, no server-persisted config out of the
+    box), so it should rank last among them if only one is built.
+  usefulness: low
+  usefulness_rationale: >
+    The startpage/link-launcher niche itself is only medium value per the
+    five prior analyses (a convenience layer, not a standalone draw), and
+    Hiccup is the weakest entry in that niche: config is localStorage-only
+    by default (edits don't survive a new browser/device unless the
+    customer manually wires up a GitHub Gist or their own remote JSON
+    endpoint), the project has had no real feature development since 2024,
+    and the only published Docker image is a third-party build
+    (`bleckbeard/hiccup`, not maintained by the upstream project) that is
+    itself frozen at the same ~2-year-old tag.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Hiccup is a single-container static site (nginx serving a Create React
+  App build) with no login of its own; gating it behind Traefik basic_auth
+  keyed off the customer's root-password hash would make it mechanically
+  installable today, the same pattern already used for Dashy/Flame/Adminer.
+  The blocker is not the platform, it's the app itself: the only published
+  image is a third-party build frozen for ~2 years, the upstream project
+  has shipped no real feature work since a September 2024 tag, and its
+  config-management model (browser localStorage by default, with manual
+  Gist/remote-JSON wiring for anything durable) is a poor fit for a hosted,
+  stateless-container deployment where customers expect their edits to
+  persist server-side. Combined with five stronger, more actively
+  maintained candidates already analyzed for the identical startpage niche
+  (Heimdall, Flame, Dashy, Fenrus, Glance), Hiccup adds nothing the
+  catalogue needs — not_recommended.
