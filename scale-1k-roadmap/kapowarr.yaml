@@ -1,0 +1,69 @@
+slug: kapowarr
+name: Kapowarr
+source_description: "Self-hosted comic book manager for automated downloading and organization"
+
+upstream:
+  url: https://casvt.github.io/Kapowarr/
+  repo_url: https://github.com/Casvt/Kapowarr
+  license: GPL-3.0
+  docker_image: mrcas/kapowarr
+
+version_health:
+  latest_version: "V1.3.1"
+  latest_release_date: "2026-03-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release V1.3.1 shipped 2026-03-29 (~4 months before
+    today, 2026-08-05); V1.3.0 shipped 2026-03-06, so the two most recent
+    tags landed three weeks apart. Development branch has daily commits as
+    recently as 2026-08-04/05 (refactors, bug fixes referencing open
+    issues), so the project is clearly under active maintenance even
+    though a new tagged release hasn't landed in ~4 months. Not archived,
+    35 open issues and multiple open PRs being triaged.
+
+catalogue_fit:
+  categories: [media, self-hosted-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover media library management for
+    comics/manga (the *arr family — Sonarr/Radarr-style automated
+    acquisition and organization). Closest analogues in spirit are
+    Immich (photo library) and Paperless-ngx (document management), but
+    neither handles comic-book volumes/issues or the download-source
+    integrations (e.g. torrent/Usenet indexers, MediaFire, FlareSolverr
+    proxying) Kapowarr is built around.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to a specific home-media/self-hosting audience (comic/manga
+    collectors) rather than a broad customer base, and it depends on the
+    customer already having (or configuring) download sources to be
+    useful beyond just browsing a local library — similar niche profile
+    to other *arr-style tools we don't yet carry.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kapowarr is a single-container app (mrcas/kapowarr, port 5656) with a
+  simple docker-compose footprint (db volume, temp-downloads volume, one or
+  more comics-library volume mounts) and no mandatory built-in login —
+  authentication is an optional toggle configured later in its own UI
+  settings, not an env var or setup-wizard credential. That makes it
+  directly installable today the same way as Adminer/WUD/n8n: gate the
+  single public HTTP port behind Traefik basic_auth, with the basic-auth
+  password itself projected from the customer's root password via
+  `generated_from`. Release cadence looks slower on tags alone (~4 months
+  since V1.3.1) but daily development-branch commits as of this week show
+  the project is actively maintained, not dormant. It doesn't overlap any
+  existing recipe and would be a genuinely new (if niche) category for the
+  catalogue — recommend building.
