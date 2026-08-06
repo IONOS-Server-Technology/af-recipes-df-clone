@@ -44,8 +44,9 @@ catalogue_fit:
     footprint. Capped at medium rather than high: it's a much smaller/less
     recognized brand than Mastodon, Mastodon-API compatibility only covers
     read-side client apps (snac2 has no built-in signup flow at all), and
-    — see installability below — first-user provisioning is entirely
-    outside our current mechanism.
+    — see installability below — the account it does create hands its
+    password to the server operator via stdout rather than accepting one
+    we can project.
 
 installability:
   recipe_type_guess: docker-compose
@@ -54,35 +55,63 @@ installability:
   secrets_expressible_today: []
   blocking_issues:
     - >
-      There is no first-boot admin account at all. Per the admin manual
-      (snac(8)) and Debian manpages, every user — including the first/only
-      admin-equivalent account on a single-user instance — is created by
-      running `snac adduser <basedir>` as an interactive command inside the
-      container after it is already running: it prompts for information at
-      a terminal, one field at a time. There is no env var, config-file
-      field, or non-interactive CLI flag documented anywhere (upstream
-      README, snac.1/snac.8 manpages, Debian packaging) to preset a
-      username/password at container boot. This is a strictly worse shape
-      than the "web self-registration race" problem already documented for
-      Iceshrimp.NET and Mitra: it isn't even reachable from an automated
-      `/compose`/`/bootstrap` flow, since there's no TTY for our bootstrap
-      pipeline to answer — it requires a human operator to `docker exec -it`
-      into the running container post-boot.
+      Snac2 gives no way — in any form, hash or plaintext — to set an
+      account's password to a chosen value at creation time. Verified
+      against upstream source: `adduser()` (utils.c:290-388) takes only a
+      uid and unconditionally calls `new_password()` (utils.c:278-286),
+      which generates a random password internally, stores its hash, and
+      prints the plaintext to stdout exactly once ("User password is %s",
+      utils.c:377). `resetpwd()` (utils.c:391+) behaves identically. The
+      only code path that accepts an operator-chosen password is the
+      authenticated web UI's `passwd1`/`passwd2` fields on the user admin
+      page (html.c:6062-6066) — reachable only after already logging in
+      with the generated password. So the credential the customer needs
+      is server-generated and customer-facing, which fits none of our
+      three mechanisms.
     - >
-      Even setting aside the interactivity problem, `generated_from` only
-      ever projects a pre-computed hash of the customer's root password
-      onto a `type: password` metadata parameter that the app reads at
-      boot (env var or config). Snac2 has no such parameter to target —
-      the credential is typed at an interactive prompt, not read from
-      config — so neither `generated_from` nor a plaintext-password
-      channel exists today.
+      `generated_from_root_password` has no target. The mechanism projects
+      a hash onto a `type: password` metadata parameter that the app reads
+      at boot from env or config (the Gitea recipe's
+      `GITEA_ADMIN_PASSWORD` is the shape that works). Snac2 reads no such
+      parameter: the credential lives only as the `passwd` field inside
+      `<basedir>/user/<uid>/user.json`, written solely by adduser/resetpwd/
+      web-UI, and nothing in the server ever consults the environment for
+      it. Two separate platform gaps would have to close: (a) a write path
+      for the projected hash into user.json (recipe-side post-processing,
+      or upstream accepting a pre-hashed credential), and (b) snac2's
+      bespoke hash format added to `generated_from`'s algorithm list —
+      it is `<nonce>:sha1hex("<nonce>:<uid>:<plaintext>")` (snac.c:144-161),
+      not argon2 or bcrypt. Per SCHEMA.md that second item is the
+      extensible-algo case rather than a hard no, since af-api holds the
+      plaintext root password and could compute this form itself.
     - >
       A Traefik `basic_auth: true` gate does not substitute: snac2 has its
       own real password-based web login (it's not a no-login app), so
-      gating the domain with basic auth would add an extra password on
-      top of an admin account that still has no way to be provisioned
-      with a customer-known credential — same reasoning as
-      apps-gaps/mitra.yaml.
+      gating the domain with basic auth would add an extra password in
+      front of an account whose own credential the customer still has no
+      way to learn or choose — same reasoning as apps-gaps/mitra.yaml.
+    - >
+      `server_generated_no_customer_input` does not fit either, because
+      the customer genuinely needs this credential — it is their login to
+      their own Fediverse account, not an internal DB/JWT secret nothing
+      customer-facing reads. The one partial mitigation is that the
+      generated password is printed to container stdout, so a customer
+      with root on the box could recover it from `docker logs`; that is
+      an out-of-band manual retrieval, not one of the supported
+      mechanisms, and a poor first-run experience to ship.
+    - >
+      Note for completeness: the other one-time setup step, `snac init`,
+      is NOT a blocker. It prompts for address, port, host name, URL
+      prefix and an optional admin email (utils.c:171-221) — all
+      non-secret and all derivable from APP_DOMAIN — and upstream's own
+      `examples/docker-entrypoint.sh` already drives it unattended by
+      piping answers on stdin. `snac adduser <basedir> <uid>` is likewise
+      non-interactive when the uid is passed as an argument
+      (main.c: `user = GET_ARGV(); return adduser(user);`; the "Username:"
+      prompt at utils.c:301-304 fires only when uid is omitted), and the
+      same upstream entrypoint runs it unattended. install.sh could
+      therefore provision the account fine — it just cannot control what
+      password that account ends up with.
   installable_today: false
   recommendation: blocked_on_platform
 
@@ -93,11 +122,15 @@ summary: >
   minimal dependencies, far lighter than Mastodon). It's reverse-proxy
   friendly (single HTTP port, no raw protocols) and would open a new
   social/fediverse category alongside the already-analyzed Mitra and
-  Iceshrimp.NET candidates. It fails installability more decisively than
-  either sibling: the only account-creation path is an interactive
-  `snac adduser` terminal prompt run after the container is already up,
-  with no env var, config field, or non-interactive flag to preset a
-  credential — there is no automation channel at all, not just a missing
-  hash-projection mechanism. Recommend `blocked_on_platform`: revisit only
-  if upstream adds a non-interactive, config- or env-var-driven first-user
-  bootstrap path.
+  Iceshrimp.NET candidates. Provisioning itself automates fine — both
+  `snac init` and `snac adduser <basedir> <uid>` run unattended, as
+  upstream's own docker-entrypoint.sh demonstrates — but the resulting
+  account's password is always generated by the server and printed once
+  to stdout, and no code path accepts a caller-supplied password or hash.
+  That credential is customer-facing, so it fits none of our three
+  mechanisms: nothing for `generated_from` to target, a basic-auth gate
+  doesn't replace snac2's own login, and it isn't a
+  never-seen-by-the-customer server secret. Recommend
+  `blocked_on_platform`: revisit if upstream accepts a preset credential
+  at account creation, or if the platform gains both a write path into
+  `user.json` and snac2's salted-SHA-1 hash format in `generated_from`.
