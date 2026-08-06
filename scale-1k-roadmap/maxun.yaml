@@ -1,0 +1,99 @@
+slug: maxun
+name: Maxun
+source_description: "No-code platform for building automated web data extraction robots"
+
+upstream:
+  url: https://www.maxun.dev/
+  repo_url: https://github.com/getmaxun/maxun
+  license: AGPL-3.0
+  docker_image: getmaxun/maxun-backend (paired with getmaxun/maxun-frontend; no single combined image)
+
+version_health:
+  latest_version: "v0.0.60"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows getmaxun/maxun-backend:v0.0.60 pushed ~3 days before
+    today (2026-08-05), with a steady cadence of tagged image releases every
+    2-4 weeks going back at least a year (v0.0.58 ~21 days old, v0.0.57 ~1
+    month, v0.0.56 ~2 months, etc.). GitHub commit history on `master` shows
+    commits as recent as 2026-08-04. Note: the GitHub "Releases" feature page
+    stops at v0.0.45 (2026-08-03) and does not reflect newer tags — the
+    project keeps publishing versioned Docker images and git tags without
+    filing corresponding GitHub Release notes for every one. Docker Hub tags
+    and commit history are the reliable signal here, not the Releases tab.
+
+catalogue_fit:
+  categories: [automation, data-extraction, web-scraping, no-code]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers no-code web scraping/data-extraction. n8n
+    (workflow automation) can call HTTP requests but has no visual
+    point-and-click "recorder" for turning a browsing session into a
+    reusable scraping robot, no headless-browser-driven extraction, and no
+    AI-powered field extraction the way Maxun does. This is a genuinely new
+    category for the catalogue, not a variant of anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    Web scraping-as-a-service has real demand and a no-code angle broadens
+    the audience beyond developers who'd just write a Playwright script.
+    Rated medium rather than high because the architecture (separate
+    frontend/backend/browser/MinIO/Redis/Postgres services, 4-6GB RAM
+    recommended for the backend+browser alone) is heavier than most of our
+    single-container or two-container recipes, and the headless-browser
+    container needs `seccomp:unconfined` and multi-GB shared memory —
+    unusually resource-hungry for a shared-hosting catalogue entry.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JWT_SECRET
+    - SESSION_SECRET
+    - ENCRYPTION_KEY
+    - DB_PASSWORD (Postgres)
+    - MINIO_SECRET_KEY
+    - traefik_basic_auth gate credential
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD (Postgres)
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: traefik_basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Maxun is a genuinely new category for the catalogue (no-code web scraping
+  robots) with no overlap in the current 24 recipes, an active upstream
+  (Docker images tagged every 2-4 weeks, commits as recent as yesterday),
+  and AGPL-3.0 licensing. All app-level secrets it needs at boot (JWT/session
+  secrets, DB and MinIO credentials) are patternless server-generated randoms
+  with `server_generated_no_customer_input`. The one real gap: self-hosted
+  Maxun has no built-in admin account — `POST /register` lets any visitor
+  create the first account with an email/password of their choosing, so
+  whoever reaches the URL first "owns" the instance. That's the same
+  no-login-gate shape as n8n/WUD/Open WebUI, and the documented fix is a
+  Traefik `basic_auth: true` gate in front of the whole app (root-password
+  projected), same as those recipes, so it's still `installable_today`.
+  Two structural caveats worth flagging before building: (1) the app ships
+  as separate frontend (5173) and backend (8080) services split by
+  path-prefix in upstream's own nginx.conf example, not a single port — a
+  recipe would need an internal proxy container (nginx/Caddy sidecar) doing
+  that same path split so only one HTTP port is exposed to Traefik, since no
+  existing recipe demonstrates two HTTP services sharing one Traefik host by
+  path; and (2) the browser-automation container needs multi-GB shared
+  memory and `seccomp:unconfined`, plus a recommended 4-6GB RAM footprint for
+  backend+browser alone — heavier than most current recipes. Worth building,
+  but scope the compose file carefully around the internal proxy split and
+  size the app_min_ram_mb generously.
