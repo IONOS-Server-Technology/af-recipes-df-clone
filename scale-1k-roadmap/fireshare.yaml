@@ -1,0 +1,105 @@
+slug: fireshare
+name: Fireshare
+source_description: "Self-hosted video and image sharing for game clips with unique shareable links"
+
+upstream:
+  url: https://fireshare.net/
+  repo_url: https://github.com/ShaneIsrael/fireshare
+  license: GPL-3.0
+  docker_image: shaneisrael/fireshare
+
+version_health:
+  latest_version: "1.7.4"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11 days between today (2026-08-05) and the latest tagged release
+    (v1.7.4, 2026-07-26). Release history is dense: 15 tagged releases
+    between 2026-04-28 (v1.6.7) and 2026-07-26 (v1.7.4), averaging roughly
+    one release every 6-7 days over that span, with the longest gap being
+    ~4 weeks (v1.7.3 to v1.7.4). Docker Hub shows a `develop` tag rebuilt as
+    recently as 2026-08-05 (today), confirming ongoing active development,
+    not just release-tagging. Repo not archived, 1.4k stars. Genuinely
+    active, healthy single-maintainer project.
+
+catalogue_fit:
+  categories: [media, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue targets link-based sharing of
+    individual video/image clips. Immich is the closest existing recipe
+    (media library with sharing) but is architecturally a full personal
+    photo/video backup and library platform (mobile auto-backup, facial
+    recognition, ML search, multi-service stack with Postgres/Redis/
+    machine-learning containers) aimed at replacing Google Photos, not a
+    lightweight "drop a clip in a folder, get a shareable link" tool for
+    gamers. Fireshare is a single container with no database service,
+    purpose-built for the narrower "share this clip on Discord" use case
+    named in Hostinger's own description.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, narrow niche (game-clip sharing with Discord/Twitter embed
+    support via Open Graph) with community traction (1.4k stars, active
+    Synology/TrueNAS/Unraid community packaging) but a smaller total
+    addressable audience than general-purpose media tools already in or
+    considered for the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, SECRET_KEY]
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Fireshare's own admin login (used to upload/manage/tag videos —
+      the app's core function, not just an optional settings surface) only
+      accepts a plaintext password via the `ADMIN_PASSWORD` env var.
+      Verified directly against upstream source
+      (app/server/fireshare/__init__.py on GitHub, main branch as of
+      2026-08-05): at boot the app reads `ADMIN_PASSWORD` as plaintext and
+      hashes it itself with `generate_password_hash(..., method=
+      'pbkdf2:sha256')` (werkzeug's own scheme) before storing it — there
+      is no code path that accepts a pre-computed hash instead. Our
+      platform's only per-customer secret channel, `generated_from:
+      "<algo>:ROOT_PASSWORD"`, only ever carries a hash of the root
+      password (argon2 or bcrypt), never the plaintext itself. Since this
+      is a genuine plaintext-only requirement (not merely an unsupported
+      hash algorithm like pbkdf2, which would be a softer, extensible
+      gap), there is no way to project the customer's own password into
+      this field today, and no other way for the customer to learn a
+      server-generated value either.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (as done for
+      Adminer-style apps with an unusable fixed credential) does not
+      resolve this the same way it does for those apps: Fireshare's admin
+      account is the actual mechanism customers use to upload and manage
+      their videos, not a redundant/bypassable inner login. Leaving
+      `ADMIN_PASSWORD` at its default ("admin") or a random
+      server-generated value behind a basic_auth gate would still leave
+      the customer unable to ever learn a working admin credential for the
+      app itself, blocking core functionality rather than just an
+      unauthenticated attack surface.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Fireshare (shaneisrael/fireshare) is a healthy, actively-released single-
+  container app (v1.7.4, 2026-07-26, ~weekly release cadence) that fills a
+  real gap not covered by Immich or any other current recipe: lightweight,
+  link-based sharing of individual game clips/videos, reverse-proxy
+  compatible on a single HTTP port. It is blocked from `installable_today`
+  by a structural mismatch rather than a missing algorithm: the app's own
+  admin login — required for its core upload/manage functionality, not an
+  optional extra — only accepts a plaintext password via `ADMIN_PASSWORD`,
+  confirmed by reading the boot-time user-provisioning code on GitHub.
+  Our root-password projection mechanism only ever produces a hash, so
+  there is no channel today for a customer to end up with a working admin
+  credential, and a Traefik basic_auth gate in front doesn't substitute
+  for that the way it does for logins-that-don't-matter apps like Adminer.
+  Recommend `blocked_on_platform`: revisit only if the platform grows a
+  plaintext-carrying provisioning channel, which is a larger change than
+  the argon2/bcrypt algorithm list `generated_from` already supports.
