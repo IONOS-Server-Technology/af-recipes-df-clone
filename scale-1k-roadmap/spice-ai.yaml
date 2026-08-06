@@ -1,0 +1,85 @@
+slug: spice-ai
+name: Spice AI
+source_description: "Portable SQL query, search, and LLM-inference engine for data-grounded AI agents"
+
+upstream:
+  url: https://spiceai.org/
+  repo_url: https://github.com/spiceai/spiceai
+  license: Apache-2.0
+  docker_image: spiceai/spiceai
+
+version_health:
+  latest_version: "v2.1.4"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.1.4 shipped today (2026-08-05) per GitHub releases. The ten most
+    recent tags (v2.1.4 back to v2.0.0-rc.5) span April-August 2026 with a
+    major v2.0.0 line released 2026-06-04 and roughly biweekly-to-weekly
+    minor/patch releases since (v2.1.1 -> v2.1.4 across four releases in
+    the last two weeks alone). Docker Hub mirrors this: spiceai/spiceai:2.1.4
+    pushed ~20 hours ago at query time. This is an actively, rapidly
+    maintained project.
+
+catalogue_fit:
+  categories: [database, developer-tools, ai-ml, data-analytics]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a SQL query-federation / caching
+    engine for grounding LLM agents in a customer's own data. It is
+    architecturally distinct from ollama (which just serves model
+    inference) and open-webui/paperless-ai (chat/document front-ends): Spice
+    sits between an application and its data sources (databases, files,
+    APIs), accelerating and caching queries and exposing them over SQL,
+    Arrow Flight (gRPC), and an HTTP API for an agent or app to consume.
+  usefulness: low
+  usefulness_rationale: >
+    Genuinely differentiated capability, but it is developer infrastructure
+    for someone building a data-grounded AI application, not an app a
+    self-hoster uses directly. It has no web UI at all (CLI SQL REPL + HTTP
+    API + gRPC), and a freshly deployed instance without a customer-authored
+    `spicepod.yaml` pointing at their own real data source only serves the
+    bundled quickstart demo dataset — no out-of-the-box end-user value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GATE_BASIC_AUTH
+  secrets_expressible_today:
+    - secret: GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Spice has no login of its own; its HTTP API (port 8090) executes
+      arbitrary SQL against whatever data is loaded, so it must sit behind
+      a Traefik basic_auth gate the same way Adminer does. That gate only
+      covers the HTTP port — the Arrow Flight gRPC port (50051), which is
+      the primary high-throughput query interface real SQL/Flight clients
+      use, and the metrics port (9090) have no equivalent auth mechanism
+      and would need to stay off the public router entirely, which is a
+      real functionality loss versus upstream's intended usage."
+    - "To be useful beyond the bundled quickstart demo dataset, the
+      customer must supply their own data-source connection details
+      (host, credentials, or API keys for the DB/warehouse/API they want
+      Spice to federate) via a custom spicepod.yaml. That is exactly the
+      kind of arbitrary customer-chosen configuration/credential that
+      /compose has no input channel for today; a recipe could ship
+      bootable but would only ever expose the demo dataset."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Spice AI is a healthy, fast-moving upstream (Apache-2.0, releases roughly
+  weekly, v2.1.4 shipped the same day as this analysis) that could be
+  mechanically deployed today as a single-container docker-compose recipe
+  running the bundled quickstart Spicepod, with its HTTP API gated by
+  Traefik basic_auth in place of its own login. It is a poor catalogue fit
+  though: no web UI, a real Flight/gRPC port that basic_auth can't cover,
+  and no way for a customer to point it at their own data via the current
+  recipe mechanism — so a shipped instance would only ever demo a canned
+  dataset rather than deliver the actual "query your own data" value
+  proposition. Recommend build_with_caveats: technically installable, but
+  low priority versus recipes that are useful out of the box, and revisit
+  once there's a channel for customer-supplied data-source config.
