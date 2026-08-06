@@ -1,0 +1,74 @@
+slug: octobot
+name: OctoBot
+source_description: "Open-source crypto trading bot for automated strategies across 15+ exchanges"
+
+upstream:
+  url: https://www.octobot.cloud
+  repo_url: https://github.com/Drakkar-Software/OctoBot
+  license: GPL-3.0
+  docker_image: drakkarsoftware/octobot:stable
+
+version_health:
+  latest_version: "2.1.1 (latest stable tag); 3.0.0-beta1 is the newest overall release (pre-release)"
+  latest_release_date: "2026-03-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.1.1 (stable) shipped 2026-03-28. A 3.0.0-beta1 pre-release shipped
+    2026-07-26 (11 days before this analysis on 2026-08-05), introducing a
+    major architecture change: OctoBot 3.0 defaults to "node mode", where the
+    self-hosted instance becomes a backend for a cloud-hosted web/mobile UI
+    (new.mobile.octobot.cloud) rather than serving its own classic web UI
+    directly. CHANGELOG shows releases roughly every 2-4 weeks going back
+    through 2025 (2.0.13 through 2.1.1), so the project is clearly active,
+    not dormant. The pending 3.0 architecture shift is worth flagging: a
+    recipe pinned to the 2.x "classic" self-hosted web UI could be
+    superseded once 3.0 stabilizes and node-mode becomes the default
+    experience.
+
+catalogue_fit:
+  categories: [finance, trading, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue touches crypto trading or
+    portfolio automation. OctoBot would be a genuinely new category:
+    self-hosted automated trading (grid/DCA/TradingView-signal strategies)
+    across 15+ exchanges (Binance, OKX, Kucoin, Hyperliquid, etc.), with a
+    single-container web UI on port 5001 behind Traefik like our other
+    single-service apps.
+  usefulness: medium
+  usefulness_rationale: >
+    Distinct niche with real demand (active GitHub community, DigitalOcean
+    Marketplace listing already exists), but it's a narrower audience than
+    most of our current catalogue (media/productivity/dev-tooling) and
+    carries financial-trading risk/liability considerations that are a
+    business call, not a technical one. The app is also mid-transition to a
+    cloud-backend "node mode" architecture (3.0 beta), which adds near-term
+    uncertainty about what "self-hosted OctoBot" even means going forward.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [web UI basic-auth gate]
+  secrets_expressible_today:
+    - secret: web UI basic-auth gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "OctoBot's own web-UI password is off by default and, per upstream docs, can only be set through the UI itself (Accounts > Interfaces) or by hand-editing user/config.json after first boot — there is no environment variable or startup argument to seed it. This rules out generated_from projection onto the app's own login; a Traefik basic_auth gate is the only available boundary."
+    - "Core function (placing real trades) requires the customer's own exchange API keys, entered through OctoBot's own UI after the app is running. This is not a first-boot blocker (the app boots and serves its UI, including paper-trading/demo mode, with zero exchange keys configured) — it's ordinary post-install customer configuration, same pattern as n8n credentials. Noted here for completeness, not as a blocker on installable_today."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OctoBot is mechanically installable today: single container, one HTTP port
+  (5001), no login of its own configured at boot, so a Traefik basic_auth
+  gate is a sufficient and available first-boot secret channel — no
+  blocking secret requirement. It would fill a genuinely new category
+  (self-hosted crypto trading automation) with zero overlap in the current
+  24-recipe catalogue. The caveats are non-technical: it's a narrower,
+  higher-liability niche than the rest of the catalogue, and upstream is
+  mid-transition to a 3.0 "node mode" architecture that shifts the primary
+  UI to a cloud-hosted frontend, which may make a recipe pinned to the
+  current classic 2.x self-hosted UI a moving target within the next
+  release or two.
