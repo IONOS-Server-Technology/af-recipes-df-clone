@@ -1,0 +1,82 @@
+slug: healthchecks
+name: Healthchecks
+source_description: "Open-source cron job and background task monitoring with instant alerts"
+
+upstream:
+  url: https://healthchecks.io/
+  repo_url: https://github.com/healthchecks/healthchecks
+  license: BSD-3-Clause
+  docker_image: healthchecks/healthchecks:v4.3
+
+version_health:
+  latest_version: "v4.3"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.3 tagged 2026-07-14, ~3 weeks before today (2026-08-05). Release
+    history over the prior year is steady and roughly monthly-to-bimonthly:
+    v3.10 (2025-05-09), v3.11/.1/.2 (Aug-Sep 2025), v3.12/v3.13 (Nov 2025),
+    v4.0 (2026-01-22, Django 6.0 upgrade), v4.1/v4.1.1 (Mar 2026), v4.2
+    (2026-04-28), v4.3 (2026-07-14, includes an Argon2 password-hashing
+    upgrade). Single maintainer (cuu508) but commits are signed/verified
+    and the cadence has not slowed — clearly active, not dormant.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Healthchecks is a "dead man's switch" / passive monitor: cron jobs and
+    scheduled tasks ping it, and it alerts when an expected ping fails to
+    arrive on schedule. This is a different failure mode than Uptime Kuma
+    (the closest existing recipe), which actively polls URLs/services and
+    alerts when a live check fails. Uptime Kuma cannot detect "a backup
+    script silently stopped running" the way Healthchecks can, and vice
+    versa Healthchecks cannot detect "the website is down" the way Uptime
+    Kuma can. No existing recipe covers scheduled-job/cron monitoring.
+  usefulness: high
+  usefulness_rationale: >
+    Broad appeal: any self-hoster running cron jobs, backup scripts, or
+    scheduled automation (a very common case among this catalogue's
+    technical audience) benefits from being alerted when a job silently
+    stops running. Complements Uptime Kuma rather than competing with it,
+    and unlike Alerta it is immediately useful out of the box — the
+    customer's own cron jobs can be pointed at it directly, no external
+    monitoring stack required first.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, DB_PASSWORD, SECRET_KEY]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Healthchecks is a two-service app (web app + Postgres), structurally
+  close to the n8n/paperless-ngx template, exposing a single HTTP port
+  (8000) — reverse-proxy friendly. It has no boot-time admin-credential env
+  var: the official Docker setup requires an interactive
+  `manage.py createsuperuser` exec after first boot, which af-api's
+  bootstrap flow cannot drive (no channel for a one-off interactive
+  command). However, the app also supports open self-service signup
+  (REGISTRATION_OPEN=True by default) through its own web UI, so no
+  Django-superuser step is actually required for a customer to create
+  their own monitoring account. That default is unsafe unguarded (any
+  internet visitor could self-register on the customer's instance before
+  the customer does), so the recipe should front the whole app with a
+  Traefik basic_auth:true gate — projected from the customer's root
+  password via generated_from, same pattern as Adminer — so only the
+  customer can even reach the signup page. Postgres password and Django
+  SECRET_KEY are both server-generated with no customer input needed.
+  Upstream is actively maintained (v4.3, July 2026) and the app fills a
+  real gap (cron/scheduled-job monitoring) not covered by Uptime Kuma.
+  Recommend build_now.
