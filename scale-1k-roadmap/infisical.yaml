@@ -1,0 +1,74 @@
+slug: infisical
+name: Infisical
+source_description: "Open-source secrets manager for syncing env variables and API keys across teams and infrastructure"
+
+upstream:
+  url: https://infisical.com
+  repo_url: https://github.com/Infisical/infisical
+  license: MIT (with a separate `ee/` directory of enterprise-only features gated by an Infisical license)
+  docker_image: infisical/infisical (standalone image, tags like `v0.162.16-postgres`; requires an external Postgres + Redis)
+
+version_health:
+  latest_version: v0.162.16
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases are landing multiple times per week (v0.162.6 on 2026-07-14 up
+    to v0.162.16 on 2026-08-04, roughly 10 tagged releases in three weeks).
+    As of today (2026-08-05) the latest release is one day old. No
+    indication of maintenance-only mode or EOL; this is a VC-backed,
+    actively developed product with frequent feature and security releases.
+
+catalogue_fit:
+  categories: [security, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Vaultwarden is the closest existing recipe but serves a different use
+    case (personal/team password vault, Bitwarden-protocol client sync).
+    Infisical targets developers/teams syncing environment variables, API
+    keys, and infrastructure secrets across services (CLI, SDKs, CI/CD
+    integrations, dynamic secrets, PKI). No recipe in the current catalogue
+    covers this "secrets-manager-as-infrastructure" niche.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted secrets management is a common ask for teams that don't
+    want to depend on a third-party SaaS for API keys/env vars; Infisical
+    is one of the most popular open-source options (Doppler/Vault
+    alternative) and would be a genuinely new capability for the catalogue,
+    not a duplicate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ENCRYPTION_KEY
+    - AUTH_SECRET
+    - DB_CONNECTION_URI (Postgres password)
+    - REDIS_URL (Redis, no auth by default)
+  secrets_expressible_today:
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: DB_CONNECTION_URI (Postgres password)
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_URL (Redis, no auth by default)
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Infisical is an actively maintained, MIT-licensed, web-UI'd secrets
+  manager with no overlap in the current 24-recipe catalogue — the closest
+  existing recipe (Vaultwarden) solves a different problem. Its self-hosted
+  requirements (an app container plus Postgres and Redis, all secrets
+  server-generatable, initial admin account created by the customer
+  themselves via the app's own signup screen after deployment rather than
+  through the /compose bootstrap channel) fit the current recipe mechanism
+  cleanly, the same way n8n's owner-account setup does. Recommend
+  proceeding to a full af-create-recipe pass using n8n as the closest
+  structural template (Postgres-backed multi-service stack), adding Redis
+  as a third service.
