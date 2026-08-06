@@ -1,0 +1,83 @@
+slug: livebook
+name: Livebook
+source_description: "Open-source Elixir notebooks for data science, ML, and real-time collaboration"
+
+upstream:
+  url: https://livebook.dev
+  repo_url: https://github.com/livebook-dev/livebook
+  license: Apache-2.0
+  docker_image: ghcr.io/livebook-dev/livebook
+
+version_health:
+  latest_version: "0.19.9"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.19.9 shipped today (2026-08-05), a security release fixing several
+    issues (JS widget event proxying, notebook file validation, environment
+    variable escaping, Teams access control, login CSRF). A backport
+    v0.18.7 for the older 0.18.x line landed the same day. Prior releases:
+    v0.19.8 (2026-05-20), v0.19.7 (2026-04-22), v0.19.6 (2026-03-27),
+    v0.19.5 (2026-03-23), v0.19.4 (2026-03-18), v0.19.3 (2026-03-10),
+    v0.19.2 / v0.19.1 (2026-03-04) — a dense burst in March followed by a
+    steady ~monthly cadence, plus dual-track security backports to an older
+    minor. No archival, maintenance-only, or EOL signal; this is a
+    healthily maintained project.
+
+catalogue_fit:
+  categories: [developer-tools, data-science]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a notebook/interactive
+    coding environment. Two other notebook-style apps have prior gap
+    analyses but no built recipe yet: apps-gaps/jupyter-notebook.yaml and
+    apps-gaps/jupyterlab.yaml (Python-focused) and
+    apps-gaps/apache-zeppelin.yaml (Spark-focused, less mainstream).
+    Livebook is Elixir-focused rather than Python, with a distinct
+    differentiator — built-in real-time multi-user collaborative editing
+    and "Smart cells" (point-and-click automation blocks that generate
+    code) — but it targets the same broad "notebook for data
+    work/prototyping" audience as the Jupyter pair, just for a different
+    (much smaller) language ecosystem. If a Jupyter-family recipe already
+    ships, Livebook mainly adds language diversity rather than a wholly new
+    use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Livebook is well-regarded within the Elixir community and offers
+    genuinely distinctive features (live collaboration, Smart cells,
+    reproducible notebooks as plain .livemd/git-friendly files), but Elixir
+    has a far smaller practitioner base than Python, so the addressable
+    customer segment is narrower than Jupyter/JupyterLab. Single official
+    container, no external DB dependency, works standalone out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Livebook is a single official container (ghcr.io/livebook-dev/livebook,
+  pin to a dated tag like "0.19.9") exposing one HTTP port (8080, the
+  8081 iframe port is only relevant when served over plain http:// —
+  over https:// via Traefik, iframes default to loading from
+  https://livebookusercontent.com, so no second port needs routing).
+  Livebook's own login is either an auto-generated token (printed to
+  container logs, not customer-facing) or a `LIVEBOOK_PASSWORD` env var
+  that the app requires as a plaintext value (min 12 chars) — it does not
+  accept a pre-computed hash, so `generated_from` cannot project a login
+  for it directly. The clean fit is to disable Livebook's built-in auth
+  (`LIVEBOOK_TOKEN_ENABLED=false`, no `LIVEBOOK_PASSWORD` set) and gate the
+  whole app behind a Traefik `basic_auth` credential instead, the same
+  pattern already used for WUD/Adminer-shaped apps with no expressible
+  native login. Upstream is actively maintained (security release shipped
+  the same day as this analysis). Recommend build_now, but flag as
+  medium usefulness given Elixir's much smaller user base compared to the
+  Jupyter-family notebooks already sitting in apps-gaps.
