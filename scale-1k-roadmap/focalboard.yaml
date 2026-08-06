@@ -1,0 +1,74 @@
+slug: focalboard
+name: Focalboard
+source_description: "Open-source project management tool with Kanban boards, tables, and calendar views"
+
+upstream:
+  url: https://www.focalboard.com/
+  repo_url: https://github.com/mattermost-community/focalboard
+  license: "Mixed: compiled releases produced by Mattermost, Inc. (incl. the official Docker image) are MIT; source used to build unofficial binaries is AGPL-3.0-or-later or commercial; admin tooling/config files are Apache-2.0."
+  docker_image: mattermost/focalboard:7.11.4
+
+version_health:
+  latest_version: "7.11.4"
+  latest_release_date: "2023-09-26"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Today is 2026-08-05. The mattermost/focalboard Docker image has not had a
+    new tag pushed since 7.11.4 (2023-09-26, ~2 years 10 months ago). The
+    GitHub repo's README carries a standing banner: "This repository is
+    currently not maintained. If you're interested in becoming a maintainer
+    please let us know" — first posted around the Mattermost-plugin split on
+    2024-08-28 (~2 years ago) and still present today. The repo is not
+    formally archived, and commit history shows sporadic community activity
+    as recently as 2025-06-11 (~14 months ago), but none of that activity has
+    produced a new packaged release or Docker image in nearly 3 years — this
+    reads as a project running on volunteer drive-by fixes with no
+    maintainer cutting releases, not active development. The GitHub release
+    list's newest entry, v8.0.0 (2024-06-13), is explicitly a "plugin only
+    release" for the separate mattermost/mattermost-plugin-boards project,
+    not the standalone server this recipe would package.
+
+catalogue_fit:
+  categories: [productivity, project-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover Kanban-style project management.
+    anytype-server is a personal notes/knowledge-base sync server, not a
+    task board, and n8n is workflow automation, not task tracking, so
+    Focalboard's Trello/Notion/Asana-style boards would be a genuinely new
+    category if the project were healthy.
+  usefulness: medium
+  usefulness_rationale: >
+    Kanban-style project management is a common self-hosting want and would
+    fill a real gap in the catalogue on paper. Capped at medium (not high)
+    because of the version_health picture above — shipping a recipe on top
+    of an image nearly 3 years stale, from a project explicitly asking for a
+    new maintainer, is a support liability regardless of the feature gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Focalboard is mechanically simple to package: one container
+  (mattermost/focalboard:7.11.4), a single HTTP port (8000, reverse-proxy
+  friendly), SQLite by default with no required external DB, and a
+  first-user-becomes-admin registration flow identical to the pattern
+  already shipped for gitea and immich — no customer-supplied secret is
+  needed at first boot, so it is not blocked by the current
+  root-password-hash / basic-auth-only mechanism. The blocker is upstream
+  health, not mechanism: the standalone project has been explicitly flagged
+  "not currently maintained" since 2024-08-28, no new Docker image has been
+  published since 7.11.4 (2023-09-26, nearly 3 years ago as of 2026-08-05),
+  and the only release since then (v8.0.0, 2024-06-13) was plugin-only for a
+  different, separately-maintained repo. Recommendation is not_recommended
+  — installable today, but not worth shipping a recipe against an
+  effectively unmaintained image; revisit if the community-maintainer search
+  succeeds and a fresh image is cut.
