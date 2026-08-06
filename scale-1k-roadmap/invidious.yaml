@@ -1,0 +1,79 @@
+slug: invidious
+name: Invidious
+source_description: "Privacy-respecting alternative front-end for YouTube without ads or tracking"
+
+upstream:
+  url: https://invidious.io/
+  repo_url: https://github.com/iv-org/invidious
+  license: AGPL-3.0
+  docker_image: quay.io/invidious/invidious:v2.20260804.1
+
+version_health:
+  latest_version: "v2.20260804.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.20260804.1 released 2026-08-05 — literally the day before this
+    analysis (2026-08-06), a patch fix on top of v2.20260804.0 from the day
+    before. Recent tag history: v2.20260207.0 (2026-02-07) →
+    v2.20260626.0 (2026-06-27, ~4.5mo) → v2.20260723.0 (2026-07-23, ~1mo) →
+    v2.20260804.0/.1 (2026-08-04/05, ~2wk). Cadence is irregular but clearly
+    live: 5,929+ commits on master, 22.4k stars, 387 open issues, 82 open
+    PRs, repo not archived. This is one of the most actively maintained
+    candidates analyzed so far.
+
+catalogue_fit:
+  categories: [media, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches video/media
+    consumption or YouTube specifically — closest neighbors (pihole,
+    adguard-home) are network-level ad/tracker blockers, not a front-end for
+    a specific third-party service. Invidious would be a genuinely new
+    category: a privacy-preserving proxy UI for watching YouTube content
+    without Google's tracking, ads, or JS requirement, run entirely on the
+    customer's own server.
+  usefulness: low
+  usefulness_rationale: >
+    The idea has obvious appeal (ad-free, tracker-free YouTube viewing), but
+    Invidious's core function depends on scraping YouTube's private,
+    unofficial internal endpoints rather than any sanctioned API. YouTube
+    has actively and repeatedly worked to detect and block Invidious
+    instances since mid-2023 (IP-range blocking, forced sign-in walls,
+    PO-token/BotGuard attestation requirements), and the project's own docs
+    devote significant space to error-explainers and companion PO-token
+    workarounds for exactly this reason. A freshly deployed customer
+    instance is not guaranteed to keep working over time for reasons
+    entirely outside our or the customer's control, which is a poor
+    reliability story for a hosted-recipe product and a likely source of
+    support tickets ("YouTube videos won't play") we can't fix.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Invidious is mechanically installable today: it's a single-container web
+  app (plus an internal Postgres it doesn't expose as the product) on one
+  HTTP port, needs no external API key or OAuth registration, and has no
+  admin credential of its own to project at boot — by default anyone who
+  reaches the domain can self-register an account, so the recipe would need
+  the whole app gated behind Traefik `basic_auth: true` as the real auth
+  boundary (same pattern as Adminer/ImmuDB), which is fully expressible with
+  today's mechanism. The blocker is fit and reliability rather than
+  mechanism: Invidious's entire value proposition rests on scraping
+  YouTube's unofficial internal APIs, and YouTube has spent years actively
+  detecting and blocking Invidious traffic (IP blocks, forced sign-in,
+  PO-token/BotGuard checks) — a real risk that a customer's freshly deployed
+  instance breaks for reasons neither we nor they can fix, despite the
+  upstream project itself being very actively maintained (a release the day
+  before this analysis). Recommend not_recommended.
