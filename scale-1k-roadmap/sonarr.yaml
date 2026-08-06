@@ -1,0 +1,89 @@
+slug: sonarr
+name: Sonarr
+source_description: "Automated TV show collection manager and organizer for Usenet and torrents"
+
+upstream:
+  url: https://sonarr.tv
+  repo_url: https://github.com/Sonarr/Sonarr
+  license: GPL-3.0
+  docker_image: linuxserver/sonarr (pin to a version tag, e.g. 4.0.19.2979-ls291 — do not follow upstream examples that use :latest)
+
+version_health:
+  latest_version: "4.0.19.2979 (stable channel); 4.0.19.2997 exists on the develop/nightly channel, not yet promoted to stable"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable release 4.0.19.2979 shipped 2026-06-26, about 5.5 weeks
+    before today (2026-08-05) — on its own borderline "slowing", but the
+    develop/nightly channel shows continuous activity right up to just
+    before this research: 4.0.17.2967 (2026-05-04), 4.0.17.2969
+    (2026-06-05), 4.0.17.2975 (2026-06-24), 4.0.18.2976 (2026-06-25),
+    4.0.18.2978 (2026-06-25), 4.0.19.2991 (2026-07-25), 4.0.19.2995
+    (2026-07-27), and 4.0.19.2997 as recently as 2026-08-04 — one day
+    before today. The linuxserver/sonarr image tracks this closely: its
+    stable tag (4.0.19-ls291-equivalent) was last rebuilt about 20 days
+    before this research, confirming the container is still actively
+    maintained. Sonarr is part of the same Servarr organization as
+    Radarr/Lidarr/Prowlarr/Bazarr (already assessed in this catalogue)
+    and shows the identical continuous-delivery cadence (fast nightly
+    channel, slower periodic stable promotion). Repo is not archived, no
+    EOL notice, actively triaged. Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches TV-library
+    automation. Sonarr is the TV-specific member of the "*arr" family
+    (Radarr for movies, already assessed as build_now; Lidarr for music)
+    and, like Radarr, is not itself a dependent companion app — it is one
+    of the two primary consumers (alongside Radarr) that Bazarr
+    (subtitles) and Prowlarr (indexer sync) were built to serve. Sonarr
+    can track a customer's TV show collection, monitor for wanted/missing
+    episodes, and organize/rename an existing library with zero external
+    dependencies; its "automated acquisition" feature only fully
+    activates once a customer adds an indexer (e.g. Prowlarr/Jackett,
+    neither an AF recipe) and a download client (e.g. qBittorrent/
+    SABnzbd, also not an AF recipe), same caveat as Radarr/Lidarr.
+  usefulness: high
+  usefulness_rationale: >
+    Sonarr is, alongside Radarr, one of the two most widely deployed
+    self-hosted apps in the "*arr" ecosystem, and is explicitly named as
+    "the missing piece" in both the already-assessed Bazarr gap analysis
+    (subtitle companion for Sonarr/Radarr) and the Prowlarr gap analysis
+    (indexer sync target). The Radarr gap analysis itself recommends
+    adding Sonarr alongside it. Shipping Sonarr (ideally together with
+    Radarr) would retroactively unlock real standalone value for three
+    already-assessed gap-analysis candidates (Bazarr, Prowlarr, and
+    Radarr's own companion recommendation). Even alone, Sonarr still
+    functions as a TV-library organizer/renamer without an indexer or
+    download client configured.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Sonarr is a single-container app (linuxserver/sonarr, port 8989, no
+  separate database service — config and its internal SQLite DB live in
+  /config) that is mechanically as simple to deploy as Radarr/Lidarr/
+  uptime-kuma, and reverse-proxy compatible behind Traefik on
+  sonarr.<base_domain>. Like the rest of the Servarr family, Sonarr v4
+  requires authentication and it is configured through the app's own
+  first-run wizard (choose "Forms" auth, set username/password
+  interactively in-browser) rather than an environment variable, so no
+  generated_from projection or Traefik basic_auth gate is needed to
+  avoid an open-by-default install. installable_today is true with zero
+  blocking issues. Recommendation is build_now, matching Radarr: Sonarr
+  is the TV-show counterpart to Radarr and is explicitly named as the
+  dependency that the already-assessed Bazarr and Prowlarr gap analyses
+  need to become fully useful — shipping it (ideally alongside Radarr)
+  gives standalone value on day one and retroactively strengthens the
+  case for those companion apps.
