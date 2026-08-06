@@ -1,0 +1,105 @@
+slug: growthbook
+name: GrowthBook
+source_description: "Open-source feature flagging and A/B testing platform"
+
+upstream:
+  url: https://www.growthbook.io/
+  repo_url: https://github.com/growthbook/growthbook
+  license: MIT
+  docker_image: growthbook/growthbook
+
+version_health:
+  latest_version: "v5.0.0"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.0.0 published 2026-07-20 (confirmed via GitHub releases API), ~16
+    days before today (2026-08-05). Prior tags show a steady cadence:
+    v4.4.0 (2026-05-27), v4.3.0 (2026-02-04), v4.2.0 (2025-11-11), v4.1.0
+    (2025-09-09), v4.0.0 (2025-07-09) — a new minor/major roughly every
+    2-3 months going back years, on top of daily `git-<sha>` image pushes
+    to Docker Hub (dozens per week) between tagged releases. Repo is not
+    archived and is clearly under active commercial development (GrowthBook
+    Inc. also sells a hosted/enterprise edition on top of this open-source
+    core).
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does feature flagging or
+    A/B testing/experimentation — n8n (automation) and the various
+    dev-tooling recipes are the nearest neighbors by audience
+    (engineering teams) but not by function. This would be a genuinely new
+    category: ship-behind-a-flag / gradual-rollout / experiment-analysis
+    tooling that competes with LaunchDarkly/Optimizely/Split as a
+    self-hosted alternative, a well-understood pitch for a technical
+    customer base.
+  usefulness: high
+  usefulness_rationale: >
+    Feature flags and A/B testing are a common need for any team shipping
+    a web or mobile product, and "self-hosted LaunchDarkly alternative" is
+    a clear, specific pitch with no catalogue overlap today. Architecture
+    is a bit heavier than our typical single-container recipes (Node.js
+    app + MongoDB, split frontend/API ports that must share a root domain
+    for auth cookies to work), which is solvable via two Traefik-fronted
+    subdomains on the same base domain but adds routing complexity beyond
+    our usual single-port pattern.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      GrowthBook has no environment variable for presetting an admin
+      account. On first boot with an empty MongoDB, the app shows an open,
+      unauthenticated sign-up form where whoever submits it first creates
+      the sole organization and becomes its owner (confirmed against
+      upstream self-host docs and community reports: subsequent visitors
+      are shown an "ask for an invite" screen instead, meaning the window
+      to claim the first account only exists once). There is no
+      `type: password` parameter on GrowthBook's own login to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"` — the credential is created
+      client-side via self-registration, not injected via env var.
+    - >
+      This is the same structural shape as the 2FAuth and Activepieces gap
+      analyses (see apps-gaps/2fauth.yaml, apps-gaps/activepieces.yaml): a
+      Traefik `basic_auth: true` gate in front of the whole app would stop
+      a random internet stranger from racing to claim the first account,
+      but today's basic_auth mechanism only carries a single root-password
+      projection for the gate itself — it has no channel to also hand the
+      customer a *second*, distinct credential to complete GrowthBook's own
+      sign-up form, so the underlying provisioning gap (no automated,
+      customer-exclusive admin account at first boot) is not resolved, just
+      moved one layer out.
+    - >
+      Separately, GrowthBook's split frontend (APP_ORIGIN, default port
+      3000) and API (API_HOST, default port 3100) must share a root domain
+      for session cookies to work — not a hard blocker (two subdomains
+      under the same base domain via Traefik would satisfy this) but it's
+      a real deviation from the single-port-per-recipe pattern the rest of
+      the catalogue uses, worth flagging even though it isn't the reason
+      this is blocked today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  GrowthBook is an active, well-maintained, MongoDB-backed feature-flagging
+  and A/B-testing platform that would fill a genuine, currently-empty gap
+  in the catalogue with broad appeal to technical customers. It fails the
+  installability test on the same platform-mechanism grounds as 2FAuth and
+  Activepieces: the app provisions its sole admin account via an open,
+  first-visitor self-registration form with no env-var hook, so neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  and fully hand the customer their own exclusive first-run credential.
+  All other secrets (JWT_SECRET, ENCRYPTION_KEY, MongoDB credentials) are
+  purely internal and trivially server-generated, so they are not
+  blocking on their own. Revisit once the platform supports either an
+  env-var-driven initial-admin flow (upstream would need to add that) or a
+  second customer-facing credential channel beyond the single
+  root-password projection — and separately plan for the two-subdomain
+  routing GrowthBook's split frontend/API needs.
