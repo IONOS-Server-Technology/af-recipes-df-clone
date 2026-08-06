@@ -1,0 +1,114 @@
+slug: seerr
+name: Seerr
+source_description: "Media request and discovery manager for Jellyfin, Plex, and Emby servers"
+
+upstream:
+  url: https://seerr.dev/
+  repo_url: https://github.com/seerr-team/seerr
+  license: MIT
+  docker_image: seerr/seerr (mirrored at ghcr.io/seerr-team/seerr; pin to a version tag such as v3.4.1 — upstream's docs example uses :latest, which RFC-002 forbids)
+
+version_health:
+  latest_version: "v3.4.1"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Seerr is the unified successor to Overseerr and Jellyseerr: the two teams
+    merged their codebases in February 2026 and shipped v3.0.0 on 2026-02-14
+    under the new name. sct/overseerr was archived the following day
+    (2026-02-15) with a "superseded by Seerr" banner, and
+    Fallenbagel/jellyseerr now redirects to github.com/seerr-team/seerr; both
+    old Docker Hub images (`sctx/overseerr`, `fallenbagel/jellyseerr`) are
+    frozen. Seerr itself is the live project, not a rename of a dying one —
+    release history since the merge is roughly monthly: v3.0.0/v3.0.1
+    (2026-02-14), v3.1.0 (2026-02-27), v3.1.1 (2026-04-13), v3.2.0
+    (2026-04-15), v3.3.0 (2026-06-02), v3.4.0 (2026-07-28), v3.4.1
+    (2026-07-30). The newest release is 7 days old as of today (2026-08-06);
+    the `seerr/seerr` image was last pushed within the same week and pulls
+    ~92k/week. Repo is not archived, ~11-12k stars, 190+ contributors.
+    Security fixes are being shipped (v3.4.0 patched a path-traversal issue,
+    v3.1.1 patched dependency CVEs), which is a further sign of an active
+    maintainer team. Note the catalogue slug overlap: this file, along with
+    apps-gaps/jellyseerr.yaml and apps-gaps/overseerr.yaml, all describe the
+    same lineage — `seerr` is the current, canonical entry of the three, and
+    the other two should be treated as historical names rather than separate
+    build candidates.
+
+catalogue_fit:
+  categories: [media, automation, homelab]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers media request or
+    discovery management. Seerr is a single-container web app on one HTTP
+    port (5055) with SQLite by default (Postgres optional) — structurally
+    the same shape as recipes/uptime-kuma/ or recipes/vaultwarden/, so it
+    would sit behind Traefik on seerr.<base_domain> with no raw ports or
+    extra protocols. Its function is to sit in front of a customer's
+    existing Jellyfin, Plex, or Emby server and let household users browse
+    TMDB and submit media requests, which an admin approves and routes to
+    Sonarr/Radarr. The nearest catalogue neighbour, Immich, is a photo
+    library, not a request front end — no real functional overlap. It does
+    duplicate the two dormant-name gap entries (jellyseerr, overseerr), and
+    supersedes both.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, heavily used tool in the self-hosted media community and the
+    obvious companion to a media server, but the whole value proposition
+    depends on a Jellyfin/Plex/Emby instance the customer already runs
+    elsewhere — AF has no media-server recipe to pair it with, so on its own
+    it is a request UI with nothing to serve requests. High value to the
+    subset of customers already running a media stack, low value to
+    everyone else.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - media_server_admin_credentials
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Seerr has no local-only admin account. Its mandatory first-run setup
+      wizard requires picking Jellyfin, Plex, or Emby and authenticating
+      against that server before the instance is considered initialized —
+      Plex via a plex.tv OAuth token exchange, Jellyfin/Emby via server URL
+      plus that server's own admin username and password. The first
+      administrator (user ID 1) is imported from the connected media server,
+      not created inside Seerr.
+    - >
+      That credential is third-party account linking, which per
+      apps-gaps/SCHEMA.md has no input channel today: it is neither a hash of
+      the customer's server root password (so `generated_from:
+      "<algo>:ROOT_PASSWORD"` has no parameter to attach to — there is no env
+      var that pre-seeds an admin login or skips the wizard) nor something
+      the platform can generate server-side, since it must match an account
+      on an external system the customer already controls.
+    - >
+      A Traefik `basic_auth: true` gate would keep the URL from sitting open
+      while unconfigured, but it does not unblock installation: the app stays
+      permanently stuck at the setup wizard until a real, working media-server
+      credential is supplied, so the delivered instance would be non-functional.
+    - >
+      Secondary (not the primary blocker): to actually fulfil requests the
+      customer must also supply Sonarr/Radarr URLs and API keys, another
+      arbitrary customer-supplied value with no input channel. Seerr is
+      usable read-only without them, but that is not the product.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Seerr is a healthy, actively maintained project — the February 2026 merger
+  of Overseerr and Jellyseerr into one MIT-licensed codebase, releasing about
+  monthly with v3.4.1 shipped 2026-07-30 (7 days ago) and security fixes
+  landing regularly. Mechanically it is an easy recipe: one official image
+  (`seerr/seerr`), one HTTP port (5055), one data volume, SQLite by default,
+  fully reverse-proxy-compatible behind Traefik. It is nonetheless not
+  installable under today's mechanism: the mandatory setup wizard requires
+  authenticating against an external Jellyfin, Plex, or Emby server, which is
+  third-party account linking with no `/compose` input channel, and basic_auth
+  cannot substitute for it. Recommend blocked_on_platform — revisit once a
+  customer-supplied external-credential channel exists, ideally alongside a
+  media-server recipe to pair it with; treat apps-gaps/jellyseerr.yaml and
+  apps-gaps/overseerr.yaml as superseded by this entry.
