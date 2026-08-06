@@ -1,0 +1,92 @@
+slug: mongo-express
+name: Mongo Express
+source_description: "Web-based MongoDB admin UI for browsing, editing, and managing databases"
+
+upstream:
+  url: https://github.com/mongo-express/mongo-express
+  repo_url: https://github.com/mongo-express/mongo-express
+  license: MIT
+  docker_image: mongo-express (official Docker Hub image, but see version_health — marked deprecated)
+
+version_health:
+  latest_version: "v1.1.0-rc-4"
+  latest_release_date: "2025-02-23"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Latest tagged release is a release-candidate (v1.1.0-rc-4, 2025-02-23)
+    that has never been finalized to a stable v1.1.0 in the ~18 months since
+    (as of 2026-08-05); the last actual stable tag is v1.0.2 from
+    2022-10-02. The GitHub repo itself is not archived and still gets
+    occasional commits/dependency bumps, so this isn't a dead project, but
+    it's clearly maintenance-only, not active development. More serious:
+    Docker Hub's OFFICIAL mongo-express image is explicitly marked
+    "deprecated due to maintainer inactivity (last updated Apr 2024)" with
+    no currently supported tags — the newest pinnable tag
+    (1.0.2-20-alpine3.19) is itself over 2 years old and will get no further
+    security patches. Picking up the official image today means shipping a
+    recipe on top of a channel the vendor has already flagged as
+    unsupported.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Unlike the already-analyzed generic DB-admin candidates (adminer,
+    dbgate, cloudbeaver — all multi-engine, none built yet), Mongo Express
+    is MongoDB-specific, and the catalogue has no MongoDB-focused recipe at
+    all today (anytype-server uses Mongo internally but exposes no browser
+    UI for it). For a customer who specifically runs MongoDB and wants a
+    lightweight admin UI, this is a narrower, more purpose-built fit than
+    the general-purpose tools, similar to how Adminer/DbGate serve
+    SQL-first users.
+  usefulness: low
+  usefulness_rationale: >
+    Same niche/technical audience and same "needs a reachable database to
+    be useful at all" caveat as Adminer/DbGate, further narrowed to
+    customers specifically running MongoDB. Rated lower than those two
+    because the tool itself is stalled (no finalized release in ~18 months)
+    and its official Docker distribution channel has been formally
+    deprecated by Docker Hub — a materially weaker foundation to build a
+    new recipe on than DbGate (actively released) or even Adminer (dormant
+    releases but a maintained image).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The official Docker Hub image is marked deprecated by Docker Hub
+      itself ("deprecated due to maintainer inactivity, last updated Apr
+      2024") with no supported tags going forward — not a hard mechanism
+      blocker (mechanically it is still installable, see below), but a
+      strong reason not to ship a new recipe pinned to an image the vendor
+      has already flagged as unsupported and no longer receiving security
+      patches.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Mongo Express is a single-container, single-HTTP-port (8081) Node/Express
+  app with no reachable-database dependency beyond a customer-supplied
+  MongoDB connection string. Its own login is HTTP basic auth via plaintext
+  env vars (ME_CONFIG_BASICAUTH_USERNAME/PASSWORD, comparing directly, not a
+  hash), so it fits the same pattern as Adminer/DbGate: disable the app's
+  own basic auth and gate the whole app behind Traefik basic_auth:true with
+  the password projected from the customer's root password via
+  generated_from — mechanically installable today with no blocking secret
+  gap. However, this is not recommended to build now: the project has not
+  cut a finalized release since v1.0.2 (2022-10-02), its latest tag
+  (v1.1.0-rc-4, 2025-02-23) has sat as an unfinished release-candidate for
+  ~18 months, and — most importantly — Docker Hub has formally deprecated
+  the official mongo-express image for maintainer inactivity, with no
+  supported tags going forward. It also duplicates ground already staked
+  out by the healthier, unbuilt adminer/dbgate/cloudbeaver gap analyses,
+  just narrowed to MongoDB only. Revisit only if upstream resumes shipping
+  stable releases and Docker Hub un-deprecates (or a community fork takes
+  over) the image.
