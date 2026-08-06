@@ -1,0 +1,80 @@
+slug: rotki
+name: Rotki
+source_description: "Rotki is a privacy-first crypto portfolio tracker with DeFi support"
+
+upstream:
+  url: https://rotki.com
+  repo_url: https://github.com/rotki/rotki
+  license: AGPL-3.0
+  docker_image: rotki/rotki
+
+version_health:
+  latest_version: "v1.43.2"
+  latest_release_date: "2026-06-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Healthy, actively developed project (~4.0k stars, not archived). Recent
+    tags on Docker Hub and GitHub: v1.42.0 (2026-02-20), v1.42.1
+    (2026-03-26), v1.43.0 (2026-05-08), v1.43.1 (2026-05-18), v1.43.2
+    (2026-06-18) — roughly a release every 4-6 weeks. Today is 2026-08-06,
+    so the newest stable tag is 49 days (~7 weeks) old, which is within the
+    project's normal gap between releases and not a dormancy signal. The
+    repo's last push was 2026-08-06 (today) and `nightly`/`edge` images are
+    rebuilt daily, so development is ongoing between releases. No archival,
+    maintenance-only, or EOL signal.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch personal finance; the closest
+    thing in spirit is Vaultwarden (self-host-your-own-sensitive-data), not
+    a functional overlap. Rotki is specifically a crypto/DeFi portfolio
+    tracker and tax-accounting tool with a fully local, SQLCipher-encrypted
+    database — it differs from a general investment tracker (Ghostfolio, an
+    apps-gaps candidate, not a recipe) by covering on-chain/DeFi position
+    discovery and jurisdiction-specific tax report generation.
+  usefulness: medium
+  usefulness_rationale: >
+    Strong appeal for the crypto-holding subset of self-hosters: it is the
+    best-known open-source tool for local, non-custodial portfolio and tax
+    accounting, and its whole value proposition ("your keys/positions never
+    leave your server") maps directly onto why a customer rents a VPS.
+    Marked medium rather than high because the audience is narrower than a
+    general finance app, and because upstream's own docs treat Docker as a
+    secondary deployment mode behind the desktop app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BASIC_AUTH_GATE
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Rotki ships a single official all-in-one container (rotki/rotki, pin
+  v1.43.2) that serves backend + frontend over one HTTP port (80) with
+  /data, /logs and optional /config volumes and no required environment
+  variables beyond cosmetics (TZ, LOGLEVEL), so structurally it is a
+  single-container web app like Uptime Kuma or Vaultwarden and works fine
+  behind Traefik on rotki.<base_domain>. It needs no first-boot secret of
+  its own: the account (profile name + password, which is the SQLCipher key
+  for the local DB) is created by the customer in the UI after install, and
+  all external API keys (Etherscan, exchanges, rotki Premium) are optional
+  and entered in-app later — so nothing needs a customer-supplied value
+  through /compose. The catch is that the login screen is open to whoever
+  reaches the URL first, and upstream states outright that "rotki was not
+  designed to run over a public network," recommending exactly a Traefik
+  reverse proxy with basic auth and TLS if it must be exposed; that gate
+  credential is the one first-boot secret and is expressible today via
+  traefik_basic_auth (IF-1312). Note the app's own password can never be
+  root-password-projected, because SQLCipher needs the plaintext and
+  generated_from only carries a hash — hence the gate is mandatory, not
+  optional, and this is build_with_caveats rather than build_now.
