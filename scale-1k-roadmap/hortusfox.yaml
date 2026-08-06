@@ -1,0 +1,92 @@
+slug: hortusfox
+name: HortusFox
+source_description: "Self-hosted plant management system for tracking care routines and garden organization"
+
+upstream:
+  url: https://www.hortusfox.com/
+  repo_url: https://github.com/danielbrendel/hortusfox-web
+  license: MIT
+  docker_image: ghcr.io/danielbrendel/hortusfox-web
+
+version_health:
+  latest_version: "v5.9"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.9 shipped 2026-07-31, only 5 days before today (2026-08-05). Release
+    history (v5.0 2026-05-30, v5.1 2026-07-10, v5.2 2026-07-30, v5.3
+    2025-10-25, v5.4 2025-10-30, v5.5 2025-12-03, v5.6 2025-12-15, v5.7
+    2025-12-23, v5.8 2026-05-02, v5.9 2026-07-31) shows a real, if uneven,
+    cadence — bursts of weekly patch releases (Oct-Dec 2025) followed by a
+    ~4-month quiet stretch (Dec 2025-May 2026), then back to active feature
+    work (attachments for plants, list-sorting persistence, security
+    hardening) in the two most recent releases. Single maintainer
+    (danielbrendel) but commit activity and issue triage both look current;
+    no archival notice, no stated EOL.
+
+catalogue_fit:
+  categories: [homelab, organization, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    HortusFox is a plant-care and garden-organization tracker (per-plant
+    care schedules, location assignment, care-due warnings, collaborative
+    chat, task/calendar features). Nothing in the current 24-recipe
+    catalogue touches this niche — Homebox is the closest analog
+    structurally (single web app + own DB, home-organization category) but
+    covers physical-asset/inventory tracking, not living-plant care
+    routines. This would be a genuinely new category, not a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real hobbyist demand (houseplant/garden enthusiasts, similar audience
+    to Homebox and other homelab-organization tools) but a narrow,
+    single-purpose niche rather than infrastructure most customers reach
+    for. Comparable usefulness tier to Homebox for the same reasons: cheap
+    to run, low support burden, but not a high-demand category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app's own admin account is created at container boot by
+      docker-entrypoint.sh, which reads APP_ADMIN_EMAIL and
+      APP_ADMIN_PASSWORD as plaintext and hashes them itself
+      (`php -r "echo password_hash(...)"`, bcrypt) before writing to
+      MariaDB. It needs the plaintext password as an env var, not a
+      pre-computed hash, so `generated_from` (which only ever carries a
+      hash) cannot supply it — per SCHEMA.md this is a genuine structural
+      blocker, not a "generated_from doesn't support this algo yet" case.
+      If APP_ADMIN_PASSWORD is left unset the entrypoint auto-generates a
+      random one via `openssl rand -base64 12` that is never surfaced to
+      the customer or to af-api, i.e. nobody could log in at all.
+    - >
+      Workaround available: bake a fixed, non-customer-facing
+      APP_ADMIN_EMAIL/APP_ADMIN_PASSWORD into the recipe (same pattern as
+      "hardcoded admin credential the app gives no way to change" in
+      SCHEMA.md) and put the whole app behind a Traefik basic_auth gate
+      keyed to the customer's root-password hash as the real security
+      boundary. This makes it installable today, but the app's in-product
+      login stays a fixed shared secret across every install rather than
+      something tied to the customer — a caveat worth flagging even though
+      it clears the mechanical bar.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  HortusFox is a MariaDB-backed PHP web app (structurally similar to
+  paperless-ngx/n8n's app+DB template) with a single HTTP port, no OAuth,
+  and no external API dependency — mechanically installable today only via
+  a workaround: hardcode its own admin login to a fixed non-customer value
+  and rely on a Traefik basic_auth gate (root-password hash) as the actual
+  access boundary, since the app's entrypoint needs the admin password in
+  plaintext to hash itself rather than accepting a pre-hashed value. It
+  fills a genuinely new niche (no overlap in the current 24 recipes) with
+  an actively maintained upstream (latest release 5 days old), but the
+  underlying demand is a narrow hobbyist niche similar in scale to
+  Homebox, so build_with_caveats rather than a strong build_now.
