@@ -1,0 +1,76 @@
+slug: letta
+name: Letta
+source_description: "Open-source framework for building stateful AI agents with persistent memory"
+
+upstream:
+  url: https://www.letta.com
+  repo_url: https://github.com/letta-ai/letta
+  license: Apache-2.0
+  docker_image: letta/letta
+
+version_health:
+  latest_version: "v0.16.8"
+  latest_release_date: "2026-05-14"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    letta-ai/letta shipped roughly monthly releases from v0.15.0 (2026-11-25)
+    through v0.16.7 (2026-03-31), then only one more release, v0.16.8
+    (2026-05-14) — about 2.9 months with no follow-up as of today
+    (2026-08-05). More importantly, the repo's own README now states this
+    is "the legacy Letta server" and that "active development has moved to
+    the Letta Agent repo" (letta-ai/letta-code), with self-hosting an API
+    server "now done via the App Server". The repo is not archived (still
+    24k+ stars, open issues/PRs get triaged) but upstream itself frames the
+    exact product matching Hostinger's description — a self-hosted,
+    Dockerized stateful-agent API server — as superseded. Treat as
+    maintenance-only rather than actively developed, even though the
+    release cadence alone would look merely "slowing".
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, hermes-agent, ollama, n8n]
+  differentiation: >
+    Letta is a backend framework/API server for building custom agents with
+    persistent, structured long-term memory (memory blocks, archival
+    memory) plus an ADE (Agent Development Environment) web UI for
+    inspecting/debugging that agent state — it targets developers writing
+    against the Letta SDK/REST API, not end users chatting with a
+    pre-built agent. That's distinct from open-webui (consumer chat
+    frontend over local models) and hermes-agent (turnkey messaging-app
+    agent), but it's a narrower, more technical audience than either.
+  usefulness: low
+  usefulness_rationale: >
+    Mechanically installable, but low general usefulness for our hosting
+    customer base: it's a developer framework consumed mainly through an
+    SDK/API rather than a ready-to-use app, and the specific self-hosted
+    server product it would package is the one upstream itself has
+    deprecated in favor of a different architecture (see version_health).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["ADE/API access gate (Letta has no customer-facing login form of its own unless SECURE=true is set; the API is open by default)", "Postgres password (internal, app-to-db only)"]
+  secrets_expressible_today:
+    - secret: "ADE/API access gate"
+      mechanism: traefik_basic_auth
+    - secret: "Postgres password (internal, app-to-db only)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Name/product ambiguity: 'Letta' today spans two divergent products under the same GitHub org — the legacy letta-ai/letta server (Dockerized, Postgres-backed, matches Hostinger's description, analyzed here) and the newer 'Letta Code'/App Server product (active development, CLI/coding-agent oriented, no documented docker-compose). This analysis targets the legacy server since it's the one that matches the catalogue description and ships an official Docker image; a reviewer should confirm that's the intended candidate."
+    - "The app needs an LLM provider credential (e.g. OPENAI_API_KEY, or an OLLAMA_BASE_URL pointing at a reachable Ollama instance) to actually create/run agents. This is not required for the container to boot and is configured by the customer inside the ADE web UI after first login (same deferred-config pattern already shipped for hermes-agent's OPENROUTER_API_KEY), so it does not block installable_today, but it does mean the app is non-functional out of the box until the customer does that manual step themselves."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Letta is mechanically installable under the current mechanism — no
+  hard blocker exists (the LLM key gap is deferred to post-provision
+  self-service like hermes-agent, and the missing native login is
+  gateable via Traefik basic_auth) — but it's a poor catalogue fit: it's
+  a developer-oriented agent framework/SDK rather than a ready-to-use
+  end-user app, overlaps conceptually with three existing recipes
+  (open-webui, hermes-agent, ollama), and the specific self-hosted server
+  product matching Hostinger's description is one upstream itself
+  describes as legacy, with development energy now going into a
+  different, non-Dockerized product. Not recommended for the catalogue.
