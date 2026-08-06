@@ -36,24 +36,25 @@ catalogue_fit:
     with zero client-side JavaScript and no live status pinging, Docker
     integration, or widgets. None of the 24 shipped recipes fill this
     "front door" role (uptime-kuma monitors uptime with alerting, portainer
-    manages containers — neither is a landing page). However this is now
-    the sixth candidate analyzed for the identical startpage/dashboard
-    niche, after dashy.yaml, homepage.yaml, heimdall.yaml, flame.yaml,
-    glance.yaml and homarr.yaml — all previously flagged has_web_ui/
-    reverse_proxy_compatible true with only medium usefulness. Starbase 80
-    is the most minimal of the six (no live widgets, no Docker/API
-    integrations, config only editable by bind-mounting a JSON file and
-    restarting the container), so it's the weakest of the group on
-    features while sharing the exact same use case.
-  usefulness: low
+    manages containers — neither is a landing page). Its actual feature
+    set is intentionally minimal: no live widgets, no Docker/API
+    auto-discovery, and configuration is only editable by bind-mounting a
+    replacement config.json and restarting the container — there is no
+    in-app settings UI. (For context, other apps-gaps candidates —
+    dashy, homepage, heimdall, flame, glance, homarr — target the same
+    startpage/dashboard niche with more built-in live-data features; that
+    overlap is a later prioritization question, not a reason to judge
+    Starbase 80 itself differently.)
+  usefulness: medium
   usefulness_rationale: >
-    The startpage gap itself is real, but it is already saturated with
-    five prior candidates that each offer more (live status checks,
-    in-app config UI, or Docker auto-discovery) than Starbase 80's fully
-    static, restart-to-reconfigure approach. Shipping a sixth near-duplicate
-    — and the least featureful one — adds no differentiated value; at most
-    one app should occupy this catalogue slot, and Starbase 80 is not a
-    strong pick among the six.
+    On its own merits, Starbase 80 fills a genuine "front door" gap the
+    current catalogue lacks: a landing page linking out to a customer's
+    other self-hosted services. Its usefulness is capped by its own
+    feature set rather than by any comparison to other apps — it is
+    fully static with no live status checks, no Docker/API integration,
+    and no in-app config editor, so any customization requires editing
+    a JSON file and restarting the container rather than clicking through
+    a UI.
 
 installability:
   recipe_type_guess: docker-compose
@@ -63,22 +64,22 @@ installability:
       mechanism: traefik_basic_auth
   blocking_issues: []
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   Starbase 80 is a single-container, MIT-licensed static homepage app with
   an official multi-arch Docker image (jordanroher/starbase-80:1.6.6), one
   HTTP port (4173 internally, mapped to 80), and no built-in login — so it
-  would be mechanically installable today by gating it behind Traefik
-  basic_auth on the customer's root-password hash, the same pattern used
-  for Dashy/Heimdall/Adminer. The blocker is not mechanics but catalogue
-  redundancy and low differentiation: it is the sixth startpage/dashboard
-  candidate analyzed (after Dashy, Homepage, Heimdall, Flame, Glance,
-  Homarr) for the identical gap, and the most feature-thin of the six
-  (fully static, no live widgets, no Docker discovery, config requires a
-  file bind-mount plus container restart). Combined with a solo-maintainer
-  upstream that ships no formal GitHub Releases and has long multi-month
-  gaps between activity bursts, this is not a good pick versus the other
-  five candidates for the same slot — not_recommended unless product
-  specifically wants a minimal/no-JS option distinct from the richer
-  alternatives.
+  is mechanically installable today by gating it behind Traefik basic_auth
+  on the customer's root-password hash, the same pattern used for
+  Dashy/Heimdall/Adminer. On its own merits it fills a real "landing page"
+  gap the catalogue currently lacks, but its feature set is thin: fully
+  static with no live status checks, no Docker/API auto-discovery, and
+  configuration only changeable by bind-mounting a new config.json and
+  restarting the container — there is no in-app config UI. Release health
+  is also weak: the upstream is maintained by a single person, ships no
+  formal GitHub Releases (only Docker Hub tags via "Bump version" PRs),
+  and has irregular commit activity with multi-month gaps between bursts.
+  build_with_caveats: installable and fills a genuine gap, but the minimal
+  feature depth and thin release/maintenance signal warrant flagging
+  before committing build time.
