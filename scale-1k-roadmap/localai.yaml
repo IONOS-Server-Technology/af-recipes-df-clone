@@ -1,0 +1,66 @@
+slug: localai
+name: LocalAI
+source_description: "Self-hosted OpenAI-compatible API server for local AI model inference"
+
+upstream:
+  url: https://localai.io
+  repo_url: https://github.com/mudler/LocalAI
+  license: MIT
+  docker_image: localai/localai
+
+version_health:
+  latest_version: "v4.8.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v4.8.0) published the same day as this analysis
+    (2026-08-05); v4.7.1 and v4.7.0 both shipped 2026-07-14. Releases land
+    roughly every 2-4 weeks, repo is not archived, and the latest push to
+    master was also 2026-08-05 — this is an actively developed project, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [ollama, open-webui]
+  differentiation: >
+    LocalAI is a superset of what Ollama + Open WebUI already cover: it is
+    an OpenAI-API-compatible inference server (like Ollama) that also ships
+    its own built-in web UI (like Open WebUI) for chat, model install, and
+    image/audio generation, all in a single container. It adds broader
+    backend/model-format support (GGUF, diffusers, whisper, TTS, etc.) but
+    does not offer a customer-facing capability that the existing
+    Ollama+Open WebUI pairing doesn't already provide for the primary
+    "chat with a local LLM" use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Some customers may prefer a single-container all-in-one over running
+    two recipes, and LocalAI's broader model/backend support (image, audio,
+    video generation) is a genuine differentiator for power users. But for
+    the mainstream "private local LLM chat" use case we already ship two
+    actively used recipes covering the same ground, so this is incremental
+    rather than filling a real catalogue gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WEB_UI_AND_API_GATE]
+  secrets_expressible_today:
+    - secret: WEB_UI_AND_API_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  LocalAI is mechanically installable today: it's a single Docker container,
+  needs only a domain plus a Traefik basic_auth gate (it ships with no
+  built-in login by default — LOCALAI_API_KEY/LOCALAI_AUTH are optional
+  server-side config, not a customer-supplied credential channel), and the
+  upstream project is actively maintained with a release today. However, it
+  substantially overlaps with the already-shipped Ollama + Open WebUI pair,
+  covering the same "run a local LLM with a chat UI" need in one container
+  instead of two. Recommend build_with_caveats — worth building only if
+  differentiating on its broader multi-modal backend support (image/audio/
+  video generation) rather than as a straight LLM-chat alternative.
