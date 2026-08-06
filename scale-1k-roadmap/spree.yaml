@@ -1,0 +1,109 @@
+slug: spree
+name: Spree
+source_description: "Open-source headless e-commerce for multi-vendor stores and B2B marketplaces"
+
+upstream:
+  url: https://spreecommerce.org
+  repo_url: https://github.com/spree/spree
+  license: BSD-3-Clause
+  docker_image: ghcr.io/spree/spree:5.6.1
+
+version_health:
+  latest_version: "v5.6.1"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.6.1 shipped 2026-07-28, just over a week before today (2026-08-05).
+    Recent tag history shows near-weekly releases (v5.5.0 on 2026-06-18,
+    v5.5.1-v5.5.4 through 2026-07-20, v5.6.0 on 2026-07-23, v5.6.1 on
+    2026-07-28), plus separate @spree/sdk package releases on the same
+    cadence. Repo has 28,935+ commits, is not archived, and the project
+    is funded (paid Enterprise Edition funds the open-source core). This
+    is a healthy, fast-moving upstream.
+
+catalogue_fit:
+  categories: [ecommerce, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch e-commerce/online-store operation.
+    Spree fills a genuinely new category: a self-hosted store backend with
+    an admin dashboard, REST API + TypeScript SDK, cross-border/multi-currency
+    "Markets", B2B price lists and customer groups, and core multi-vendor
+    marketplace features (vendor accounts, split payments, vendor payouts,
+    commission management — automated vendor onboarding/sync is Enterprise-
+    only, but the base marketplace mechanics ship in the open-source core).
+  usefulness: high
+  usefulness_rationale: >
+    Real, recognizable demand (self-hosted Shopify/Magento alternative) with
+    no existing catalogue coverage. Caveat: the backend Docker image only
+    ships the Rails API + Admin Dashboard on one port; the actual customer-
+    facing storefront is a separate Next.js app (github.com/spree/storefront)
+    normally deployed to Vercel/Netlify, not bundled in this image. A recipe
+    built from just the backend image gives a working admin/API but no live
+    shop-front out of the box — that lowers immediate "wow" value versus a
+    turnkey storefront, though the admin/API alone is still a legitimate,
+    useful deployment (e.g. driving a separately-hosted or headless
+    storefront, or just managing a catalog/orders via the Admin Dashboard).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DATABASE_URL (Postgres connection)
+    - SECRET_KEY_BASE (Rails session/cookie encryption)
+    - traefik basic-auth gate credential (fronts the fixed default admin login)
+  secrets_expressible_today:
+    - secret: DATABASE_URL (Postgres connection)
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY_BASE (Rails session/cookie encryption)
+      mechanism: server_generated_no_customer_input
+    - secret: traefik basic-auth gate credential (fronts the fixed default admin login)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Spree's admin login is not projectable via generated_from: the app
+      seeds a fixed admin account (spree@example.com / spree123) via
+      'rails db:seed', and the only supported override is ADMIN_EMAIL /
+      ADMIN_PASSWORD env vars consumed by that same seed step — Devise
+      hashes whatever plaintext string it's given itself, so it cannot
+      accept a pre-computed argon2/bcrypt hash of the customer's root
+      password the way Vaultwarden's ADMIN_TOKEN does. There is no channel
+      today to supply the customer's actual plaintext root password.
+      Per SCHEMA.md's guidance on fixed/unchangeable default credentials,
+      this is not a hard blocker: the recipe can leave the seeded default
+      admin login in place and put the whole origin behind Traefik
+      basic_auth, matching how Adminer/Spliit handle apps with no
+      customer-projectable login of their own."
+    - "The official ghcr.io/spree/spree image runs DB migrations
+      automatically on boot but does NOT auto-run db:seed — the admin
+      account and starter catalog only exist after a one-off
+      'rails db:seed' is executed post-boot. install.sh would need to run
+      this explicitly; not a blocker, just a required provisioning step
+      beyond what most existing recipes need."
+    - "Payment processing (Stripe/Adyen/PayPal) needs customer-supplied API
+      keys, and full multi-vendor onboarding/Stripe-Connect payouts are
+      Enterprise-only. Neither blocks booting into a working admin/API, but
+      both cap how much of the 'headless multi-vendor/B2B' pitch is usable
+      out of the box without further customer configuration outside any
+      channel /compose has today."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Spree is an actively maintained (near-weekly releases), BSD-3-Clause,
+  Rails-based headless e-commerce backend with a bundled Admin Dashboard,
+  REST API/TypeScript SDK, and real (if Enterprise-capped) multi-vendor and
+  B2B features — a category with zero overlap in the current 24-recipe
+  catalogue. It is mechanically installable today as a two-service
+  docker-compose recipe (backend + Postgres, one HTTP port) gated by
+  Traefik basic_auth in front of its fixed default admin login, since its
+  admin password can't be projected from the customer's root password.
+  The bigger caveat is scope: the official backend image excludes the
+  customer-facing Next.js storefront (a separate repo/deploy target), so a
+  recipe built from just this image ships an admin panel and API rather
+  than a complete turnkey webshop — real value, but short of what
+  "e-commerce platform" implies to a customer expecting a live storefront.
+  Recommend build_with_caveats: worth building, but scope the recipe
+  explicitly as backend/admin-only (or accept the added complexity of a
+  second storefront service) before committing to it.
