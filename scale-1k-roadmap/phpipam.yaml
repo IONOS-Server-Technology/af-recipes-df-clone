@@ -1,0 +1,90 @@
+slug: phpipam
+name: phpIPAM
+source_description: "Self-hosted IP address management for subnet tracking and network discovery"
+
+upstream:
+  url: https://phpipam.net/
+  repo_url: https://github.com/phpipam/phpipam
+  license: GPL-3.0
+  docker_image: phpipam/phpipam-www
+
+version_health:
+  latest_version: "v1.8.1"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.8.1 pushed to Docker Hub 2026-07-03, about a month before today
+    (2026-08-05). Release history shows a long quiet stretch (v1.7.0
+    2024-10-30 -> v1.7.4 2025-11-27, over a year with only backport
+    patches) followed by a clear pickup in 2026: v1.8.0 on 2026-04-21 and
+    v1.8.1 on 2026-07-03. Docker Hub `nightly`/`xhprof` dev tags were
+    rebuilt 2026-08-04, one day before this analysis, confirming CI/build
+    infra is currently active, not stale. Treated as `active` on the
+    strength of the recent cadence rather than the sleepier 2024-2025
+    middle period.
+
+catalogue_fit:
+  categories: [networking, it-operations]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers IP address
+    management. A separate gap analysis for NetBox (apps-gaps/netbox.yaml)
+    targets the same IPAM niche with a heavier DCIM/network-documentation
+    tool; that file is blocked_on_platform today. phpIPAM is the
+    lighter-weight, IPAM-only alternative in the same slot: a single
+    PHP/Apache app plus MariaDB versus NetBox's Django/PostgreSQL stack,
+    with a comparable feature set for pure subnet/IP tracking (no DCIM,
+    no rack/device modeling). Shipping both would be redundant; phpIPAM is
+    arguably the better first pick for this niche since — see
+    installability below — it is not structurally blocked the way NetBox
+    is.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recurring need among technical customers/MSPs managing their own
+    network address space (subnet tracking, VLANs, DNS/DHCP audit trail),
+    but it's a specialist admin tool rather than a broad-appeal app —
+    narrower audience than most of the catalogue, similar in kind to
+    NetBox or Guacamole.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, IPAM_DATABASE_PASS]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: IPAM_DATABASE_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  phpIPAM (official image phpipam/phpipam-www, pin e.g. v1.8.1) ships no
+  admin account and no env-var/CLI channel to seed one — first boot
+  presents its own unauthenticated, multi-step web installer (choose
+  "New phpipam installation", let it create the DB schema, then define
+  the admin password directly into the app's own form). Unlike NetBox,
+  where the container refuses to create any login without a plaintext
+  SUPERUSER_PASSWORD env var and there is no self-service alternative,
+  phpIPAM's installer *is* the vendor-documented, built-in way a customer
+  provisions their own admin account — nothing needs to flow through
+  af-api/`/compose` for it. The only real gap is that this installer page
+  is open to anyone who reaches the domain before the customer completes
+  it, so the whole app must sit behind a mandatory Traefik `basic_auth`
+  gate (credential projected from the customer's root password via
+  `generated_from`) until setup is done — the same "no login of its own
+  yet" pattern used for Adminer/n8n/WUD. The MariaDB password is a
+  server-generated secret nothing customer-facing reads. Caveats keeping
+  this at build_with_caveats rather than build_now: (1) the customer must
+  manually click through phpIPAM's installer once after deploy — real UX
+  friction most of our recipes avoid; (2) the web and cron containers both
+  require NET_ADMIN/NET_RAW capabilities for ping/SNMP discovery, an
+  elevated-privilege ask beyond our typical recipe footprint; (3) upstream
+  recommends setting IPAM_DISABLE_INSTALLER after setup completes, which
+  is a customer follow-up step, not something install.sh can safely do
+  before the wizard has run. None of these are hard platform blockers, but
+  together they're more integration work than a typical single-container
+  recipe.
