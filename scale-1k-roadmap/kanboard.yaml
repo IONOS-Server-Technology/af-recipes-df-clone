@@ -1,0 +1,70 @@
+slug: kanboard
+name: Kanboard
+source_description: "Kanboard is a free and open-source Kanban project management software"
+
+upstream:
+  url: https://kanboard.org/
+  repo_url: https://github.com/kanboard/kanboard
+  license: MIT
+  docker_image: kanboard/kanboard
+
+version_health:
+  latest_version: "v1.2.53"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: maintenance-only
+  notes: >
+    Docker Hub tag history shows a release roughly every 1-2 months
+    continuously through 2025 and into 2026 (v1.2.44 2025-03-21 up to
+    v1.2.53 2026-07-24, ~12 days before this analysis on 2026-08-05), so
+    the project is not dormant despite the upstream README self-describing
+    the project as being in "maintenance mode" (original author doing
+    small fixes only; new features mostly land via community PRs). Repo is
+    not archived and has no announced EOL.
+
+catalogue_fit:
+  categories: [productivity, project-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover Kanban-style project/task
+    management. n8n is workflow automation, paperless-ngx/paperless-ai are
+    document management, opengist/gitea are code-focused — Kanboard would
+    be a genuinely new category (lightweight team task board) rather than
+    duplicating an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Kanban boards are a broadly useful, easy-to-explain productivity tool
+    for small teams, and the app is lightweight (single PHP container,
+    SQLite-capable, no external dependency needed). Ceiling is medium
+    rather than high because feature-richer alternatives (e.g. hosted
+    Trello/Jira-likes) exist and Kanboard's own UI/feature pace is slow.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kanboard is a single-container, single-HTTP-port PHP app (nginx+php-fpm
+  bundled in the official image) that can run standalone with its bundled
+  SQLite database, no separate DB container required, and works fine
+  behind Traefik on a per-customer subdomain. Its only credential concern
+  is a fixed, unchangeable-at-boot default admin login (admin/admin) — the
+  app exposes no env var or config.php option to set the admin password
+  hash at first boot, so `generated_from` cannot target it directly. Per
+  the schema's decision table this is not a blocker: gating the whole app
+  behind a mandatory Traefik `basic_auth: true` (password projected from
+  the customer's root password via `generated_from`) makes the actual
+  internet-facing auth boundary customer-specific, leaving the weak
+  internal admin/admin default a non-issue behind that gate. Release
+  cadence is active (monthly-ish tags through mid-2026) despite the
+  project calling itself "maintenance mode" upstream. Recommend building
+  the recipe with basic_auth as a required gate, same pattern as
+  n8n/Adminer/WUD.
