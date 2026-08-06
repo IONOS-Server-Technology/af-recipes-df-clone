@@ -1,0 +1,75 @@
+slug: lubelogger
+name: LubeLogger
+source_description: "Comprehensive vehicle maintenance and fuel management system"
+
+upstream:
+  url: https://lubelogger.com/
+  repo_url: https://github.com/hargata/lubelog
+  license: MIT
+  docker_image: ghcr.io/hargata/lubelogger:1.7.0
+
+version_health:
+  latest_version: "1.7.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 2-4 weeks throughout 2026 (1.6.1 on 2026-02-26 up
+    through 1.7.0 on 2026-07-13, ~3 weeks before this analysis on
+    2026-08-05). Actively maintained single-maintainer project with a
+    documented feature roadmap, official docs site, and hosted demo instance.
+
+catalogue_fit:
+  categories: [utilities, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal/vehicle asset tracking; the closest
+    analogues (Paperless-ngx for documents, Uptime Kuma for monitoring) are
+    unrelated domains. LubeLogger fills a distinct "personal record-keeping"
+    niche — service history, fuel economy, reminders — that has consumer
+    appeal but isn't a duplicate of anything currently offered.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular in the self-hosted community (active r/selfhosted mentions,
+    dedicated docs/config site) and simple to run, but it's a
+    single-user/household utility rather than a team or business tool, so
+    the addressable customer segment for a hosting platform is narrower
+    than for e.g. Vaultwarden or n8n.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ROOT_USERNAME_HASH, ROOT_PASSWORD_HASH]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Authentication is disabled by default (LubeLogger boots with no login
+      at all unless "Enable Authentication" is toggled). The only
+      non-interactive way to provision a root login is via the
+      UserNameHash/UserPasswordHash environment variables, both documented
+      as "SHA256 Hash of the root username/password" — no plaintext env var
+      and no setup-wizard API. `generated_from` today only supports
+      `argon2` and `bcrypt`; SHA256 is not on the supported list, so the
+      root-password projection mechanism cannot currently populate
+      UserPasswordHash. This is a genuine hash-algorithm gap, not a
+      plaintext-password requirement, so it is a soft blocker rather than a
+      structural one.
+    - >
+      As a fallback, gating the app behind Traefik `basic_auth` (leaving
+      LubeLogger's own EnableAuth off) is mechanically expressible today
+      and would avoid the SHA256 gap entirely, at the cost of the app's
+      native per-user accounts/OIDC features being unreachable behind the
+      shared basic-auth prompt.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  LubeLogger is a well-maintained, actively-released, single-container
+  vehicle maintenance tracker with a clean web UI and no overlap with the
+  current catalogue. It is not installable today because its only
+  non-interactive root-credential mechanism (UserNameHash/UserPasswordHash
+  env vars) requires a SHA256 hash, which `generated_from` doesn't support
+  yet (only argon2/bcrypt) — add SHA256 support, or ship it behind a
+  Traefik `basic_auth` gate with the app's own auth left disabled, to make
+  this build_now.
