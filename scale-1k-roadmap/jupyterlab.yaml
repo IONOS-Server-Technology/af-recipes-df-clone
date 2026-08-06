@@ -1,0 +1,76 @@
+slug: jupyterlab
+name: JupyterLab
+source_description: "JupyterLab is a web-based interactive development environment for notebooks and code"
+
+upstream:
+  url: https://jupyter.org/
+  repo_url: https://github.com/jupyterlab/jupyterlab
+  license: BSD-3-Clause
+  docker_image: quay.io/jupyter/base-notebook (official image from the jupyter/docker-stacks project; dated tags e.g. "2026-07-28" — note that since October 2023 these images are only published to Quay.io, the old `jupyter/base-notebook` on Docker Hub no longer receives updates and must not be used)
+
+version_health:
+  latest_version: "JupyterLab 4.6.2 (stable, 2026-07-21); 4.5.10 (backported security patch on the 4.5.x line, same day); 4.7.0a1 (alpha, same day)"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    4.6.2 and 4.5.10 both shipped 2026-07-21 — about 2 weeks before this
+    analysis (2026-08-05) — carrying, per the release notes, five critical
+    security patches, backported to both the current stable (4.6.x) and
+    prior stable (4.5.x) lines. Prior stable release was 4.6.1 on
+    2026-06-29 (~3 weeks earlier) and 4.6.0 on 2026-06-18. This is a
+    dual-track maintenance model (current + previous minor both getting
+    security backports) typical of a healthy, actively maintained project;
+    the separate jupyter/docker-stacks image repo that actually ships the
+    container also tags fresh builds roughly weekly. No archival, EOL, or
+    slowdown signal.
+
+catalogue_fit:
+  categories: [developer-tools, data-science]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes provide a general-purpose notebook/code
+    IDE. Open WebUI + Ollama (ai) is a chat interface for running local LLM
+    inference, not a Python/data-science coding environment; Gitea
+    (developer-tools) is a git host, not an interactive REPL/notebook.
+    JupyterLab would be a genuinely new category: a browser-based coding
+    workbench for data analysis, prototyping, and ad-hoc scripting on the
+    customer's own server, distinct from anything currently offered.
+  usefulness: high
+  usefulness_rationale: >-
+    JupyterLab is one of the most widely recognized tools in the
+    data-science/Python ecosystem, and "give me a notebook environment on
+    my own server" is a common self-hosting want (avoiding Colab/Kaggle
+    cloud lock-in and keeping data local). Single-container, one HTTP port,
+    fits the catalogue's reverse-proxy shape well, and needs no external
+    services to be useful out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JUPYTERLAB_LOGIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: JUPYTERLAB_LOGIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  JupyterLab is actively maintained (security-patched stable release two
+  weeks before this analysis, dual-track backport policy, no EOL signal)
+  and would fill a genuine gap — no current recipe offers a notebook/coding
+  IDE. It is a strong mechanical fit for our provisioning model: the
+  official jupyter/docker-stacks image's Jupyter Server accepts a
+  pre-computed password hash directly via the
+  `--PasswordIdentityProvider.hashed_password` startup argument (documented
+  upstream, generated with `jupyter_server.auth.passwd()`, and — per its
+  own docs — compatible with the `argon2` hashing scheme), which can be fed
+  through the compose `command:` as a `generated_from: "argon2:ROOT_PASSWORD"`
+  metadata parameter — the same shipping pattern as Vaultwarden's
+  ADMIN_TOKEN, no custom init script required unlike the Jenkins Groovy-hook
+  case. This replaces the image's noisier default (a random token printed
+  to container logs) with a real login gate at first boot. Single
+  container, single HTTP port (8888), reverse-proxy-friendly. Recommend
+  build_now.
