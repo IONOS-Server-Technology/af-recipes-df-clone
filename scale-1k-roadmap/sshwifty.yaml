@@ -1,0 +1,84 @@
+slug: sshwifty
+name: Sshwifty
+source_description: "Browser-based SSH and Telnet client for managing remote servers from anywhere"
+
+upstream:
+  url: https://github.com/nirui/sshwifty
+  repo_url: https://github.com/nirui/sshwifty
+  license: AGPL-3.0
+  docker_image: niruix/sshwifty:0.4.8-beta-release
+
+version_health:
+  latest_version: "0.4.8-beta-release-prebuild"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.4.8 shipped 2026-07-08, about a month before today (2026-08-05).
+    Release history shows a steady cadence over the past year: 0.4.2
+    (2025-12-03), 0.4.3 (2026-01-16, security patches for multiple CVEs),
+    0.4.4 (2026-03-06), 0.4.5 (2026-03-18), 0.4.6 (2026-05-08), 0.4.7
+    (2026-05-22, added keyboard-interactive SSH auth and OSC 52 clipboard
+    support), 0.4.8 (2026-07-08). Single-maintainer project (nirui) but
+    releases every 4-8 weeks with real feature and security work, not just
+    dependency bumps. No archival notice; healthy.
+
+catalogue_fit:
+  categories: [infrastructure, remote-access]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    Guacamole already covers browser-based remote access (RDP/VNC/SSH) with
+    per-user accounts and a Postgres-backed connection manager. Sshwifty is
+    a much lighter single-purpose SSH/Telnet-only web terminal with no user
+    database — one static process, one shared access password, presets for
+    frequently-used hosts. It would appeal to a customer who just wants a
+    quick "SSH from any browser to my other boxes" jump-tool without
+    standing up Guacamole's full remote-desktop/connection-manager stack,
+    but the core use case (browser SSH access) is not new to the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real but narrow demand: useful as a lightweight bastion/jump-host UI,
+    though most of that audience already has SSH clients and the overlap
+    with Guacamole (which also does SSH, plus RDP/VNC) caps the incremental
+    value. Its minimal footprint (single ~28MB static Go binary, no
+    database) is a genuine plus over Guacamole's three-service stack for
+    the SSH-only use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik basic-auth gate credential (fronts the app; SSHWIFTY_SHAREDKEY left unset)
+  secrets_expressible_today:
+    - secret: traefik basic-auth gate credential (fronts the app; SSHWIFTY_SHAREDKEY left unset)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Sshwifty's own access-control mechanism, SSHWIFTY_SHAREDKEY, is
+      documented as a plaintext 'Web interface access password' compared
+      directly by the app — it is not hashed on the server side and has no
+      documented way to accept a pre-computed argon2/bcrypt hash the way
+      Vaultwarden's ADMIN_TOKEN does. Per SCHEMA.md, a genuine requirement
+      for the plaintext password (not any hash) is a structural blocker for
+      generated_from, so SSHWIFTY_SHAREDKEY itself cannot be projected from
+      the customer's root password today. This is not a hard blocker for
+      the app overall, though: SHAREDKEY can simply be left empty (its
+      documented 'public access' mode) and the entire origin gated by
+      Traefik basic_auth instead, matching how the catalogue handles other
+      apps with no customer-projectable login of their own (Adminer-style)."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Sshwifty is an actively maintained, AGPL-3.0, single-binary browser SSH/
+  Telnet client with a small pinned official image (niruix/sshwifty:0.4.8-
+  beta-release) and a single HTTP port, so it is mechanically installable
+  today by leaving its own SHAREDKEY auth disabled and gating the origin
+  with Traefik basic_auth. The catalogue fit is the real question: Apache
+  Guacamole already covers browser-based SSH (plus RDP/VNC) with a fuller
+  connection-manager, so Sshwifty's main pitch is being a much lighter
+  single-purpose alternative for customers who only need quick browser SSH
+  access to their own hosts. Given that overlap, recommend
+  build_with_caveats rather than build_now — worth shipping if the catalogue
+  wants a minimal-footprint SSH-only option, but it duplicates the core use
+  case of an existing recipe rather than opening new ground.
