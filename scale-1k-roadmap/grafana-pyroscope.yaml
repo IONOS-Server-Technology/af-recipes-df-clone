@@ -1,0 +1,73 @@
+slug: grafana-pyroscope
+name: Grafana Pyroscope
+source_description: "Open-source continuous profiling backend for CPU, memory, and latency analysis"
+
+upstream:
+  url: https://grafana.com/oss/pyroscope/
+  repo_url: https://github.com/grafana/pyroscope
+  license: AGPL-3.0
+  docker_image: grafana/pyroscope
+
+version_health:
+  latest_version: "2.2.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.2.0 landed 2026-07-21, about 2 weeks before today (2026-08-05),
+    preceded by v2.1.1/v2.0.6 (2026-07-10), v2.1.0/v2.0.4 (2026-06-17), and
+    v2.0.3 (2026-06-03) — a steady multi-week cadence across both the 2.x
+    current line and 2.0.x/1.21.x backport lines. Docker Hub also carries a
+    continuous stream of `main-<sha>` and `weekly-*` builds within hours of
+    each other, confirming active CI/commit activity. Repo is not archived
+    and is a first-party Grafana Labs project, so no ambiguity on identity
+    or maintenance status.
+
+catalogue_fit:
+  categories: [monitoring, observability, profiling]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Pyroscope is a continuous-profiling backend: applications push
+    CPU/memory/latency profiling samples (via its own SDKs, eBPF agent, or
+    OpenTelemetry/pprof-compatible ingestion) and it stores and visualizes
+    flamegraphs over time. This is a different signal type from every
+    existing monitoring-adjacent recipe (Uptime Kuma's external
+    uptime/ping checks, Checkmk's agent-based infra metrics, Grafana's
+    generic dashboarding over metrics/logs/traces) — none of the 24
+    shipped recipes ingest or visualize profiling data. Like Grafana
+    itself, it delivers no value in isolation: a customer needs
+    instrumented applications actively pushing profiles into it, which
+    this recipe cannot provision.
+  usefulness: low
+  usefulness_rationale: >
+    Continuous profiling is a real, growing observability niche, but it is
+    a narrow, developer-facing tool aimed at teams actively debugging
+    performance in their own instrumented services — a much smaller slice
+    of self-hosting customers than general dashboarding (Grafana) or
+    uptime monitoring (Uptime Kuma). Without a customer's own
+    already-instrumented workload feeding it, a freshly installed Pyroscope
+    is an empty UI with nothing to show.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Grafana Pyroscope is an actively maintained (v2.2.0, released
+  2026-07-21, ~2-week release cadence), first-party Grafana Labs project
+  with no overlap in the current 24-recipe catalogue — no existing recipe
+  ingests continuous profiling data. It ships with no built-in login of
+  its own (single-binary mode, no admin account to configure), so it is
+  mechanically installable today behind a mandatory Traefik basic_auth
+  gate, the same pattern used for Grafana. Recommend build_with_caveats:
+  installable now, but usefulness is low relative to the catalogue's other
+  gaps, since a bare install is only valuable to customers who already
+  have instrumented applications pushing profiles into it.
