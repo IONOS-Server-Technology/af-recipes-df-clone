@@ -1,0 +1,75 @@
+slug: photofield
+name: Photofield
+source_description: "Speed-focused self-hosted photo gallery with a smooth zoomable timeline"
+
+upstream:
+  url: https://photofield.dev
+  repo_url: https://github.com/SmilyOrg/photofield
+  license: MIT
+  docker_image: ghcr.io/smilyorg/photofield
+
+version_health:
+  latest_version: "v0.24.1"
+  latest_release_date: "2026-06-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Ten tagged releases from v0.17.1 (2024-11-02) through v0.24.1
+    (2026-06-16), roughly one every 1-2 months, with a burst of three
+    releases in May-June 2026 (v0.23.0, v0.24.0, v0.24.1) adding face
+    detection, filename search, and a security-patch release. Repo is not
+    archived, last push was 2026-08-05 (today), and 35 open issues are
+    still being triaged. Clearly active, not maintenance-only.
+
+catalogue_fit:
+  categories: [media, photos]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Photofield is a read-only viewer/gallery over an existing photo tree
+    (file system is the source of truth, no ingestion pipeline, no mobile
+    backup client, no user accounts), whereas Immich is a full backup +
+    library platform (mobile auto-upload, ML search/face-recognition
+    pipeline, multi-user accounts, albums/sharing). Photofield's pitch is
+    raw browsing speed/zoom over very large collections rather than being
+    a Google-Photos replacement. It is lighter (single Go binary + SQLite
+    cache, no Postgres/Redis/ML containers) but strictly less capable as a
+    product for a typical self-hosting customer who wants to also *upload*
+    photos from a phone.
+  usefulness: low
+  usefulness_rationale: >
+    On the AF platform, a customer has no built-in way to get photos onto
+    the server other than SFTP/file-manager style access to a mounted
+    directory, since Photofield has no upload/ingestion UI of its own. That
+    makes it a viewer for photos a customer already got onto the box some
+    other way — a much smaller and more technical audience than Immich,
+    which already covers "back up and browse my photos" for the mainstream
+    case. Photofield adds a real niche (huge local collections, zero
+    accounts, minimal resource footprint) but it's thin compared to what
+    we already ship.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Photofield is a single-container, single-HTTP-port (8080) Go app with an
+  embedded SQLite cache and no built-in authentication or user accounts at
+  all ("no user accounts... not the focus right now" per upstream docs),
+  so it is mechanically installable today behind a domain param plus a
+  mandatory Traefik basic_auth:true gate (password projected from the
+  customer's root password), the same pattern used for Adminer/WUD/n8n.
+  The project itself is healthy and actively released. The gap is product
+  fit, not platform mechanics: it only displays photos already present in
+  a mounted directory and gives the customer no way to get photos there in
+  the first place, so it largely duplicates and is strictly weaker than
+  the already-catalogued Immich for the mainstream "back up and browse my
+  photos" use case. Recommend build_with_caveats — technically buildable,
+  but low priority given the overlap and thin ingestion story.
