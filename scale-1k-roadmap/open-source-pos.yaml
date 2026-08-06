@@ -1,0 +1,77 @@
+slug: open-source-pos
+name: Open Source POS
+source_description: "Web-based point of sale with inventory, customers, and reporting for retail"
+
+upstream:
+  url: https://opensourcepos.org/
+  repo_url: https://github.com/opensourcepos/opensourcepos
+  license: "MIT, with a non-standard clause requiring the app's footer signature to remain visible and unmodified on every page"
+  docker_image: "jekkos/opensourcepos (community-maintained; referenced as the image in the project's own docker-compose.yml, but not published under the opensourcepos GitHub org itself — there is no image under an official 'opensourcepos' Docker Hub namespace)"
+
+version_health:
+  latest_version: "3.4.1 (last tagged GitHub release); 3.4.2 in progress on master, unreleased as a formal tag as of 2026-08-05"
+  latest_release_date: "2024-06-05"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    26 months since the last tagged GitHub release (3.4.1, 2024-06-05), despite
+    a highly active commit history on master — commits merged as recently as
+    2026-08-06 (e.g. #4503, #4506, #4609, #4616, #4615). The project has
+    effectively stopped cutting formal versioned releases while continuing
+    rolling development against 'master'. Consequently the only Docker Hub
+    tags for the unreleased 3.4.2 line are CI snapshot builds named after
+    individual PR/fix branches (e.g.
+    "3.4.2-bugfix-mass-assignment-in-bulk-edit-cc94b9",
+    "3.4.2-fix_4554-encryption-docker-issue-ba99da"), not a single clean,
+    stable, reproducible release artifact. No sign of archival or EOL — the
+    repo is clearly maintained — but the release-tagging discipline that a
+    recipe would normally pin against is effectively absent right now.
+
+catalogue_fit:
+  categories: [retail, business, point-of-sale, inventory]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No point-of-sale or retail-inventory app exists in the current
+    24-recipe catalogue. The closest built recipes are general back-office
+    tools (paperless-ngx for documents, n8n for automation) with no
+    retail-checkout, inventory, or customer-ledger workflow. A self-hosted
+    POS with sales, inventory, customer records, and reporting covers a
+    genuinely distinct SMB retail use case the catalogue doesn't touch today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand from small retail/hospitality customers who want
+    to self-host their checkout system, but the app itself is an unremarkable
+    PHP/MySQL CRUD stack — the value is entirely in the business use case, not
+    any differentiated technology, and the release-tagging gap (see
+    version_health) undercuts confidence in shipping a stable pin today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "basic_auth gate credential (app ships a fixed admin/pointofsale login seeded by a DB migration at first install, with no environment variable or config override to change it before boot)"
+    - "MySQL/MariaDB app database password"
+  secrets_expressible_today:
+    - secret: "basic_auth gate credential (app ships a fixed admin/pointofsale login seeded by a DB migration at first install, with no environment variable or config override to change it before boot)"
+      mechanism: traefik_basic_auth
+    - secret: "MySQL/MariaDB app database password"
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Open Source POS (opensourcepos/opensourcepos) is mechanically installable
+  today: it's a single HTTP web UI (reverse-proxy friendly) plus a MySQL
+  backend, its only customer-facing secret is a fixed, unchangeable
+  admin/pointofsale login that can be handled the same way we handle other
+  no-override-credential apps — a mandatory Traefik basic_auth gate in front
+  — and the DB password is server-generated with no customer input needed.
+  It also fills a real gap: nothing in the current 24-recipe catalogue serves
+  retail POS/inventory. The caveat that pushes this to build_with_caveats
+  rather than a clean build_now is version hygiene — the project hasn't cut a
+  tagged release in over two years despite active daily commits, leaving
+  only unreleased CI-branch-snapshot Docker tags to pin against, so a recipe
+  built today would either pin to a stale 3.4.1-era build or an unstable
+  in-progress snapshot.
