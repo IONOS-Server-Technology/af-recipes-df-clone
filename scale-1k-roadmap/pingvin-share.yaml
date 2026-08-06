@@ -1,0 +1,86 @@
+slug: pingvin-share
+name: Pingvin Share
+source_description: "Self-hosted file sharing platform as an alternative to WeTransfer"
+
+upstream:
+  url: https://github.com/stonith404/pingvin-share
+  repo_url: https://github.com/stonith404/pingvin-share
+  license: BSD-2-Clause
+  docker_image: stonith404/pingvin-share:v1.13.0
+
+version_health:
+  latest_version: "v1.13.0"
+  latest_release_date: "2025-05-25"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >-
+    Latest (and final) tagged release is v1.13.0, published 2025-05-25 —
+    about 14 months before today (2026-08-05). This is not just a quiet
+    release cadence: the maintainer (Elias Schneider) explicitly announced
+    the project archived in the README ("Pingvin Share has been archived
+    since Jun 29, 2025 ... I've chosen to focus my limited time and energy
+    on my other project, Pocket ID"), and GitHub shows the repository was
+    formally archived (locked read-only) on 2026-05-18 — about 2.5 months
+    before today. The README explicitly points users at
+    `smp46/pingvin-share-x`, "a well-maintained fork as of May 2026," as
+    the successor to use instead. Both the project's own maintainer
+    statement and the platform-level archive flag agree: this is a
+    terminated, not merely slow, project.
+
+catalogue_fit:
+  categories: [file-sharing, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes cover one-off, expiring, password-
+    protected file-share links (Syncthing is continuous folder sync,
+    Immich is a photo/video library, Opengist is text/code pastes — all a
+    different job). However this exact "WeTransfer-style expiring link"
+    niche was already gap-analyzed twice: `apps-gaps/erugo.yaml`
+    (`build_now`, actively maintained, 1.1k stars) and
+    `apps-gaps/gokapi.yaml` (`build_with_caveats`, actively maintained,
+    2.8k stars, adds S3/E2E-encryption). Per the "overlapping apps are
+    fine" policy, sharing a niche with those isn't itself disqualifying,
+    but it is directly relevant to a build-priority call: Pingvin Share
+    would be the third entrant in the same niche, and unlike the other two
+    it is the only one of the three that is archived by its own author.
+  usefulness: low
+  usefulness_rationale: >-
+    The underlying use case (self-hosted WeTransfer alternative) has real
+    customer demand and Pingvin Share itself was popular before archival
+    (4.7k stars, 422 forks) — the name may even get searched for
+    specifically. But the project is dead upstream: no more security
+    patches, no more compatibility fixes for future Docker/Node base
+    images, and the author's own README tells adopters to use a different
+    project instead. Two healthier, actively-maintained alternatives
+    already occupy this exact niche in the gap-analysis backlog.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >-
+  Pingvin Share is mechanically installable today: it's a single container
+  (`stonith404/pingvin-share`, pinned tag `v1.13.0`) behind one HTTP port
+  (3000), with a built-in Caddy reverse proxy that can be disabled
+  (`CADDY_DISABLED=true`) so Traefik can front it cleanly, and no raw ports
+  or extra services required. Like our existing Uptime Kuma/Erugo pattern,
+  it creates its admin account through an in-browser first-run signup
+  (confirmed in `auth.service.ts`: the first registered user becomes admin)
+  rather than a deploy-time credential, so there is no secret for
+  `generated_from` or `basic_auth` to carry — no blocking issue under the
+  current `/compose` mechanism. The real problem is upstream health, not
+  mechanism: the maintainer explicitly archived the project in mid-2025,
+  GitHub locked the repo read-only on 2026-05-18, and the author's own
+  README redirects users to a community fork (`smp46/pingvin-share-x`)
+  instead. Combined with two actively-maintained alternatives
+  (`erugo`, `gokapi`) already covering the identical niche in the
+  gap-analysis backlog, shipping a recipe on top of an app its own creator
+  has walked away from is not_recommended — if this exact niche is wanted,
+  the healthier options (or the maintained fork itself, as a separate
+  candidate) are the better bet.
