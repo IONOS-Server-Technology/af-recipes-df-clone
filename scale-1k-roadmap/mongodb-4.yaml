@@ -1,0 +1,95 @@
+slug: mongodb-4
+name: MongoDB 4
+source_description: "Document-oriented NoSQL database with JSON-like document storage"
+
+upstream:
+  url: https://www.mongodb.com/
+  repo_url: https://github.com/mongodb/mongo
+  license: SSPL-1.0 (MongoDB Server, since 4.0.4/4.2.x; earlier patch builds of the 4.x line are AGPL-3.0)
+  docker_image: mongo
+
+version_health:
+  latest_version: "4.4.29 (final patch of the 4.x line; 4.0 and 4.2 series are older sub-lines of the same major version)"
+  latest_release_date: "2024-02-28"
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    4.4.29, released 2024-02-28, was the last-ever patch of MongoDB 4.4 and
+    coincides with MongoDB Inc.'s own EOL date for the 4.4 line
+    (2024-02-29). The 4.2 line went EOL 2023-04-30 and 4.0 earlier still.
+    All three sub-versions that "MongoDB 4" covers are past their official
+    end-of-life as of today (2026-08-05) — roughly 2.5 years since the last
+    4.4 patch and no further patches possible, since MongoDB Inc. does not
+    backport fixes (including CVE fixes) to EOL branches. Upstream MongoDB
+    itself is very much active (current stable line is 8.x, per
+    mongodb.com/resources/products/mongodb-version-history), but the
+    specific "MongoDB 4" version this Hostinger listing targets is a dead
+    branch, not an actively maintained product.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes exposes a standalone, customer-usable
+    NoSQL database — recipes like immich, n8n, and paperless-ngx run their
+    own internal Postgres/SQLite purely as private storage, not something a
+    customer connects to directly. A standalone MongoDB recipe would target
+    a customer running their own external app (a Node/Express backend, a
+    custom script) that needs a MongoDB-compatible datastore to connect to
+    from outside the VM. Same category of use case as apps-gaps/mariadb.yaml
+    and apps-gaps/apache-couchdb.yaml, but on top of an EOL version of the
+    engine rather than a live one.
+  usefulness: low
+  usefulness_rationale: >
+    Even setting aside installability, shipping a recipe pinned to an EOL
+    database version with no further security patches available is a poor
+    fit for a hosting catalogue — customers would be running a database
+    version whose known and future CVEs never get fixed. A live MongoDB
+    version (7.x/8.x) would carry the same structural DB-port problem
+    below but at least be a defensible offering; "MongoDB 4" specifically
+    is not.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The only useful shape for a standalone MongoDB recipe is a publicly
+      reachable mongod port (27017) so an external customer app can
+      connect to it. Publishing that host port is exactly what RFC-002's
+      `no-public-db-port` rule forbids (rfc/002-recipe-rules.md:220-226).
+      MongoDB speaks a raw binary wire protocol, not HTTP, so there is no
+      Traefik-based fronting option either (no subdomain routing, no
+      basic_auth gate) — it has no application-layer presence to reverse-
+      proxy the way our web-UI recipes do.
+    - >
+      Even setting the port rule aside, the root user is provisioned via
+      the official image's `MONGO_INITDB_ROOT_USERNAME` /
+      `MONGO_INITDB_ROOT_PASSWORD` env vars, which mongod's entrypoint
+      consumes as a **plaintext** password to run its own SCRAM-SHA-1/256
+      credential derivation internally at first boot. There is no
+      supported way to seed the root user from a pre-computed hash of any
+      kind (bcrypt, argon2, or otherwise) — unlike CouchDB, which at least
+      accepts a PBKDF2 hash. `generated_from` only ever produces a hash,
+      never a plaintext value, so this is a genuine plaintext-password
+      requirement per SCHEMA.md's guidance, making it a structural
+      blocker rather than a missing-algorithm gap.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  "MongoDB 4" targets a database engine line (4.0/4.2/4.4) that is fully
+  past MongoDB Inc.'s own end-of-life dates — the last patch (4.4.29)
+  shipped 2024-02-28, over two years before today, with no further fixes
+  coming for known or future CVEs. Independent of that, a standalone
+  MongoDB recipe has no viable shape in the current catalogue: its only
+  useful exposure is a public 27017 that RFC-002's `no-public-db-port` rule
+  forbids, it has no web UI or HTTP presence to gate behind Traefik, and
+  its root credential must be seeded as plaintext (not a `generated_from`
+  hash), which the platform has no channel for. This combines the "raw DB
+  port" structural mismatch already flagged for MariaDB with an EOL
+  upstream version on top, making it a clear not_recommended rather than a
+  platform gap worth tracking.
