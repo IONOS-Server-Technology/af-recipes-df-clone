@@ -1,0 +1,88 @@
+slug: keeweb
+name: KeeWeb
+source_description: "Web-based KeePass-compatible password manager running in the browser"
+
+upstream:
+  url: https://keeweb.info/
+  repo_url: https://github.com/keeweb/keeweb
+  license: MIT
+  docker_image: ghcr.io/keeweb/keeweb
+
+version_health:
+  latest_version: "v1.18.9"
+  latest_release_date: "2026-05-08"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Repo is not archived and there is no announced EOL, but the release
+    history is a long dormancy followed by a short revival burst, not a
+    steady cadence. Releases ran v1.18.0 (2021-05-08) through v1.18.7
+    (2021-07-18), then nothing for ~4.75 years, then a burst of two
+    releases in quick succession — v1.18.8 (2026-04-30) and v1.18.9
+    (2026-05-08) — with matching commit activity on master from
+    2026-04-30 through 2026-05-08 and no commits since. That is 3 months
+    of silence as of today (2026-08-05), right after the first real
+    activity in years. Too early to tell if this is a sustained revival or
+    a one-off burst; treat as sporadic until another release lands.
+    Separately, the published ghcr.io/keeweb/keeweb container image is
+    only tagged up to `1.19.0`/`latest`, which resolves to the same commit
+    as source tag v1.18.8 — the newest source release (v1.18.9) has not
+    been published as a container image at analysis time, so a recipe
+    pinning to a real image tag would actually be one release behind
+    upstream's latest tag.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [vaultwarden]
+  differentiation: >
+    Both are self-hosted password managers, so the category overlap is
+    direct. KeeWeb's angle is KeePass (.kdbx) format compatibility for
+    users migrating from desktop KeePass, and a fully client-side
+    encryption model with no server-side account system at all — the
+    server only ever sees an encrypted blob if one is even configured (see
+    installability notes). Vaultwarden is a full Bitwarden-compatible
+    server: multi-user, has native mobile/browser-extension clients, an
+    admin panel, and org/sharing features. For a typical customer wanting
+    "a password manager I can self-host," Vaultwarden is the more
+    complete and more actively maintained answer; KeeWeb mainly adds value
+    for someone specifically invested in the KeePass ecosystem.
+  usefulness: low
+  usefulness_rationale: >
+    Real differentiation is thin (KeePass-format niche) against an
+    existing, more capable, more actively maintained recipe in the same
+    category. It's also weakened by KeeWeb's own storage model: the
+    official Docker image just serves the static web app over
+    nginx — there is no bundled database/storage backend, so a database
+    saved without configuring an external WebDAV/Dropbox/Google
+    Drive/OneDrive target only persists in the browser's local storage,
+    tied to one device/browser profile. That undercuts the primary reason
+    someone self-hosts a password manager (cross-device sync), unless the
+    customer separately stands up and wires in their own WebDAV server —
+    which our recipe mechanism has no way to provision.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "App has no bundled persistent storage for the vault file (kdbx); usable cross-device sync requires a customer-configured WebDAV/Dropbox/Google Drive/OneDrive backend, none of which our /compose mechanism can provision or supply credentials for today. A recipe would either ship a KeeWeb instance whose saved vaults don't survive a container restart/browser change, or require the customer to wire up unrelated third-party storage entirely out-of-band."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  KeeWeb is mechanically installable today — single container, single HTTP
+  port, no login of its own, so a mandatory Traefik basic_auth gate (with
+  the password projected from the customer's root password) covers its
+  only first-boot secret, same pattern as n8n/Adminer/WUD. But it directly
+  overlaps an existing, more capable, more actively maintained recipe
+  (Vaultwarden) in the same category, its own persistence story is weak
+  without external storage wiring we can't provide, and its release
+  history is a ~4.75-year dormancy that only just broke with a two-release
+  burst in early May 2026 followed by 3 more months of silence. The
+  combination of thin differentiation, a shaky storage story, and an
+  unproven revival makes this a pass rather than a build, despite ticking
+  the pure installability box.
