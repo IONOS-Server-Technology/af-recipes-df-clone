@@ -1,0 +1,92 @@
+slug: lidarr
+name: Lidarr
+source_description: "Automated music collection manager and organizer for Usenet and torrents"
+
+upstream:
+  url: https://lidarr.audio
+  repo_url: https://github.com/Lidarr/Lidarr
+  license: GPL-3.0
+  docker_image: linuxserver/lidarr (pin to a version tag, e.g. 3.1.0.4875-ls38 — do not follow upstream examples that use :latest)
+
+version_health:
+  latest_version: "3.1.0.4875 (stable channel; 3.1.3.4987 exists on the develop/nightly branch as a pre-release, not yet promoted to stable)"
+  latest_release_date: "2025-11-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Lidarr, like Sonarr/Radarr, ships two channels: a fast-moving
+    develop/nightly branch and a slower "stable" promotion. The stable
+    channel's latest tag is 3.1.0.4875, released 2025-11-09 — about 9
+    months before today (2026-08-05), which on its own would look slow.
+    But the develop branch shows continuous activity: 3.1.1.4876
+    (2025-11-14), 3.1.1.4900 (2025-12-15), 3.1.2.4902 (2025-12-29),
+    3.1.2.4938 (2026-03-29), 3.1.3.4968 (2026-05-30), 3.1.3.4975
+    (2026-07-11), 3.1.3.4987 (2026-07-24) — roughly monthly cuts right up
+    to 12 days before today. The linuxserver/lidarr image's own stable tag
+    (3.1.0.4875-ls38) was rebuilt "1 day" before this research (i.e.
+    ~2026-08-04), confirming the container is still being actively
+    maintained even though the underlying app version it wraps hasn't
+    moved. Repo is not archived, has no EOL notice, and is under the
+    same Servarr organization as the actively-developed Sonarr/Radarr/
+    Prowlarr family. Net assessment: active, not dormant — the "9 months
+    since stable" number is misleading in isolation because upstream's own
+    release model treats develop-branch builds as the de facto rolling
+    release.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches music-library
+    automation. Lidarr is the music-specific member of the "*arr" family
+    (Sonarr for TV, Radarr for movies) — it tracks a customer's music
+    collection, monitors artists/albums for new releases, and, once
+    pointed at an indexer (e.g. Jackett/Prowlarr — neither of which is an
+    AF recipe today) and a download client (e.g. qBittorrent/SABnzbd —
+    also not an AF recipe), automatically searches for and imports new
+    music. Unlike Bazarr/Jackett (pure companions with zero standalone
+    value), Lidarr can still function as a library organizer/renamer/
+    metadata browser against an existing music folder with no indexer or
+    download client configured, so it isn't a complete dead end without
+    the rest of the stack — but its headline "automated acquisition"
+    feature is inert until a customer supplies both of those missing
+    pieces themselves.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, actively used tool with a large self-hosted community and
+    genuinely novel category for this catalogue (no music-automation
+    recipe exists). Same structural caveat as Bazarr/Jackett/autobrr
+    though: full value depends on an indexer and a download client that
+    AF does not offer, so a standalone Lidarr install gives a customer a
+    music-library manager/renamer but not the "set it and forget it"
+    auto-acquisition experience the app is best known for.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Lidarr is a single-container app (linuxserver/lidarr, port 8686, no
+  separate database service — config and its internal SQLite DB live in
+  /config) that is mechanically as simple to deploy as uptime-kuma or
+  vaultwarden, and reverse-proxy compatible behind Traefik on
+  lidarr.<base_domain>. As of Lidarr v2+, authentication is required and
+  set up through the app's own first-run wizard (choose "Forms" auth,
+  set username/password interactively in-browser) rather than an
+  environment variable — the same self-serve pattern already used by
+  autobrr/immich/uptime-kuma, so no generated_from projection or Traefik
+  basic_auth gate is needed to avoid an open-by-default install.
+  installable_today is true with zero blocking issues. Recommendation is
+  build_with_caveats rather than build_now: the app is a genuinely new
+  category for the catalogue and mechanically ready to ship, but its core
+  value proposition (hands-off music acquisition) is coupled to an
+  indexer and download client that don't exist as AF recipes yet, so it
+  would land as a capable library organizer with its headline automation
+  feature dormant until a customer wires up external services on their
+  own.
