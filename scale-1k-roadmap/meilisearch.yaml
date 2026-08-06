@@ -1,0 +1,106 @@
+slug: meilisearch
+name: Meilisearch
+source_description: "Lightning-fast search engine for modern applications"
+
+upstream:
+  url: https://www.meilisearch.com/
+  repo_url: https://github.com/meilisearch/meilisearch
+  license: "MIT (Community Edition, the self-hosted binary/image); Enterprise Edition features are gated behind a separate commercial license"
+  docker_image: getmeili/meilisearch
+
+version_health:
+  latest_version: "v1.52.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.52.0 tagged 2026-08-03, i.e. 2 days before today (2026-08-05).
+    Preceding cadence is essentially weekly minor releases: v1.51.0
+    (2026-07-27), v1.50.0 (2026-07-20), v1.49.0 (2026-07-06), v1.48.3
+    (2026-06-29, a patch release for an S3-snapshot race condition and a
+    federated-search duplicate-document bug), v1.48.0 (2026-06-22), v1.47.0
+    (2026-06-15). Also note two recent security patch releases, v1.48.2 and
+    v1.47.1, addressing CVE-2026-57823/CVE-2026-57824 — evidence of an
+    active security-response process, not just feature churn. Backed by
+    Meilisearch the company (VC-funded, also sells a managed Meilisearch
+    Cloud); unambiguously active development.
+
+catalogue_fit:
+  categories: [search, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a standalone search/indexing engine — the
+    24 current recipes are end-user applications (photo management,
+    password manager, VPN, forms, monitoring, etc.) that at most embed
+    Postgres/Redis internally as a private dependency, never expose a raw
+    search/index API as the product itself. Meilisearch would be the first
+    "search-infrastructure-as-a-product" recipe, similar in shape to the
+    Elasticsearch gap-analysis case (apps-gaps/elasticsearch.yaml) but much
+    lighter weight (single ~95MB binary/image, no JVM, low RAM floor) and
+    aimed at developers wanting fast typo-tolerant search bolted onto their
+    own site/app/docs rather than a big analytics platform.
+  usefulness: low
+  usefulness_rationale: >
+    Meilisearch does ship a built-in web page (served at the root of its
+    single HTTP port) offering a "Search preview" console — you paste an
+    API key into the browser and can browse indexes and test queries
+    interactively. That is a real web UI and it is reverse-proxy-compatible
+    (plain HTTP on one port, no extra protocols), but it is a developer/API
+    console, not an end-user-facing application the way every other recipe
+    in this catalogue is. Its actual consumer is a developer's own
+    application code calling the REST API/SDKs to power a search box
+    elsewhere — the value only appears once the customer connects their own
+    app to it. That's the same audience mismatch flagged in the
+    Elasticsearch and EdgeDB gap analyses, just with a lighter footprint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MEILI_MASTER_KEY]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      MEILI_MASTER_KEY is not an internal-only secret like a DB password —
+      it IS the product's API credential. Every request except `GET
+      /health` requires it as a Bearer token, so whoever holds the key
+      controls (and can read/write) all of the customer's indexed data.
+      The customer's own application therefore needs to receive this exact
+      plaintext value to function at all — there is no dashboard channel
+      today for surfacing a server-generated secret back to the customer
+      for actual external use (the same gap noted for Gel/EdgeDB's root
+      credential in apps-gaps/edgedb.yaml), so
+      server_generated_no_customer_input does not really apply here: the
+      customer must see it, and today they can't.
+    - >
+      generated_from only ever projects a hash (argon2/bcrypt) onto a
+      parameter; Meilisearch does not accept a pre-hashed master key at
+      all — it takes the plaintext key directly and uses it verbatim as
+      the Bearer token clients present. So even setting the "customer
+      needs to read it" problem aside, a hash-shaped value would not work
+      here regardless of algorithm support — a genuine plaintext
+      requirement, which the schema treats as a structural blocker rather
+      than an extensible gap.
+    - >
+      Meilisearch also refuses to boot in `--env production` without a
+      master key of at least 16 bytes — there is no "run it open" fallback
+      that would be safe to ship publicly, so the credential can't just be
+      left unset.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Meilisearch is an actively and rapidly maintained (weekly-cadence,
+  actively security-patched) lightweight search engine with no catalogue
+  overlap — it would be the first standalone search/indexing recipe,
+  lighter-weight than Elasticsearch but with the same fundamental
+  audience mismatch: its web UI is a developer API console, not an
+  end-user app, and its value only materializes once a customer's own
+  code calls the API. That API call requires MEILI_MASTER_KEY, a plaintext
+  credential the customer must actually receive and use — not an internal
+  secret we can generate and hide, and not something generated_from's
+  hash-projection mechanism can carry either. Mechanically simple to run
+  (single container, single port, plain HTTP, low resource floor) but
+  blocked today on the platform having no channel to hand a generated
+  credential back to the customer for real use; worth reconsidering once
+  such a channel exists.
