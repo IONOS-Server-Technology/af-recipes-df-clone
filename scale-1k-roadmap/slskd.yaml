@@ -1,0 +1,110 @@
+slug: slskd
+name: slskd
+source_description: "Web-based Soulseek client for peer-to-peer music and file sharing"
+
+upstream:
+  url: https://github.com/slskd/slskd
+  repo_url: https://github.com/slskd/slskd
+  license: AGPL-3.0
+  docker_image: slskd/slskd:0.26.0
+
+version_health:
+  latest_version: "0.26.0"
+  latest_release_date: "2024-07-19"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    No new stable numbered release since 0.26.0 on 2024-07-19 — over 24
+    months before today (2026-08-05). However the project is not dormant:
+    master/canary builds are pushed within days of today (canary Docker tag
+    updated ~2 days ago per Docker Hub), the repo has ~5k commits, ~3.7k
+    stars, ~156 open issues, and is not archived. This is a project that
+    develops continuously but has stopped cutting tagged stable releases —
+    worth re-checking before a recipe pins to 0.26.0, since that tag is now
+    over two years old relative to what canary actually ships.
+
+catalogue_fit:
+  categories: [file-sharing, media, p2p]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing else in the current 24-recipe catalogue talks to the Soulseek
+    P2P network. Syncthing (recipes/syncthing) is superficially similar
+    (web UI, P2P transport, extra raw sync port) but solves a different
+    problem — private device-to-device file sync, not joining a public
+    file-sharing network. slskd is the only candidate that adds "P2P
+    network client" as a category.
+    reverse_proxy_compatible is false for the same reason Syncthing needs
+    its raw 22000 and apps-gaps/resilio-sync.yaml is marked false: the web
+    UI (HTTP 5030, HTTPS 5031) can sit on <slug>.<base_domain> behind
+    Traefik, but slskd additionally needs its Soulseek peer listen port
+    (default 50300, SLSKD_SLSK_LISTEN_PORT) published as a raw TCP port
+    reachable from the internet. Upstream docs/config.md: "configuring the
+    listen port and port forwarding ensures full connectivity with other
+    clients." That port carries the Soulseek wire protocol, not HTTP, so it
+    is outside Traefik's HTTP-only reach and must be published directly on
+    the VM. Without it the app still boots and serves its UI but degrades
+    to outbound-only peer connectivity.
+  usefulness: low
+  usefulness_rationale: >
+    Soulseek is a public P2P network primarily used for sharing
+    copyrighted music. Even though the app itself is legitimate open-source
+    software, hosting it as a one-click catalogue recipe puts IONOS in the
+    position of provisioning infrastructure whose main real-world use is
+    unauthorized media sharing/distribution — a reputational and
+    abuse-vector risk that outweighs the niche audience (self-hosted P2P
+    music enthusiasts) it would serve. This is a business/legal judgment
+    call, not a technical one; flagging for human review rather than
+    asserting it outright.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "slskd web UI login (basic-auth gate credential)"
+  secrets_expressible_today:
+    - secret: "slskd web UI login (basic-auth gate credential)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      slskd's own web UI login (SLSKD_USERNAME/SLSKD_PASSWORD) only accepts
+      a plaintext password at startup — there is no bcrypt/argon2-hash input
+      path for it, so generated_from cannot project the customer's root
+      password into it directly. Workaround: leave SLSKD_USERNAME/PASSWORD
+      as a server-generated random value nothing customer-facing reads, and
+      put the real auth boundary at Traefik basic_auth (root-password hash)
+      in front of the whole app, same pattern as n8n/WUD/Open WebUI. This
+      makes the app mechanically installable once IF-1312 (basic_auth) ships
+      — not a hard blocker, just blocked_on_platform.
+    - >
+      The app's actual purpose (searching/downloading on the Soulseek
+      network) additionally needs the customer's own Soulseek network
+      account username/password (SLSKD_SLSK_USERNAME/PASSWORD). These are
+      NOT required to boot the container or reach the web UI — the app
+      starts and serves its UI without them, just disconnected from the
+      network — and slskd supports entering them post-login via its own
+      Settings page (SLSKD_REMOTE_CONFIGURATION=true) triggering a
+      reconnect, with no restart needed from us. This is customer
+      self-service through the app's already-authenticated UI, the same
+      shape as a user adding their own third-party API keys inside n8n
+      after deploy, so it is not a blocker for our /compose mechanism.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  slskd is a well-built, actively-developed (canary-level) Soulseek P2P
+  client with a real web UI and no category overlap in the current
+  catalogue, but two things hold it back. Mechanically, its own web login
+  only takes a plaintext password (no hash input), so it needs the
+  not-yet-merged Traefik basic_auth gate (IF-1312) rather than
+  generated_from to be installable — a real but temporary platform gap.
+  Soulseek network credentials themselves are not a boot-time blocker since
+  the customer can self-service those through the app's own UI after
+  login. Routing is also not a pure Traefik story: the web UI fronts fine,
+  but the Soulseek peer listen port (default 50300) is a raw TCP port that
+  has to be published directly on the VM alongside the HTTP route, same
+  shape as recipes/syncthing/'s 22000 — worth agreeing before anyone
+  writes the recipe. Separately from mechanics, the app's primary real-world use case
+  — joining a public network mostly used to trade copyrighted media — is a
+  reputational/legal fit question for IONOS's catalogue that a human should
+  weigh before this goes further, independent of whether IF-1312 ships.
