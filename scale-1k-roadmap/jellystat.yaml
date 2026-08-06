@@ -1,0 +1,87 @@
+slug: jellystat
+name: Jellystat
+source_description: "Tautulli-style statistics and insights dashboard for Jellyfin media server"
+
+upstream:
+  url: https://github.com/CyferShepard/Jellystat
+  repo_url: https://github.com/CyferShepard/Jellystat
+  license: MIT
+  docker_image: cyfershepard/jellystat:1.1.11
+
+version_health:
+  latest_version: "1.1.11"
+  latest_release_date: "2026-06-23"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    Not archived — last commit to main was 2026-08-05 (today), and 1.1.11
+    shipped 2026-06-23, ~6 weeks before today's date. But the maintainer
+    posted an explicit project-update in the README: accumulated tech debt
+    means they are rebuilding Jellystat from scratch on a new backend/
+    frontend/possibly new DB, and "for now... the project is not going to
+    be updated. I will probably push a few fixes for any major bugs that
+    are easily reproduced." That statement, not the still-recent release
+    date, is the reason to call this "maintenance-only" rather than
+    "active" — feature development is explicitly paused pending a rewrite
+    of unknown timeline. Release history itself (1.1.6 in 2025-05, then
+    1.1.7 through 1.1.11 roughly every 1-2 months through 2026-06) looks
+    like a healthy small project, hence "slowing" rather than "sporadic" or
+    "dormant".
+
+catalogue_fit:
+  categories: [monitoring, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches media-server analytics.
+    Jellystat is a Tautulli-alike for Jellyfin: session monitoring, watch
+    history, per-user/per-library stats, backup/restore of that stats data.
+    It is a companion/add-on app, not a standalone media server — it
+    requires an existing, already-running Jellyfin (or Emby) instance to
+    point at via an API key entered through its own setup UI after
+    deploy. We do not currently have a Jellyfin recipe in the catalogue, so
+    its addressable customer base is limited to those already self-hosting
+    Jellyfin/Emby elsewhere (on IONOS or off it), not created fresh by this
+    recipe's existence.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand (Jellyfin/Emby self-hosters commonly run Tautulli or
+    Jellystat alongside their media server), and it's a lightweight
+    single-container-plus-Postgres stack that's cheap to host. But value is
+    capped by (a) no Jellyfin recipe of our own to pair it with, so it's a
+    pure bring-your-own-server companion, and (b) the maintainer's own
+    paused-development notice, which makes this a reasonable "works fine,
+    not going anywhere fast" pick rather than a flagship addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, JWT_SECRET, dashboard_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: dashboard_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Jellystat is mechanically installable today: POSTGRES_PASSWORD and
+  JWT_SECRET are opaque internal values the customer never needs to see or
+  type, so both can be server-generated with no customer input channel
+  required. Jellystat's own admin account is not set via an env var at
+  all — it is claimed through a first-visit setup wizard in the web UI (the
+  Getting Started docs). That means there is no login field to project a
+  `generated_from` root-password hash into, and it leaves a race window
+  where whoever loads the site first claims the admin account (the same
+  shape as n8n's owner setup) — so a Traefik `basic_auth: true` gate in
+  front of the app is the appropriate fix, matching the mechanism already
+  used for n8n/Immich-style first-run-setup apps. The Jellyfin/Emby API key
+  the app needs to actually fetch stats is entered by the customer after
+  deploy, through the authenticated UI itself, not at compose time, so it
+  is out of scope for `/compose` and not a blocker. Net: build_with_caveats
+  — installable now, but low-to-medium value given no Jellyfin recipe to
+  pair it with and the upstream's own paused-development notice.
