@@ -1,0 +1,80 @@
+slug: gonic
+name: Gonic
+source_description: "Lightweight self-hosted Subsonic music streaming server written in Go"
+
+upstream:
+  url: https://github.com/sentriz/gonic
+  repo_url: https://github.com/sentriz/gonic
+  license: GPL-3.0
+  docker_image: sentriz/gonic
+
+version_health:
+  latest_version: "v0.22.0"
+  latest_release_date: "2026-06-08"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~2 months between v0.22.0 (2026-06-08) and today (2026-08-05). Prior
+    releases: v0.21.0 (2026-05-25), v0.20.1 (2026-01-30), v0.20.0
+    (2026-01-25), v0.19.0 (2025-10-11), v0.18.0 (2025-09-22), v0.17.0
+    (2025-08-21) — roughly monthly-to-quarterly, no gaps. Beyond tagged
+    releases, upstream also publishes a rolling "nightly" Docker tag that
+    was rebuilt as recently as 2026-08-05 (the day of this analysis), with
+    commit-tagged builds landing multiple times a week through July 2026.
+    Repo is not archived, has 66 open issues still being triaged. No EOL or
+    maintenance-mode signal.
+
+catalogue_fit:
+  categories: [media, self-hosted-streaming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue covers media/music
+    streaming — Immich is the closest neighbour but it's photo/video
+    focused, not audio. Gonic is a small, single-binary Subsonic-API
+    server: it lets a customer point it at a music library and stream to
+    any of the many Subsonic-compatible mobile/desktop clients (DSub,
+    Symfonium, Sublime Music, Strawberry, etc.), with a web UI for
+    admin/config (last.fm/listenbrainz linking, user management, scan
+    triggers) rather than for actual listening. This would open a new
+    "personal media streaming" category for customers who want a private
+    music server without a third-party subscription.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, distinct use case (self-hosted music streaming) with a healthy,
+    actively-developed upstream and a lightweight footprint (Go binary,
+    ~170MB image, runs fine on modest resources). Ceiling is medium rather
+    than high because the app is only useful once a customer has their own
+    music library to upload/mount, which is a narrower audience than
+    general-purpose tools like n8n or Vaultwarden, and Subsonic clients are
+    a niche (if devoted) ecosystem compared to mainstream streaming apps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Gonic is a healthy, actively-maintained project (monthly-to-quarterly
+  tagged releases plus near-daily nightly builds, most recently rebuilt
+  the same day as this analysis) and is mechanically installable today.
+  It ships with a fixed default login (admin/admin) that can only be
+  changed after first login through its own web UI — there is no env var
+  or config-file option to set or hash an initial admin password at
+  container start, so `generated_from` root-password projection onto its
+  own login has no input channel. The recipe should instead gate the
+  whole app behind a Traefik `basic_auth: true` credential (projected from
+  the customer's root password), the same pattern used for n8n and WUD;
+  the internal admin/admin default is no longer customer-facing risk once
+  that gate is in front of it. Single HTTP port (4747, configurable),
+  supports a `GONIC_PROXY_PREFIX`, so it sits cleanly behind Traefik on
+  `<slug>.<base_domain>` with no extra raw ports needed. Main open design
+  question for a real recipe pass is how the customer's music library gets
+  into the container (bind mount vs. an upload/sync flow), which is outside
+  the scope of this gap analysis.
