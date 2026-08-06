@@ -1,0 +1,85 @@
+slug: open-monograph-press
+name: Open Monograph Press
+source_description: "Open-source editorial workflow and catalog software for scholarly books"
+
+upstream:
+  url: https://pkp.sfu.ca/software/omp/
+  repo_url: https://github.com/pkp/omp
+  license: GPL-3.0
+  docker_image: pkpofficial/omp
+
+version_health:
+  latest_version: "3.5.0-5"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Public Knowledge Project (PKP) ships OMP on the same release train as OJS
+    (Open Journal Systems). Tag history shows a steady cadence: 3_5_0-0
+    (2025-06-16), 3_5_0-1 (2025-07-09), 3_5_0-2 (2025-11-29), 3_5_0-3
+    (2025-12-19), 3_5_0-4 (2026-04-10), 3_5_0-5 (2026-06-30) — roughly every
+    1-3 months, with parallel backport point releases on the 3.3 LTS and 3.4
+    lines. As of today (2026-08-05) the latest tag is ~5 weeks old. The
+    official pkpofficial/omp Docker image is explicitly labeled BETA on
+    Docker Hub, distinct from the maturity of the underlying application.
+
+catalogue_fit:
+  categories: [productivity, cms, publishing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers scholarly/academic
+    publishing workflow (peer review, ONIX metadata, book catalog and sales
+    pages). paperless-ngx and paperless-ai are personal document archiving,
+    not editorial/publication workflow; gitea/opengist are dev tools; none
+    overlap OMP's actual use case.
+  usefulness: low
+  usefulness_rationale: >
+    The differentiation is real but the addressable customer base (academic
+    presses, scholarly societies, university library publishing units) is a
+    narrow niche compared to the rest of the catalogue's general
+    self-hosting audience. Worth building only if there's a specific customer
+    ask for it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_username, admin_password, database_password]
+  secrets_expressible_today:
+    - secret: database_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      OMP's normal first-boot path is an interactive web installer where the
+      operator freely chooses a site admin username, email, and plaintext
+      password (like OJS). There is no confirmed mechanism for projecting a
+      generated_from-style hash into that field — the installer expects the
+      plaintext, which it then hashes with its own internal scheme, not
+      argon2/bcrypt supplied pre-hashed.
+    - >
+      The Docker image's alternative unattended path (PKP_CLI_INSTALL env
+      var, documented in pkp/containers' easyOJS.md) is explicitly called
+      out by the maintainers as "under construction" and untested with the
+      current images ("This feature was not tested yet with the new
+      images. Report if you got any issue."). There is no reliable
+      automated install path today regardless of the credential-mechanism
+      question.
+    - >
+      Even if PKP_CLI_INSTALL matures, it still requires supplying an
+      arbitrary customer-chosen admin username *and* password pair — two
+      independent values our JWE bootstrap token has no channel for beyond
+      the single root-password projection.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Open Monograph Press is an actively maintained, GPL-3.0 scholarly
+  publishing platform with a genuinely novel niche versus our current
+  catalogue, but it fails installability on two independent grounds: its
+  only documented unattended-install path is explicitly experimental/beta
+  and untested by its own maintainers, and even a working version of that
+  path would still require an arbitrary customer-chosen admin
+  username/password pair with no projection mechanism today. Combined with
+  a narrow target audience, this is not worth pursuing now; revisit if
+  PKP_CLI_INSTALL matures and if generated_from ever needs to support this
+  case (still gated on the plaintext-vs-hash question).
