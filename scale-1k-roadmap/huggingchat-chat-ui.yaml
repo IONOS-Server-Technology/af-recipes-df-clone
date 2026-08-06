@@ -1,0 +1,89 @@
+slug: huggingchat-chat-ui
+name: HuggingChat (Chat UI)
+source_description: "Open-source Hugging Face chat interface for OpenAI-compatible LLM endpoints"
+
+upstream:
+  url: https://github.com/huggingface/chat-ui
+  repo_url: https://github.com/huggingface/chat-ui
+  license: Apache-2.0
+  docker_image: ghcr.io/huggingface/chat-ui-db
+
+version_health:
+  latest_version: "no recent semver tag; last GitHub Release is v0.10.0 (2025-05-11), package.json on main is already at 0.20.0; ghcr image is published on git-commit-SHA tags, most recent within the last day"
+  latest_release_date: "2025-05-11"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    The project has effectively stopped cutting GitHub Releases (last one
+    v0.10.0, 2025-05-11 — about 15 months before today, 2026-08-05) but
+    commit activity is not stale: package.json on main has moved on to
+    0.20.0 and the ghcr.io/huggingface/chat-ui-db image tags are
+    commit-SHA-based, with the newest tags published within the last 24
+    hours of research. This is the opposite pattern from a dormant repo —
+    it is a Hugging Face-maintained, high-traffic project (10k+ stars) that
+    has simply moved to rolling image tags instead of versioned releases,
+    so treat it as active despite the stale Releases page.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >-
+    Chat UI is the open-source codebase behind HuggingChat: a chat frontend
+    that speaks only to OpenAI-compatible endpoints (Hugging Face's own
+    router, or any self-hosted OpenAI-compatible server such as
+    llama.cpp/vLLM/Ollama's OpenAI-compat mode) and persists conversations
+    in a bundled MongoDB. It does not bundle or run any inference itself.
+    Open WebUI already covers this "chat frontend over an LLM backend"
+    niche in the catalogue, and does so with a stronger self-hosted story —
+    it ships bundled with Ollama for fully local inference and has its own
+    first-run admin signup wizard. Chat UI's differentiator (HF-specific
+    branding/router integration, MongoDB persistence) is real but narrow,
+    and its core value proposition — talking to Hugging Face's hosted
+    router — depends on a Hugging Face API token, i.e. an external
+    third-party credential the customer must supply, not a local/private
+    deployment story.
+  usefulness: low
+  usefulness_rationale: >-
+    Overlaps with an existing, better-fitted recipe (open-webui) for the
+    same "chat with an LLM" use case, and its most compelling use (talking
+    to Hugging Face's router) requires an external API key we have no
+    channel to provide. Pointing it at a self-hosted OpenAI-compatible
+    backend instead is possible but just re-creates open-webui's job with
+    extra MongoDB overhead and no admin setup wizard of its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENAI_API_KEY, BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      OPENAI_BASE_URL and OPENAI_API_KEY are required container env vars at
+      boot (per upstream README's docker run example) — the app has no
+      in-app setup wizard to collect these after first boot the way
+      AnythingLLM or Immich do. This is an external, customer-chosen
+      credential (a Hugging Face token or other OpenAI-compatible API key)
+      with no /compose input channel today. Gating the app behind Traefik
+      basic_auth (to cover its lack of a built-in login) is itself
+      expressible, but it does not resolve this more fundamental blocker —
+      the app still cannot boot into a usable state without a real
+      customer-supplied API key.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >-
+  HuggingChat's Chat UI is actively maintained upstream (rolling commit-SHA
+  image releases within the last day, despite a stale GitHub Releases page)
+  but is not installable via /compose today: it requires an external,
+  customer-supplied OPENAI_API_KEY as a boot-time env var with no in-app
+  setup flow to collect it later, and it has no built-in login of its own by
+  default. Even setting the platform-mechanism gap aside, it overlaps with
+  Open WebUI's existing "chat frontend for an LLM backend" niche without a
+  stronger self-hosted story, since its flagship use case (Hugging Face's
+  hosted router) depends on an external account and API key rather than a
+  bundled, private inference engine. Recommend not_recommended: blocked on
+  the missing external-API-key input channel and thin differentiation
+  against an existing recipe.
