@@ -1,0 +1,70 @@
+slug: radicale
+name: Radicale
+source_description: "Self-hosted CalDAV and CardDAV server for syncing calendars and contacts across devices"
+
+upstream:
+  url: https://radicale.org/
+  repo_url: https://github.com/Kozea/Radicale
+  license: GPL-3.0
+  docker_image: ghcr.io/kozea/radicale
+
+version_health:
+  latest_version: "3.7.8"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Verified against PyPI's release JSON (not a scraped page), which is
+    authoritative for upload timestamps: releases have landed roughly every
+    2-4 weeks throughout 2026 (3.6.0 on 2026-01-10 through 3.7.8 on
+    2026-08-06), i.e. a release the day after this analysis's "today"
+    (2026-08-05) — the project is clearly under active, well-maintained
+    development, not slowing or dormant.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers calendar/contact sync. Immich
+    covers photo backup, Syncthing covers generic file sync, but neither
+    speaks CalDAV/CardDAV. Radicale would let a customer run their own
+    calendar/contacts backend and point Apple Calendar/Contacts,
+    Thunderbird, DAVx5, etc. at it instead of a third-party cloud provider —
+    a distinct, privacy-motivated use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists (self-hosted CalDAV/CardDAV is a common
+    privacy-focused ask), but it's a single-purpose infrastructure service
+    with no web UI to show off in a catalogue screenshot and a technical
+    setup step (adding the server as a CalDAV/CardDAV account on each
+    device) that limits it to fairly technical customers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Radicale is a single-container, single-HTTP-port (5232) app with no web
+  UI — it's a pure CalDAV/CardDAV protocol server. Since v3.5.0 it defaults
+  to `type = denyall` (rejects everything until an [auth] backend is
+  configured), and its native auth backend (htpasswd) expects a file
+  mounted into /etc/radicale, not an env var, so there's no direct channel
+  to project a customer secret into Radicale's own login. The clean fix is
+  the same pattern already used for auth-less apps like Adminer: set
+  Radicale's own auth to `none` and gate the entire domain with Traefik
+  basic_auth, with that gate's password projected from the customer's root
+  password via generated_from. This works well here specifically because
+  CalDAV/CardDAV already runs over plain HTTP Basic Auth by convention, so
+  every mainstream client (Apple Calendar/Contacts, Thunderbird, DAVx5)
+  already prompts for exactly the username/password pair Traefik expects —
+  no protocol mismatch. Upstream is actively maintained (release the day
+  after this analysis). Recommend building, flagged as a lower-visibility
+  utility recipe (no UI) rather than a flagship addition.
