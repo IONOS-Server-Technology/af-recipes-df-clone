@@ -1,0 +1,72 @@
+slug: spacetimedb
+name: SpacetimeDB
+source_description: "Combined database and server for real-time multiplayer apps and games"
+
+upstream:
+  url: https://spacetimedb.com/
+  repo_url: https://github.com/clockworklabs/SpacetimeDB
+  license: "Business Source License 1.1 (converts to AGPL-3.0-with-linking-exception on 2031-08-02)"
+  docker_image: clockworklabs/spacetime
+
+version_health:
+  latest_version: "v2.8.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.8.0 shipped today (2026-08-05) per the GitHub releases Atom feed. The
+    ten most recent entries span 2026-06-30 to 2026-08-05 — roughly weekly
+    releases plus several same-week hotfix tags (e.g. three v2.6.1-hotfixN
+    tags within a week, four v2.7.0-hotfixN tags within a week). Docker Hub
+    mirrors this: clockworklabs/spacetime:v2.8.0 was pushed "1 day ago" at
+    query time, with v2.7.1 ~7 days prior. This is a fast-moving, actively
+    maintained project, not remotely dormant.
+
+catalogue_fit:
+  categories: [developer-tools, database, real-time, game-backend]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a realtime multiplayer/game backend
+    database. SpacetimeDB combines a database with in-process server logic
+    ("modules" written in Rust/C#/TypeScript) that clients connect to
+    directly over WebSocket — architecturally closer to Soketi
+    (developer-infrastructure-for-a-customer's-own-app) than to any
+    consumer-facing recipe. An install with no module published does
+    nothing visible; the customer must write and `spacetime publish` their
+    own game/app logic before the instance is useful for anything.
+  usefulness: low
+  usefulness_rationale: >
+    Real niche value for a self-hoster who is actively building a
+    multiplayer game or realtime app and wants their own SpacetimeDB
+    instance instead of the hosted Maincloud offering, but it has no web UI,
+    no out-of-the-box functionality, and requires programming (writing and
+    publishing a module in Rust/C#/TS via the `spacetime` CLI) before it
+    does anything — a much narrower and more technical audience than the
+    rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GATE_BASIC_AUTH
+  secrets_expressible_today:
+    - secret: GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SpacetimeDB is a healthy, fast-moving upstream (weekly releases, active
+  hotfixing, BSL-1.1 source-available license converting to AGPL-3.0 in
+  2031) that is mechanically installable today as a single-container
+  docker-compose recipe on one HTTP/WebSocket port (3000), gated by Traefik
+  basic_auth in place of its own login. But it's a poor fit for this
+  catalogue: it has no web UI, ships zero end-user functionality until the
+  customer writes and publishes their own game/app module, and its normal
+  clients (game SDKs, the `spacetime` CLI) don't naturally carry basic-auth
+  credentials the way a browser does. Recommend build_with_caveats — worth
+  revisiting if there's specific customer demand from game developers, but
+  it's a developer-infrastructure play like Soketi rather than a
+  ready-to-use app, and lower priority than recipes usable out of the box.
