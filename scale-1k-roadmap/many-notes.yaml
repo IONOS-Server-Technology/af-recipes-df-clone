@@ -1,0 +1,88 @@
+slug: many-notes
+name: Many Notes
+source_description: "Markdown note-taking app with vaults, full-text search, and OAuth"
+
+upstream:
+  url: https://github.com/brufdev/many-notes
+  repo_url: https://github.com/brufdev/many-notes
+  license: MIT
+  docker_image: brufdev/many-notes
+
+version_health:
+  latest_version: "v0.16.2"
+  latest_release_date: "2026-06-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v0.16.2 landed 2026-06-13, about 7-8 weeks before
+    today (2026-08-05). Release history over the trailing year shows real
+    but uneven cadence: a burst of three releases (v0.16.0-v0.16.2) across
+    2026-05-25 to 2026-06-13, preceded by a roughly five-month gap back to
+    v0.15.5 on 2025-12-08, and a run of three patch releases in
+    2025-10/2025-11 before that. Not archived, no EOL notice, ~1k GitHub
+    stars, 9 open issues, actively developed — this reads as a small but
+    healthy single-maintainer OSS project, not dormant.
+
+catalogue_fit:
+  categories: [productivity, notes]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal markdown note-taking /
+    knowledge-base use cases. Closest by shape (single PHP/SQLite
+    container, vault-of-files-on-disk model) is Vaultwarden or
+    Paperless-ngx, but neither serves the same purpose — this would open a
+    genuinely new category (Obsidian/Joplin-style self-hosted notes with
+    multi-user vaults and real-time collaboration).
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted markdown notes with vaults is a popular, recurring
+    self-hosting request and a natural complement to the existing
+    productivity-adjacent recipes (Gitea, Opengist). Multi-vault,
+    multi-user support and real-time collaboration make it more capable
+    than a plain static-notes app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Many Notes has its own local-auth login, but no admin-password env
+      var or setup wizard — the first account is created through an open,
+      unauthenticated self-registration form on the web UI, and there is
+      no `generated_from` channel to project the customer's root-password
+      hash into that registration (it is a web-form signup, not an
+      app-managed credential field). Left unfronted, any visitor who
+      reaches the domain before the customer registers could create the
+      first (admin) account themselves. A Traefik `basic_auth` gate closes
+      that exposure at the perimeter, but the customer still has to
+      register their own in-app account manually after first login — the
+      recipe can only secure the door, not pre-provision the account
+      behind it.
+    - >
+      OAuth (GitHub, Google, GitLab, Azure, Keycloak, and ~10 other
+      providers) is optional, not required to boot, so it does not block
+      `installable_today` — but it also cannot be offered as a customer
+      feature under the current mechanism, since OAuth client
+      ID/secret/redirect-URI registration has no input channel in
+      `/compose` today.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Many Notes is a small, actively maintained single-container markdown
+  note app (PHP + SQLite by default, bundled Typesense for full-text
+  search, one HTTP port) that would fill a real gap — no note-taking app
+  exists in the current 24-recipe catalogue. It clears the installability
+  bar only via a mandatory Traefik basic_auth perimeter gate, because its
+  own account creation is an open self-registration form with no
+  root-password projection channel; the customer must still complete
+  in-app registration themselves after first login. OAuth support is a
+  nice-to-have that stays unusable under today's mechanism (no channel
+  for customer-supplied client secrets) but isn't a blocker since local
+  auth works standalone. Recommend building with the basic_auth caveat
+  called out explicitly in the recipe.
