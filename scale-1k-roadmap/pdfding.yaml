@@ -1,0 +1,75 @@
+slug: pdfding
+name: PdfDing
+source_description: "Self-hosted PDF manager with cross-device sync and browser-based annotation"
+
+upstream:
+  url: https://www.pdfding.com/
+  repo_url: https://github.com/mrmn2/PdfDing
+  license: AGPL-3.0
+  docker_image: mrmn/pdfding
+
+version_health:
+  latest_version: "v1.12.0"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.12.0 shipped 2026-08-02, 3 days before today (2026-08-05). Prior
+    releases show a steady ~2-4 week cadence: v1.11.0 (2026-07-24),
+    v1.10.0 (2026-07-09), v1.9.0 (2026-06-22), v1.8.0 (2026-06-05),
+    v1.7.2 (2026-04-12), v1.7.0 (2026-03-29, a security fix for
+    CVE-2026-34376, "shared PDF authentication bypass"). Frequent
+    feature releases plus a recent CVE fix indicate an actively
+    maintained project, not archived, not slowing.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx]
+  differentiation: >
+    PdfDing is a lightweight, PDF-specific manager/viewer focused on
+    cross-device reading progress sync, in-browser annotation
+    (highlights, drawings, signatures), collections/tagging, markdown
+    notes per document, and link/QR sharing. Paperless-ngx — already in
+    the catalogue — is a broader OCR-driven document archive that
+    ingests scanned paper documents of any type into a searchable,
+    tagged store; it is not built around interactive PDF
+    reading/annotation. The two share "manage your documents" territory
+    but solve different jobs: PdfDing is a personal PDF reader/annotator
+    for files a user already has, not a paper-to-searchable-archive
+    pipeline.
+  usefulness: medium
+  usefulness_rationale: >
+    Cross-device PDF reading with annotation and sharing is a
+    recognizable, standalone self-hosted use case (manuals, contracts,
+    ebooks, research papers) distinct from the OCR-archive niche
+    paperless-ngx covers, so it clears the "would a customer want this
+    on its own" bar. It is not a top-tier draw compared to categories
+    like password managers or photo backup, but it is a clean, minimal,
+    single-container app with an active upstream.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "PdfDing's own accounts are created through a self-service email/password sign-up form (django-allauth) rather than an env var the recipe could set — there is no ACCOUNT_EMAIL/ACCOUNT_PASSWORD-style variable to project a hashed root password into, so the generated_from mechanism does not apply to PdfDing's own login. Left with default settings (DISABLE_USER_SIGNUP unset), the app would be an open, anyone-can-register PDF store on the public internet until a Traefik basic_auth gate is added in front of it."
+    - "Promoting a registered user to admin requires `python manage.py make_admin -e <email>` executed inside the running container's shell — no env var or API equivalent exists. This is not a hard blocker: PdfDing's admin role only grants user-management/deletion rights over other accounts, which a single-tenant install behind a basic_auth gate does not need, so the app is fully usable as a non-admin account."
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PdfDing ships as a single container (mrmn/pdfding, pin v1.12.0) with a
+  bundled SQLite option, one HTTP port (8000), and no external service
+  dependencies at first boot — a straightforward fit behind Traefik on
+  <slug>.<base_domain>. Its own login is self-service sign-up with no
+  env-settable admin credential, so it needs the Traefik basic_auth gate
+  (root-password projection) rather than generated_from to avoid sitting
+  open to public registration; that mechanism is fully expressible today.
+  Upstream is active with a healthy release cadence and a recent CVE
+  fix, and while it has some conceptual overlap with paperless-ngx, the
+  two target different jobs (PDF reading/annotation vs. OCR archiving).
+  Recommend build_now.
