@@ -1,0 +1,92 @@
+slug: nodebb
+name: NodeBB
+source_description: "NodeBB is a modern, real-time discussion platform for building community forums"
+
+upstream:
+  url: https://nodebb.org
+  repo_url: https://github.com/NodeBB/NodeBB
+  license: GPL-3.0
+  docker_image: ghcr.io/nodebb/nodebb:4.14.7
+
+version_health:
+  latest_version: "v4.14.7"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    NodeBB ships patch releases multiple times a week (v4.14.1 on 2026-07-22
+    through v4.14.7 on 2026-08-05, several within the same day — 0 days
+    since the latest release as of today, 2026-08-05), on top of a steady
+    4.x minor cadence (4.9 → 4.14 across recent months). This is one of the
+    more actively maintained projects reviewed in this series — no EOL
+    signal, no archival, no slowdown. Note: the project's own Docker Hub
+    image (`nodebb/docker`) is stale (newest tags ~3 years old, stuck around
+    1.19.x/3.0.0-rc), but the project has since moved to publishing current,
+    version-pinned images on GHCR (`ghcr.io/nodebb/nodebb`, tag `4.14.7`
+    published the same day as the release) — that is the image to pin to,
+    not the Docker Hub one.
+
+catalogue_fit:
+  categories: [community]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers community/discussion-forum hosting — the
+    nearest neighbours (Gitea for code, Anytype for notes, Opengist for
+    pastes) serve different purposes. A customer standing up a public
+    support/community forum for a product or hobby project would reach for
+    this instead of a hosted SaaS forum. (Flarum was evaluated separately
+    for the same forum niche and hit the identical blocking issue below —
+    the gap is real but the current mechanism can't reach either candidate.)
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted forums are a genuine but narrower need than the
+    automation/dev-tooling/security apps dominating the current 24 recipes.
+    NodeBB is well-maintained, Node.js-native (fits our container model more
+    naturally than Flarum's PHP/community-image situation), and has a
+    current official image — a reasonable pick if a forum recipe is wanted.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - NODEBB_ADMIN_USERNAME
+    - NODEBB_ADMIN_PASSWORD
+    - NODEBB_ADMIN_EMAIL
+    - NODEBB_DB_PASSWORD (Mongo/Postgres backend password)
+  secrets_expressible_today:
+    - secret: NODEBB_DB_PASSWORD (Mongo/Postgres backend password)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      NodeBB's own setup path (`src/install.js`, `createAdmin()`) takes
+      NODEBB_ADMIN_USERNAME/NODEBB_ADMIN_PASSWORD/NODEBB_ADMIN_EMAIL (or an
+      equivalent `admin:*` setup-JSON block) as plaintext and calls
+      `User.create({ password: ... })`, which bcrypt-hashes it internally.
+      There is no supported path to hand NodeBB a pre-computed hash — this
+      is a genuine plaintext-password requirement, the same structural
+      blocker documented for Flarum, so `generated_from` (which only ever
+      carries a hash) cannot express it. If NODEBB_ADMIN_PASSWORD is omitted
+      entirely, NodeBB will auto-generate a random 8-character password and
+      print it once to container logs — not a usable customer-facing flow.
+    - >
+      Gating the whole app behind Traefik `basic_auth` is available
+      mechanically but wrong for this app: a forum's entire point is public
+      visitor/member access, so basic-auth-ing the whole domain would block
+      real forum users, not just protect an admin panel (unlike n8n/Adminer,
+      where the whole surface *is* the admin tool).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  NodeBB is an actively maintained (near-daily patch cadence), Node.js-native
+  forum platform with a current official image (ghcr.io/nodebb/nodebb) — a
+  solid pick for the forum/community gap in the catalogue if that gap is
+  worth filling. It is blocked today for the same reason as Flarum: initial
+  admin-account setup requires the password as plaintext so the app can hash
+  it itself, which `generated_from` cannot supply, and gating the entire
+  public-facing forum behind Traefik `basic_auth` would defeat the app's
+  purpose rather than just protect an admin surface. Revisit once the
+  platform gains a genuinely customer-chosen (not root-password-derived)
+  credential channel, or if NodeBB adds a documented way to seed the admin
+  account from a pre-hashed value.
