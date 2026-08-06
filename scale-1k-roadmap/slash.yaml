@@ -1,0 +1,80 @@
+slug: slash
+name: Slash
+source_description: "Self-hosted shortcut manager that turns URLs into memorable s/ links"
+
+upstream:
+  url: https://github.com/yourselfhosted/slash
+  repo_url: https://github.com/yourselfhosted/slash
+  license: AGPL-3.0
+  docker_image: yourselfhosted/slash
+
+version_health:
+  latest_version: "1.0.0-rc.2"
+  latest_release_date: "2025-12-17"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Last tagged *stable* release is v0.5.3 (2025-02-06) — about 18 months
+    before today (2026-08-05). Since then the project has been sitting in
+    an extended pre-release phase: 1.0.0-rc.0 (~2025-08, "almost 2 years"
+    per Docker Hub at the time of checking), 1.0.0-rc.1 (~2025-08, "about 1
+    year" ago), and 1.0.0-rc.2 (~2025-12, "8 months" ago) — none promoted
+    to a 1.0.0 stable tag in over a year. The `latest` tag on Docker Hub is
+    frozen at the same near-2-year-old build as rc.0, so pulling `:latest`
+    today gets a stale, pre-rc image rather than current code. Source commit
+    history on `main` is current through at least 2025-12-22 (UI refactors,
+    dependency bumps), so the project is not abandoned — development
+    continues, it's just stuck cutting a real release. Net: active
+    development, slowing/stalled release cadence, and an image-tagging
+    practice (`latest` far behind `main`) that would need a specific pinned
+    tag (`1.0.0-rc.2`) rather than `latest` if this were built.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover link shortening or shortcut
+    management. Slash's specific niche — short, memorable `s/name` links
+    (e.g. `s/docs`) that redirect to long internal/external URLs, shared via
+    a browser extension and optional public collections — is closer to a
+    team's internal "go-links" tool than a generic bookmark manager
+    (comparable un-built candidates in this gap-analysis set: shlink for
+    branded short links, linkding for personal bookmarking; Slash sits
+    between the two, oriented at team-shared shortcuts rather than either).
+  usefulness: medium
+  usefulness_rationale: >
+    Go-links / team shortcut managers are a recognizable, easily-explained
+    self-hosting want (the internal-tool pattern popularized by Google's
+    "go/" links), and Slash is a small, single-container, single-HTTP-port
+    app with no external dependencies by default (SQLite). Usefulness is
+    medium rather than high because it targets a narrower team-productivity
+    audience than security/monitoring recipes already in the catalogue, and
+    the stalled-release version health (see above) is a real caveat for a
+    net-new addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Slash is a single-container Go/React app (SQLite by default, Postgres
+  optional) that needs nothing beyond a domain to boot: the first visitor to
+  the instance signs up through the app's own web UI and becomes its admin,
+  the same self-service owner-setup pattern already accepted for the n8n
+  recipe, so there is no customer-supplied secret to project and no
+  Traefik basic_auth gate is structurally required. Mechanically it would be
+  installable today with no blocking issues. The caveat is entirely version
+  health: upstream hasn't cut a stable tag since v0.5.3 (2025-02-06, ~18
+  months ago) and has been stuck in a 1.0.0-rc.* pre-release phase for over a
+  year, with the Docker Hub `latest` tag frozen well behind `main` — a
+  recipe would need to pin the specific `1.0.0-rc.2` image and accept it's
+  tracking a pre-release build. Recommend build_with_caveats: worth
+  building given the clean install story and genuine catalogue gap, but flag
+  the pre-release pin and watch for whether upstream ever ships 1.0.0 stable
+  or stalls further.
