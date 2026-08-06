@@ -1,0 +1,102 @@
+slug: matomo
+name: Matomo
+source_description: "Leading open-source web analytics platform with complete data ownership and privacy"
+
+upstream:
+  url: https://matomo.org
+  repo_url: https://github.com/matomo-org/matomo
+  license: GPL-3.0-or-later
+  docker_image: matomo
+
+version_health:
+  latest_version: "5.11.1"
+  latest_release_date: "2026-06-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.11.1 (2026-06-12) was a patch release fixing CNIL-related data-retention
+    behavior on top of 5.11.0 (2026-06-08). That is about 8 weeks before
+    today (2026-08-05) — well within Matomo's normal cadence of a minor
+    release roughly every 4-6 weeks (5.10.0 on 2026-05-03, 5.8.0 on
+    2026-03-04). InnoCraft (the commercial entity behind Matomo) actively
+    develops and funds the project; no signs of slowing.
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers web/product analytics. Matomo is a genuinely
+    new category for the catalogue — a privacy-respecting, self-hosted
+    alternative to Google Analytics, single HTTP entrypoint, fits the
+    one-port-per-domain Traefik model cleanly (structurally close to
+    recipes/paperless-ngx and recipes/n8n: single web/app container + a
+    relational database).
+  usefulness: high
+  usefulness_rationale: >
+    Web analytics with full data ownership is a common, recurring
+    self-hosting request, especially from customers avoiding
+    Google Analytics for GDPR/privacy reasons. High recurring demand
+    independent of the installability concerns below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MATOMO_DATABASE_PASSWORD, MATOMO_SUPERUSER_LOGIN]
+  secrets_expressible_today:
+    - secret: MATOMO_DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No first-boot channel to create (or gate) the Super User account.
+      The official image auto-configures the database connection via
+      MATOMO_DATABASE_* env vars, but that only skips the DB-connection
+      step of the installer — Matomo still requires a human to complete
+      the rest of the setup wizard in a browser (system checks, table
+      creation trigger, then a "Super User" step where the admin chooses
+      their own username/password interactively, followed by
+      website/tracking-tag setup). There is no env var, CLI command, or
+      config-file field that accepts a pre-hashed or plaintext admin
+      credential at container start.
+    - >
+      Even if such a field existed, Matomo's user-password hash is not a
+      plain `bcrypt(password)`/`argon2(password)`: UsersManager first runs
+      `hash_hmac('sha512', password, $salt)` using a per-install salt that
+      is itself randomly generated during setup and stored in
+      config.ini.php, and only *then* passes that intermediate value to
+      `password_hash()` (bcrypt). `generated_from: "<algo>:ROOT_PASSWORD"`
+      only supports `algo(ROOT_PASSWORD)` directly — it has no way to
+      reproduce Matomo's HMAC-with-install-specific-salt pre-processing
+      step, so this is not merely an "unsupported algorithm" case (the
+      extensible row in SCHEMA.md's decision table) but a structural
+      mismatch in what the field expects.
+    - >
+      A Traefik `basic_auth` gate does not fully close this gap the way it
+      does for apps with no login of their own (e.g. Adminer, WUD): the
+      real problem here is a race, not a missing perimeter. Anyone who
+      reaches the domain before the customer completes the wizard becomes
+      the Super User. A `basic_auth` gate using a root-password hash would
+      close that race (nobody untrusted reaches the installer first) and
+      is the closest fit — but the wizard still requires the customer to
+      manually click through several screens (including creating a
+      website entry and copying a JS tracking tag) before Matomo is
+      actually usable, which is a materially different post-install
+      experience than every other recipe's zero-touch boot.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Matomo is an active, well-maintained project and a genuinely new,
+  high-demand category (privacy-first web analytics) with zero overlap in
+  the current 24-recipe catalogue. It is mechanically reverse-proxy
+  friendly (single HTTP port), but first-boot account provisioning is a
+  real blocker: the Super User account can only be created through an
+  interactive browser wizard, Matomo's password hash requires an
+  install-specific HMAC step that `generated_from` cannot reproduce even
+  for supported algorithms, and a Traefik `basic_auth` gate only mitigates
+  the race for the installer rather than delivering the zero-touch,
+  fully-provisioned boot our other recipes provide. Recommend revisiting
+  once there's a way to surface a platform-generated first-boot secret
+  through the wizard (or once Matomo ships a documented headless
+  superuser-creation path), rather than building around a security race
+  today.
