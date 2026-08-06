@@ -1,0 +1,76 @@
+slug: kan
+name: Kan
+source_description: "Open-source Kanban board and project management tool, a Trello alternative"
+
+upstream:
+  url: https://kan.bn/
+  repo_url: https://github.com/kanbn/kan
+  license: AGPL-3.0
+  docker_image: ghcr.io/kanbn/kan:0.6.0
+
+version_health:
+  latest_version: "v0.6.0 (2026-06-25)"
+  latest_release_date: "2026-06-25"
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    v0.6.0 shipped 2026-06-25, about 6 weeks before this analysis
+    (2026-08-05). Prior releases were roughly monthly (v0.5.6 2026-03-19,
+    v0.5.5 2026-03-11, v0.5.4 2026-02-05, v0.5.3 2026-01-06, v0.5.2
+    2025-12-19), so the ~3-month gap to v0.6.0 is a real slowdown from that
+    cadence, but the repo (787 commits, 5.3k stars) shows no archival or
+    EOL signal and the ghcr.io/kanbn/kan image itself has fresher `edge`/
+    `main` builds within the last few days, so upstream is still actively
+    developed even though tagged-release cadence has cooled. All releases
+    to date are tagged pre-release (0.x), i.e. the project has not yet cut
+    a 1.0 — treat as an early-stage but active project, not dormant.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes offer kanban/project-management boards.
+    Runtipi and Portainer are infrastructure/app-management tools, Gitea is
+    a git host, Opengist is a snippet host — nothing overlaps with
+    Trello-style task/board tracking. Kan would be a genuinely new
+    productivity category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >-
+    "Self-hosted Trello alternative" is a very commonly requested
+    self-hosting category (alongside Vaultwarden-for-1Password,
+    n8n-for-Zapier), and Kan is a modern, actively-developed entrant with a
+    real official Docker image and Docker Compose deployment path — a
+    strong candidate to fill an otherwise-empty productivity slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, BETTER_AUTH_SECRET, KAN_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: KAN_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Kan is an actively developed, genuinely differentiated addition (no
+  current recipe covers kanban/project management) with an official
+  ghcr.io/kanbn/kan Docker image, a shippable pinned tag (0.6.0), and a
+  standard Postgres-backed Next.js compose stack. It has no
+  admin-login parameter to project a root-password hash into — Better
+  Auth ships open self-service email/password sign-up instead, and the
+  app gives no way to disable that sign-up form at deploy time without
+  also blocking the customer's own first account. The mitigation is the
+  same one already used for other logins we can't otherwise seed: gate
+  the whole app behind a Traefik basic_auth wall projected from the
+  customer's root password, same pattern as n8n/WUD/Open WebUI. With
+  that gate, no secret is missing an input channel and this is
+  build_now, with the release-cadence slowdown (monthly to ~quarterly)
+  and pre-1.0 status noted as things to re-check before shipping a
+  recipe.
