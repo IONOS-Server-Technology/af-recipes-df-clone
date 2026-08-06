@@ -1,0 +1,95 @@
+slug: parse-server
+name: Parse Server
+source_description: "Open-source mobile app backend with REST, GraphQL, auth, and push notifications"
+
+upstream:
+  url: https://parseplatform.org
+  repo_url: https://github.com/parse-community/parse-server
+  license: Apache-2.0
+  docker_image: parseplatform/parse-server
+
+version_health:
+  latest_version: "9.10.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~3 weeks since the latest release (9.10.0, 2026-07-13) as of 2026-08-05.
+    Repo is one of the most established projects in the open-source-BaaS
+    space (spun out of the original Parse.com shutdown in 2016), still
+    receiving frequent releases (security fixes for GraphQL schema
+    disclosure and file-upload validation shipped in this very release) and
+    active PR/commit traffic on both `release` and `alpha` branches. No sign
+    of slowing or abandonment.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers a Backend-as-a-Service
+    for mobile/web app developers (REST + GraphQL data API, user auth,
+    push notifications, cloud functions, file storage). Closest neighbors
+    are gitea/opengist (developer tooling) but those are source hosting, not
+    an app backend. A customer building a mobile or web app who wants to
+    self-host their own BaaS instead of Firebase/Supabase would use this;
+    nobody else in the catalogue serves that need.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated and the project is mature/stable, but Parse
+    Server itself has no web UI at all — it's a pure REST/GraphQL API
+    server, so on its own it's only useful to a customer who is also writing
+    application code against it (a narrower, more technical audience than
+    most of our self-contained-app recipes). The optional companion, Parse
+    Dashboard, adds a web UI for managing classes/data/users and would be
+    the natural pairing to make this feel like a complete "recipe" rather
+    than a bare API endpoint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - PARSE_SERVER_MASTER_KEY
+    - PARSE_SERVER_APPLICATION_ID
+    - MONGO database credentials
+    - PARSE_DASHBOARD_USER_PASSWORD (only if Parse Dashboard is bundled for a web UI)
+  secrets_expressible_today:
+    - secret: PARSE_SERVER_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: PARSE_SERVER_APPLICATION_ID
+      mechanism: server_generated_no_customer_input
+    - secret: MONGO database credentials
+      mechanism: server_generated_no_customer_input
+    - secret: PARSE_DASHBOARD_USER_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      Parse Server has no web UI of its own — it is a bare REST/GraphQL API
+      with no login screen to gate at all. Shipping it alone (no dashboard)
+      means there is nothing for Traefik `basic_auth` to usefully protect
+      beyond the raw API surface, and no interactive way for a customer to
+      confirm the instance is alive/working after provisioning, which is a
+      weak recipe experience even though it isn't a hard installability
+      blocker (masterKey already gates all data access at the API layer).
+    - >
+      If Parse Dashboard is bundled to give the recipe a real web UI, its
+      admin login (PARSE_DASHBOARD_USER_ID / PARSE_DASHBOARD_USER_PASSWORD)
+      is settable via env vars at container start, so USER_ID could be
+      fixed (e.g. "admin") and USER_PASSWORD projected via
+      `generated_from: "<algo>:ROOT_PASSWORD"` — same pattern as
+      Vaultwarden's ADMIN_TOKEN. This is not a blocker, just extra scope
+      beyond a bare Parse Server recipe.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Parse Server is a mature (10 years old), actively maintained, Apache-2.0
+  BaaS for mobile/web apps with no equivalent in our current catalogue —
+  genuine differentiation. All secrets it needs (master key, app ID, DB
+  credentials) can be server-generated with no customer input, so it is
+  installable today as a bare API-only recipe. The catch is that on its own
+  it has no web UI and nothing for a customer to click through after
+  provisioning; the recipe would be far more useful (and demo-able) paired
+  with Parse Dashboard, whose admin login maps cleanly onto the
+  generated_from root-password mechanism. Recommend building with Parse
+  Dashboard included rather than as a bare Parse Server instance.
