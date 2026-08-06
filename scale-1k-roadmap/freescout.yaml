@@ -1,0 +1,67 @@
+slug: freescout
+name: FreeScout
+source_description: "Lightweight open-source help desk and shared inbox system"
+
+upstream:
+  url: https://freescout.net/
+  repo_url: https://github.com/freescout-help-desk/freescout
+  license: AGPL-3.0
+  docker_image: null # no image published by the FreeScout team; freescout.net/docker/ redirects to the third-party nfrastack/container-freescout project (docker.io/nfrastack/freescout, MIT-licensed wrapper — that license covers the wrapper, not the app)
+
+version_health:
+  latest_version: "1.8.232"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 1.8.232 shipped 2026-07-31, 6 days before this analysis
+    (2026-08-05). The preceding releases (1.8.231, 1.8.230, 1.8.229...) land
+    roughly weekly going back through mid-2026, so this is a genuinely
+    active, frequently-patched project, not a stale one.
+
+catalogue_fit:
+  categories: [communication, business, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a ticketing/shared-inbox
+    help desk. n8n (automation) and the CRM-adjacent tools we don't yet
+    carry are the nearest conceptual neighbors but serve a different job;
+    FreeScout would be a genuinely new category — self-hosted customer
+    support for small teams who don't want a SaaS help desk subscription.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted help desk is a common, well-understood SMB need with real
+    demand for a free alternative to Help Scout/Zendesk, and FreeScout is
+    the most established free option in that space (AGPL-3.0, no per-seat
+    licensing, active weekly releases).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASS, DB_PASS]
+  secrets_expressible_today:
+    - secret: ADMIN_PASS
+      mechanism: generated_from_root_password
+    - secret: DB_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "No official Docker image from the FreeScout team itself; the app's own docs (freescout.net/docker/) point to a third-party wrapper (nfrastack/container-freescout, MIT), which bundles PHP-FPM/Nginx plus a bootstrap script but is not maintained by the upstream project — a supply-chain/support caveat worth surfacing even though it doesn't block the /compose secret-projection mechanism."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FreeScout is an actively maintained (weekly releases), AGPL-3.0 self-hosted
+  help desk with no overlap in our current 24-recipe catalogue and clear
+  differentiated demand (a free Help Scout/Zendesk alternative). It's a
+  Laravel/PHP app needing its own MySQL/MariaDB database plus a scheduler/
+  queue worker, structurally similar to the paperless-ngx/akaunting
+  app+db pattern, and sits behind a single HTTP port so it's fully
+  reverse-proxy-compatible. Bootstrap only needs an admin password
+  (ADMIN_PASS, expressible via generated_from_root_password) and a database
+  password (server-generated) — no external API key or OAuth registration
+  is required at first boot, so it clears the /compose constraint with no
+  hard blockers. The one real caveat: there is no image published by the
+  FreeScout team itself, only a third-party Docker wrapper linked from their
+  own docs, which should be flagged to whoever authors the recipe. Recommend
+  build_with_caveats.
