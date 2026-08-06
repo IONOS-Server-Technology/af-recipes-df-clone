@@ -1,0 +1,74 @@
+slug: open-journal-systems
+name: Open Journal Systems
+source_description: "Open-source academic journal management and open access publishing platform"
+
+upstream:
+  url: https://pkp.sfu.ca/software/ojs/
+  repo_url: https://github.com/pkp/ojs
+  license: GPL-3.0
+  docker_image: pkpofficial/ojs
+
+version_health:
+  latest_version: "3.5.0-5 (LTS track; image tags lts-3_5 / stable-3_5_0)"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.5.0-5 shipped 2026-06-30, about 5 weeks before today (2026-08-05) —
+    well within normal cadence. The Public Knowledge Project runs a
+    dual-track model: a rolling "current" release (3.4.x, latest 3.4.0-10,
+    2025-11-21) and an LTS track (3.5, first tagged 2025-12; patch builds
+    roughly every 1-2 months since, most recently 3.5.0-5) plus an older LTS
+    (3.3, 3.3.0-22, 2025-11-19, supported until 2027-01-01). Regular patch
+    cadence across three concurrently supported lines, active GitHub
+    activity, and an official Docker image kept in sync with source
+    releases (last pushed ~1 month before this analysis) — no
+    archive/EOL/dormant signal. Backed by an academic non-profit (Simon
+    Fraser University) with a 20+ year track record, not a
+    venture-dependent single-maintainer project.
+
+catalogue_fit:
+  categories: [cms, publishing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue addresses scholarly
+    publishing/journal management (peer review workflow, submission
+    tracking, DOI/OAI metadata, open-access article hosting). Closest
+    adjacent tools are paperless-ngx/paperless-ai (document archival/OCR,
+    not editorial workflow) and gitea/opengist (developer collaboration,
+    not academic publishing) — no functional overlap with any of them.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct audience (university departments, independent/society
+    journals, research institutes) that self-hosted alternatives serve
+    today via generic LAMP hosting; a one-click recipe would be a genuine
+    convenience win for that niche. Medium rather than high because it is a
+    narrow vertical audience compared to broadly-applicable tools already in
+    the catalogue (n8n, Vaultwarden, Immich).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MySQL/MariaDB root or app-db password, OJS admin account (username + password created via install wizard)]
+  secrets_expressible_today:
+    - secret: MySQL/MariaDB app-db password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "OJS has no unattended/env-var install path: both the web installer and the CLI installer (tools/install.php -> PKP\\cliTool\\InstallTool::readParams(), see pkp-lib classes/cliTool/InstallTool.php) prompt for and store an admin username + PLAINTEXT password that OJS hashes itself during setup. There is no field that accepts a pre-computed hash, so root-password projection via `generated_from` cannot reach it — this is the genuine-plaintext-requirement case SCHEMA.md calls a structural blocker, not just an unsupported hash algorithm."
+    - "Gating the whole app behind Traefik basic_auth does not resolve the above: a customer still needs to complete the OJS install wizard and set an admin password themselves to actually use the journal (submit articles, manage editorial workflow) — basic_auth only protects the door, it doesn't substitute for the app's own required account-creation step."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Open Journal Systems is an actively maintained, well-established
+  scholarly-publishing platform (PKP, Simon Fraser University; LTS 3.5.0-5
+  shipped 2026-06-30, ~5 weeks before this analysis) with an official Docker
+  image and no overlap in our current 24-recipe catalogue — it would fill a
+  genuine, if narrow, gap for university/journal customers. It is blocked
+  today purely on the installation mechanism: OJS's installer (web or CLI)
+  requires the customer to set a plaintext admin password during setup, and
+  neither `generated_from` (hash-only) nor a Traefik `basic_auth` gate can
+  substitute for that required first-run account creation. Revisit once a
+  customer-chosen-plaintext-password input channel exists on the platform,
+  or if PKP ever adds a pre-hashed/env-based unattended install path.
