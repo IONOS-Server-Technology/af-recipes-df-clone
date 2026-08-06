@@ -1,0 +1,77 @@
+slug: friendica
+name: Friendica
+source_description: "Self-hosted fediverse social network with ActivityPub and Diaspora federation"
+
+upstream:
+  url: https://friendi.ca
+  repo_url: https://github.com/friendica/friendica
+  license: AGPL-3.0
+  docker_image: friendica:2026.05-apache
+
+version_health:
+  latest_version: "2026.05"
+  latest_release_date: "2026-05-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. 2026.05 (May 21, 2026, codename "Blutwurz") is the
+    newest tagged release, about 2.5 months old. Release history is a
+    steady few-times-a-year cadence: 2026.05 → 2026.01 (Jan 27, 2026) →
+    2024.12 (Jan 1, 2025) → 2024.08 (Aug 17, 2024) → 2024.03 (Mar 21, 2024),
+    roughly every 4-5 months going back years. The official Docker Hub
+    image (`friendica`, part of Docker's library/official images) shows an
+    unreleased `2026.08-dev` tag already being built as of Aug 5, 2026 —
+    the same day as this analysis — confirming active ongoing development
+    toward the next release. Upstream GitHub repo is not archived, has
+    43k+ commits on `develop`, and ~28 open PRs. No maintenance-only or
+    EOL signal; this is a long-running, actively maintained project (first
+    released 2010).
+
+catalogue_fit:
+  categories: [social, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch federated/social networking —
+    Friendica would be the first entry in that space. It lets a customer
+    run their own ActivityPub + Diaspora-protocol node (interoperating with
+    Mastodon, Lemmy, Diaspora, etc.), which is a genuinely different pitch
+    ("own your social presence") than anything currently in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted fediverse nodes have a real and growing audience among
+    privacy-conscious users leaving corporate social platforms, and
+    Friendica specifically appeals to that crowd by bridging multiple
+    federation protocols (not just ActivityPub) in one node. Capped at
+    medium rather than high because it's a smaller, more technical niche
+    than our typical productivity/AI-tool customer, and full usefulness
+    depends on outbound email (SMTP) working for registration/notification
+    mail, which is a separate manual setup step post-install.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_PASSWORD]
+  secrets_expressible_today:
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Friendica is mechanically simple to install today: the official
+  `friendica:2026.05-apache` image plus a MariaDB/MySQL container (needs a
+  `cron`/worker instance too, for background federation delivery — a
+  three-service stack similar in shape to n8n), a single HTTP port (80,
+  Traefik-friendly), and no customer-facing secret at boot beyond the
+  internal DB password, which is trivially server-generated. Friendica has
+  no admin-password env var at all: the admin account is created by
+  whoever first visits the site and completes its own web install wizard
+  (their chosen username/password never leaves the browser), with
+  `FRIENDICA_ADMIN_MAIL` only used to match that account to admin rights —
+  the same no-boot-secret pattern already accepted for gitea and Immich, so
+  it isn't blocked by the root-password-hash / basic-auth-only mechanism.
+  Combined with a steady multi-year release cadence and no EOL signal, this
+  is a clean build_now candidate that would also be the catalogue's first
+  fediverse/social-networking recipe.
