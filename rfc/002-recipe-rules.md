@@ -143,7 +143,7 @@ These rules enforce RFC-001 §4.6 — every customer-visible recipe has a logo, 
 
 The rules below enforce the design requirements from [IF-1416](https://hosting-jira.1and1.org/browse/IF-1416): **SVG format, square viewBox, image centred with excess whitespace minimized, transparent background, primary colour version only.** They run against `recipes/<id>/logo.svg` whenever `logo_url` is declared.
 
-The first four need nothing beyond the standard library. The rest rasterize the SVG and measure the alpha channel, which requires the optional `af-api[logo]` extra (`resvg-py` + `pillow`, both MIT with pure wheels — no system packages). CI installs it via `uv pip install './af-api-src[logo]'`; without it those checks are skipped and reported as `logo-render-checks-skipped` rather than silently passing.
+Eleven rules, plus a `logo-render-checks-skipped` notice that is not itself a rule. The first five need nothing beyond the standard library. The rest rasterize the SVG and measure the alpha channel, which requires the optional `af-api[logo]` extra (`resvg-py` + `pillow`, both MIT with pure wheels — no system packages). CI installs it via `uv pip install './af-api-src[logo]'` and passes `--require-logo-render`, which turns a missing renderer from a warning into an error — otherwise a broken install step would quietly reduce CI to the five structural rules while still reporting PASS.
 
 Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github.com/IONOS-Server-Technology/af-api/blob/main/src/af_api/core/logo_validator.py); change them there, not in a recipe. Note the library lives in af-api since IF-1327 — the standalone af-core repo is frozen.
 
@@ -151,15 +151,22 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 
 - **Level:** ERROR
 - **What:** `logo.svg` is at most 2 MiB, parses as XML, and its root element is `<svg>`.
-- **How to check:** Reject above the byte ceiling, then `xml.etree.ElementTree.fromstring` and compare the root tag.
-- **Why:** Everything downstream assumes a parseable SVG. A truncated or mislabelled file would otherwise fail at render time in the customer's browser. The size ceiling is both a sanity check (the largest real logo is 71 KiB) and a bound on entity-expansion attacks, since the parser is fed third-party artwork.
+- **How to check:** Reject above the byte ceiling, then parse with `xml.parsers.expat` and compare the root tag. Not `ElementTree`: expat lets us install an `EntityDeclHandler` that rejects entity declarations outright and an `ExternalEntityRefHandler` that refuses to resolve anything, so third-party artwork has no entity-expansion surface at all rather than a bounded one.
+- **Why:** Everything downstream assumes a parseable SVG. A truncated or mislabelled file would otherwise fail at render time in the customer's browser. The size ceiling is a sanity check (the largest real logo is 71 KiB) and a second bound on expansion, behind the entity rejection above.
 
 #### `logo-no-script`
 
 - **Level:** ERROR
-- **What:** No `<script>` element, no `<foreignObject>`, no `on*` event-handler attribute.
-- **How to check:** Regex the file source.
-- **Why:** SVG is an executable XML document. A logo is third-party artwork rendered in the control panel, so it must carry no executable content — otherwise the catalogue becomes an XSS surface fed by upstream repositories.
+- **What:** No `<script>` or `<foreignObject>` element, no `on*` event-handler attribute, and no `javascript:`, `vbscript:` or `data:text/html` URI in an `href`, `src` or `url()` value.
+- **How to check:** Walk the elements and attributes reported by the expat parse, and the text of any `<style>` element.
+- **Why:** SVG is an executable XML document. A logo is third-party artwork rendered in the control panel, so it must carry no executable content — otherwise the catalogue becomes an XSS surface fed by upstream repositories. Checking the parse rather than the file source matters: expat has already decoded character references, so `&#106;avascript&#58;` is caught, whereas a regex over the raw bytes sees only the encoded form. A scheme in an `href` is the more likely payload of the two — `on*` handlers are the textbook example, but no real renderer needs either.
+
+#### `logo-no-external-refs`
+
+- **Level:** ERROR
+- **What:** Every `href`, `src` and `url()` target is either an internal `#fragment` or a `data:image/` URI. No absolute URL, no relative path, no `@import` in a `<style>` element.
+- **How to check:** Collect the same reference set as `logo-no-script` and reject anything that is neither a fragment nor an embedded image.
+- **Why:** `logo.svg` is shipped on its own to S3 and rendered from there. A reference to `./icon.png` or `https://cdn.example/logo.png` therefore renders blank for the customer, and when it does resolve it discloses their IP and user agent to a third-party host on every catalogue page view. Fonts are the trap worth naming: an `@import` of a webfont looks harmless in a browser preview and turns into both problems in production.
 
 #### `logo-viewbox-square`
 
@@ -172,22 +179,22 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 
 - **Level:** ERROR below 480px on the longest edge, otherwise WARN
 - **What:** The SVG does not wrap a raster image. If it does, the embedded raster is at least 480px on its longest edge.
-- **How to check:** Look for `<image>` or a `data:image/` URI; decode the base64 payload and read the pixel size from the PNG `IHDR` or JPEG `SOFn` header.
-- **Why:** IF-1416 requirement 1 asks for SVG, and a PNG in an SVG wrapper satisfies the file extension while delivering none of the benefit. 480px is the floor at which a 256px tile still looks sharp at 2× DPI; below it the tile is visibly blurry. `open-webui` shipped a 500px raster this way and `hermes-agent` a 150px one. The WARN above the floor is deliberate: some projects publish no vector at all, so a good raster is allowed but never silent.
+- **How to check:** Decode **every** `data:image/` payload and read the pixel size from the PNG `IHDR` or JPEG `SOFn` header; judge the file by the largest raster found, and say how many there were. An `<image>` element with no readable payload is an error on its own, unless `logo-no-external-refs` has already reported the same reference.
+- **Why:** IF-1416 requirement 1 asks for SVG, and a PNG in an SVG wrapper satisfies the file extension while delivering none of the benefit. 480px is the floor at which a 256px tile still looks sharp at 2× DPI; below it the tile is visibly blurry. `open-webui` shipped a 500px raster this way and `hermes-agent` a 150px one. The WARN above the floor is deliberate: some projects publish no vector at all, so a good raster is allowed but never silent. Sizing on the largest raster rather than the first one encountered keeps the verdict independent of document order — a 1px spacer ahead of the real artwork must not decide the level.
 
 #### `logo-safe-area`
 
-- **Level:** ERROR
-- **What:** The rendered ink occupies 90% of the canvas on its longest edge, ±3.0 percentage points.
-- **How to check:** Rasterize, threshold alpha at 12, take the ink bounding box, compare `max(w, h) / canvas` against 90%.
-- **Why:** IF-1416 requirement 2, "excess whitespace/padding minimized", made numeric. Before this, recipe logos ranged from 49% to 100% fill, so the catalogue grid looked ragged even though every file was individually fine. 90% leaves the mark clear of the tile edge; a change to this number re-frames every logo and therefore costs a `recipe_version` bump per recipe.
+- **Level:** ERROR outside 80–95%, WARN outside 87–93%
+- **What:** The rendered ink occupies close to 90% of the canvas on its longest edge.
+- **How to check:** Rasterize, threshold alpha at 12, take the ink bounding box, compare `max(w, h) / canvas` against the two bands.
+- **Why:** IF-1416 requirement 2, "excess whitespace/padding minimized", made numeric. Before this, recipe logos ranged from 49% to 100% fill, so the catalogue grid looked ragged even though every file was individually fine. 90% leaves the mark clear of the tile edge. The band pattern is the same as `logo-mark-not-wordmark`: a hard ERROR at ±3 points would make every future recipe hand-fit a 6-point window to merge, and the number is a grid-framing choice rather than a defect boundary — so the ERROR marks artwork that is actually wrong (49% padding, 100% bleed) and the WARN carries the framing preference. It costs nothing in practice: all 17 safe-area errors on the pre-IF-1416 catalogue are outside 80–95% too, so relaxing the ERROR band loses no real finding.
 
 #### `logo-centered`
 
 - **Level:** ERROR
-- **What:** The ink bounding box's centre is within 1.5% of the canvas centre.
-- **How to check:** Compare the bbox midpoint with the canvas midpoint, as a percentage of canvas width.
-- **Why:** IF-1416 requirement 2, "image centered". The tolerance absorbs asymmetric artwork; anything larger reads as misaligned when tiles sit next to each other.
+- **What:** The ink bounding box's centre is within 1.5% of the canvas centre, measured per axis.
+- **How to check:** Compare the bbox midpoint with the canvas midpoint — the horizontal offset as a percentage of canvas width, the vertical offset as a percentage of canvas height.
+- **Why:** IF-1416 requirement 2, "image centered". The tolerance absorbs asymmetric artwork; anything larger reads as misaligned when tiles sit next to each other. Both axes need their own divisor: a non-square canvas is already a `logo-viewbox-square` error, but dividing a vertical offset by the width understates it on a wide canvas and hid one genuinely off-centre logo in the pre-IF-1416 catalogue.
 
 #### `logo-transparent-bg`
 
@@ -215,14 +222,14 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 - **Level:** ERROR
 - **What:** The SVG rasterizes, and to something visible.
 - **How to check:** Render it; fail if the renderer errors or the result has no pixels above the alpha threshold.
-- **Why:** A file can be well-formed XML and still draw nothing — an empty `<svg/>`, a path with no geometry, or artwork that depends on an external resource that is not fetched. Such a logo shows as a blank card.
+- **Why:** A file can be well-formed XML and still draw nothing — an empty `<svg/>`, a path with no geometry, or a single-stop gradient. Such a logo shows as a blank card. Artwork depending on an unfetched external resource is the same failure, caught earlier by `logo-no-external-refs`.
 
 #### `logo-render-checks-skipped`
 
-- **Level:** WARN
+- **Level:** WARN, or ERROR under `--require-logo-render`
 - **What:** Emitted once per recipe when the optional renderer is not installed.
 - **How to check:** Attempt to import `resvg_py` and `PIL`.
-- **Why:** The pixel-level rules are the ones that catch the defects a reviewer would notice. Silently skipping them would let a run report success having checked almost nothing, so their absence is always visible in the output. Install `af-api[logo]` in CI.
+- **Why:** The pixel-level rules are the ones that catch the defects a reviewer would notice. Silently skipping them would let a run report success having checked almost nothing, so their absence is always visible in the output. A developer running `af-validate` from a lean install gets the warning and the five structural rules; CI passes `--require-logo-render` so that the same condition fails the build instead — otherwise the verdict silently depends on the environment.
 
 ### 3.4 Parameters
 

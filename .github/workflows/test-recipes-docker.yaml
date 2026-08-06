@@ -131,7 +131,7 @@ jobs:
           # itself, which is how af-api's own CI gets 3.14.
           uv venv --python 3.14 .venv-af-api
           # The `logo` extra adds resvg-py + pillow, which the IF-1416 logo spec
-          # rules need. Without it af-validate skips them and says so.
+          # rules need. --require-logo-render below fails if it is missing.
           uv pip install --python .venv-af-api './af-api-src[logo]'
           # Put the venv first on PATH so both `af-validate` and the inline
           # `python3` heredocs below resolve against it (they need pyyaml, which
@@ -139,7 +139,7 @@ jobs:
           echo "$PWD/.venv-af-api/bin" >> "$GITHUB_PATH"
 
       - name: Validate recipe schema
-        run: af-validate recipe recipes/${{ matrix.recipe }}
+        run: af-validate recipe recipes/${{ matrix.recipe }} --require-logo-render
 
       - name: Generate test .env
         run: |
