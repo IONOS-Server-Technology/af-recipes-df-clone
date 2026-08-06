@@ -1,0 +1,88 @@
+slug: stirling-pdf
+name: Stirling PDF
+source_description: "Powerful locally hosted web-based PDF manipulation tool"
+
+upstream:
+  url: https://www.stirlingpdf.com/
+  repo_url: https://github.com/Stirling-Tools/Stirling-PDF
+  license: "MIT (core); open-core — several directories (app/proprietary, app/saas, engine, frontend/editor/src/{proprietary,desktop,saas,cloud}) ship under separate, more restrictive licenses gated behind a premium/enterprise license key"
+  docker_image: stirlingtools/stirling-pdf
+
+version_health:
+  latest_version: "2.14.2"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.14.2 shipped 2026-07-08, ~28 days before today (2026-08-05); a
+    v2.14.3 pre-release tag exists dated 2026-08-06 but is marked
+    prerelease, so 2.14.2 is the latest stable. Release history shows a
+    steady weekly-to-biweekly cadence through 2026: v2.14.0 (06-30),
+    v2.13.2 (06-24), v2.13.1 (06-19), v2.13.0 (06-18), v2.12.0 (06-09),
+    v2.11.0 (05-19), v2.10.1 (05-07), v2.10.0 (04-24), v2.9.x
+    (04-02 to 04-04), v2.8.0 (03-24). Repo is not archived, last push
+    2026-08-06, ~89k GitHub stars. Clearly active, well-resourced project
+    (backed by a company, "Stirling PDF Inc."), not slowing or EOL.
+
+catalogue_fit:
+  categories: [productivity, document-management, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers general-purpose PDF
+    manipulation (merge/split/convert/OCR/compress/sign/redact/edit — 50+
+    tools). Paperless-ngx and paperless-ai are archival/indexing systems
+    for scanned documents, not editing toolkits, so there's no functional
+    overlap with either. Stirling PDF is a much heavier, more
+    feature-complete alternative to the other two PDF-tool gap-analysis
+    candidates already written up in this batch (pdfding — a personal PDF
+    reader/annotator with sync, and bentopdf — a lightweight client-side
+    WASM toolkit): Stirling PDF runs actual server-side processing
+    (LibreOffice-backed conversion, real OCR via Tesseract, digital
+    signing, automation pipelines, a REST API) rather than a purely
+    in-browser tool or a document library. If more than one of these three
+    ships, they'd compete for the same "PDF utility" slot in the
+    catalogue — a build-bandwidth call, not a reason to reject any one of
+    them on its own merits.
+  usefulness: high
+  usefulness_rationale: >
+    Broad, non-technical appeal (everyone occasionally needs to
+    merge/split/convert/OCR/sign a PDF) combined with genuine
+    self-hosting value: unlike bentopdf's client-side WASM tools, Stirling
+    PDF does real server-side work (OCR, format conversion, digital
+    signing, automation via its API/pipelines) that isn't available for
+    free in a browser tab, making the "keep your files off third-party
+    SaaS like smallpdf/ilovepdf" pitch stronger. A large, actively
+    developed, company-backed project with a big community reduces
+    upstream-abandonment risk relative to the other two candidates.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Stirling PDF's own login system (SECURITY_ENABLELOGIN=true) requires SECURITY_INITIALLOGIN_USERNAME/SECURITY_INITIALLOGIN_PASSWORD to be supplied as a PLAINTEXT password at first boot — it is used to seed the initial admin account, not accepted as a pre-hashed value in any supported algorithm. generated_from only ever projects a hash, so it cannot supply this field; this is a genuine plaintext-password requirement, which SCHEMA.md calls a structural blocker for that specific parameter (distinct from an unsupported-hash-algo case, which would just need IF-1420 extended)."
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Stirling PDF ships as a single container (stirlingtools/stirling-pdf,
+  pin 2.14.2), single HTTP port (8080), no required external database
+  (defaults to embedded H2; Postgres is optional) — a clean fit behind
+  Traefik on <slug>.<base_domain>. Its upstream's own reference
+  docker-compose.yml ships with SECURITY_ENABLELOGIN=false (no built-in
+  auth at all) precisely for reverse-proxy-fronted deployments like ours,
+  which sidesteps the plaintext-only initial-admin-password blocker
+  entirely: leave the app's own login disabled and gate the whole
+  subdomain with Traefik basic_auth (password projected from the
+  customer's root password via generated_from), the same
+  Adminer/bentopdf/WUD pattern already used elsewhere in the catalogue.
+  That makes it fully installable today. Upstream is very active (weekly
+  releases, ~89k stars, company-backed, not archived) and offers real
+  differentiated value — server-side OCR, format conversion, and signing
+  — well beyond the other two PDF-tool candidates already analyzed
+  (pdfding, bentopdf). Recommend build_now, with a note that shipping more
+  than one PDF-tool recipe is a prioritization call, not a quality issue.
