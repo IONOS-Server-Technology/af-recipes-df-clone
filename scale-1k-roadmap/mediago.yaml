@@ -1,0 +1,85 @@
+slug: mediago
+name: MediaGo
+source_description: "Self-hosted video downloader for M3U8, YouTube, Bilibili, and 1000+ sites"
+
+upstream:
+  url: https://github.com/mediago-dev/mediago
+  repo_url: https://github.com/mediago-dev/mediago
+  license: MIT
+  docker_image: caorushizi/mediago
+
+version_health:
+  latest_version: "3.5.0"
+  latest_release_date: "2026-04-21"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest stable 3.5.0 (2026-04-21) is about 3.5 months old as of today
+    (2026-08-05); the Docker Hub `latest`/`3.5.0` tags were pushed at the
+    same time and last-updated roughly 4 months ago, consistent with the
+    release date. History: 3.0.0 (2024-10-07), 3.0.1 (2025-01-14, 3 months
+    later), then a 10-month gap to 3.1.0-beta.0/beta.1 (2025-11-04/18,
+    never promoted to stable), then a 5-month gap to the 3.5.0-beta line
+    (2026-04-03/12) and 3.5.0 stable (2026-04-21). So the cadence between
+    *stable* releases (3.0.1 to 3.5.0) is about 15 months, though beta
+    tags and commits land more often in between. Repo is not archived, has
+    no EOL announcement, and 3.5.0's changelog (new browser extension,
+    YouTube/1000+ site support, AI-assistant integration) shows real
+    ongoing feature work — call it "slowing" rather than dormant, but the
+    long stable-to-stable gaps are worth watching.
+    Name ambiguity: "MediaGo" is also the name of a discontinued Sony
+    desktop media manager (Media Go, EOL 2018), a Kaltura B2B video
+    platform product, an unrelated ad-tech platform, and an unrelated
+    Android video-player app. None of those match Hostinger's description
+    (M3U8/YouTube/Bilibili/1000+ site downloader); mediago-dev/mediago
+    (formerly caorushizi/mediago) is the only candidate that does, and is
+    used throughout this analysis.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers video-download-
+    from-URL as a function; the closest adjacent recipes (immich,
+    paperless-ngx) are photo/document management, not video fetching. A
+    prior gap analysis for AllTube (apps-gaps/alltube.yaml) identified this
+    same niche but rejected it as not_recommended because that project is
+    archived and its Docker image is ~5 years stale. MediaGo fills the
+    identical customer need (self-hosted stream sniffing/downloading from
+    YouTube, Bilibili, and 1000+ sites via m3u8/HLS) with an actively
+    developed upstream and a current official image, i.e. it is the kind
+    of maintained alternative the AllTube analysis suggested evaluating.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted video downloading is a real, if niche, consumer/prosumer
+    use case (archiving streams, saving content for offline use) and the
+    single-container/single-port design fits our stack cleanly. It's not a
+    business-critical tool the way n8n or Vaultwarden are, and its core
+    function (scraping third-party video sites) is inherently exposed to
+    upstream breakage whenever a site changes its frontend — extractor
+    churn is a maintenance burden even for an active project.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MediaGo is a single-container, single-HTTP-port (8899) Docker app with no
+  built-in authentication of its own — the web UI and its HTTP API are open
+  to anyone who can reach the port, which structurally means it needs a
+  mandatory Traefik basic_auth gate, exactly like WUD or Adminer. That gate
+  is fully expressible today via the existing basic_auth mechanism, so
+  there's no platform blocker. Upstream is MIT-licensed, actively (if
+  slowly) developed, with a current official Docker image on Docker
+  Hub/GHCR. It fills a real gap (self-hosted video downloading) that a
+  prior candidate, AllTube, could not fill because that project is
+  archived and stale; MediaGo is the maintained alternative for the same
+  niche and can move to build_now.
