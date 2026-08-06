@@ -1,0 +1,115 @@
+slug: semaphore
+name: Semaphore
+source_description: "Modern web UI for running Ansible playbooks, Terraform, and automation scripts"
+
+upstream:
+  url: https://semaphoreui.com/
+  repo_url: https://github.com/semaphoreui/semaphore
+  license: MIT
+  docker_image: semaphoreui/semaphore
+
+version_health:
+  latest_version: "v2.19.7"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active. v2.19.7 (stable) landed in the last day or two — the
+    Docker Hub tag list shows it pushed "1 day ago" relative to today
+    (2026-08-05), alongside v2.19.6 and the ansible/powershell image
+    variants. The project runs two parallel channels: a 2.18.x maintenance
+    line (v2.18.27 2026-07-13, v2.18.28 2026-07-22, v2.18.29 2026-07-28)
+    and a 2.19.x feature line with frequent betas/RCs (v2.19.5-beta6..12
+    across 2026-07-14→07-28, v2.19.6-rc1 2026-07-31). That is multiple
+    releases per month, sustained. Repo is not archived, MIT-licensed,
+    ~14k stars, 5M+ image pulls, single dominant maintainer ("fiftin")
+    pushing the images. Note the name is ambiguous: "Semaphore" also names
+    Semaphore CI/CD (semaphoreci/semaphore, a hosted CI product) and
+    Semaphore CI's on-prem edition — both ruled out, since Hostinger's
+    description ("Ansible playbooks, Terraform, automation scripts")
+    matches semaphoreui/semaphore (formerly ansible-semaphore) exactly.
+
+catalogue_fit:
+  categories: [automation, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Nothing in the current 24 recipes runs infrastructure-as-code. Semaphore
+    is a task-runner UI over Ansible, Terraform/OpenTofu/Terragrunt,
+    PowerShell and shell scripts: git-backed playbook repositories, an
+    encrypted key store for SSH keys and cloud credentials, inventories,
+    schedules, per-task logs and RBAC. n8n is the only adjacent recipe, but
+    it automates SaaS/API workflows via a node editor, not server
+    configuration management; Portainer (currently `enabled: false`) manages
+    containers on one host, not fleets. For a customer who already writes
+    Ansible or Terraform, Semaphore turns cron-plus-SSH habits into an
+    auditable web-driven workflow.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real, un-covered catalogue slot (IaC / config-management
+    orchestration) with the de-facto open-source Ansible UI, and it is a
+    natural fit for the IONOS audience — customers running one or more VMs
+    who want scheduled, logged automation across them. It is a technical
+    tool rather than a consumer app, but for that audience the value is
+    concrete, not speculative.
+
+installability:
+  recipe_type_guess: docker-compose
+  # TRAEFIK_BASIC_AUTH_PASSWORD — gate in front of the UI; mandatory here
+  #   because a reachable Semaphore can execute arbitrary playbooks/shell on
+  #   the host and on any target it holds keys for.
+  # SEMAPHORE_ADMIN_PASSWORD — the app's own initial admin login, consumed as
+  #   plaintext (see blocking_issues).
+  # SEMAPHORE_ACCESS_KEY_ENCRYPTION — base64 32-byte AES key encrypting the
+  #   credential store.
+  # SEMAPHORE_DB_PASS — only if a Postgres/MySQL backend is used rather than
+  #   the built-in BoltDB/SQLite dialect.
+  secrets_required_at_first_boot:
+    - TRAEFIK_BASIC_AUTH_PASSWORD
+    - SEMAPHORE_ADMIN_PASSWORD
+    - SEMAPHORE_ACCESS_KEY_ENCRYPTION
+    - SEMAPHORE_DB_PASS
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+    - secret: SEMAPHORE_ACCESS_KEY_ENCRYPTION
+      mechanism: server_generated_no_customer_input
+    - secret: SEMAPHORE_DB_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      SEMAPHORE_ADMIN_PASSWORD is consumed as a plaintext value, not a hash:
+      the container entrypoint effectively runs `semaphore user add --admin
+      --login <SEMAPHORE_ADMIN> --password <SEMAPHORE_ADMIN_PASSWORD>` and
+      Semaphore bcrypts it itself before storing. `generated_from:
+      "<algo>:ROOT_PASSWORD"` only ever carries a hash, so it cannot target
+      this field the way it targets Vaultwarden's ADMIN_TOKEN — same shape
+      as the Alerta and Ackee findings. Per SCHEMA.md this is not a hard
+      blocker: the recipe can ship a fixed, documented initial admin
+      credential (upstream's own compose example uses admin/changeme) with
+      the real auth boundary being a Traefik `basic_auth: true` gate
+      projected from the customer's root password, and the customer can
+      change the in-app password from the UI after first login. It is
+      recorded here because it costs the customer a second, recipe-supplied
+      credential they must be told about — a genuine caveat, not a clean fit.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Semaphore UI is a very actively released (v2.19.7 stable within the last
+  day or two of 2026-08-05, MIT, ~14k stars), single-HTTP-port (3000) web
+  app that fills a catalogue gap nothing currently covers: running Ansible,
+  Terraform/OpenTofu and scripts from an auditable UI. It is
+  reverse-proxy-clean behind Traefik on `<slug>.<base_domain>`, and it can
+  run as a single container using the BoltDB/SQLite dialect or as an n8n-style
+  two-service stack with Postgres. Crucially — unlike Autobase — the SSH keys,
+  git repositories and cloud credentials it needs to do real work are added by
+  the customer through the UI key store after boot, exactly the self-service
+  pattern n8n credentials use, so they are not first-boot secrets and do not
+  block. The one caveat is provisioning the initial login: SEMAPHORE_ADMIN_PASSWORD
+  is plaintext-only, so it must be a fixed recipe-supplied default sitting behind
+  a mandatory `basic_auth` gate (the app can execute arbitrary commands, so the
+  gate is not optional) — installable today, worth building, but ship it with
+  clear customer-facing documentation of the two-credential login flow, and
+  consider revisiting if a plaintext-capable input channel ever lands.
