@@ -1,0 +1,86 @@
+slug: formbricks
+name: Formbricks
+source_description: "Open-source survey platform for in-app, link, website, and email feedback"
+
+upstream:
+  url: https://formbricks.com
+  repo_url: https://github.com/formbricks/formbricks
+  license: AGPL-3.0 (core app; an additional Enterprise-licensed module lives under apps/web/modules/ee and is not part of the AGPL core)
+  docker_image: ghcr.io/formbricks/formbricks
+
+version_health:
+  latest_version: "5.3.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Stable releases roughly weekly through July-August 2026 (5.1.5 on
+    2026-07-22, 5.2.1 on 2026-07-22, 5.2.2 on 2026-07-29, 5.3.0 on
+    2026-08-05 — today), each preceded by one or more release candidates,
+    with several version lines patched concurrently. This is a healthy,
+    fast-moving cadence, not a freeze; unrelated to this, the old
+    `formbricks/formbricks` Docker Hub repo is archived and frozen at
+    3.6.0 (over a year stale) because the project moved its official image
+    to `ghcr.io/formbricks/formbricks` — a registry migration, not a
+    project EOL signal. Don't mistake the stale Docker Hub listing for the
+    project going dark.
+
+catalogue_fit:
+  categories: [forms, feedback, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Formbricks is a Typeform/Qualtrics-style survey and in-product feedback
+    tool (NPS, PMF, in-app widgets, link surveys, email surveys) with its
+    own analytics dashboard. Nothing in the current 24-recipe catalogue
+    covers structured survey/feedback collection — n8n and Activepieces
+    automate workflows generally but don't offer purpose-built survey
+    authoring, targeting, and response analytics. This is a genuinely new
+    capability, not a variant of an existing recipe.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real gap (no survey/feedback tool exists in the catalogue
+    today), is a recognizable open-source alternative to a well-known SaaS
+    category (Typeform/Qualtrics), has a single public web UI, and is
+    under active weekly development.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [NEXTAUTH_SECRET, ENCRYPTION_KEY, CRON_SECRET, HUB_API_KEY, CUBEJS_API_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CRON_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: HUB_API_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CUBEJS_API_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Formbricks fills a clear, currently-empty niche (survey/feedback
+  collection) with a single reverse-proxy-friendly web UI and an actively
+  maintained upstream (weekly stable releases as of 2026-08-05). The stack
+  is heavier than a single-container app — Postgres (pgvector image),
+  Valkey/Redis, an internal Hub API service, and a Cube analytics
+  service — mirroring the multi-service shape already used for
+  Postgres-backed recipes like n8n, so it's structurally familiar even
+  though it has more moving parts. The admin account is created through
+  Formbricks' own first-visit browser setup wizard (the same self-serve
+  pattern as n8n/AnythingLLM), and every required secret
+  (NEXTAUTH_SECRET, ENCRYPTION_KEY, CRON_SECRET, HUB_API_KEY,
+  CUBEJS_API_SECRET, POSTGRES_PASSWORD) is a patternless string the
+  platform can generate server-side with no customer input needed — no
+  root-password projection or basic_auth gate required. Mechanically
+  installable today; a real recipe-authoring pass would need to pin the
+  upstream compose's `:latest` image references to a specific tag (e.g.
+  5.3.0) per RFC-002, and decide whether the optional Cube/Hub analytics
+  services are worth the added resource floor for a self-hosted deployment.
