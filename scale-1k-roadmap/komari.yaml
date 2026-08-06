@@ -1,0 +1,99 @@
+slug: komari
+name: Komari
+source_description: "Lightweight self-hosted server monitoring dashboard with real-time metrics"
+
+upstream:
+  url: https://github.com/komari-monitor/komari
+  repo_url: https://github.com/komari-monitor/komari
+  license: MIT
+  docker_image: ghcr.io/komari-monitor/komari
+
+version_health:
+  latest_version: "1.4.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.4.0 tagged 2026-08-05 — today. Preceding tags show a very tight
+    cadence: 1.3.2 (2026-07-30), 1.3.1 (2026-07-28), 1.3.0 (2026-07-22),
+    1.2.5-fix2/fix1 (2026-07-20), i.e. multiple releases most weeks, plus
+    frequent unversioned "Snapshot-*" pre-release builds between tags.
+    Repo is not archived; last push 2026-08-05T13:17Z, ~5.6k GitHub stars.
+    Unambiguously active — a young, fast-moving project rather than
+    mature/stable (breaking storage-format changes between 1.3.x point
+    releases per the release notes), so pin carefully and expect the
+    pinned tag to age quickly.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue's one existing monitoring recipe, uptime-kuma, checks
+    external endpoint availability (HTTP/TCP/ping probes against services
+    you point it at). Komari is a different job: an agent-based system
+    resource monitor — a lightweight agent runs on each server being
+    watched and streams CPU/RAM/disk/network metrics back to a central
+    Komari dashboard, multi-server fleet view included. No shipped recipe
+    covers server-resource telemetry (a Netdata/Glances-style role), so
+    this is genuine differentiation rather than a near-duplicate of
+    uptime-kuma.
+  usefulness: medium
+  usefulness_rationale: >
+    Real gap (no resource-monitoring recipe today) and a clean single-port
+    web UI, similar profile to uptime-kuma which already shipped
+    successfully. Capped at medium rather than high: Komari also ships a
+    documented "remote control" capability (remote command/terminal access
+    to monitored hosts, not just passive metrics), which is a materially
+    bigger blast radius than a read-only status page and raises the
+    security bar for how it should be gated and how the customer manages
+    which servers get agents pointed at this instance.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No official docker-compose.yml is published upstream — only a
+      `docker run` one-liner in the quick-start docs
+      (ghcr.io/komari-monitor/komari, port 25774, /app/data volume). Not a
+      blocker, just means a recipe's compose file would be authored from
+      scratch rather than adapted from an upstream example.
+    - >
+      Admin account creation is a first-run web wizard ("on first access,
+      use the installation guide to create the administrator account and
+      site settings") — the customer sets their own username/password
+      interactively after deploy, the same pattern uptime-kuma already
+      ships with. No af-api-projected secret is needed for this. However,
+      upstream docs do not clarify whether the dashboard or its data is
+      reachable before that wizard is completed, so this should be
+      verified hands-on (deploy + curl before completing the wizard)
+      before a recipe ships, rather than assumed safe by analogy alone.
+    - >
+      Upstream documents a built-in "remote control" feature (server-side
+      remote command/terminal execution against monitored agents,
+      explicitly Windows-callout in the README). This is a materially
+      different risk profile than a passive metrics dashboard — worth a
+      deliberate decision at recipe-authoring time (e.g., whether to
+      default it off, and whether a Traefik basic_auth gate should be
+      mandatory rather than optional given the elevated impact of any
+      dashboard compromise) even though it isn't a structural blocker
+      under the current generated_from/basic_auth mechanism.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Komari is an actively-maintained (1.4.0 released today, 2026-08-05, on a
+  multiple-releases-per-week cadence), single-container, single-HTTP-port
+  (25774) server-resource-monitoring dashboard with a genuine web UI and no
+  overlap with the catalogue's existing uptime-kuma (endpoint-availability,
+  not resource metrics) recipe. It is installable today under the current
+  mechanism — no customer secret is required at first boot, since the app's
+  own first-run wizard lets the customer set their admin login directly,
+  the same pattern uptime-kuma already ships with. Recommend
+  build_with_caveats: confirm the pre-wizard dashboard isn't reachable
+  unauthenticated, and deliberately decide how to handle the built-in
+  remote-control feature (elevated blast radius vs. a read-only monitor)
+  before authoring the recipe.
