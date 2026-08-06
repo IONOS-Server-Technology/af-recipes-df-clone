@@ -1,0 +1,98 @@
+slug: scada-lts
+name: Scada-LTS
+source_description: "Open-source web SCADA for industrial monitoring with Modbus, SNMP, and OPC"
+
+upstream:
+  url: https://scada-lts.com/
+  repo_url: https://github.com/SCADA-LTS/Scada-LTS
+  license: GPL-2.0
+  docker_image: scadalts/scadalts
+
+version_health:
+  latest_version: "v2.8.0 (published as the v2.8.0_pre pre-release)"
+  latest_release_date: "2025-10-23"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >-
+    The newest GitHub release is `v2.8.0_pre`, published 2025-10-23 — about
+    9.5 months before today (2026-08-05) — and it is flagged by upstream as a
+    pre-release, not a stable line. The last release *not* marked pre-release
+    is v2.7.8.1 from 2025-04-07, roughly 16 months ago. Docker Hub matches:
+    `v2.8.0`, `release-2.8.0`, `master` and `latest` were all last pushed
+    around October 2025 (~10 months ago) and nothing has been published
+    since. Commit activity has effectively stopped: the `develop` branch has
+    exactly one commit (2026-07-22) in the ~9 months since 2025-10-17, and
+    `main` has had nothing since 2025-10-17. Earlier cadence was 2-4 releases
+    a year (2.7.5.x through 2.7.8.1 across 2023-2025), so this is a clear
+    stall rather than a normally slow project. The repo is not archived and
+    no EOL has been announced, and issues/discussions still see occasional
+    traffic — hence maintenance-only rather than eol — but for recipe
+    purposes it should be treated as a stalled upstream. Name is not
+    seriously ambiguous, though Scada-LTS is a fork/successor of ScadaBR
+    (itself derived from Mango M2M) and should not be confused with the
+    unrelated OpenSCADA/oscada project, which also surfaces for "SCADA
+    release" searches.
+
+catalogue_fit:
+  categories: [automation, monitoring, iot]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [home-assistant]
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue does industrial SCADA:
+    Home Assistant is consumer/prosumer home automation (Zigbee, Z-Wave,
+    cloud integrations) and Uptime Kuma is external up/down checks, whereas
+    Scada-LTS is a ScadaBR/Mango M2M-lineage supervisory system with data
+    sources for Modbus TCP/RTU, SNMP, OPC UA (via PLC4X), MQTT, DNP3 and
+    HTTP, plus historical logging, event handlers, alarms and drag-and-drop
+    SVG mimic/graphical views. So it is genuinely additive in capability
+    terms — the overlap with Home Assistant is only conceptual ("poll
+    devices, show dashboards, fire alerts"), not functional.
+  usefulness: low
+  usefulness_rationale: >-
+    The audience is narrow (plant/industrial automation engineers) and the
+    deployment target is wrong for most of it: Modbus, SNMP and OPC UA
+    endpoints normally live on a private plant/OT LAN, and a Scada-LTS
+    instance on a public IONOS VPS cannot reach them without the customer
+    first building a VPN or exposing PLCs to the internet — something a
+    recipe cannot set up and should not encourage. That leaves the
+    internet-reachable subset (MQTT brokers, HTTP/REST sources, SNMP over a
+    tunnel) as the realistic use case, which is a small slice of why someone
+    picks a SCADA package. Combined with a stalled upstream, value per unit
+    of maintenance effort is low.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_password
+    - MYSQL_ROOT_PASSWORD
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >-
+  Mechanically this would install: the upstream stack is just MySQL 8 plus the
+  `scadalts/scadalts` Tomcat container on a single HTTP port (8080, UI at the
+  `/Scada-LTS` context path rather than `/`, which Traefik handles fine), the
+  DB password is a server-generated value no customer ever sees, and the
+  hardcoded `admin/admin` default login is exactly the case SCHEMA.md says to
+  solve with a mandatory Traefik `basic_auth` gate projected from the root
+  password (Scada-LTS stores its own passwords as SHA-1, which
+  `generated_from` does not cover, so its internal login stays an unexposed
+  second factor behind the gate). Nothing here needs a customer-supplied
+  value, so there are no platform blockers. The reasons not to build are
+  upstream health and fit: the last non-pre-release is ~16 months old, the
+  newest artifact of any kind is the October 2025 `v2.8.0_pre` pre-release
+  (~9.5 months ago), and `develop` has taken a single commit in the last nine
+  months — pinning a recipe to a pre-release tag on a stalled GPL-2.0 Java
+  project is a poor bet. Upstream's own Docker documentation additionally
+  states "we do not recommend using docker in a production environment", and
+  the industrial protocols that justify the app mostly terminate on private
+  OT networks a public VPS cannot reach. Recommend not_recommended;
+  revisit only if upstream ships a stable 2.8.x/2.9.x line and resumes
+  regular commits.
