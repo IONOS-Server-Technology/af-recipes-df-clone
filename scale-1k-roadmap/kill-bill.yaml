@@ -1,0 +1,88 @@
+slug: kill-bill
+name: Kill Bill
+source_description: "Open-source subscription billing and payment platform for SaaS and marketplaces"
+
+upstream:
+  url: https://killbill.io
+  repo_url: https://github.com/killbill/killbill
+  license: Apache-2.0
+  docker_image: killbill/killbill
+
+version_health:
+  latest_version: "killbill-0.25.4"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    killbill-0.25.4 tagged on GitHub 2026-08-05 — the same day as today
+    (2026-08-05). Recent tag history shows a fast, healthy cadence: 0.25.0
+    (2026-06-24) → 0.25.1 (2026-07-21) → 0.25.2 (2026-07-29) → 0.25.3
+    (2026-07-30) → 0.25.4 (2026-08-05). Repo is not archived, 10k+ commits,
+    active PR activity. Caveat: the `killbill/killbill` Docker Hub image
+    lags the Git tags — the newest *pinned, numbered* image tag published
+    is `0.24.19` (pushed 2026-07-24); the `:latest` floating tag was pushed
+    2026-08-05 and presumably tracks 0.25.x, but no numbered 0.25.x image
+    has been published yet. A recipe would have to pin `0.24.19` today (or
+    wait/track for a numbered 0.25.x image) since RFC-002 forbids `:latest`.
+
+catalogue_fit:
+  categories: [billing, finance, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Kill Bill is a subscription-billing and payments *engine* meant to be
+    integrated into a developer's own SaaS/marketplace product via its REST
+    API — its bundled web UI, Kaui, is an operational/admin console for
+    managing tenants, accounts, and plugins, not an end-user billing
+    product you use directly. This is structurally different from every
+    other candidate/recipe in the catalogue, including the closest
+    neighbor, apps-gaps/akaunting.yaml (Akaunting is a direct-use
+    small-business accounting/invoicing app you log into and run your
+    books in). No current recipe or gap-analysis candidate overlaps with
+    an embeddable billing API platform.
+  usefulness: low
+  usefulness_rationale: >
+    The AF catalogue's customer profile is someone who installs an app and
+    uses it themselves through a browser. Kill Bill's primary surface is a
+    REST API intended for a developer to wire into their own software;
+    Kaui only gives operational visibility (tenants, accounts, invoices),
+    not a ready-to-use billing product. Getting real value out of it also
+    requires configuring a payment-gateway plugin (Stripe, Braintree,
+    Adyen, etc.) inside the app after boot — a genuine capability, but one
+    aimed squarely at developers building billing into their own SaaS, not
+    the typical self-hoster persona the rest of the catalogue serves.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [KAUI_ADMIN_LOGIN, DB_ROOT_PASSWORD, KILLBILL_API_SECRET]
+  secrets_expressible_today:
+    - secret: KAUI_ADMIN_LOGIN
+      mechanism: traefik_basic_auth
+    - secret: DB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: KILLBILL_API_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Kill Bill ships as a 3-container stack (killbill/killbill server,
+  killbill/kaui admin UI, MariaDB), structurally closest to
+  recipes/immich or recipes/anytype-server (multi-service, one HTTP-facing
+  admin UI, backing database). It boots without any customer-supplied
+  input: MariaDB's root password and the internal API key/secret Kaui uses
+  to talk to the Kill Bill server can both be server-generated, and Kaui's
+  only login is a fixed default (`admin`/`password`) that can be gated
+  behind Traefik `basic_auth` projected from the customer's root password,
+  the same pattern already accepted for apps with no real login of their
+  own. So nothing here is a hard `/compose`-mechanism blocker, and it is
+  mechanically installable today — but the app's actual product is a
+  billing REST API for developers to embed in their own SaaS, with Kaui as
+  an ops console rather than an end-user tool, and useful billing (real
+  payment processing) additionally requires the customer to configure a
+  payment-gateway plugin themselves after install. That audience mismatch,
+  plus Docker Hub's numbered image tags lagging the project's own fast
+  release cadence (newest pinned tag is 0.24.19 vs. GitHub's 0.25.4),
+  makes this a `build_with_caveats` rather than a clear `build_now`.
