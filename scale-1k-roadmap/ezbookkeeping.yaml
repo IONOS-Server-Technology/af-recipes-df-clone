@@ -1,0 +1,76 @@
+slug: ezbookkeeping
+name: ezBookKeeping
+source_description: "Lightweight personal finance tracker with mobile PWA and receipt scanning"
+
+upstream:
+  url: https://ezbookkeeping.mayswind.net/
+  repo_url: https://github.com/mayswind/ezbookkeeping
+  license: MIT
+  docker_image: mayswind/ezbookkeeping
+
+version_health:
+  latest_version: "v1.6.1"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged releases roughly every 4-8 weeks over the past year (v1.3.0
+    2026-01-17, v1.3.1 2026-01-24, v1.3.2 2026-01-30, v1.4.0 2026-03-22,
+    v1.5.0 2026-05-13, v1.5.1 2026-05-31, v1.6.0 2026-07-19, v1.6.1
+    2026-07-20 as a same-week bugfix). Latest stable release was 16 days
+    before today (2026-08-05). Docker Hub also carries daily
+    `latest-snapshot`/`SNAPSHOT-YYYYMMDD` builds, with one published the
+    same day as this analysis — clear signal of an actively maintained
+    project, no archival or EOL indication.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [actual-budget]
+  differentiation: >
+    Both are self-hosted personal-finance web apps in the same "finance"
+    category we already ship (actual-budget), so this is not a new
+    category the way actual-budget was. ezBookKeeping's distinct angle is
+    a lighter transaction-ledger/bookkeeping style (vs. Actual's envelope
+    budgeting methodology), plus receipt/AI-based transaction extraction
+    from photos, PWA install support, and broad import compatibility
+    (CSV/OFX/QFX/QIF/IIF/Camt.052-053/MT940/GnuCash/Firefly III/Beancount).
+    That's real differentiation for a user who wants receipt scanning
+    specifically, but for a customer just wanting "a personal finance
+    app," actual-budget already answers the request.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal finance is a proven-demand category, but we'd be adding a
+    second app to a category that already has one well-maintained,
+    equally installable recipe. Worth it only if receipt-scanning /
+    bookkeeping-ledger style is judged distinct enough from
+    envelope-budgeting to justify two catalogue entries rather than
+    picking one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ezBookKeeping is a single-container Go web app that listens on one HTTP
+  port (8080) and defaults to a bundled SQLite database under
+  data/ezbookkeeping.db — no external database service required, matching
+  the uptime-kuma/actual-budget single-container pattern and fully
+  reverse-proxy compatible behind Traefik. Its config ships with
+  `enable_register = true` by default, so the first customer visit is a
+  self-service signup exactly like Actual Budget and Uptime Kuma: af-api
+  needs to pass no customer-specific secret, just the domain, clearing the
+  current /compose constraint with zero blocking issues. Upstream is
+  active (releases roughly every 4-8 weeks, latest 16 days old, plus same-day
+  snapshot builds), so there's no version-health concern. The open
+  question is catalogue fit rather than mechanics: it duplicates the
+  "personal finance" ground actual-budget already covers, with real but
+  narrow differentiation (receipt/AI transaction extraction, broader
+  import format support, PWA). Recommend build_with_caveats — technically
+  ready to build now, but worth a deliberate call on whether a second
+  finance-category recipe is wanted before spending a recipe slot on it.
