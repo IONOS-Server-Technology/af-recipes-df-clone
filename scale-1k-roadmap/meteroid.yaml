@@ -1,0 +1,88 @@
+slug: meteroid
+name: Meteroid
+source_description: "Open-source SaaS billing for subscriptions, usage metering, and invoicing"
+
+upstream:
+  url: https://www.meteroid.com/
+  repo_url: https://github.com/meteroid-oss/meteroid
+  license: AGPL-3.0 (core), enterprise features under a separate commercial license
+  docker_image: ghcr.io/meteroid-oss/meteroid-api (plus ghcr.io/meteroid-oss/meteroid-web, meteroid-scheduler, metering-api, meteroid-postgres — no single-image app)
+
+version_health:
+  latest_version: v1.0.0-rc6
+  latest_release_date: "2026-06-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~5 weeks since v1.0.0-rc6 as of 2026-08-05. Release history (rc1 2026-01-15,
+    rc2 2026-01-29, rc3 2026-02-05, rc4 2026-04-17, rc5 2026-06-14, rc6 2026-06-29)
+    shows an actively developed project still iterating toward a stable v1.0 —
+    no stable 1.0 has shipped yet, everything is a release candidate. Repo has
+    724+ commits on main and an active blog/DEV.to presence. Not archived, not
+    in maintenance mode.
+
+catalogue_fit:
+  categories: [billing, saas-infrastructure, finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers subscription billing,
+    usage metering, or invoicing — this is a genuinely new category (closest
+    conceptual neighbor, n8n, is general automation, not billing-specific).
+    Would appeal to customers building or running their own SaaS product on
+    an IONOS server who want to self-host billing infra instead of using a
+    hosted vendor (Stripe Billing, Chargebee, etc.) for data-residency or
+    cost reasons.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct value for a narrow but plausible customer segment
+    (SaaS builders), but the upstream project is still pre-1.0 (rc-only) and
+    the deployment footprint is unusually heavy for what the catalogue
+    otherwise offers (see installability below), which raises the bar for
+    "customer can self-host this comfortably."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Not a hard blocker, but a significant complexity/resource caveat: the
+      official docker/deploy stack is 7+ containers — Postgres, a ClickHouse
+      permissions-init job, ClickHouse itself, Redpanda (Kafka), a
+      topic-bootstrap job, meteroid-api, meteroid-scheduler, metering-api,
+      and meteroid-web — far heavier than any current recipe (Immich, the
+      current heaviest, is Postgres + Redis + a couple of app containers).
+      This needs realistic app_min_ram_mb/app_min_disk_mb sizing and would
+      be the most resource-intensive recipe in the catalogue if built.
+    - >
+      The web frontend (meteroid-web) is configured via
+      VITE_METEROID_API_EXTERNAL_URL / VITE_METEROID_REST_API_EXTERNAL_URL
+      to call the gRPC-web API (port 50061) and REST API (port 8084)
+      directly from the browser, not through the frontend container as a
+      backend-for-frontend. A recipe would need Traefik path-based routing
+      on one domain (e.g. /api, /  ) to keep this to a single public
+      hostname rather than exposing three separate ports/subdomains — doable,
+      but not the drop-in "one container, one port" pattern most existing
+      recipes use.
+    - >
+      No first-run admin credential to seed via generated_from — auth is
+      self-service signup through the web UI (matches the existing n8n and
+      Immich precedent, which also rely on first-visitor signup with no
+      basic_auth gate), so this is consistent with current catalogue norms,
+      not a new gap.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Meteroid fills a category gap (no billing/invoicing/metering app in the
+  current 24-recipe catalogue) and needs no customer-supplied secrets beyond
+  server-generated ones, so nothing here is blocked by the generated_from/
+  basic_auth mechanism constraint. However, it is still pre-1.0 (release
+  candidates only) and its official deploy stack is unusually heavy — 7+
+  containers including ClickHouse and Kafka/Redpanda — plus a frontend that
+  expects direct browser access to two separate API ports rather than a
+  single reverse-proxied entrypoint. Worth building once the team is ready to
+  take on its resource footprint and multi-port routing, but not a quick,
+  low-risk win like the single-container recipes already in the catalogue.
