@@ -25,7 +25,7 @@ version_health:
 catalogue_fit:
   categories: [ai, developer-tools, monitoring]
   has_web_ui: true
-  reverse_proxy_compatible: true
+  reverse_proxy_compatible: true  # true only after rebinding minio's port in the recipe compose; see summary
   overlaps_with: []
   differentiation: >
     The catalogue has LLM-serving/chat apps (ollama, open-webui) but nothing
@@ -62,17 +62,31 @@ installability:
       mechanism: server_generated_no_customer_input
     - secret: MINIO_ROOT_PASSWORD
       mechanism: server_generated_no_customer_input
-  blocking_issues: []
+  blocking_issues:
+    - >
+      Not a hard blocker, but worth flagging: the upstream reference compose
+      publishes minio's S3 API on 9090:9000 with no host-interface
+      restriction (every other backing service is 127.0.0.1-bound). A recipe
+      must rebind it to 127.0.0.1:9090:9000 like the other internal services
+      to keep a single public port — this is a mechanical compose-level fix
+      the recipe author needs to make, not something upstream provides
+      out-of-the-box.
   installable_today: true
   recommendation: build_with_caveats
 
 summary: >
   Langfuse's official docker-compose stack is 5 backing services
-  (langfuse-web, langfuse-worker, postgres, clickhouse, redis, minio) behind
-  a single public HTTP port (langfuse-web:3000); every other service binds
-  localhost-only in the upstream compose, so it's reverse-proxy-compatible
-  the same way Immich (server + ML + redis + postgres, one public port) is —
-  a reasonable structural template. Every infra secret it needs at boot
+  (langfuse-web, langfuse-worker, postgres, clickhouse, redis, minio). As
+  shipped upstream it has TWO public ports, not one: langfuse-web:3000
+  (the HTTP UI/API) and minio:9090 (raw S3 API, gated only by
+  MINIO_ROOT_USER/MINIO_ROOT_PASSWORD env vars) — every other backing
+  service (langfuse-worker, clickhouse, redis, postgres) is already
+  127.0.0.1-bound in the upstream compose. To reach the same
+  single-public-port pattern used elsewhere in the catalogue (e.g. Immich:
+  server + ML + redis + postgres, one public port), a recipe would need to
+  rebind minio to 127.0.0.1:9090:9000 — a small, mechanical compose-level
+  fix, not something upstream provides out-of-the-box. Every infra secret it
+  needs at boot
   (NEXTAUTH_SECRET, SALT, ENCRYPTION_KEY, and the Postgres/ClickHouse/
   Redis/MinIO credentials) is an opaque value the app never surfaces to the
   customer, so all seven can be server-generated with no input channel
