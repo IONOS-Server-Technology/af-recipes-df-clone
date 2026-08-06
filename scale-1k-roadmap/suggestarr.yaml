@@ -1,0 +1,92 @@
+slug: suggestarr
+name: SuggestArr
+source_description: "Automated media recommendation engine for Jellyfin, Plex, and Emby with Seer"
+
+upstream:
+  url: https://giuseppe99barchetta.github.io/SuggestArr/
+  repo_url: https://github.com/giuseppe99barchetta/SuggestArr
+  license: MIT
+  docker_image: ciuse99/suggestarr
+
+version_health:
+  latest_version: v2.12.0
+  latest_release_date: 2026-08-05
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released today (2026-08-05). Recent release cadence is very active:
+    v2.9.0 (2026-06-12), v2.9.1 (2026-06-19), v2.10.0 (2026-07-14), v2.10.1
+    (2026-07-20), v2.11.0 (2026-08-03), v2.12.0 (2026-08-05) — six releases
+    in under two months, several days apart. No archival or EOL signals;
+    this is a healthy, actively-developed project.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media-server
+    automation. SuggestArr watches a customer's Jellyfin/Plex/Emby history
+    and auto-requests similar titles via Jellyseerr/Overseerr, optionally
+    using an LLM for smarter suggestions. It is a satellite/companion app,
+    not a standalone media server: it has no value unless the customer
+    already runs a media server AND a request manager (Jellyseerr/
+    Overseerr) elsewhere — none of which are in our catalogue today. That
+    dependency chain narrows the addressable audience considerably.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful quality-of-life automation for the specific audience
+    that already self-hosts a full Jellyfin/Plex/Emby + Jellyseerr/Overseerr
+    stack (elsewhere), but it's a niche add-on rather than something that
+    stands alone. It's unlikely to attract a customer who doesn't already
+    have that stack running, and the requirement on external API keys (see
+    installability) further limits what we could actually ship.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TMDB_API_KEY, SEER_API_KEY, MEDIA_SERVER_API_KEY, ADMIN_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app has no built-in admin login of its own — all configuration
+      (media server, Jellyseerr/Overseerr, TMDb) happens through an
+      unauthenticated web setup wizard on first boot. Without a gate this
+      would sit open on the internet; a Traefik basic_auth gate is
+      expressible and would supply that boundary (same pattern as
+      recipes/wud).
+    - >
+      The app cannot function without a customer-supplied TMDb API key
+      (mandatory for all similarity search) and a Jellyseerr/Overseerr API
+      key + URL (mandatory to send requests) — both external, customer-
+      obtained credentials with no env-var equivalent documented (the
+      Docker image only exposes LOG_LEVEL and SUGGESTARR_PORT as env vars;
+      everything else is entered through the web UI wizard and stored in a
+      config file). There is no channel today for a customer-supplied
+      external API key of this kind.
+    - >
+      It also needs the customer's Jellyfin/Plex/Emby server URL and
+      credentials/API key to read watch history — another external,
+      per-customer credential outside the root-password-hash mechanism,
+      and pointing at a media server that itself isn't part of our
+      catalogue.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  SuggestArr (github.com/giuseppe99barchetta/SuggestArr, MIT, image
+  ciuse99/suggestarr, latest v2.12.0 released 2026-08-05) is a healthy,
+  actively-developed single-container Flask app with no direct catalogue
+  overlap. Mechanically it is a simple docker-compose service on one HTTP
+  port (5000) — reverse-proxy friendly — but it is fundamentally a
+  companion/satellite app: it does nothing without a customer-supplied TMDb
+  API key, a Jellyseerr/Overseerr API key + URL, and Jellyfin/Plex/Emby
+  server credentials, none of which our platform has an input channel for
+  today, and none of which are apps we host ourselves. Its own web UI also
+  has no built-in login, so even a bare deployment would need a Traefik
+  basic_auth gate just to avoid sitting open. Recommend not_recommended:
+  blocked on multiple external-API-key inputs we cannot express, and of
+  narrow value even if that were solved, since it only helps customers who
+  already run a full media-server + request-manager stack elsewhere.
