@@ -1,0 +1,93 @@
+slug: glances
+name: Glances
+source_description: "Glances is a cross-platform system monitoring tool with web interface"
+
+upstream:
+  url: https://nicolargo.github.io/glances/
+  repo_url: https://github.com/nicolargo/glances
+  license: LGPL-3.0
+  docker_image: nicolargo/glances
+
+version_health:
+  latest_version: "v4.5.6"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.5.6 shipped 2026-08-01, just 4 days before today (2026-08-05), and the
+    prior several 4.5.x patch releases (v4.5.5 on 2026-06-13, v4.5.4 on
+    2026-04-19, v4.5.3 on 2026-03-29, v4.5.2 on 2026-03-14, v4.5.1 on
+    2026-03-07, v4.5.0 on 2026-02-08) land every 2-6 weeks. Repo's last push
+    was 2026-08-05 (today), not archived, 108 open issues still being
+    triaged. Clearly active, not slowing or dormant.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Glances is a live host-hardware telemetry dashboard (CPU, RAM, disk,
+    network, sensors, per-process and per-container stats via the Docker
+    socket) — a "top/htop in a browser" tool. Uptime Kuma, our only
+    monitoring recipe, checks external service/URL reachability, not the
+    host's own resource usage, so it is not a true overlap. Note: a nearly
+    identical candidate, dashdot (`apps-gaps/dashdot.yaml`), was already
+    analyzed for the same "at-a-glance server resource dashboard" niche and
+    would overlap heavily with Glances if both were ever built — worth
+    flagging to whoever triages these so only one of the two ships.
+  usefulness: medium
+  usefulness_rationale: >
+    A live host-resource dashboard is a genuinely useful, well-known
+    utility for VPS/private-server owners, and Glances is a much more
+    mature and widely adopted project than dashdot in this niche. Capped at
+    medium rather than high because it is a read-only diagnostic
+    convenience, not something a customer's workflow depends on, and it
+    largely duplicates functionality available via SSH + a terminal tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Glances' own optional web-server auth (`--password` / `-P`) is not a
+      viable channel even if we wanted to use it instead of a Traefik gate:
+      it hashes with PBKDF2-HMAC-SHA256 (100,000 iterations, UUID salt),
+      an algorithm `generated_from` does not currently support (only
+      argon2/bcrypt), and setting it requires an interactive `getpass()`
+      prompt on first run with no documented env-var or config-file path to
+      supply the password non-interactively. This is not a hard blocker
+      overall, though, since Glances runs with no auth by default and a
+      Traefik `basic_auth` gate (the same pattern as dashdot/dozzle/n8n)
+      fully covers the "don't sit open on the internet" requirement.
+    - >
+      Upstream's documented container deployment for full host stats needs
+      `--pid host`, a Docker-socket bind mount
+      (`/var/run/docker.sock:/var/run/docker.sock:ro`) for per-container
+      metrics, and recommends `--network host` (with `--privileged` when
+      using host networking) to read real host network-interface counters
+      from outside the container namespace. None of these are RFC-002
+      ERROR-level (no customer-secret channel involved), but they are the
+      same class of WARN-level privileged/bind-mount flags already noted
+      for dashdot, and worth weighing before committing to a recipe.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Glances is an actively maintained (latest release 4 days before this
+  analysis), single-container system-monitoring dashboard with a web UI
+  that has no overlap in the current 24-recipe catalogue — Uptime Kuma only
+  covers external URL/service reachability, not host resource telemetry.
+  It ships with no built-in auth by default, so a Traefik `basic_auth` gate
+  fully covers the one secret it needs at first boot and is expressible
+  today; its own optional password feature would not have worked anyway
+  (unsupported hash algorithm, interactive-only setup). The remaining
+  caveats are architectural, not secret-related: full host/container stats
+  want `--pid host`, a read-only Docker-socket mount, and optionally
+  `--network host` + `--privileged`, the same WARN-level trade-offs already
+  flagged for the very similar dashdot candidate. Recommend
+  build_with_caveats, and recommend deduping against dashdot before
+  building either, since the two would serve the same niche.
