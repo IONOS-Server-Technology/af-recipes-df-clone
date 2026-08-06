@@ -1,0 +1,84 @@
+slug: hfs
+name: HFS
+source_description: "Self-hosted HTTP file server with web UI for sharing files from your disk"
+
+upstream:
+  url: https://rejetto.com/hfs/
+  repo_url: https://github.com/rejetto/hfs
+  license: GPL-3.0
+  docker_image: rejetto/hfs
+
+version_health:
+  latest_version: "3.2.2 (stable); 3.3.0-beta2 is the newest tagged build"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Stable 3.2.2 shipped 2026-07-24 (12 days before analysis date 2026-08-05),
+    preceded by 3.2.1 (2026-07-13) and 3.2.0 (2026-07-05) — roughly weekly
+    stable cuts. A beta/alpha channel (3.3.0-alpha1 on 2026-08-03,
+    3.3.0-beta2 on 2026-08-04) is being pushed in parallel, one day before
+    this analysis. Repo is not archived; this is the actively-developed HFS
+    v3 rewrite (Node/TypeScript), distinct from the legacy "HFS2"
+    (rejetto/hfs2, Delphi/Windows-only, unmaintained) — that older project
+    was considered and ruled out as the wrong upstream for a Linux container
+    recipe.
+
+catalogue_fit:
+  categories: [file-sharing, storage]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes cover ad-hoc HTTP file sharing (a
+    single-owner "point at a folder, get a link" server). Syncthing is
+    peer-to-peer sync between the customer's own devices, not a public
+    share-by-link tool, so the use case doesn't overlap. HFS would fill a
+    real "quickly share files from this VM over HTTPS" gap.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful, low-complexity single-container app with an active upstream, but
+    a narrow niche (ad-hoc file sharing) next to heavier general-purpose
+    storage/sync tools most customers already reach for.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The official rejetto/hfs image boots with a hardcoded default account
+      (admin / please-change) and provides no way to seed a *different*
+      admin password without the plaintext password: the only supported
+      paths are the interactive `create-admin <PASSWORD>` console command,
+      a `create-admin: PASSWORD` line in config.yaml, or the HTTP
+      `add_account` API call — all of which take cleartext, not a hash.
+      Internally HFS stores credentials as an SRP verifier (`srp` field),
+      not a bcrypt/argon2 hash, so even if a hash-shaped input were
+      accepted, `generated_from` has no SRP-verifier derivation today and
+      SRP normally requires the plaintext password and a fresh salt on the
+      client side to compute, which isn't a straightforward "just add the
+      algorithm" extension.
+    - >
+      Because of the above, HFS's own admin login can't be seeded from
+      ROOT_PASSWORD today. Per SCHEMA.md's decision table this is not a
+      hard blocker on its own — the whole app can instead sit behind a
+      Traefik `basic_auth` gate (the WUD/Open WebUI pattern), which is the
+      actual customer-facing auth boundary; HFS's own weak default admin
+      login then becomes an internal implementation detail behind that
+      gate, same as accepted for other recipes with fixed default creds.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  HFS is an active, single-container, single-port web app with no overlap
+  in the current catalogue — a plausible small addition. It can't project
+  the customer's root password into HFS's own admin login (SRP-based
+  storage, cleartext-only seeding path), so it isn't installable via the
+  `generated_from` mechanism; it is installable today by gating the whole
+  app behind Traefik `basic_auth` instead, treating HFS's default admin
+  account as an internal detail behind that gate. Recommend build_with_caveats:
+  ship it with the basic-auth gate as the primary boundary and document that
+  HFS's built-in admin login should not be treated as customer-facing auth.
