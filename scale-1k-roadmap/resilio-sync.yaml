@@ -1,0 +1,92 @@
+slug: resilio-sync
+name: Resilio Sync
+source_description: "Peer-to-peer file synchronization across devices using the BitTorrent protocol"
+
+upstream:
+  url: https://www.resilio.com/sync/
+  repo_url: null
+  license: "Proprietary (closed-source, freemium)"
+  docker_image: resilio/sync
+
+version_health:
+  latest_version: "3.1.2.1076"
+  latest_release_date: "2025-10-31"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Resilio Sync itself is still developed (3.1.2.1076 shipped 2025-10-31,
+    ~9 months before today, 2026-08-05), but the vendor's own Docker Hub
+    image, `resilio/sync`, has not been rebuilt since ~mid-2024 and is
+    frozen at `2.8.1` — a pre-3.0 build, ~2 years stale. The only image
+    tracking current releases is the third-party `linuxserver/resilio-sync`
+    (currently shipping the 3.0.3 binary as of this writing), which repackages
+    Resilio's proprietary binary rather than being vendor-maintained. Resilio
+    also discontinued its separate "Sync Business" product in favor of
+    "Resilio Active Everywhere" in 2024, narrowing the vendor's own focus
+    away from the self-hosted Sync line this recipe would target. Net: the
+    product line is not abandoned, but the officially-published container
+    is, and only a community rebuild tracks the app that's actually current.
+
+catalogue_fit:
+  categories: [productivity, storage]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [syncthing]
+  differentiation: >
+    Functionally near-identical to the existing syncthing recipe: both are
+    peer-to-peer, no-cloud-middleman file sync tools with a web UI and a
+    dedicated sync port. Resilio adds LAN-sync speed via BitTorrent-derived
+    swarming and one-click folder "read keys" for sharing, but Syncthing
+    already covers the core "sync files across my own devices without a
+    cloud" use case with a fully open-source, no-account, no-license stack.
+  usefulness: low
+  usefulness_rationale: >
+    A customer who wants P2P sync already has syncthing in the catalogue
+    with no licensing friction. Resilio's value-add (swarming speed,
+    selective sync UX) is real but marginal for a self-hosted single-tenant
+    VM, and is undercut by the licensing blocker below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [resilio_account_license_activation, webui_basic_auth]
+  secrets_expressible_today:
+    - secret: webui_basic_auth
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      As of Sync 3.0 (Aug 2024), Resilio requires every install — including
+      free, non-commercial use — to register an account on resilio.com and
+      confirm non-commercial usage online before the app is functional
+      ("Licensing in Resilio Sync 3.0"). This is exactly the "OAuth app
+      registration / third-party account linking" case the schema calls a
+      hard no: there is no channel today for a customer to complete that
+      registration through `/compose`.
+    - >
+      The only way to avoid the 3.0 licensing wall is pinning to the
+      vendor's stale `resilio/sync:2.8.1` image (pre-3.0, no forced
+      registration) — but that ships a build the vendor itself has moved
+      past and stopped publishing updates for, which conflicts with
+      shipping a recipe on current, supported software.
+    - >
+      Resilio's own WebUI login (set via `sync.conf`'s `webui.password`)
+      takes a plaintext password, not a hash — `generated_from` can only
+      project a hash, so this field cannot be populated from the customer's
+      root password. Leaving it unset (Traefik `basic_auth` as the real
+      gate, same as WUD/Open WebUI) works for the local WebUI, but does not
+      touch the account-registration blocker above, which is unrelated to
+      the local login.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Resilio Sync overlaps almost entirely with the already-catalogued
+  syncthing (P2P, no-cloud file sync, web UI, dedicated sync port), and
+  brings no differentiator strong enough to justify the overlap on its own.
+  More decisively, Sync 3.0 (the only actively-developed line) requires
+  mandatory online account registration and license activation even for
+  free non-commercial use — a third-party account-linking flow with no
+  input channel in the current `/compose` mechanism. The alternative,
+  pinning the vendor's stale, un-updated 2.8.1 image to dodge that
+  requirement, means shipping software the vendor has already moved past.
+  Recommend not building until either the licensing model changes or an
+  external-account input channel exists on the platform.
