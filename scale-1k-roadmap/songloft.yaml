@@ -1,0 +1,106 @@
+slug: songloft
+name: Songloft
+source_description: "Self-hosted personal music server with Subsonic API and JS plugin sandbox"
+
+upstream:
+  url: https://songloft.hanxi.cc/en/
+  repo_url: https://github.com/songloft-org/songloft
+  license: Apache-2.0 (server binary and Docker image); GPL-3.0 applies to parts of the bundled Flutter client only
+  docker_image: songloft/songloft
+
+version_health:
+  latest_version: "v2.11.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.11.1 shipped 2026-08-03, 2 days before today (2026-08-05). The
+    project's CHANGELOG shows the earliest entries around 2026-02-12
+    (project start, then under the name MiMusic before the v2.0 rebrand to
+    Songloft), reaching v2.11.1 by 2026-08-03 — roughly 40 tagged releases
+    in under 6 months, most spaced 1-4 days apart (e.g. v2.9.1 through
+    v2.9.6 all landed within a single week, 2026-06-29 to 2026-07-04).
+    This is a very young project (~6 months old) with a near-daily release
+    rhythm, still well within its initial rapid-iteration phase rather than
+    having settled into a stable maintenance cadence. That combination
+    (young + fast-moving) means a pinned tag will likely be behind within
+    weeks and breaking changes are more likely than in a mature project.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue serves personal media
+    libraries — the closest neighbors are Immich (photo/video library) and
+    Syncthing (file sync), neither of which streams audio or speaks the
+    Subsonic protocol. Songloft would be the catalogue's first self-hosted
+    music server: it scans a customer's own audio/video files, serves them
+    through a built-in web player and a Subsonic-compatible API (added via
+    an official `songloft-plugin-subsonic` JS plugin, so existing Subsonic
+    clients like Substreamer or DSub can connect), and additionally
+    supports a QuickJS-sandboxed JS plugin system for extending metadata
+    sources and device control.
+  usefulness: medium
+  usefulness_rationale: >
+    A self-hosted music/media server is a recognizable, popular self-hosting
+    use case (Navidrome, Jellyfin, Plex-style demand) and would fill a real
+    gap in the catalogue. Usefulness is medium rather than high because
+    Songloft itself is a young, low-adoption project (~1.4k GitHub stars,
+    single primary maintainer per commit history) relative to established
+    alternatives in the same space (e.g. Navidrome), and its explicit
+    "personal, non-commercial, music you legally own" framing narrows it to
+    a single-user/household niche rather than a broader team tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Admin login (ADMIN_USERNAME / ADMIN_PASSWORD)"
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Songloft's admin login is configured via the `ADMIN_USERNAME` and
+      `ADMIN_PASSWORD` environment variables, and the app compares login
+      attempts directly against the plaintext value of `ADMIN_PASSWORD` —
+      there is no documented option to supply a pre-hashed
+      (argon2/bcrypt) admin password instead (confirmed by reading the
+      upstream README's configuration and quick-start sections, which only
+      show plaintext password examples and explicitly warn that the
+      command-line `-password` flag "will appear in plaintext in shell
+      history and the process list"). `generated_from` only ever produces a
+      hash of the customer's root password, and Songloft has no field that
+      accepts a hash for this purpose — so this is a genuine plaintext-only
+      requirement, which SCHEMA.md calls out as an actual structural
+      blocker rather than a soft `generated_from`-algorithm gap. Gating the
+      whole app behind Traefik `basic_auth` instead does not resolve this,
+      because Songloft would still be left with its own default `admin /
+      admin` login exposed behind that gate, and — unlike the
+      fixed-default-credential case SCHEMA.md excuses (IF-1312) — the
+      customer has no way to change that default to something derived from
+      their own root password without knowing it in plaintext, so it stays
+      a knowable, static credential to anyone who ever gets past the
+      Traefik gate (e.g. a future customer of a reused instance, or a
+      support engineer).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Songloft is a clean single-container fit mechanically — one official
+  image (songloft/songloft, pin to 2.11.1), one HTTP port (58091), SQLite
+  storage, bind-mounted music/data volumes, and no other services — and it
+  would be the catalogue's first dedicated music-server recipe, filling a
+  real and currently-unfilled niche (Subsonic-API-compatible streaming plus
+  a built-in web player). It is blocked today purely on the auth-projection
+  gap: its admin login only accepts a plaintext password via
+  `ADMIN_USERNAME`/`ADMIN_PASSWORD`, with no hash-accepting field for
+  `generated_from` to target, and stacking Traefik `basic_auth` on top
+  still leaves the app's own default admin/admin credential live behind
+  the gate rather than actually being set from the customer's root
+  password. Recommend `blocked_on_platform`: revisit once either a
+  plaintext-password projection channel exists, or check whether a future
+  Songloft release adds a hashed-password env var. Separately worth
+  tracking: the project is only ~6 months old with a very fast release
+  cadence (roughly 40 tags since February 2026), so even once installable
+  it would need closer-than-usual upstream-tracking for stability and
+  security fixes.
