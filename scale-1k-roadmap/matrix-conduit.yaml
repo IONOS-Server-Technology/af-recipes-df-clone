@@ -1,0 +1,106 @@
+slug: matrix-conduit
+name: Matrix Conduit
+source_description: "Lightweight Rust Matrix homeserver for federated, encrypted chat"
+
+upstream:
+  url: https://conduit.rs
+  repo_url: https://gitlab.com/famedly/conduit
+  license: Apache-2.0
+  docker_image: docker.io/matrixconduit/matrix-conduit
+
+version_health:
+  latest_version: "v0.10.12"
+  latest_release_date: "2026-02-12"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v0.10.12 (2026-02-12) is a security release mitigating a signing-key
+    compromise; the prior two releases (v0.10.11, v0.10.10, both
+    Dec 2025/Jan 2026) were also security-driven, following a tighter
+    monthly-ish cadence through most of 2025 (v0.10.0 through v0.10.9,
+    May-Sep 2025). Since v0.10.12 there has been no new version tag for
+    ~6 months (today is 2026-08-05), though the GitLab project's
+    `last_activity_at` is 2026-07-26 and untagged commits/container builds
+    continued into mid-July 2026 — so development hasn't stopped, but the
+    release cadence has clearly slowed relative to 2025. Upstream's own
+    README still labels the project "Beta" with explicitly missing
+    federation features (outgoing read receipts/typing/presence, E2EE
+    emoji comparison). Note the project is ambiguous by name: this analysis
+    covers the original `famedly/conduit`, not its more actively-developed
+    forks `conduwuit` (itself now archived) or `continuwuity` (the current
+    community continuation, releasing every 1-2 weeks) — Hostinger's slug
+    `matrix-conduit` and description map to the original project's own
+    Docker image name (`matrixconduit/matrix-conduit`), so that's the
+    candidate evaluated here, but a reviewer picking this up should know
+    the more active fork exists under a different name.
+
+catalogue_fit:
+  categories: [communication, federation, chat]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers real-time federated chat/messaging — this
+    would be a genuinely new category, distinct from apps-gaps/mastodon.yaml
+    (federated microblogging, different protocol and use case).
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosting a Matrix homeserver is a recurring, well-understood
+    self-hosting request, but Conduit ships no client of any kind — it is
+    a headless JSON API that only becomes usable once the customer installs
+    a separate Matrix client (Element, Nheko, SchildiChat, etc.) and points
+    it at the server. That's a materially higher setup bar than every other
+    recipe in the catalogue, which are usable directly through a browser
+    immediately after install.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [registration_token]
+  secrets_expressible_today:
+    - secret: registration_token
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No browser-reachable login or admin surface of any kind. Conduit
+      exposes only the Matrix Client-Server and Server-Server JSON APIs;
+      there is no web UI, so there is no page for a `generated_from`
+      password hash to authenticate against, and no built-in "admin
+      account" the platform could provision a credential for. The
+      `emergency_password` config field logs in as a fixed `conduit` user
+      via the same headless API, not a page a customer visits.
+    - >
+      A Traefik `basic_auth` gate — the fallback for apps with no login of
+      their own — is not viable here, unlike Adminer or WUD. It would
+      intercept every request to the Client-Server API, and real Matrix
+      clients (Element, etc.) never send HTTP Basic Auth headers, so
+      gating the whole domain would break the app's actual function
+      rather than just adding a perimeter around unauthenticated access.
+    - >
+      Federation — the feature Hostinger's own description leads with — is
+      a second HTTP surface entirely: a Server-Server API conventionally
+      reachable on port 8448 (or delegated via
+      `.well-known/matrix/server` and `.well-known/matrix/client` JSON
+      files served over plain HTTPS on 443). Our current per-slug
+      single-domain Traefik model has no precedent for serving those two
+      well-known static responses alongside the app's own routes on the
+      same hostname (the closest parallel, Mastodon's path-split web +
+      streaming services, was already flagged as unsupported in
+      apps-gaps/mastodon.yaml). Running Conduit with federation disabled
+      would sidestep this, but that guts the core value proposition
+      Hostinger is describing.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Matrix Conduit fills a category the catalogue doesn't have (federated
+  real-time chat), but it is blocked on more than one front: it has no
+  web login surface at all for `generated_from` to project into, a
+  `basic_auth` gate would break the protocol itself rather than just
+  securing it, and true federation needs well-known delegation/a second
+  HTTP surface with no precedent in today's single-domain Traefik
+  mechanism. Combined with a headless API that requires the customer to
+  bring their own separate Matrix client to use it at all, and a release
+  cadence that has visibly slowed since the Feb 2026 security release,
+  this is a `blocked_on_platform` candidate worth deferring — and worth
+  re-scoping toward the more actively maintained `continuwuity` fork if
+  revisited later.
