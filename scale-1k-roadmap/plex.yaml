@@ -1,0 +1,126 @@
+slug: plex
+name: Plex
+source_description: "Popular media server for streaming movies, TV shows, music, and photos"
+
+upstream:
+  url: https://www.plex.tv/
+  repo_url: https://github.com/plexinc/pms-docker
+  license: "Proprietary (closed-source; free core server, paid Plex Pass tier; remote streaming of personal media now requires Plex Pass or Remote Watch Pass as of 2025-04-29 enforcement)"
+  docker_image: plexinc/pms-docker:1.43.3.10861-07dfddaeb
+
+version_health:
+  latest_version: "1.43.3.10861 (Plex Media Server, public channel)"
+  latest_release_date: "2026-08-04 (image pushed 2 days before today, 2026-08-05)"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    plexinc/pms-docker gets new PMS point-release tags roughly every 1-4
+    weeks (1.43.1.10611 -> 1.43.2.10687 beta -> 1.43.3.10828 (~23 days
+    before today) -> 1.43.3.10861 (~2 days before today, 2026-08-05)).
+    Repo is not archived and Plex Inc. is an active commercial company;
+    no dormancy or EOL signal on the server product itself. Note the
+    separate, unrelated 2025-04-29 policy change requiring Plex
+    Pass/Remote Watch Pass for *remote* streaming of personal media —
+    a monetization/licensing shift, not a maintenance or EOL signal.
+
+catalogue_fit:
+  categories: [media, video, streaming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers general-purpose personal video/TV
+    library streaming. Immich is the closest existing recipe by "self-hosted
+    personal media" flavor but is strictly a photo/video backup and
+    AI-organized gallery, not a transcoding library server for movies and TV
+    shows with broad smart-TV/mobile client support. Plex is the best-known
+    brand in this category; apps-gaps/jellyfin.yaml and apps-gaps/emby.yaml
+    already analyze the same "Plex-style media server" gap and were both
+    found high-usefulness but blocked_on_platform on unrelated grounds
+    (interactive local admin setup wizard with no env-var seed hook). Plex
+    is architecturally different from both: it has no local admin account
+    at all — every server is bound to a plex.tv cloud account instead.
+  usefulness: high
+  usefulness_rationale: >
+    Home media/TV streaming is one of the most commonly requested
+    self-hosting use cases, and Plex specifically is the most
+    widely-recognized brand in the category (more so than Jellyfin or
+    Emby), which gives it strong pull for a customer browsing the
+    catalogue. That demand is real, but see installability below — the
+    blocker here is structurally different from, and arguably harder than,
+    Jellyfin/Emby's "open setup wizard" problem.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [plex_tv_account_link]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Plex has no local admin account of any kind — unlike Jellyfin/Emby,
+      there is no username/password the app itself manages. Every Plex
+      Media Server must be bound ("claimed") to a real plex.tv cloud
+      account before it does anything useful; the web UI's first-run flow
+      is "Sign In" or "Create Account" against plex.tv, not a local admin
+      signup form. This is the canonical "OAuth app registration /
+      third-party account linking" case the SCHEMA.md fit-table already
+      calls out as having no input channel today, and it is structurally
+      worse than Jellyfin/Emby's problem: even if this platform gains a
+      way to inject a preset admin credential via env var or a
+      `generated_from`-style hash, that mechanism would have nowhere to
+      attach on Plex, because Plex was never going to accept a
+      platform-issued credential for its own account — it only accepts
+      the customer's real, pre-existing (or newly created) plex.tv
+      identity.
+    - >
+      The one first-boot input Plex *does* accept, `PLEX_CLAIM`, does not
+      change this: it is a claim token the customer must fetch themselves,
+      interactively and while already signed into plex.tv, from
+      https://plex.tv/claim, and it expires ~4 minutes after being issued.
+      It is not a value af-api's JWE bootstrap token can derive or
+      pre-generate — it is a live, single-use, externally-issued secret
+      tied to a specific plex.tv account, i.e. exactly the "external
+      API key/token the app can't function without" row the SCHEMA.md
+      fit-table already marks as not installable. Skipping PLEX_CLAIM only
+      defers the same sign-in requirement to the web UI on first visit; it
+      does not remove it.
+    - >
+      A Traefik `basic_auth` gate does not help here either: it can keep a
+      stranger from reaching the setup page first, but the customer
+      themselves still cannot get a working server out of the wizard
+      without linking a plex.tv account, which is outside anything
+      `generated_from`/root-password projection or basic_auth can supply.
+    - >
+      Secondary, non-blocking note: Plex's own docs recommend host or
+      macvlan networking for full functionality (GDM local-network
+      discovery, DLNA, and the more reliable path for Plex clients'
+      "automatic remote access" port-mapping probe). The core web UI only
+      needs TCP/32400 and works fine in bridge mode behind a single-domain
+      Traefik reverse proxy for basic library browsing/streaming, so this
+      is not a structural blocker the way the account-linking issue is —
+      just a functionality caveat that would need documenting if the
+      account-linking blocker were ever lifted.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Plex Media Server itself is healthy and actively released
+  (plexinc/pms-docker gets a new PMS point-release roughly every 1-4 weeks,
+  most recently 2 days before today) and would fill a real, currently-empty
+  "Plex/Jellyfin-style home media streaming" gap that customers plausibly
+  search for by name — more so than the already-analyzed Jellyfin or Emby,
+  given Plex's brand recognition. It is not installable today, and its
+  blocker is a harder variant of Jellyfin/Emby's "no env-var admin seed"
+  gap: Plex has no local admin account to seed at all — every server must
+  be claimed to a real, customer-owned plex.tv cloud account via an
+  interactive sign-in or a short-lived, externally-issued PLEX_CLAIM token,
+  the same third-party account-linking / external-token case SCHEMA.md
+  already rules out (and the same shape of blocker apps-gaps/jellyseerr.yaml
+  hit for the same reason). Recommend `blocked_on_platform`, consistent
+  with that precedent, but flag that this is a stronger case than
+  Jellyfin/Emby's: those two are fixable in principle with a config-seeding
+  hook and/or an extended `generated_from` algorithm list, whereas Plex
+  would need an entirely different mechanism — a way for the customer to
+  supply a live third-party credential/token at provisioning time, not a
+  root-password-derived hash — before it could ever qualify. Revisit only
+  if/when the platform gains that kind of customer-supplied external-
+  credential channel.
