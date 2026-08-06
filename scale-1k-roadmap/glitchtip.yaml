@@ -1,0 +1,87 @@
+slug: glitchtip
+name: GlitchTip
+source_description: "Sentry-compatible error tracking and performance monitoring platform"
+
+upstream:
+  url: https://glitchtip.com
+  repo_url: https://gitlab.com/glitchtip/glitchtip
+  license: MIT
+  docker_image: glitchtip/glitchtip
+
+version_health:
+  latest_version: "6.2.3"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.2.3 shipped 2026-07-31 — only 5 days before today (2026-08-05).
+    Backend tag history (gitlab.com/glitchtip/glitchtip-backend/-/tags)
+    shows a steady cadence through 2026: v6.2.2 (2026-07-17), v6.2.1
+    (2026-07-15), v6.2.0 (2026-06-19), v6.1.8 (2026-06-05), v6.1.7
+    (2026-06-04), v6.1.6 (2026-04-18) — a new release every 2-6 weeks with
+    no gap. GlitchTip 6.0, a major release simplifying the stack and
+    modernizing the backend, shipped 2026-02-03. No archival,
+    maintenance-only, or EOL signal; this is a healthy, actively
+    maintained project.
+
+catalogue_fit:
+  categories: [error-tracking, apm, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue does application error
+    tracking/APM. GlitchTip is a self-hosted, Sentry-SDK-compatible error
+    and performance monitoring tool (point an existing Sentry SDK at it
+    via DSN), one of the longest-running and most established options in
+    this niche. However, two other apps-gaps candidates already cover
+    the exact same ground: BugSink ([[bugsink]], recommended build_now)
+    and Errbit ([[errbit]], blocked_on_platform, Airbrake-protocol only).
+    GlitchTip and BugSink in particular are near-total functional overlap
+    (both Sentry-SDK-compatible, both installable today) — building both
+    would give the catalogue two indistinguishable error-tracking recipes
+    rather than broadening it.
+  usefulness: medium
+  usefulness_rationale: >
+    Error tracking is a genuinely useful, developer-facing self-hosting
+    category with no catalogue coverage today, so on its own this would
+    be high value. Downgraded to medium because BugSink already fills
+    this exact niche and is lighter to deploy (single app + Postgres vs.
+    GlitchTip's app + Postgres + optional Valkey/Redis) — shipping both
+    is redundant, so GlitchTip's marginal value depends on which of the
+    two the catalogue picks, not on GlitchTip's own merits.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_KEY, POSTGRES_PASSWORD, basic_auth_password]
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  GlitchTip's official docker-compose.yml is a web app container
+  (glitchtip/glitchtip, pin e.g. "6.2.3") plus Postgres 14+ and an
+  optional Valkey/Redis 7+ sidecar, exposing a single HTTP port (8000) —
+  structurally close to recipes/n8n or recipes/paperless-ngx (app +
+  Postgres) and near-identical to the BugSink candidate. There is no env
+  var to preset an admin login: by default ENABLE_USER_REGISTRATION=True
+  and the first person to reach the UI self-registers and becomes the
+  admin, with no first-boot-reachable channel to project the customer's
+  root-password hash into that flow. That makes it a no-built-in-login
+  app in practice, like Adminer or Ghostfolio, so it must ship behind a
+  mandatory Traefik basic_auth gate (both to keep it off the open
+  internet and to prevent a stranger from squatting the first-admin slot
+  before the customer visits). SECRET_KEY and POSTGRES_PASSWORD are
+  patternless internal secrets nothing customer-facing reads. Mechanically
+  this is installable today with zero blocking issues and an active
+  upstream, but it functionally duplicates the BugSink apps-gaps
+  candidate, which covers the same Sentry-compatible niche with a
+  simpler stack — recommend building at most one of GlitchTip/BugSink,
+  not both.
