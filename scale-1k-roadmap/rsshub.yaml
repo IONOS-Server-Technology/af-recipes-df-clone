@@ -1,0 +1,89 @@
+slug: rsshub
+name: RSSHub
+source_description: "Open-source RSS feed generator for websites missing native RSS support"
+
+upstream:
+  url: https://docs.rsshub.app/
+  repo_url: https://github.com/DIYgod/RSSHub
+  license: AGPL-3.0
+  docker_image: diygod/rsshub
+
+version_health:
+  latest_version: "2026-08-05"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    RSSHub does not cut semver releases at all — the GitHub releases list is
+    empty and there are no version tags. Distribution is continuous: every
+    master commit produces a commit-SHA image plus a dated tag
+    (diygod/rsshub:YYYY-MM-DD, with chromium-bundled-YYYY-MM-DD variants),
+    ~15,200 tags on Docker Hub. Tags 2026-08-03, 2026-08-04, 2026-08-05 and
+    2026-08-06 all exist, and the repo's last push was 2026-08-06 (same day
+    as this analysis), so the project is very actively developed, not
+    archived and not maintenance-only. latest_version above is the most
+    recent complete dated tag (2026-08-05); the 2026-08-06 tag was still
+    being pushed while this was written. Consequence for a recipe: there is
+    no upstream "stable release" to pin — app_version has to be a date tag,
+    which is a moving snapshot of master with no changelog or stability
+    guarantee behind it.
+
+catalogue_fit:
+  categories: [productivity, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches RSS at all, and RSSHub is not
+    a reader — it is the opposite half of the stack: it scrapes sites,
+    social accounts and APIs that publish no feed and emits RSS/Atom/JSON
+    Feed for them. It therefore does not overlap the reader-side candidates
+    already analysed (apps-gaps/freshrss.yaml, apps-gaps/fusion-rss.yaml,
+    apps-gaps/miniflux.yaml, apps-gaps/commafeed.yaml) — it complements
+    them, and per CLAUDE.md overlap would not be a rejection reason anyway.
+    Note the "web UI" is thin: a landing page and HTML error pages, with the
+    real interface being feed URLs like /github/issue/DIYgod/RSSHub fetched
+    by the customer's reader. Everything is one HTTP port, so Traefik on
+    rsshub.<base_domain> fronts it the same way it fronts uptime-kuma or
+    opengist.
+  usefulness: medium
+  usefulness_rationale: >
+    A well-known project (45k+ stars) solving a real problem for anyone who
+    tracks sites without feeds, and self-hosting it is the standard answer
+    to the public rsshub.app instance being rate-limited or IP-blocked. But
+    it is a power-user tool: value depends on the customer already running a
+    reader, and a large share of the ~5000 routes target Chinese platforms
+    or need per-site cookies/tokens, which our mechanism cannot supply
+    today — so the usable-out-of-the-box surface is narrower than the route
+    count suggests.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  RSSHub boots with zero configuration: the official diygod/rsshub image
+  listens on a single HTTP port (1200) and needs no database and no API key
+  to serve feeds — upstream's compose adds Redis (CACHE_TYPE=redis) and
+  browserless only as optional accelerators, and the plain image with
+  CACHE_TYPE=memory, or a Redis sidecar with a server-generated password,
+  needs no customer input either way. It has no login of its own, so it
+  must not sit open on the internet (an unauthenticated instance is a
+  fetch-anything proxy that will attract abuse and get the customer's IP
+  blocked by target sites); the correct gate is Traefik basic_auth: true
+  with generated_from on the root password, which readers can consume as
+  https://user:pass@rsshub.<domain>/<route>. RSSHub's own ACCESS_KEY is not
+  a usable alternative — the customer has to know that value to build feed
+  URLs, and there is no channel to hand a server-generated one back to
+  them. Caveats behind the build_with_caveats verdict, none of them
+  blocking: no semver releases at all, so app_version can only pin a dated
+  master snapshot that goes stale within days; individual routes break
+  routinely when target sites change, with no per-route SLA; and routes
+  requiring site cookies or third-party API keys stay unavailable until an
+  arbitrary-secret input channel exists.
