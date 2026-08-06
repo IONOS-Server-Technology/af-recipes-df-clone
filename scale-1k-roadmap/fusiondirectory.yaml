@@ -1,0 +1,102 @@
+slug: fusiondirectory
+name: FusionDirectory
+source_description: "Web-based LDAP, Samba, Kerberos, and mail account manager for sysadmins"
+
+upstream:
+  url: https://www.fusiondirectory.org
+  repo_url: https://github.com/fusiondirectory/fusiondirectory
+  license: GPL-2.0
+  docker_image: null
+
+version_health:
+  latest_version: "1.5"
+  latest_release_date: "2025-02-24"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. Latest tagged release is fusiondirectory-1.5
+    (Feb 24, 2025) — about 17.5 months ago, with no 1.5.x point release
+    since. Release history shows the cadence lengthening over time:
+    1.1 (2017) → 1.2/1.2.x (2017-2018) → 1.3 (Mar 2019) → 1.3.1
+    (Oct 2022, a ~3.5-year gap) → 1.4 (Jun 2023) → 1.5 (Feb 2025). The
+    project is not archived or EOL — GitHub mirror activity (and the
+    upstream GitLab at gitlab.fusiondirectory.org, the actual primary
+    VCS) shows commits as recently as late July 2026 — but major/minor
+    tagged releases have become infrequent and irregular rather than on
+    a predictable schedule, hence `slowing` rather than `active`.
+
+catalogue_fit:
+  categories: [identity-management, networking, sysadmin-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch LDAP/directory/identity
+    administration. FusionDirectory would be the first entry aimed at
+    sysadmins who want a self-hosted directory service (POSIX accounts,
+    Samba, Kerberos, mail routing) with a web UI on top of OpenLDAP —
+    a distinct pitch ("run your own company directory/IAM") from
+    anything else in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real audience among small/medium orgs wanting a self-hosted
+    alternative to hosted directory services, but it is a narrow,
+    technical sysadmin niche (LDAP schema, Samba/Kerberos integration)
+    compared to the productivity/AI/media tools that make up most of
+    the current catalogue, capping it below high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LDAP_ADMIN_PASSWORD, FD_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      There is no official Docker image from the FusionDirectory project
+      itself. Every available image (zsoerenm/fusiondirectory-docker,
+      Fekide/docker-fusiondirectory-openldap, sebt3/fusiondirectory,
+      nfrastack/container-fusiondirectory, hrektts/docker-fusiondirectory,
+      among others) is a third-party community build, each with its own
+      bootstrap conventions and none clearly canonical — there is no
+      single "pin a stable tag from the official image" choice to make.
+    - >
+      FusionDirectory itself ships an interactive, browser-based
+      setup wizard (fusiondirectory-setup-wizard) for first-run
+      configuration (organization name, LDAP base DN, schema selection,
+      admin bind DN/password, TLS). Several community Docker builds
+      route around that wizard with env vars instead (e.g.
+      Fekide/docker-fusiondirectory-openldap's `LDAP_ADMIN_PASSWORD`
+      and `FD_ADMIN_PASSWORD`), but those env vars are consumed as
+      **plaintext** by the container's init script, which then hashes
+      them internally (via `slappasswd`/similar) into LDAP's own
+      userPassword format. That is a genuine plaintext-password
+      requirement, not merely a hash-format mismatch — per SCHEMA.md
+      this is the one case that is a structural blocker, since
+      `generated_from` only ever projects a hash (argon2/bcrypt), never
+      the plaintext root password itself.
+    - >
+      Even setting the plaintext-password issue aside, FusionDirectory's
+      "login" is an LDAP bind against an admin DN that is created during
+      directory bootstrap — not a single app-level credential field the
+      way Vaultwarden's `ADMIN_TOKEN` is. Wiring a customer-facing secret
+      through LDAP directory provisioning (organization, base DN, schema
+      load) is a multi-step bootstrap process our mechanism has no
+      channel for today, beyond the single root-password-hash projection.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  FusionDirectory would be a genuinely new category for the catalogue
+  (self-hosted LDAP/Samba/Kerberos directory management), but it fails
+  installability on multiple independent grounds: no official Docker
+  image to pin a stable tag against (only a scattered set of
+  community-maintained forks), and a first-boot bootstrap — either the
+  app's own interactive setup wizard or the env-var shortcuts some
+  community images offer — that fundamentally requires a plaintext
+  admin/LDAP password rather than the hash our `generated_from`
+  mechanism can supply. Release cadence has also visibly slowed (17.5
+  months and counting since the 1.5 release, following a history of
+  widening gaps between majors), though the project is still
+  commit-active upstream and not EOL. Recommend `not_recommended`: the
+  blockers here are structural (no canonical image, plaintext-password
+  requirement) rather than a single missing platform feature, so this
+  is not simply a "revisit once IF-1420/1312 land" case.
