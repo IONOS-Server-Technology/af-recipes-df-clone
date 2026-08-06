@@ -1,0 +1,84 @@
+slug: skysend
+name: SkySend
+source_description: "End-to-end encrypted, zero-knowledge file and note sharing service"
+
+upstream:
+  url: https://skysend.app
+  repo_url: https://github.com/Skyfay/SkySend
+  license: AGPL-3.0
+  docker_image: skyfay/skysend
+
+version_health:
+  latest_version: "v2.12.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.12.0 shipped 2026-07-30, 6 days before today (2026-08-05). The
+    project's own changelog shows 40 tagged releases between v1.0.0
+    (2026-04-12) and v2.12.0 (2026-07-30) — averaging roughly 2-3 releases
+    per week since inception, with no gap longer than about a week anywhere
+    in that history. This is a very young project (~4 months old at time of
+    writing) under extremely active, still-accelerating development, not a
+    stalled or dormant one. The flip side of "active" here is "immature": a
+    ~4-month-old codebase with a weekly release cadence has not yet had time
+    to prove long-term stability, and breaking/security-relevant changes
+    could land at any pinned-tag bump.
+
+catalogue_fit:
+  categories: [productivity, security, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing currently in the 24-recipe catalogue covers anonymous,
+    link-based file/note sharing with true client-side (browser) end-to-end
+    encryption — the server and its operator never see plaintext content or
+    the decryption key (carried only in the URL fragment, never sent to the
+    server). OpenGist is the closest neighbor but is Git-backed code/text
+    snippets with server-side plaintext storage and no encryption; Syncthing
+    is P2P folder sync between a customer's own owned devices, not one-off
+    link sharing with third parties; Vaultwarden is a password manager, not
+    a share-a-link tool. The `anonupload` gap-analysis (not built,
+    not_recommended — eol) covers similar ground conceptually but that
+    specific project has been abandoned since 2023, so SkySend is a live,
+    actively-maintained alternative to that unfilled niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Zero-knowledge encrypted file/note drop (with burn-after-read notes and
+    view limits) is a genuinely useful, currently-unfilled niche for a
+    self-hosting customer who wants to share a sensitive file or secret with
+    someone outside their org without trusting a third-party service.
+    Usefulness is medium rather than high because it is a narrow,
+    single-purpose utility (not a platform customers build on) and the
+    underlying project's newness (~4 months, pre-1.0-in-spirit release
+    velocity) adds real stability/security risk for something whose whole
+    value proposition is trustworthy handling of sensitive data.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SkySend ships as a single official container (skyfay/skysend, pin to
+  v2.12.0) on one HTTP port (3000), backed by SQLite and local bind-mounted
+  `/data` + `/uploads` volumes with no external database — a clean fit for
+  our single-container-behind-Traefik pattern. The app has no built-in
+  account system or admin login by design (that's the whole "zero
+  accounts, zero knowledge" pitch); its only auth option is OIDC/SSO, which
+  requires registering the instance with an external identity provider and
+  has no input channel in our current /compose flow. Left unauthenticated,
+  the instance would let anyone who reaches the URL create shares, which is
+  exactly the "no login of its own, needs a gate" case IF-1312's Traefik
+  basic_auth solves — gating the whole app is expressible today with no
+  blockers. The project itself is new (~4 months) but shipping a release
+  every few days with zero signs of stalling. Recommend building now, with
+  a note to the recipe author to actively track upstream's fast pace for
+  security-relevant releases given the sensitive-data use case.
