@@ -1,0 +1,98 @@
+slug: gpt-researcher
+name: GPT-Researcher
+source_description: "Autonomous AI agent for deep web research and cited report generation"
+
+upstream:
+  url: https://gptr.dev
+  repo_url: https://github.com/assafelovic/gpt-researcher
+  license: Apache-2.0
+  docker_image: gptresearcher/gpt-researcher
+
+version_health:
+  latest_version: "v3.6.0"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v3.6.0 shipped 2026-07-18, ~18 days before today (2026-08-05). Prior
+    releases show a steady near-monthly cadence through 2026: v3.4.0
+    (Jan 29), v3.4.1 (Feb 21), v3.4.2 (Mar 1), v3.4.3 (Mar 13), v3.4.4
+    (Apr 16), v3.5.0 (May 28), v3.5.1 (Jun 23), v3.6.0 (Jul 18). Repo is not
+    archived and has ongoing commits. However, the published Docker Hub
+    image (gptresearcher/gpt-researcher) is stale relative to that GitHub
+    cadence: it only has two tags — `latest` (pushed "over 1 year" ago) and
+    a numeric `0.8.1` (pushed "about 2 years" ago) — neither corresponds to
+    a current v3.x release. There is no image tag on Docker Hub that can be
+    pinned to a recent, known-good version; the only "current" image is
+    whatever `latest` happens to be, which contradicts the project's own
+    active source-release cadence.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the 24 current recipes generate cited, source-aggregated
+    research reports. open-webui, anythingllm, agent-zero, openclaw, and
+    hermes-agent are all chat-first "talk to an LLM" or general-purpose
+    agent UIs; GPT-Researcher is single-purpose — give it a topic, it
+    scrapes and synthesizes multiple web sources autonomously and returns a
+    long-form report (2,000+ words) with citations, with no chat loop
+    involved. Genuinely distinct use case if it were installable.
+  usefulness: medium
+  usefulness_rationale: >-
+    The cited-report-generation angle is a real gap in the catalogue, and
+    the project is popular and actively developed. Capped at medium rather
+    than high because the app is fundamentally useless without both an LLM
+    API key and a web-search API key — a self-hosting customer gets an
+    empty shell until they configure external paid services, unlike
+    open-webui+ollama which can run fully local out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENAI_API_KEY, TAVILY_API_KEY]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >-
+      OPENAI_API_KEY (or another LLM provider key) and TAVILY_API_KEY (the
+      default web-search retriever) must both be set as container
+      environment variables before the backend will start doing any
+      research at all — confirmed against upstream getting-started docs and
+      the shipped docker-compose.yml, which passes both straight through
+      from the host `.env` with no fallback and no in-app settings screen to
+      supply them after boot. These are third-party paid-API credentials
+      the customer must obtain themselves; `/compose` has no channel today
+      for an arbitrary customer-supplied secret like this (only a hash of
+      the customer's own root password, or nothing).
+    - >-
+      The app itself ships no login/auth of its own — the web UI (Next.js
+      frontend on :3000, or the lightweight static UI served by the FastAPI
+      backend on :8000) is open to anyone who can reach it. This is not the
+      primary blocker (Traefik `basic_auth` would gate it the same way it
+      gates n8n/OpenClaw/WUD/Open WebUI/Immich) but it is an additional gap
+      that would need the same treatment if the API-key blocker above were
+      ever resolved.
+    - >-
+      Separately from the /compose input-channel gap: the official Docker
+      Hub image is not maintained in step with the active GitHub release
+      cadence (see version_health notes) — there is no recent pinned tag to
+      build a recipe against even if the secrets problem were solved.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >-
+  GPT-Researcher fills a real gap versus the current 24 recipes — cited,
+  autonomous research-report generation is a distinct use case none of them
+  cover — and the upstream project itself is active. It cannot be shipped
+  as a recipe today, though: the app is non-functional without both an
+  OPENAI_API_KEY (or equivalent LLM key) and a TAVILY_API_KEY, both required
+  as environment variables at container start with no post-boot
+  configuration UI, and `/compose` has no channel for a customer-supplied
+  external API key of that kind. It also lacks its own login (a
+  Traefik basic_auth gate could cover that) and the official Docker Hub
+  image has not kept pace with the project's active GitHub release cadence,
+  so there is no clean current tag to pin even setting the API-key problem
+  aside. Revisit once there is a general "customer-supplied external API
+  key" input channel on the platform; the app-level fit is good, the
+  blocker is purely mechanical.
