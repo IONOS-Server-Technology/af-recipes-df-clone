@@ -1,0 +1,103 @@
+slug: insforge
+name: InsForge
+source_description: "Open-source backend platform with auth, database, and storage for AI agents"
+
+upstream:
+  url: https://insforge.dev
+  repo_url: https://github.com/InsForge/InsForge
+  license: Apache-2.0
+  docker_image: >
+    No pinned/published image for the main app service. `docker-compose.yml`
+    and `docker-compose.prod.yml` both build the `insforge` service from a
+    local `Dockerfile` (`target: runner`) rather than pulling a tagged
+    release image — no `ghcr.io/insforge/insforge:<version>` (or similar)
+    was found on GHCR/Docker Hub to pin instead. Only the *sidecar* services
+    ship pinned images: `ghcr.io/insforge/postgres:v15.13.4`,
+    `postgrest/postgrest:v12.2.12`, `denoland/deno:alpine-2.0.6`.
+
+version_health:
+  latest_version: "v2.2.9"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged GitHub releases roughly every 2-16 days through the last ~2
+    months (v2.2.0 on 2026-06-05 through v2.2.9 on 2026-07-28, one week
+    before this analysis). Well within "active" — no gap, no dormancy
+    signal, project is clearly under heavy development.
+
+catalogue_fit:
+  categories: [developer-tools, ai, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    InsForge is a backend-as-a-service platform (Postgres, auth, S3-
+    compatible storage, an OpenAI-compatible model gateway, Deno edge
+    functions) meant for AI coding agents to build and operate full-stack
+    apps against via MCP or SDK — not a finished application an end user
+    opens and uses. Nothing in the current 24 recipes is a BaaS/agent-
+    backend platform, so there is no direct functional overlap, but it is
+    conceptually adjacent to Open WebUI/Ollama (both touch local LLM
+    workflows) without actually duplicating either.
+  usefulness: low
+  usefulness_rationale: >
+    AF customers installing from the catalogue expect a ready-made product
+    (password manager, notes app, Git host, chat UI) usable immediately
+    after setup. InsForge's dashboard is a management console for a
+    developer platform — there is nothing to "use" until a developer wires
+    an agent or app against its API/MCP server. That is a narrower,
+    technical audience than the rest of the catalogue targets, independent
+    of the mechanism questions below (same shape of gap as `1backend`).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ROOT_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No pinned, published Docker image exists for the main app service —
+      both compose files build it from source via a local `Dockerfile`.
+      This fails the "pinned, current stable tag" requirement outright;
+      there is no versioned image on GHCR/Docker Hub to substitute, and
+      building from a git ref inside a customer's compose stack is not a
+      supported recipe pattern.
+    - >
+      `ROOT_ADMIN_PASSWORD` (paired with `ROOT_ADMIN_USERNAME`) gates the
+      InsForge dashboard — the app's own admin login. Public docs give no
+      indication it accepts a pre-hashed value the way Vaultwarden's
+      `ADMIN_TOKEN` explicitly documents (plaintext or Argon2 hash both
+      accepted); the variable name and absence of any hash-format guidance
+      suggest InsForge expects a plaintext secret it hashes/stores itself.
+      `generated_from` can only ever project a hash of the customer's root
+      password, so this parameter's compatibility with that mechanism is
+      unconfirmed at best, and likely unsatisfiable — needs upstream
+      confirmation before treating it as expressible. Unlike Adminer/WUD,
+      InsForge has its own persistent admin account rather than a stateless
+      per-visit credential form, so a Traefik `basic_auth` gate in front
+      does not substitute for it: the customer would still hit InsForge's
+      own login wall behind the gate with no way to know the credential.
+    - >
+      Full BaaS functionality (agents/SDKs connecting via MCP to auth,
+      PostgREST, and Deno services) exposes several raw, non-HTTP ports
+      beyond the dashboard — 5432 (Postgres), 5430 (PostgREST), 7131
+      (auth), 7133 (Deno) alongside 7130 (app/dashboard). That is not
+      reverse-proxy-compatible the way current recipes are (one HTTP port
+      per app behind Traefik on `<slug>.<base_domain>`); precedented as a
+      disabled pattern in the catalogue already (`anytype-server`, also
+      `enabled: false` for the same reason).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  InsForge is an actively-developed (weekly+ releases), Apache-2.0 backend
+  platform for AI coding agents — but it is a developer tool, not a
+  finished end-user application, which is the same fundamental mismatch
+  that ruled out `1backend`. On top of that audience mismatch, it fails the
+  recipe mechanism on multiple independent grounds: no pinned/published
+  Docker image exists for the main service (compose builds it from source),
+  its own admin login has no confirmed hash-compatible input path for
+  `generated_from`, and full functionality needs several raw non-HTTP ports
+  exposed beyond what Traefik fronts today. Any one of these would be
+  worth flagging; together they make this a clear not_recommended rather
+  than a narrower blocked_on_platform.
