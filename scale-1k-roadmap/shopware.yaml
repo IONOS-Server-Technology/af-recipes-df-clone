@@ -1,0 +1,92 @@
+slug: shopware
+name: Shopware
+source_description: "Open-source eCommerce platform for building modern B2C and B2B online stores"
+
+upstream:
+  url: https://www.shopware.com
+  repo_url: https://github.com/shopware/shopware
+  license: MIT
+  docker_image: ghcr.io/shopware/docker-base
+
+version_health:
+  latest_version: "v6.7.13.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.7.13.0 published 2026-08-05 — today, per GitHub's release API. Shopware
+    ships on two parallel supported lines: the 6.7.x line (patch releases
+    roughly every 1-2 weeks, e.g. 6.7.13.0, 6.7.12.2, 6.7.12.1, 6.7.11.1,
+    6.7.11.0 spanning 2026-06-16 through 2026-08-05) and an older 6.6.x LTS
+    line still receiving parallel patches on the same cadence (6.6.10.22,
+    6.6.10.21, 6.6.10.20...). This is a very active, well-maintained project
+    with no sign of slowing, maintenance-only mode, or EOL.
+
+catalogue_fit:
+  categories: [ecommerce]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch eCommerce — the catalogue has
+    productivity, automation, media, dev-tools, networking, and AI apps but
+    no storefront/shop platform. Shopware would open an entirely new
+    category: a customer standing up a B2C or B2B online store rather than
+    an internal tool.
+  usefulness: high
+  usefulness_rationale: >
+    eCommerce is one of the most common reasons a small business rents a
+    server at all, and Shopware is a mainstream, actively developed,
+    MIT-licensed platform (unlike some "open-core" alternatives) with no
+    overlap in the existing catalogue — high customer pull if it can be
+    made to boot unattended.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, admin_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Shopware's first-boot installer (the official Deployment Helper,
+      invoked via `system:install`/`user:create`) creates the admin account
+      from `INSTALL_ADMIN_USERNAME` / `INSTALL_ADMIN_PASSWORD` env vars, and
+      it hashes whatever plaintext value it receives internally — it has no
+      "accept a pre-hashed password for comparison" mode the way
+      Vaultwarden's ADMIN_TOKEN does. `generated_from` only ever projects a
+      hash (argon2/bcrypt) of the customer's root password, never the
+      plaintext itself, so there is no way to make the customer's actual
+      root password become their working Shopware admin login: feeding the
+      hash string into `INSTALL_ADMIN_PASSWORD` would just set that opaque
+      hash as the literal admin password, which the customer does not know
+      and cannot type in. Gating the storefront/admin behind Traefik
+      `basic_auth` (also root-password-derived) does not solve this either
+      — it only adds a second, separate wall in front of an admin panel the
+      customer still can't sign into with a password they know, unless the
+      admin password is left at a fixed, server-generated value the
+      customer is simply never told (workable per the SCHEMA.md
+      "fixed/default credential behind a Traefik gate" allowance, but then
+      the customer has no route to Shopware's own admin panel at all — a
+      shop they cannot administer isn't a usable recipe outcome, just a
+      basic_auth-gated storefront front page).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Shopware is a mature, actively developed (release today, 2026-08-05),
+  MIT-licensed, single-HTTP-port eCommerce platform (app + worker +
+  scheduler containers behind one Traefik-friendly port, plus MySQL/MariaDB
+  and optional Elasticsearch) that would fill a genuine gap — the catalogue
+  has no storefront/shop recipe today. It fails the current installability
+  test on one specific point: its admin account is created from a plaintext
+  password env var that Shopware hashes itself, and `generated_from` only
+  ever supplies a hash, so the customer's root password cannot become a
+  working Shopware login the way it does for Vaultwarden. A random
+  server-generated DB password is no problem, but the admin credential has
+  no expressible channel today. Worth building once either `generated_from`
+  gains a plaintext-passthrough mode or Shopware exposes a way to accept a
+  pre-hashed admin password directly — `blocked_on_platform`, not
+  `not_recommended`.
