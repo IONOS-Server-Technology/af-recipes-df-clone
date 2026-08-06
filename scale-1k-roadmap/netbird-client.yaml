@@ -6,7 +6,7 @@ upstream:
   url: https://netbird.io
   repo_url: https://github.com/netbirdio/netbird
   license: BUSL-1.1 (client/agent code; management server components dual-licensed, some under AGPL-3.0 for older releases — verify per-component before redistribution)
-  docker_image: netbirdio/netbird
+  docker_image: null
 
 version_health:
   latest_version: "v0.76.1 (tag, 2026-07-31)"
@@ -26,46 +26,52 @@ catalogue_fit:
   overlaps_with: [wg-easy]
   differentiation: >
     "NetBird Client" per the Hostinger catalogue slug is the mesh-network
-    *peer agent* (netbirdio/netbird image), not the self-hosted NetBird
-    management/dashboard stack. It joins an existing NetBird network (the
-    vendor's SaaS control plane or a separately self-hosted management
-    server) and has no web UI, no exposed HTTP port, and no local
-    admin/login of its own — it is functionally a headless VPN client
-    daemon, not a server a customer stands up and administers on its own
-    domain. wg-easy, by contrast, is a full WireGuard server + web UI that
-    IS the thing being administered. These solve different problems: one is
-    "run a VPN client that joins a network I already have," the other is
-    "stand up a new VPN server."
+    *peer agent*, not the self-hosted NetBird management/dashboard stack.
+    It joins an existing NetBird network (the vendor's SaaS control plane
+    or a separately self-hosted management server) and has no web UI, no
+    exposed HTTP port, and no local admin/login of its own — a headless
+    CLI daemon in the same category as claude-code/gemini-cli rather than
+    a server a customer stands up and administers on its own domain.
+    wg-easy, by contrast, is a full WireGuard server + web UI that IS the
+    thing being administered — these solve different problems ("run a VPN
+    client that joins a network I already have" vs. "stand up a new VPN
+    server"), so no real overlap despite both being WireGuard-based.
   usefulness: low
   usefulness_rationale: >
-    As a recipe on our platform (AF instances are themselves servers, not
-    end-user devices joining someone else's mesh), a bare client agent has
-    little standalone value — customers would typically install the
-    NetBird client directly on their own devices, not provision an AF
-    instance just to run it. It could plausibly be useful as a
-    site-to-site gateway/router peer, but that's a stretch from what the
-    Hostinger listing describes.
+    Provisioning an AF VM purely to run a mesh-VPN client has one
+    legitimate use case: a customer who already runs a NetBird network
+    wants a permanent cloud peer (e.g. a bastion/gateway reachable from
+    anywhere over the mesh without exposing public ports). That's real but
+    niche — most NetBird users install the client on devices they already
+    have, not on a newly provisioned cloud instance whose only job is to be
+    a mesh peer. Compared to the rest of the catalogue this is a narrow,
+    single-purpose infra utility rather than a general-purpose self-hosted
+    app.
 
 installability:
-  recipe_type_guess: docker-compose
+  recipe_type_guess: native
   secrets_required_at_first_boot: [NB_SETUP_KEY]
   secrets_expressible_today: []
-  blocking_issues:
-    - "The client requires NB_SETUP_KEY, a setup key issued by a NetBird management server (either NetBird's cloud SaaS account or a separately self-hosted management instance the customer already controls). This is an external, customer-supplied credential from a third-party control plane — there is no generated_from or basic_auth mechanism that can produce it, and it isn't a value af-api can derive or generate server-side."
-    - "The container needs --network host and --privileged (or NET_ADMIN + /dev/net/tun) to manage WireGuard interfaces at the OS network-namespace level, which sits outside the profile of our reverse-proxy-fronted docker-compose recipes."
-    - "No web UI and no HTTP port at all: nothing for Traefik to front, so the domain + basic_auth conventions our recipe mechanism assumes don't apply here."
-  installable_today: false
-  recommendation: not_recommended
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
 
 summary: >
-  "NetBird Client" is the headless mesh-VPN peer agent, not the full
-  self-hosted NetBird server/dashboard (which is a materially different,
-  heavier recipe candidate). It requires a setup key issued by an external
-  NetBird control plane — a credential with no supply channel under the
-  current root-password-projection/basic-auth mechanism — and has no web UI
-  for Traefik to front. Combined with limited standalone usefulness as an
-  AF-hosted recipe (customers join a mesh from their own devices, not from
-  a provisioned server instance), this is not recommended today. If NetBird
-  self-hosting is wanted in the catalogue, the management/dashboard stack
-  (netbirdio/management + netbirdio/dashboard + signal/relay/coturn) would
-  be the more sensible unit to evaluate instead of the client agent.
+  Re-evaluated as recipe_type: native (per the claude-code/gemini-cli
+  precedent for headless CLI agents) rather than docker-compose: netbird's
+  own install script (curl -fsSL https://pkgs.netbird.io/install.sh | sh)
+  installs the client directly on the VM's own kernel/network namespace, so
+  the earlier --network host/--privileged concern from a docker-compose
+  framing doesn't apply, and SCHEMA.md explicitly carves out "no web UI" as
+  a non-blocker for native recipes. NB_SETUP_KEY has no projection
+  mechanism — it's an external credential from the customer's own NetBird
+  control plane — but that mirrors ANTHROPIC_API_KEY on claude-code and
+  GEMINI_API_KEY on gemini-cli: declare it as a required:false
+  documentation-only parameter, install the agent unconfigured, and let the
+  customer run `netbird up --setup-key=<their key>` over SSH
+  post-provisioning. Mechanically this is installable today under the
+  established native-CLI pattern. The remaining open question is
+  usefulness rather than installability: a bare mesh-VPN peer is a
+  genuinely useful but narrow product (cloud bastion/gateway for an
+  existing NetBird network) rather than a general-purpose self-hosted app,
+  so build_with_caveats rather than build_now.
