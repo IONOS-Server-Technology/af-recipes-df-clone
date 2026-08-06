@@ -1,0 +1,132 @@
+slug: sim-studio
+name: Sim Studio
+source_description: "Open-source visual platform for building and deploying AI agent workflows"
+
+upstream:
+  url: https://sim.ai
+  repo_url: https://github.com/simstudioai/sim
+  license: Apache-2.0
+  docker_image: ghcr.io/simstudioai/simstudio
+
+version_health:
+  latest_version: "v0.7.61"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active: v0.7.52 through v0.7.61 all landed within the few
+    days leading up to today (2026-08-05/06), several releases per day
+    (e.g. v0.7.58, v0.7.59, v0.7.60, v0.7.61 all on 2026-08-06 alone). Repo
+    is not archived, has 29.4k stars, and shows continuous-deployment-style
+    shipping — no dormancy or EOL signal at all. Note: a `v1.0.0` tag also
+    exists in the repo's tag list but its underlying commit dates to
+    2025-05-08, well before the current `v0.7.x` line — it is a stale
+    leftover from before the project's versioning scheme (and rebrand from
+    "Sim Studio" to "Sim") settled, not the actual latest release; ignore
+    it for cadence purposes.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Sim Studio is a visual, node-based canvas purpose-built for AI agent
+    workflows — branching agent logic, tool/MCP calls, and 1,000+ service
+    integrations wired together in a drag-and-drop builder, similar in
+    shape to n8n but narrower and more AI-native (comparable in spirit to
+    the already-declined Flowise and Activepieces gap analyses, and to
+    LangFlow/RAGFlow). It does not fill a capability gap the catalogue
+    lacks — it is a fourth entrant in the "visual workflow/automation
+    builder" space after n8n, and conceptually adjacent to the
+    single-agent hermes-agent/openclaw recipes without offering the
+    document-centric RAG or multi-agent orchestration that would clearly
+    differentiate it (e.g. from AnythingLLM, also not yet in the
+    catalogue). A customer who wants visual automation already has n8n;
+    a customer who specifically wants an AI-agent-flavored builder gains a
+    real but incremental alternative, not a new job-to-be-done.
+  usefulness: medium
+  usefulness_rationale: >
+    Large, fast-growing, well-funded project (backed by sim.ai, 29.4k
+    stars, near-daily releases) with genuine demand for AI agent workflow
+    tooling, but it duplicates ground n8n already covers in the catalogue
+    rather than opening a new category, capping usefulness at medium.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, BETTER_AUTH_SECRET, ENCRYPTION_KEY, INTERNAL_API_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: INTERNAL_API_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against upstream self-hosting and environment-variable
+      docs: there is no admin-username/admin-password environment variable
+      to preset the owner account. Sim ships an open, persistent
+      email/password self-registration screen (`better-auth`-based) with
+      knobs to restrict it after the fact — `DISABLE_REGISTRATION`,
+      `DISABLE_EMAIL_SIGNUP`, `ALLOWED_LOGIN_DOMAINS`,
+      `ALLOWED_LOGIN_EMAILS`, `BLOCKED_SIGNUP_DOMAINS` — but every one of
+      those needs a customer-specific value (the customer's own email or
+      domain) that has no channel into `/compose` today, or is a static
+      boolean that would have to be `true` from boot (locking the intended
+      customer out too) or `false` forever (leaving registration open to
+      any visitor indefinitely). This is the same structural shape as the
+      2FAuth and Activepieces gap analyses (see `apps-gaps/2fauth.yaml`,
+      `apps-gaps/activepieces.yaml`): no `type: password` parameter on the
+      app's own login exists to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential is
+      created client-side via self-registration rather than injected via
+      env var. Unlike n8n/AnythingLLM/Uptime Kuma's first-run setup
+      wizard (which creates exactly one owner account and then permanently
+      closes further signups), Sim's registration screen is designed to
+      stay open long-term for additional team members, so it is not a
+      one-time race that resolves itself — it is a standing open door.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "stranger reaches the URL first" race, but per the
+      2FAuth/Activepieces precedent, today's basic_auth mechanism has no
+      channel to also hand the customer a *second*, distinct credential
+      for the in-app registration form beyond the single root-password
+      projection already used for the gate itself — so it does not fully
+      resolve the underlying provisioning gap, and it does not stop
+      additional signups by anyone who already has the gate password
+      either.
+    - >
+      Separately from the auth gap: the official `docker-compose.prod.yml`
+      needs six services (app, realtime/websocket, Postgres+pgvector,
+      Redis, cron, migrations) and the docs state a 2 CPU / 12 GB RAM / 20
+      GB SSD floor — a heavier footprint than most of the catalogue, and
+      the realtime websocket service needs its own path-based route
+      (`/socket.io/`) under the same domain, which is workable behind
+      Traefik but is not the simple single-service-single-port shape most
+      recipes use. Not a blocker on its own, just an added operational
+      cost on top of the auth gap above.
+
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Sim Studio is an active, well-funded, fast-shipping AI agent workflow
+  builder (Apache-2.0, 29.4k stars, several releases a day), but it fails
+  the installability test on the same structural grounds as the 2FAuth and
+  Activepieces gap analyses: there is no env-var hook to preset the sole
+  admin account, and the app's registration screen is designed to stay
+  open indefinitely rather than closing after a one-time setup wizard, so
+  neither `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can
+  safely hand the customer exclusive control of their own instance. The
+  three core secrets (BETTER_AUTH_SECRET, ENCRYPTION_KEY,
+  INTERNAL_API_SECRET) plus the Postgres password are trivially
+  server-generatable and not blocking on their own. It also duplicates
+  ground n8n already covers as a visual workflow builder, so even once
+  the auth gap is resolved this lands as medium rather than high value.
+  Revisit if upstream adds an env-var-driven initial-admin flow or the
+  platform gains a second customer-facing credential channel beyond
+  root-password projection, and weigh it against n8n's existing recipe
+  before prioritizing.
