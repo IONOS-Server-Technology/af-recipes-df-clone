@@ -1,0 +1,93 @@
+slug: rstudio-server
+name: RStudio Server
+source_description: "Browser-based R IDE for statistical computing, data science, and visualization"
+
+upstream:
+  url: https://posit.co/products/open-source/rstudio-server/
+  repo_url: https://github.com/rstudio/rstudio
+  license: AGPL-3.0-only
+  docker_image: rocker/rstudio (Rocker Project — community-maintained but the
+    image Posit's own docs point users to; Posit publishes no official OSS
+    RStudio Server image, only the commercial rstudio/rstudio-workbench and
+    the plain rstudio/r-base. Pin rocker/rstudio:4.6.1, which bundles
+    RStudio Server 2026.07.1+147.)
+
+version_health:
+  latest_version: "RStudio Server OSS 2026.07.1+147 (Pacific Dogwood); container rocker/rstudio:4.6.1"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Two upstreams matter here and both are healthy. The IDE itself (Posit,
+    rstudio/rstudio) shipped 2026.07.1 on 2026-07-21 — 16 days before today
+    (2026-08-06) — on a steady named-release train: 2026.01.0 (2026-01-06),
+    2026.04.0 (2026-04-22), 2026.05.0 (2026-05-26), 2026.06.0 (2026-06-29),
+    2026.07.0 (2026-07-14), 2026.07.1 (2026-07-21), with point releases
+    between. The container (rocker-org/rocker-versioned2) tagged 4.6.1 on
+    2026-07-22 and its repo had commits on 2026-08-03, i.e. within the last
+    week; tags track R releases (4.5.3, 4.6.0, 4.6.1 all in the last two
+    months). Note that Posit is also pushing its newer Positron IDE, but
+    that has not put RStudio into maintenance mode — the 2026.04 release
+    added new RStudio features (Posit Assistant) and Posit moved to a *more*
+    frequent release cadence. No archival, maintenance-only, or EOL signal
+    on either side.
+
+catalogue_fit:
+  categories: [data-science, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes is a coding or analysis workbench.
+    Gitea is a git host, Ollama + Open WebUI is local LLM chat inference,
+    and the native claude-code/gemini-cli recipes are terminal assistants —
+    none give the customer an interactive REPL, plotting pane, and data
+    frame viewer. RStudio Server is the R-ecosystem counterpart to the
+    JupyterLab and code-server candidates already analysed in apps-gaps
+    (neither of which is a shipped recipe yet); it targets the statistics
+    /R crowd specifically, with knitr/R Markdown/Quarto authoring and CRAN
+    package management built in.
+  usefulness: medium
+  usefulness_rationale: >-
+    RStudio is the dominant IDE in the R world and "my own R box in the
+    browser, with my data staying on my server" is a real self-hosting want
+    for researchers, statisticians, and analysts. Marked medium rather than
+    high because the audience is narrower than the Python/JS-flavoured
+    JupyterLab or code-server candidates, and because it is a fat recipe by
+    catalogue standards: the image is multi-GB and a useful R session wants
+    ~2 GB RAM plus disk headroom for compiled CRAN packages.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BASIC_AUTH_GATE
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  RStudio Server runs as a single container (rocker/rstudio:4.6.1) on one
+  HTTP port (8787), needs no database or sidecar, and only wants a volume
+  for /home/rstudio — structurally the same shape as Uptime Kuma or
+  Vaultwarden, and fine behind Traefik on rstudio-server.<base_domain>
+  (Traefik v3 proxies its websocket sessions natively; the awkward
+  sub-path rewriting in upstream's nginx examples does not apply when it
+  gets its own subdomain). The one mechanism catch is authentication:
+  RStudio Server OSS authenticates via PAM against a real Linux user, and
+  the image's init script sets that user's password with `chpasswd`, so it
+  needs the *plaintext* password — `generated_from` only ever carries a
+  hash, so the app's own login cannot be root-password-projected the way
+  code-server's HASHED_PASSWORD or JupyterLab's hashed_password can.
+  Leaving PASSWORD unset is not a way out either: the image then prints a
+  random password to the container log, which no customer-facing channel
+  surfaces. The workable shape is therefore DISABLE_AUTH=true with a
+  mandatory Traefik basic_auth gate (IF-1312) as the real auth boundary —
+  installable today, but the gate is not optional, since an unauthenticated
+  RStudio session is a shell with arbitrary code execution on the VM.
+  build_with_caveats rather than build_now for that reason plus two
+  operational ones: the container is community-maintained (Rocker) rather
+  than vendor-official, and its footprint (multi-GB image, ~2 GB RAM floor)
+  is well above the current catalogue average.
