@@ -72,13 +72,20 @@ summary: >
   port (3333), so it's reverse-proxy-compatible the same way n8n and
   Immich are. It has no traditional username/password admin login of its
   own — by default it lets anyone who reaches the UI click "create
-  account" and self-issue a random "security token" as their credential,
-  with no built-in setting today to disable public sign-up (confirmed via
-  an open, unresolved upstream feature request). That makes it a no-login
-  app like Adminer: it must ship behind a mandatory Traefik basic_auth
-  gate rather than via generated_from root-password projection, and that
-  gate is fully expressible under the current mechanism. All other
-  first-boot secrets (Postgres/Redis passwords, ACCESS_TOKEN_SALT,
+  account" and self-issue a random "security token" as their credential.
+  Ghostfolio does ship a real admin-panel toggle ("Allow registration of
+  new users", backed by the PROPERTY_IS_USER_SIGNUP_ENABLED system
+  property, see closed-and-completed upstream issue #944) that disables
+  public sign-up — but flipping it requires being logged in as an admin
+  first, and becoming the first admin requires manually promoting a
+  self-registered user via a direct database query. There is no
+  first-boot-reachable channel to run that promotion through our
+  /compose bootstrap, so the toggle is unreachable at install time. That
+  makes it a no-login app like Adminer in practice: it must ship behind a
+  mandatory Traefik basic_auth gate rather than via generated_from
+  root-password projection, and that gate is fully expressible under the
+  current mechanism. All other first-boot secrets (Postgres/Redis
+  passwords, ACCESS_TOKEN_SALT,
   JWT_SECRET_KEY) are patternless server-generated values nothing
   customer-facing ever reads. With an extremely active upstream and zero
   blocking issues, this is a build_now candidate that fills a genuine gap
