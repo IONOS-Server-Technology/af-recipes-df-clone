@@ -1,0 +1,89 @@
+slug: paisa
+name: Paisa
+source_description: "Personal finance tracker with double-entry accounting and investment tracking"
+
+upstream:
+  url: https://paisa.fyi
+  repo_url: https://github.com/ananthakumaran/paisa
+  license: AGPL-3.0
+  docker_image: ananthakumaran/paisa
+
+version_health:
+  latest_version: "v0.7.4"
+  latest_release_date: "2025-08-03"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    v0.7.4 was tagged 2025-08-03 — exactly 12 months before today
+    (2026-08-05), the longest gap between any two releases in the
+    project's history. The release cadence going back further is already
+    thin: v0.7.3 (2025-02-23), v0.7.1 (2024-10-20), v0.7.0 (2024-08-26),
+    roughly one release every 4-6 months even at its most active. Commit
+    activity since the last release is limited to a handful of build/CI
+    fixes (aarch64-linux build, canvas dependency pin) in December 2025,
+    with no visible commits since and no new feature work since roughly
+    May 2025. The repo is not archived and the single maintainer
+    (ananthakumaran) is still nominally responsive, but this reads as
+    maintenance-only rather than active development — no new features in
+    over a year, only sporadic build-breakage fixes.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal finance.
+    Within the broader gap-analysis pool though, Paisa lands squarely on
+    top of three already-analyzed finance candidates: apps-gaps/firefly-
+    iii.yaml (full double-entry personal bookkeeping, build_now),
+    apps-gaps/actual-budget.yaml (envelope budgeting, build_now), and
+    apps-gaps/ghostfolio.yaml (investment/portfolio tracking, build_now).
+    Paisa's pitch — double-entry accounting plus investment tracking — is
+    literally the union of what Firefly III and Ghostfolio already cover
+    individually, each with a larger community and faster release
+    cadence. Paisa's differentiator is architectural, not functional: it
+    is a thin web UI wrapped around the plaintext-accounting toolchain
+    (ledger-cli by default, with hledger/beancount image variants), so
+    the underlying data is a hand-editable ledger file rather than a
+    database — appealing to a narrow "plaintext accounting" power-user
+    niche (3.2k GitHub stars) rather than the mainstream consumer
+    audience Firefly III/Actual Budget/Ghostfolio target.
+  usefulness: low
+  usefulness_rationale: >
+    The personal-finance category already has three stronger, more
+    actively developed candidates queued (Firefly III, Actual Budget,
+    Ghostfolio) that together cover both of Paisa's selling points
+    (double-entry bookkeeping and investment tracking) for a broader
+    audience. Paisa adds a plaintext-accounting angle that is real but
+    niche, and its upstream has slowed to maintenance-only with no new
+    features in over a year, making it a weak addition relative to what's
+    already on the list.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Paisa is a single-container Go app (image ananthakumaran/paisa) exposing
+  one HTTP port (7500) with data kept under a mounted volume, so it's
+  mechanically reverse-proxy-compatible the same way Uptime Kuma is. It
+  ships with no authentication configured out of the box — a user account
+  is only created later, by hand, through the app's own Configuration
+  page after the UI is already reachable — so there is no first-boot
+  credential to inject via `generated_from`; the correct fit is a
+  mandatory Traefik `basic_auth` gate, the same pattern used for
+  Ghostfolio and Adminer. That clears the /compose constraint with zero
+  blocking issues, so it is mechanically installable today. The
+  recommendation is nonetheless not_recommended: upstream release cadence
+  has slowed to maintenance-only (latest tag is exactly 12 months old,
+  with only build-fix commits since), and its feature set — double-entry
+  accounting plus investment tracking — fully overlaps two already-
+  queued, more actively developed candidates (Firefly III and Ghostfolio)
+  that better serve the same customer need for a broader audience.
