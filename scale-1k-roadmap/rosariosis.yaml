@@ -1,0 +1,92 @@
+slug: rosariosis
+name: RosarioSIS
+source_description: "Open-source student information system for grades, schedules, and attendance"
+
+upstream:
+  url: https://www.rosariosis.org/
+  repo_url: https://gitlab.com/francoisjacquet/rosariosis
+  license: GPL-2.0
+  docker_image: rosariosis/rosariosis:master
+
+version_health:
+  latest_version: v12.9.2
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very healthy. v12.9.2 shipped 2026-07-17, 19 days before this analysis
+    (2026-08-05), and the repo was last pushed 2026-08-05 itself. Cadence is
+    roughly monthly: v12.7.3 (2026-01-29), v12.7.4 (2026-03-06), v12.7.5
+    (2026-03-14), v12.8 (2026-04-03), v12.8.1 (2026-05-08), v12.9
+    (2026-06-05), v12.9.1 (2026-06-26), v12.9.2 (2026-07-17). 475+ releases
+    and ~7.9k commits since 2018, 642 GitHub stars, ~20 open issues, single
+    principal maintainer (François Jacquet) with a commercial plugin/support
+    business behind it. Canonical development is on GitLab; the GitHub repo
+    is a mirror (its license autodetect reports GPL-2.0, matching the LICENSE
+    file — an older GitLab metadata field showing "AGPL v1.0" is a
+    mis-detection, not a relicensing). The Docker image is built from a
+    separate repo (gitlab.com/francoisjacquet/docker-rosariosis, GitHub
+    mirror francoisjacquet/docker-rosariosis), last pushed 2026-07-20, i.e.
+    it does track releases — its Dockerfile pins ROSARIOSIS_VERSION=v12.9.2.
+
+catalogue_fit:
+  categories: [education, productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes addresses the education sector; the
+    closest structural cousins (paperless-ngx, gitea) are PHP/Python+DB web
+    apps with an entirely different purpose. RosarioSIS is a student
+    information system — enrolment, grades, gradebook, scheduling,
+    attendance, billing — which is a different product category from an LMS
+    like Moodle (course delivery) that was analysed separately and is
+    currently blocked on image sourcing. RosarioSIS, unlike Moodle, has a
+    self-contained official image.
+  usefulness: medium
+  usefulness_rationale: >
+    Serves a real, distinct segment (small/mid-size schools, private
+    academies, tutoring centres — many in exactly the SMB/hosting bracket
+    IONOS sells to) that no current recipe touches, and it is the leading
+    free SIS with a live upstream. Audience is narrower and more vertical
+    than our general-purpose infrastructure and productivity recipes, and
+    the free core intentionally leaves some functionality to paid plugins,
+    so medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_PASSWORD, PGPASSWORD]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+    - secret: PGPASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mechanically straightforward two-service stack — rosariosis/rosariosis
+  (PHP 8.1 + Apache, single HTTP port 80, one /var/www/html volume) plus
+  postgres:15, exactly the shape of paperless-ngx/n8n minus the extra
+  workers — with no external API key, OAuth registration or customer-chosen
+  credential anywhere in the boot path, so nothing needs to pass through
+  /compose. The Postgres password is a patternless server-generated value;
+  the one customer-facing secret is a Traefik basic_auth gate, which is
+  mandatory here rather than optional: first boot leaves an unauthenticated
+  /InstallDatabase.php wizard exposed and then seeds a hardcoded admin/admin
+  login, so the basic_auth boundary (IF-1312) is what actually protects the
+  instance until the customer changes that password in-app. Upstream is
+  clearly alive (v12.9.2 on 2026-07-17, monthly cadence, repo pushed the day
+  before this analysis) and fills an education-sector gap the catalogue
+  currently has. Caveats for the build: the official image publishes only a
+  moving `master` tag (no per-version tags exist on Docker Hub), so the
+  recipe must pin by digest —
+  sha256:38044ee4c81b672eda37ff90cf3b8d4719685ac5dabf342b9eb256397941c03b
+  was current at analysis time, built 2026-07-20 from ROSARIOSIS_VERSION
+  v12.9.2 — which satisfies image-tag-pinned but makes WUD update detection
+  and version bumps a manual, digest-tracking chore rather than the usual
+  tag bump; the image is amd64-only; DB schema creation still requires a
+  human to walk the /InstallDatabase.php wizard once behind the gate; and
+  the app's Postgres major-version upgrades are documented as manual, so
+  pin postgres:15 and treat upgrades as a recipe-maintenance item.
