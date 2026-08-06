@@ -65,29 +65,89 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [DB_ROOT_PASSWORD]
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE, WIZARD_DB_CONNECTION, WIZARD_ADMIN_ACCOUNT]
   secrets_expressible_today:
-    - secret: DB_ROOT_PASSWORD
-      mechanism: server_generated_no_customer_input
-  blocking_issues: []
-  installable_today: true
-  recommendation: build_now
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      A Traefik basic_auth gate (generated_from a hash of the customer's
+      root password) can stop a random internet visitor from reaching the
+      wizard before the customer does, but it does not solve the
+      underlying problem: the wizard's DB-connection screen (host/port/
+      name/user/password) and admin-account screen both require values
+      typed in by whoever completes it, and there is no channel today for
+      install.sh to hand a server-generated DB password to "whoever that
+      is" — the customer would have to invent their own DB credentials
+      by hand, which the app's own MariaDB container was never told to
+      expect. WIZARD_DB_CONNECTION and WIZARD_ADMIN_ACCOUNT are listed as
+      required but have no expressible mechanism.
+    - >
+      The official orangehrm/orangehrm image has no DB-config env vars at
+      all — the Dockerfile (verified against github.com/orangehrm/orangehrm
+      main branch) sets no ORANGEHRM_*/DB_* ENV and has no custom
+      ENTRYPOINT/CMD; it's a bare php:8.3-apache image with the app code
+      baked in. There is no install.sh-wireable channel for DB connection
+      details, so `generated_from`/server-generated-secret projection onto
+      a DB credential (as done for paperless-ngx-style apps) is not
+      available for this image.
+    - >
+      Docker Hub's own README says to "install OrangeHRM using the web
+      installer" — this is the only documented setup path for the image.
+      The browser wizard (Fresh Install) asks for BOTH the DB connection
+      (host/port/name/user/password) AND the admin account in the same
+      flow, unlike Uptime Kuma's wizard which only asks for the admin
+      account. Whoever visits first fills in both; there's no server-side
+      pre-fill of DB details and no way to gate only the admin-creation
+      step, so a first-boot race lets a random visitor set the DB
+      credentials and admin login together.
+    - >
+      Two alternate non-wizard install paths exist and neither fits the
+      current mechanism either: the deprecated installer/cli_install.php
+      reads a static installer/cli_install_config.yaml that ships with a
+      hardcoded default admin password (Ohrm@1423) and hardcoded default
+      DB root/root credentials — usable only if the entire app sits behind
+      a mandatory Traefik basic_auth gate (per SCHEMA.md's guidance on
+      fixed/unchangeable default credentials), which is not how this
+      analysis is currently scoped. The newer `php installer/console
+      install:on-new-database` command explicitly refuses non-interactive
+      execution (`if (!$input->isInteractive()) { ... return
+      self::INVALID; }` in installer/Command/InstallOnNewDatabaseCommand.php),
+      so it cannot be scripted by install.sh at all.
+    - >
+      A viable path would be install.sh pre-generating installer/config/Conf.php
+      directly from the Conf.tpl.php template (host/port/name/user/pass
+      filled with a server-generated DB password) and running the DB
+      migrations install.sh would otherwise leave to the wizard — but this
+      bypasses the installer entirely, is not exercised by any upstream CI
+      or documented flow, and would need to be re-validated against
+      Conf.tpl.php's exact placeholder names and the migration invocation
+      on every OrangeHRM release. That's a materially more fragile,
+      unsupported-by-upstream mechanism, not a like-for-like match to the
+      documented env-var pattern used for paperless-ngx.
+  installable_today: false
+  recommendation: blocked_on_platform
 
 summary: >
   OrangeHRM ships as a single web container (orangehrm/orangehrm, PHP/
-  Apache) plus a MariaDB container, matching the paperless-ngx-style
-  multi-container pattern; DB connection details are plain env vars
-  (ORANGEHRM_DATABASE_HOST/USER/PASSWORD/NAME) that install.sh can wire to
-  a server-generated MariaDB root password with zero customer input.
-  There is no admin-account env var: the app's own admin login is created
-  by whoever completes its first-visit browser setup wizard (choose
-  "Fresh Install", accept the license, confirm the pre-filled DB
-  connection, then set an admin username/password) — the same pattern
-  already shipped for Uptime Kuma, which has no basic_auth gate either, so
-  this is a proven-acceptable mechanism, not a new blocker. Pinned Docker
-  tags exist and track releases closely (5.9 pushed same day as the
-  GitHub tag), and the project remains actively released (last tag
-  ~5.5 weeks old) despite one unusually long historical gap in 2024-2025.
-  No blocking issues; recommend building this recipe — it fills a real
-  gap (no HR/people-management app in the catalogue today) with a clean,
-  mechanically installable single-HTTP-port app.
+  Apache) with no DB-config env vars and no scriptable installer: the
+  Dockerfile bakes in the app code with no ENTRYPOINT, the browser-based
+  web installer (the only path Docker Hub's README documents) asks for
+  both DB connection details and the admin account in one first-visit
+  wizard with no server-side pre-fill, the deprecated static-YAML CLI
+  installer ships hardcoded default credentials (admin password
+  Ohrm@1423, DB root/root) that would need a whole-app Traefik basic_auth
+  gate to be acceptable, and the new interactive installer console command
+  explicitly refuses non-interactive execution. None of these match the
+  current `generated_from`/env-var projection mechanism used for
+  paperless-ngx-style multi-container apps, and there's no channel today
+  to hand the wizard a server-generated DB password before a customer (or
+  an internet-facing race) reaches it. Pinned Docker tags exist and track
+  releases closely, and the project remains actively released (last tag
+  ~5.5 weeks old) despite one unusually long historical gap in 2024-2025,
+  so this is not an EOL/version concern. It fills a real HR/people-
+  management gap in the catalogue and would be worth building once
+  install.sh can either drive the DB connection step of the wizard
+  programmatically or pre-generate Conf.php directly — but as things
+  stand today it is blocked on the installer having no scriptable,
+  non-interactive DB-setup path.
