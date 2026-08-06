@@ -1,0 +1,114 @@
+slug: filestash
+name: Filestash
+source_description: "Self-hosted file manager for FTP, SFTP, S3, WebDAV, and 20+ storage backends"
+
+upstream:
+  url: https://www.filestash.app/
+  repo_url: https://github.com/mickael-kerjean/filestash
+  license: AGPL-3.0
+  docker_image: machines/filestash
+
+version_health:
+  latest_version: "latest (rolling — no versioned releases exist)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Upstream has never adopted semver/tagged releases: GitHub Releases page
+    is empty ("There aren't any releases here"), and the newest git tags are
+    v0.0-v0.4 from the project's earliest days, long superseded. The project
+    ships purely off a rolling `machines/filestash:latest` Docker Hub tag,
+    rebuilt frequently — last pushed 2026-08-05 (today), with the underlying
+    commit landing 2026-07-27 and a steady stream of commits through late
+    July 2026 (multiple commits/week). Repo is not archived, 14.4k stars,
+    1k forks, 121 open issues under active triage. Genuinely active project,
+    but the complete absence of a versioned release channel means a recipe
+    cannot pin to "a current stable tag" the way our other recipes do — only
+    a point-in-time image digest of `latest`, which upstream could change
+    underneath without any changelog/tag to track against.
+
+catalogue_fit:
+  categories: [file-storage, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue is a universal storage
+    client. Syncthing is P2P device sync, not a browsable multi-backend
+    file manager. Filestash is architecturally the cleanest fit for our
+    Traefik-only exposure model of the file-manager candidates seen so far:
+    unlike Copyparty (whose headline pitch needs raw FTP/SFTP/SMB ports)
+    or a server exposing its own storage, Filestash's 20+ "backends"
+    (S3, FTP, SFTP, WebDAV, SMB, Git, Dropbox, Google Drive, IPFS, etc.)
+    are all outbound connections the container makes to storage the
+    customer configures through the UI — the container itself exposes a
+    single HTTP port (8334) and nothing else, so the whole "FTP/SFTP/SMB"
+    part of its pitch works without opening any raw ports on our side.
+    Note this app competes for the same "unified file browser" niche as
+    two other gap-analyzed candidates not yet built, apps-gaps/alist.yaml
+    and apps-gaps/cloudreve.yaml — all three solve a similar problem with
+    different tradeoffs, worth deciding as a group rather than shipping
+    all three.
+  usefulness: high
+  usefulness_rationale: >
+    Popular (14.4k stars), well-regarded "universal Dropbox-like front end"
+    with a genuinely broad backend-plugin list and a document-editing
+    integration (optional Collabora/WOPI companion container) that AList
+    and Cloudreve don't offer out of the box. Single lightweight Go
+    container for the base install. Real demand exists for this class of
+    tool; the main open question is which one of the three candidates
+    (Filestash / AList / Cloudreve) is the better single pick, not whether
+    the category is worth adding.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      No pinned, versioned Docker tag exists upstream — only a
+      continuously-rebuilt `latest` tag and years-stale short-git-sha
+      tags from 2023. A recipe would have to pin by image digest at
+      creation time and manually re-pin later, since there is no tagged
+      release stream to track for updates. Not a hard blocker (digest
+      pinning is a valid workaround) but a real deviation from how every
+      other recipe in this catalogue tracks upstream versions.
+    - >
+      Filestash's admin-setup endpoint (POST /admin/api/config) is
+      completely open/unauthenticated until the `auth.admin` config key is
+      first set (verified in server/ctrl/admin.go and
+      server/middleware/session.go on GitHub) — by design, this is meant
+      to be filled in via the web UI on first visit. install.sh can instead
+      call this endpoint itself immediately after container start, before
+      the app is reachable by anyone else, to set `auth.admin` to a
+      pre-computed bcrypt hash — verified in source that admin-login
+      compares via `bcrypt.CompareHashAndPassword`, i.e. `auth.admin`
+      literally stores a bcrypt hash and is compatible with
+      `generated_from: "bcrypt:ROOT_PASSWORD"` (not `argon2` — the
+      comparison function only accepts bcrypt-formatted hashes). This
+      requires install.sh to win a first-boot race window rather than a
+      documented env var, so it's the same class of caveat noted for
+      apps-gaps/alist.yaml's post-boot CLI call, just via HTTP instead of
+      docker exec.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Filestash is a single-container Go app (machines/filestash, port 8334)
+  whose admin password can be set at first boot via a scriptable, currently-
+  unauthenticated config endpoint that stores a bcrypt hash directly —
+  confirmed compatible with generated_from:"bcrypt:ROOT_PASSWORD" by reading
+  the actual comparison code on GitHub. Its 20+ storage backends are all
+  outbound client connections, not inbound ports, so it is fully
+  Traefik/reverse-proxy compatible despite the FTP/SFTP/SMB-heavy Hostinger
+  description. The real wrinkle is version pinning: upstream has no tagged
+  releases at all, only a rolling `latest` tag, so a recipe would need to
+  pin by digest and manage its own re-pinning cadence rather than tracking
+  upstream version tags like every other recipe does. Active, healthy
+  project (14.4k stars, frequent commits, image rebuilt as recently as
+  today) and a real, currently-unfilled catalogue gap, but it directly
+  overlaps in purpose with two other not-yet-built gap-analysis candidates
+  (AList, Cloudreve) — worth a deliberate choice among the three rather
+  than building all of them. Recommend build_with_caveats.
