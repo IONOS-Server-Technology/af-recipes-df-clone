@@ -1,0 +1,80 @@
+slug: soketi
+name: Soketi
+source_description: "Self-hosted, Pusher-compatible WebSocket server for real-time apps and broadcasting."
+
+upstream:
+  url: https://soketi.app/
+  repo_url: https://github.com/soketi/soketi
+  license: AGPL-3.0
+  docker_image: quay.io/soketi/soketi
+
+version_health:
+  latest_version: "1.6.1"
+  latest_release_date: "2025-03-25"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    1.6.1 shipped 2025-03-25 — about 17 months before today (2026-08-05).
+    Historical gaps between tagged releases were roughly 7-9 months (1.5.0
+    Nov 2023 -> 1.6.0 Aug 2024, ~9 months; 1.6.0 -> 1.6.1, ~7 months), so the
+    current gap is already close to double the established cadence. The repo
+    is not archived (~5.6k stars, ~100 open issues) and the README itself
+    states maintenance is "tight as hell" due to the maintainer's available
+    time, and solicits GitHub Sponsors funding to sustain the release/support
+    cadence. Treat as a single-maintainer project showing early warning
+    signs of a slowdown, not yet dormant or EOL.
+
+catalogue_fit:
+  categories: [developer-tools, real-time, messaging-infra]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides a Pusher-protocol-compatible
+    WebSocket/broadcasting backend. This is infrastructure for a customer's
+    *own* application (e.g. a Laravel or Node app doing live notifications,
+    presence, or chat) rather than an end-user app in its own right — a
+    different shape from the rest of the catalogue, which is almost entirely
+    consumer/prosumer apps with their own UI. Soketi has no admin UI at all;
+    a customer would point their app's Pusher-compatible client SDK at
+    wss://<slug>.<base_domain> and use the generated app id/key/secret.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for developers self-hosting apps that need Pusher-style
+    realtime features and don't want to pay for Pusher/Ably, but it's
+    developer infrastructure, not something a typical self-hoster deploys
+    for its own sake — usefulness depends entirely on already running (or
+    planning to run) a separate app that consumes it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - PUSHER_APP_ID
+    - PUSHER_APP_KEY
+    - PUSHER_APP_SECRET
+  secrets_expressible_today:
+    - secret: PUSHER_APP_ID
+      mechanism: server_generated_no_customer_input
+    - secret: PUSHER_APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: PUSHER_APP_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Soketi is a single-container, single-HTTP-port (6001, WebSocket
+  upgrade + Pusher-style HTTP API; 9601 metrics stays internal) service with
+  no admin login and no web UI, so it needs neither generated_from nor a
+  Traefik basic_auth gate — its own wire protocol (HMAC-signed requests
+  using the app secret) is the auth boundary, the same shape as
+  recipes/openclaw's auto-generated gateway token. Its three required
+  values (app id/key/secret) can all be randomly server-generated at
+  install with no customer input needed to boot, matching the
+  auto_generate pattern already used elsewhere in the catalogue, and are
+  then read back out by the customer to configure their own client app —
+  mechanically installable today. The only caveat is upstream: it's a
+  single-maintainer project whose release cadence has visibly slowed and
+  who has publicly flagged tight time constraints, worth a light version
+  pin/monitoring note rather than a hard blocker.
