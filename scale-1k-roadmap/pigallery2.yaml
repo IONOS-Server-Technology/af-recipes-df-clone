@@ -31,18 +31,21 @@ catalogue_fit:
   reverse_proxy_compatible: true
   overlaps_with: [immich, photoprism, photoview, librephotos, home-gallery]
   differentiation: >
-    PiGallery2 is explicitly "directory-first": it indexes an existing,
-    read-only photo folder tree as-is (no upload/backup pipeline, no
-    managed library, no mobile app) — architecturally the closest match in
-    the catalogue is recipes-gaps/photoview.yaml (also a read-only directory
-    browser with a single lightweight backend and no ingestion story), not
-    Immich's full backup-and-sync suite. Its own edges over Photoview are
-    "photo frame" slideshow/kiosk mode and ORCID-linked sharing; it lacks
-    Photoview's face recognition and RAW-specific handling. Against Immich,
-    PhotoProject, and LibrePhotos it is strictly lighter-weight (single
-    container, file-based/optional SQLite state, no ML service, no
-    Postgres/Redis) but offers none of their AI search, face grouping, or
-    phone auto-backup.
+    PiGallery2 is explicitly "directory-first": its core model indexes an
+    existing photo folder tree as-is, with no managed library and no mobile
+    app — architecturally the closest match in the catalogue is
+    recipes-gaps/photoview.yaml (also a directory browser with a single
+    lightweight backend), not Immich's full backup-and-sync suite. v3.5.2
+    (the latest release) did add basic in-app file upload (drag-and-drop,
+    per-directory whitelist), narrowing that specific gap versus Photoview,
+    but it is still a manual browser-triggered upload into the existing
+    tree, not a phone auto-backup/sync pipeline like Immich's. Its own edges
+    over Photoview are "photo frame" slideshow/kiosk mode and ORCID-linked
+    sharing; it lacks Photoview's face recognition and RAW-specific
+    handling. Against Immich, PhotoPrism, and LibrePhotos it is strictly
+    lighter-weight (single container, file-based/optional SQLite state, no
+    ML service, no Postgres/Redis) but offers none of their AI search, face
+    grouping, or phone auto-backup.
   usefulness: low
   usefulness_rationale: >
     This is now the fifth self-hosted photo-gallery candidate analyzed
@@ -54,12 +57,11 @@ catalogue_fit:
     broader audience, and a customer who specifically wants directory-first
     browsing is a narrow wedge. PiGallery2 adds a photo-frame/kiosk mode and
     ORCID sharing that Photoview lacks, but neither is enough to justify a
-    third or fourth photo-app slot in the catalogue. It also requires photos
-    to already exist on the server's filesystem in a mounted read-only
-    folder — there is no in-app upload/backup flow, so a customer would need
-    a separate mechanism (SFTP, a file-manager recipe) just to get content
-    into it, a real usability gap versus Immich's own upload/mobile-backup
-    flow.
+    third or fourth photo-app slot in the catalogue. v3.5.2 added basic
+    manual file upload, but it is still a browser drag-and-drop into an
+    existing directory tree, not the automatic phone backup/sync flow
+    Immich provides — a customer wanting hands-off mobile backup would
+    still need Immich, not this.
 
 installability:
   recipe_type_guess: docker-compose
@@ -77,19 +79,20 @@ summary: >
   (bpatrik/pigallery2) on one HTTP port (80), needing no external database
   (state lives in an internal SQLite-backed `db-data` volume) and no
   external API keys or OAuth — reverse-proxy-compatible with our Traefik
-  setup out of the box. Its only credential concern is a fixed,
-  unchangeable-via-env admin/admin default login (same pattern already
-  documented for Kanboard and Cronicle): there is no environment variable
-  or config option to set the initial admin password or a pre-computed hash
-  of it, so `generated_from` can't target it directly, but per SCHEMA.md
-  that's not a hard blocker — gating the whole app behind a mandatory
-  Traefik `basic_auth: true` (keyed off the customer's root-password hash)
-  moves the real internet-facing auth boundary in front of the weak
-  internal default, making it installable_today. The recommendation is
-  still not_recommended: this is the second directory-first/read-only photo
-  browser analyzed (after photoview.yaml) competing for the same slot
-  Immich already fills, it requires photos to be placed on the server's
-  filesystem through some other channel since it has no upload/backup flow
-  of its own, and while upstream development is still active on `master`,
+  setup out of the box. Its only credential concern is a fixed admin/admin
+  default login; a config channel exists to change it (`enforcedUsers` in
+  `config.json`), but that field only accepts a plaintext password — the
+  app hashes and discards it internally — not a pre-computed hash, so
+  `generated_from`, which only ever carries a hash, can't target it. Per
+  SCHEMA.md that's not a hard blocker on its own: gating the whole app
+  behind a mandatory Traefik `basic_auth: true` (keyed off the customer's
+  root-password hash) moves the real internet-facing auth boundary in
+  front of the weak internal default, making it installable_today. The
+  recommendation is still not_recommended: this is the second
+  directory-first photo browser analyzed (after photoview.yaml) competing
+  for the same slot Immich already fills — v3.5.2 added basic manual
+  drag-and-drop upload, narrowing (not closing) the ingestion gap versus
+  Photoview, since it's still not the automatic phone backup/sync Immich
+  offers — and while upstream development is still active on `master`,
   the tagged-release cadence has visibly slowed (6.4 months since 3.5.2, a
   single maintainer). Not worth a build over the existing Immich recipe.
