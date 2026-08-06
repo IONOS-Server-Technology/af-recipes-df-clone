@@ -1,0 +1,75 @@
+slug: homehub
+name: HomeHub
+source_description: "Private no-login family dashboard for shared notes, lists, chores, and expenses"
+
+upstream:
+  url: https://github.com/surajverma/homehub
+  repo_url: https://github.com/surajverma/homehub
+  license: MIT
+  docker_image: ghcr.io/surajverma/homehub
+
+version_health:
+  latest_version: "0.2.3.4"
+  latest_release_date: "2026-06-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v0.2.3.4 released 2026-06-21, ~46 days before this analysis
+    (2026-08-05). Prior releases (v0.2.3.3 2026-05-27, v0.2.3.2 2026-01-17,
+    v0.2.3.1 2025-12-10, v0.2.3 2025-12-09, v0.2.2 2025-11-30, v0.2.1.4
+    2025-11-06, v0.2.1.3/v0.2.1.1 2025-10-25, v0.2.0 2025-10-22) show a
+    solo-maintainer project releasing roughly monthly with occasional
+    faster point-release bursts. Maintainer has publicly noted limited
+    bandwidth (solo dev, full-time job) but the cadence and commit history
+    show no sign of stalling or abandonment.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers shared family/household
+    organization (notes, shopping lists, chores, calendar/reminders, expense
+    tracking) in one lightweight app. home-assistant is the closest
+    thematically ("home"-branded) but solves smart-device automation, not
+    household task/expense coordination — no functional overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuine gap (household/family coordination) with a small,
+    single-container footprint, which fits our self-hosted-for-a-home
+    customer profile well. Usefulness capped at medium rather than high
+    because it's a niche, single-maintainer hobby project (900+ GitHub
+    stars is decent but young) rather than an established category leader,
+    and its config-file-driven customization (family member names, feature
+    toggles, theme) has no channel to reach the customer post-deploy under
+    the current recipe mechanism, so instances would ship with generic
+    defaults only.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [HOMEHUB_LOGIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: HOMEHUB_LOGIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  HomeHub is a single-container Flask app (ghcr.io/surajverma/homehub, pinned
+  tag 0.2.3.4, MIT) exposing one HTTP port (5000) behind a YAML config file,
+  with no database dependency — a clean fit for our Traefik-fronted,
+  single-domain recipe pattern. It defaults to fully passwordless access, but
+  ships an optional `password` field in config.yml; that field takes a
+  plaintext value the app compares directly (not a generated_from-style
+  hash), so it can't use root-password projection, but it can be populated
+  with a server-generated random password at build time exactly like
+  Pi-hole's WEBPASSWORD or OpenGist's SECRET_KEY — no customer input or
+  IF-1420/IF-1312 dependency required. No other secrets, API keys, or OAuth
+  registrations are needed at boot. The project is actively maintained
+  (release ~46 days ago, roughly monthly cadence) and fills a real gap versus
+  the current catalogue. Recommend build_now, with the caveat that family
+  member names/feature toggles/theme baked into config.yml will stay at
+  generic defaults since there's no customer-input channel to customize them
+  post-deploy.
