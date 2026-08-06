@@ -1,0 +1,104 @@
+slug: screego
+name: Screego
+source_description: "Self-hosted WebRTC screen sharing server with built-in TURN relay"
+
+upstream:
+  url: https://screego.net/
+  repo_url: https://github.com/screego/server
+  license: GPL-3.0
+  docker_image: ghcr.io/screego/server:1.12.4 (mirrored as screego/server:1.12.4 on Docker Hub)
+
+version_health:
+  latest_version: "1.12.4"
+  latest_release_date: "2026-05-13"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    1.12.4 shipped 2026-05-13, ~2.7 months (84 days) before today
+    (2026-08-05); the matching multi-arch image tag `1.12.4` was pushed to
+    Docker Hub the same day (amd64/arm64/armv6/ppc64le/riscv64), so the
+    published image tracks the release. History is lumpy rather than
+    steady: 1.10.5 (2024-08-17), 1.11.0 (2024-09-28), 1.11.1 (2024-10-11),
+    1.11.2 (2024-12-07), then a ~4 month gap to 1.11.3 (2025-04-12), 1.12.0
+    (2025-05-08, added system/tab audio), then an ~8 month gap to 1.12.1 and
+    1.12.2 (both 2026-01-01), 1.12.3 (2026-04-25) and 1.12.4 (2026-05-13,
+    riscv64 builds). Recent tags are largely dependency bumps and build-
+    target additions rather than features, which reads as a feature-complete
+    single-purpose Go daemon in low-maintenance mode, not abandonment: the
+    repo is not archived, has ~10.5k stars and only ~15 open issues, and
+    upstream is still cutting releases within the last quarter. No EOL or
+    maintenance-only announcement.
+
+catalogue_fit:
+  categories: [communication, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does real-time screen
+    sharing. The nearest neighbour is guacamole (currently `enabled:
+    false`), but that is a clientless gateway for *controlling* a remote
+    machine over RDP/VNC/SSH — Screego is the opposite direction: an
+    ad-hoc, browser-to-browser, view-only broadcast of one participant's
+    screen to others via a shared room link, with no agent on either end
+    beyond a WebRTC-capable browser. It is also much narrower than the
+    Jitsi Meet candidate analysed separately (no audio/video conferencing,
+    no rooms with cameras, no recording) — a deliberately single-purpose
+    "share my screen at high resolution and low latency" tool aimed at
+    developers doing pairing or demos.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-scoped demand — teams who want a privacy-preserving,
+    self-hosted alternative to screen sharing through Teams/Zoom/Slack, at
+    much better resolution than those tools deliver. Capped at medium
+    rather than high because the app has no persistence, no accounts to
+    speak of and no standing value between sessions: it is infrastructure
+    for a meeting that must be running when someone wants it, and most
+    prospective users already have *some* screen sharing bundled with a
+    conferencing tool they pay for. Value is highest as a companion to a
+    conferencing app, not a replacement for one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SCREEGO_SECRET
+    - "SCREEGO_USERS_FILE entry (user:bcrypt_hash)"
+  secrets_expressible_today:
+    - secret: SCREEGO_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: "SCREEGO_USERS_FILE entry (user:bcrypt_hash)"
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Screego (GPL-3.0, `ghcr.io/screego/server:1.12.4`) is a single Go
+  container that needs no customer-supplied value: `SCREEGO_SECRET` is a
+  patternless cookie-signing key nothing customer-facing reads, so it is
+  server-generatable, and the one real login is a `user:bcrypt_hash` line in
+  the file named by `SCREEGO_USERS_FILE` — bcrypt is exactly what
+  `generated_from: "bcrypt:ROOT_PASSWORD"` projects, so install.sh can
+  render that file from the projected hash and the customer logs in with
+  their own root password (the Vaultwarden pattern, with the §7.1 `$`-
+  doubling caveat since bcrypt hashes are `$`-heavy). Traefik `basic_auth`
+  is deliberately *not* the right gate here — it would also block the
+  invited guests the room link exists for — so the users-file route is the
+  one to take, keeping the default `SCREEGO_AUTH_MODE=turn` so guests can
+  join a room without an account while only the authenticated host can burn
+  the VM's bandwidth on the TURN relay. Caveats for whoever builds it, none
+  of them blocking: (1) it is not a pure Traefik app — the web UI on 5050 is
+  fine behind Traefik with `SCREEGO_TRUST_PROXY_HEADERS=true` (and Traefik's
+  TLS satisfies Screego's hard requirement that it be served over HTTPS,
+  since `getDisplayMedia` needs a secure context), but the built-in TURN
+  relay additionally needs raw host-bound 3478/tcp and 3478/udp plus a UDP
+  relay port range set via `SCREEGO_TURN_PORT_RANGE`; (2) `metadata.ports[]`
+  takes one integer per entry with no range syntax, so upstream's default
+  50000-50200 must be shrunk to a handful of explicitly enumerated ports
+  (each an `http: false` entry, watch `no-duplicate-public-port`) — upstream's
+  own answer to this is `network_mode: host`, which does not fit the
+  renderer's Traefik model and should not be used; (3) `SCREEGO_EXTERNAL_IP`
+  is mandatory for TURN to advertise usable candidates, but Screego resolves
+  DNS names there, so pointing it at the app's own `APP_DOMAIN` avoids
+  needing the VM's literal public IP; (4) relayed sessions consume VM
+  bandwidth whenever peer-to-peer hole-punching fails.
