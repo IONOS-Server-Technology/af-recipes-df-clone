@@ -1,0 +1,68 @@
+slug: onyx
+name: Onyx
+source_description: "Open-source AI chat and enterprise search platform that works with every LLM"
+
+upstream:
+  url: https://onyx.app/
+  repo_url: https://github.com/onyx-dot-app/onyx
+  license: "MIT (Community Edition); separate Enterprise Edition (SSO, advanced collaboration, analytics) is a paid, proprietary tier layered on top. A pure-MIT mirror without any EE code paths exists at https://github.com/onyx-dot-app/onyx-foss."
+  docker_image: null
+
+version_health:
+  latest_version: v4.5.3
+  latest_release_date: 2026-08-05
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Formerly named Danswer, renamed to Onyx. Extremely active: tagged
+    releases roughly daily (v4.5.0, v4.5.1, v4.5.2, v4.5.3 all landed within
+    the 2026-08-03 to 2026-08-05 window) plus continuous nightly builds and a
+    separate onyx-cli release train. 9,500+ commits, 31k+ GitHub stars. No
+    EOL or maintenance-mode signal anywhere in the project.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Both are "chat with any LLM" web apps, but Onyx is positioned as an
+    enterprise-search / RAG platform: 40+ first-party connectors (Slack,
+    Confluence, Google Drive, GitHub, Salesforce, SharePoint, etc.) that sync
+    documents and permissions into a searchable knowledge base the chat
+    layer queries, plus custom agents with tool actions. open-webui is a
+    thinner, single-purpose chat frontend with no built-in document-connector
+    ingestion. A customer who wants "ask questions over our company's docs"
+    rather than just "chat with a model" is not served by open-webui today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiation from the existing AI-category recipes, but the
+    standard deployment is a heavy multi-service stack (Postgres, a
+    vector/keyword search engine, Redis, MinIO, multiple model/worker
+    containers, nginx) at ~10GB RAM / 32GB disk minimum — a "lite" profile
+    drops this to ~4GB/16GB by disabling indexing/connectors, but that also
+    drops the feature that differentiates it from open-webui in the first
+    place. Sizeable to run, and the primary value (connector-based
+    enterprise search) needs an LLM API key configured post-install to be
+    useful at all, same as open-webui/anythingllm already do.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Onyx is a legitimate, actively-developed AI chat + enterprise-search
+  platform distinct from what open-webui already covers in the catalogue —
+  the connector-based document ingestion is the differentiator. It boots
+  with just a domain: authentication defaults to email/password with the
+  first person to sign in through the web UI becoming admin (same pattern as
+  Immich/Gitea already in the catalogue), so there is no customer-supplied
+  secret needed at first boot and no `generated_from`/`basic_auth` gate is
+  structurally required. The caveat is resource cost and stack complexity
+  (5+ containers, ~10GB RAM standard) plus the fact that its headline feature
+  needs an LLM API key added after install to do anything useful —
+  build_with_caveats rather than an unqualified build_now.
