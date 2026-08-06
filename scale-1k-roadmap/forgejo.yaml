@@ -1,0 +1,86 @@
+slug: forgejo
+name: Forgejo
+source_description: "Self-hosted lightweight Git service with web interface and collaboration features"
+
+upstream:
+  url: https://forgejo.org
+  repo_url: https://codeberg.org/forgejo/forgejo
+  license: MIT
+  docker_image: codeberg.org/forgejo/forgejo:16.0.1
+
+version_health:
+  latest_version: "v16.0.1"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v16.0 shipped 2026-07-16 with a v16.0.1 patch on 2026-07-21 — about two
+    weeks before this analysis (2026-08-05). Forgejo ships a major/minor
+    release roughly every three months (v14.0 2026-01, v15.0 2026-04, v16.0
+    2026-07) with patch releases landing in between (15.0.3 is the current
+    LTS line), and maintains overlapping LTS/stable branches the same way
+    Gerrit does — a sign of disciplined, well-resourced maintenance, not a
+    single moving HEAD. Backed by Codeberg e.V. (a German non-profit) and
+    numerous corporate/individual sponsors; clearly active.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea, opengist]
+  differentiation: >
+    Forgejo is a hard fork of Gitea, created in 2022 specifically over
+    concerns about Gitea Ltd's commercial governance; it stays close to
+    feature-parity with Gitea (repos, PRs, issues, CI/CD via Actions,
+    package registry) with the same config format and largely compatible
+    migration path. Its distinguishing points are non-profit/community
+    governance (Codeberg e.V. stewardship, no company owning the
+    trademark) and early ActivityPub/ForgeFed federation support — real
+    but governance-and-roadmap differentiators, not a different feature
+    category. For a hosting catalogue where customers pick by capability
+    rather than upstream politics, this reads as "the same product as our
+    existing Gitea recipe, with a different maintainer," not a new
+    workflow the way Gerrit's review-gate model or Opengist's snippet
+    focus are.
+  usefulness: low
+  usefulness_rationale: >
+    The catalogue already ships a Gitea recipe covering the exact same
+    "self-hosted lightweight Git service with web UI" niche Hostinger's
+    description names for Forgejo, down to the same architecture (single
+    app container + Postgres, port 3000 web + SSH git-clone port). Adding
+    Forgejo alongside it would present customers with two near-identical
+    options differing mainly in project governance, which most of this
+    catalogue's self-hosted small-business/solo-developer audience is
+    unlikely to weigh when choosing a Git host.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - postgres_app_db_password
+    - "Traefik basic-auth gate credential (temporarily protects the unauthenticated first-run admin-account wizard, where a visitor would otherwise be able to claim the initial admin account before the customer does)"
+  secrets_expressible_today:
+    - secret: postgres_app_db_password
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Forgejo is an actively maintained (v16.0.1, 2026-07-21; ~3-month major
+  cadence with overlapping LTS/stable branches), MIT-licensed Git hosting
+  platform that would be mechanically installable today: like Ghost and
+  the already-shipped Gitea recipe, its official image has no env var to
+  pre-provision the admin account, so install.sh would need to put a
+  temporary Traefik basic_auth gate (projected from the customer's root
+  password) in front of the app until the customer completes the
+  browser-based first-run wizard, with the DB password server-generated.
+  That clears the /compose constraint with zero hard blocking issues. The
+  problem is fit, not mechanism: Forgejo is a hard fork of Gitea aimed at
+  the identical "lightweight self-hosted Git service" use case the
+  catalogue's existing Gitea recipe already covers, and its real
+  differentiators (non-profit governance, early ActivityPub federation)
+  are unlikely to matter to the audience choosing between them. Not
+  recommended — adding it would duplicate an existing recipe rather than
+  fill a gap.
