@@ -1,0 +1,104 @@
+slug: passbolt
+name: Passbolt
+source_description: "Open-source team password manager with end-to-end OpenPGP encryption and sharing"
+
+upstream:
+  url: https://www.passbolt.com
+  repo_url: https://github.com/passbolt/passbolt_api
+  license: AGPL-3.0 (CE) + commercial license for Pro/Enterprise-only features
+  docker_image: passbolt/passbolt
+
+version_health:
+  latest_version: "5.14.0-1-ce"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.14.0-1-ce pushed to Docker Hub ~20 hours before this analysis
+    (2026-08-05), preceded by 5.13.0-1-ce about 22 days earlier — a steady
+    monthly-ish CE release cadence. Repo is not archived and shows ongoing
+    commit activity. Actively maintained by Passbolt SA.
+
+catalogue_fit:
+  categories: [security, password-manager, team-collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [vaultwarden]
+  differentiation: >
+    Passbolt targets team/organizational credential sharing with granular
+    per-user, per-group, per-resource permissions and an admin-managed
+    directory of users, whereas Vaultwarden (a Bitwarden-protocol
+    reimplementation) is oriented around individual vaults with simpler
+    org-sharing. Passbolt's auth model is fundamentally different too: it's
+    OpenPGP keypair-based (each user generates their own keypair in the
+    browser extension) rather than a master-password-derived encryption key,
+    which the CE edition markets as end-to-end encrypted team credential
+    sharing rather than personal vault sync.
+  usefulness: medium
+  usefulness_rationale: >
+    There is genuine differentiation from Vaultwarden for a team/business
+    use case (shared folders, per-resource ACLs, admin user directory), so
+    this isn't pure duplication. But it comes with a materially heavier
+    onboarding flow (GPG keypair setup per user, browser extension
+    dependency, admin-driven invite-by-email) that is a poor fit for the
+    single-tenant self-host customer profile the rest of the catalogue
+    targets, which caps the practical value below "high."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DATASOURCES_DEFAULT_PASSWORD (MariaDB password)
+    - SECURITY_SALT (app secret salt)
+    - PASSBOLT server GPG keypair passphrase (auto-generated at boot)
+    - EMAIL_TRANSPORT_DEFAULT_USERNAME / EMAIL_TRANSPORT_DEFAULT_PASSWORD (SMTP relay credentials, needed to deliver the first-admin invite email)
+    - first-admin registration (email/name via `bin/cake passbolt register_user`, no password field)
+  secrets_expressible_today:
+    - secret: DATASOURCES_DEFAULT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECURITY_SALT
+      mechanism: server_generated_no_customer_input
+    - secret: PASSBOLT server GPG keypair passphrase
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Passbolt has no server-side admin password field at all — there is no
+      login form our `generated_from: "<algo>:ROOT_PASSWORD"` mechanism can
+      project a hash into. Authentication is OpenPGP-keypair based: each
+      user (including the first admin) generates their own personal GPG
+      keypair client-side in the browser extension during setup, choosing
+      their own passphrase interactively. This is not a server-known secret
+      of any kind, hashed or plaintext — there is nothing for af-api to
+      derive from the customer's root password.
+    - >
+      Creating the first admin user is a manual, out-of-band step
+      (`docker exec passbolt bin/cake passbolt register_user -u <email> -f
+      <first> -l <last> -r admin`) that produces a single-use registration
+      URL. Completing setup requires that URL to reach the admin, normally
+      via an outbound SMTP relay the customer must supply
+      (EMAIL_TRANSPORT_DEFAULT_HOST/USERNAME/PASSWORD) — an externally
+      sourced credential with no projection mechanism today, the same class
+      of blocker recorded for apps-gaps/bitwarden.yaml's admin-login-by-email
+      flow. Without SMTP (or a manual operator pulling the URL from
+      container logs, which is not part of the automated install.sh model),
+      first boot cannot reach a working admin account at all.
+    - >
+      Gating the whole app behind Traefik `basic_auth` does not solve the
+      above — that pattern only substitutes for a missing *app-level* login,
+      but here the blocker is that no admin account can be provisioned in
+      the first place without SMTP or manual intervention, independent of
+      whether the app sits behind an extra auth gate.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Passbolt is an actively maintained (monthly CE release cadence, latest
+  5.14.0-1-ce pushed 2026-08-05), reverse-proxy-compatible web app that adds
+  genuine team-sharing differentiation over recipes/vaultwarden/, so it isn't
+  pure duplication. It is not installable under the current mechanism,
+  however: its OpenPGP-keypair auth model has no server-side password field
+  for `generated_from` to project into, and provisioning the first admin
+  account requires either a customer-supplied SMTP relay (to deliver a
+  single-use invite link) or manual CLI intervention — neither of which our
+  automated install.sh / `/compose` flow supports today. Revisit as
+  blocked_on_platform if/when the platform gains an SMTP-relay input channel
+  or an alternative admin-bootstrap path; not a candidate to build now.
