@@ -1,0 +1,75 @@
+slug: onedev
+name: OneDev
+source_description: "OneDev is a self-hosted Git server with built-in CI/CD and project management"
+
+upstream:
+  url: https://onedev.io/
+  repo_url: https://github.com/theonedev/onedev
+  license: MIT (Community Edition; a separate closed "server-ee" submodule provides paid Enterprise-only features)
+  docker_image: 1dev/server
+
+version_health:
+  latest_version: "16.4.2"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    GitHub releases show near-weekly patch/minor releases through early
+    August 2026 (16.3.3 -> 16.3.4 -> 16.4.0 -> 16.4.1 -> 16.4.2 across roughly
+    two weeks), including a critical-security-fix release (16.4.1, announced
+    on the project blog 2026-08-04) that customers must not be left on an
+    older pin for. Project blog also shows unrelated feature posts as recent
+    as 2026-07-27, confirming active development. The fetched release date
+    for 16.4.2 (2026-08-06) lands one day after the 2026-08-05 analysis date
+    given for this task; treat this as "released within the last day or two"
+    rather than a literal future date — live GitHub data vs. the stated
+    analysis date differ by less than 24h, immaterial to the cadence/EOL
+    verdict either way.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea, opengist]
+  differentiation: >
+    Unlike Gitea (git hosting + basic Actions CI, needs a separate
+    act_runner for jobs) and OpenGist (snippets/gists only, no CI or issue
+    tracker), OneDev bundles a built-in CI/CD job engine (no separate runner
+    service required, using a Docker executor against the mounted host
+    docker socket), Kanban-style issue/PR boards, and a package registry
+    (Docker/NPM/Maven/etc.) in one process. Recent releases add AI-assisted
+    code review, CI spec editing, and MCP server integration as
+    Community-Edition features.
+  usefulness: medium
+  usefulness_rationale: >
+    A real functional step up from Gitea for a customer who wants built-in
+    CI/CD without wiring a separate runner, but it overlaps heavily with
+    Gitea's core git-hosting value proposition and is a much less
+    widely-recognized brand, so expected demand is more niche than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OneDev is an actively maintained (near-weekly releases, latest security
+  patch 16.4.1 shipped 2026-08-04), MIT-licensed self-hosted Git server whose
+  official image (1dev/server) boots with a single HTTP web UI (6610) plus a
+  git-over-SSH port (6611), matching the pattern already used by the Gitea
+  recipe. Its admin account is bootstrapped via plaintext `initial_user` /
+  `initial_password` environment variables set at container start (not a
+  pre-hashed value), so — exactly like Gitea's shipped recipe — a
+  platform-generated random admin password satisfies first boot with no
+  customer-supplied input needed; the Postgres password is likewise
+  server-generated. It does overlap with Gitea and OpenGist in the
+  git-hosting space, but its built-in CI/CD engine and Kanban boards are a
+  genuine differentiator worth having in the catalogue, so this is a
+  build_now candidate rather than a blocked one.
