@@ -1,0 +1,77 @@
+slug: phpmyadmin
+name: phpMyAdmin
+source_description: "Web-based MySQL and MariaDB database management interface"
+
+upstream:
+  url: https://www.phpmyadmin.net/
+  repo_url: https://github.com/phpmyadmin/phpmyadmin
+  license: GPL-2.0
+  docker_image: phpmyadmin/phpmyadmin
+
+version_health:
+  latest_version: "5.2.3"
+  latest_release_date: "2025-10-08"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    5.2.3 (2025-10-08) is ~10 months old as of 2026-08-05. Release history
+    on the 5.2.x line is uneven: 5.2.1 (2023-02-08) -> 5.2.2 (2025-01-21,
+    ~2 years later) -> 5.2.3 (2025-10-08, ~9 months later) — closer to
+    sporadic than a steady cadence, but not dormant; three bugfix/security
+    releases in the last ~3.5 years with active issue triage. The project's
+    own 5.2.3 release announcement states phpMyAdmin 6 (requiring PHP >=8.2)
+    is in development and that "support for phpMyAdmin 5 is expected to end
+    in the near future" — i.e. upstream itself is signalling the 5.x branch,
+    which is what the current Docker image ships, is heading into
+    maintenance-only/wind-down, not that the project overall is abandoned.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [adminer]
+  differentiation: >
+    Functionally near-identical to the existing adminer.yaml gap analysis:
+    both are single-container PHP web UIs for browsing/administering a
+    MySQL/MariaDB (and, for Adminer, other) database the customer already
+    runs, with no built-in admin account of their own — the "login" is a
+    per-visit DB connection form filled in by the end user, not a
+    provisioned secret. phpMyAdmin is MySQL/MariaDB-only and heavier
+    (larger image, more built-in features: query history, designer, import/
+    export wizards) versus Adminer's lighter, multi-engine, single-file
+    approach. Neither adds a capability the other doesn't already cover for
+    a customer who just wants a DB admin UI; phpMyAdmin's main edge is
+    brand recognition (far better known than Adminer among MySQL users).
+  usefulness: medium
+  usefulness_rationale: >
+    Same audience and use case as Adminer — developers/power users who
+    self-host a MySQL/MariaDB database and want a browser-based admin UI
+    without configuring one by hand. Useful and well-known, but a niche
+    technical tool rather than broad-appeal, and it needs a reachable
+    database (BYO or another recipe's DB) to do anything.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  phpMyAdmin is a single-container, single-HTTP-port PHP app with no
+  built-in admin login of its own (its login screen is a per-connection DB
+  credential form the end user fills in each visit, not an af-api-managed
+  secret), so it is mechanically installable today the same way as Adminer:
+  domain param plus a mandatory Traefik basic_auth:true gate, with that
+  gate's password projected from the customer's root password via
+  `generated_from`. It fully duplicates the already-analyzed Adminer
+  candidate in purpose and mechanism, and upstream itself is signalling the
+  5.x line (what the Docker image currently ships) is heading toward
+  maintenance-only as phpMyAdmin 6 development proceeds. Recommend
+  build_with_caveats: only worth adding alongside (not instead of) Adminer
+  if brand recognition for MySQL-specific users is judged worth the
+  catalogue overlap, and any recipe should track the eventual 6.x/PHP 8.2+
+  transition.
