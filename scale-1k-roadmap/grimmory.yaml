@@ -1,0 +1,102 @@
+slug: grimmory
+name: Grimmory
+source_description: "Self-hosted book collection manager with built-in reader and device sync"
+
+upstream:
+  url: https://grimmory.org
+  repo_url: https://github.com/grimmory-tools/grimmory
+  license: AGPL-3.0
+  docker_image: ghcr.io/grimmory-tools/grimmory
+
+version_health:
+  latest_version: "v3.2.4"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.2.4 shipped 2026-06-30 — about 5 weeks before today (2026-08-05).
+    Recent tag history shows a tight, healthy cadence: v3.0.3 (2026-05-01)
+    → v3.1.0 (2026-05-14, 2 weeks) → v3.2.0 (2026-06-04, 3 weeks) →
+    v3.2.1 (2026-06-13, 1.5 weeks) → v3.2.2 (2026-06-19, 1 week) → v3.2.4
+    (2026-06-30, 1.5 weeks). Develop branch has thousands of commits and
+    the project is a community-maintained continuation of the
+    now-inactive BookLore, so it also carries a small "successor project"
+    risk (it is ~1 year old as an independent project), but nothing here
+    suggests slowing, dormancy, or EOL.
+
+catalogue_fit:
+  categories: [media, ebooks, self-hosting, file-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue manages a personal ebook/
+    comic/audiobook library. Immich and Paperless-ngx are the closest by
+    shape (self-hosted media/document library with browser UI and
+    per-user accounts) but neither indexes EPUB/MOBI/PDF/CBZ books,
+    offers a built-in reader with per-book annotations, or syncs reading
+    progress to Kobo/KOReader/OPDS clients. Grimmory fills a distinct
+    "personal digital library" niche, the same niche apps-gaps/calibre-web
+    was evaluated against (see apps-gaps/calibre-web.yaml) — the two are
+    direct competitors for the same customer need, not complementary.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted ebook/audiobook library management with e-reader sync
+    (Kobo, KOReader, OPDS) is a well-known, frequently self-hosted use
+    case with an active and clearly still-growing project behind it
+    (weekly-ish releases, thousands of commits), which is a stronger
+    signal than calibre-web's slowing release cadence. Capped at medium
+    rather than high because it remains a personal/hobbyist niche with
+    fewer commercial/team use cases than automation or monitoring tools
+    already in the catalogue, and because it would be the second
+    ebook-library candidate alongside calibre-web rather than opening new
+    ground.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, mariadb_root_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: mariadb_root_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Grimmory ships no first-boot admin credential of its own to project
+      a password hash into: the app boots straight into a public setup
+      wizard on its single HTTP port, and whoever first loads the domain
+      types in their own name/email/password to become the admin account.
+      There is no env var or config flag for admin username/password, so
+      `generated_from` has no field to target. This is not a hardcoded
+      default credential (the calibre-web case) but the same underlying
+      risk in a different shape — an unauthenticated setup race — and per
+      SCHEMA.md's "no login of its own, but should be gated" case it
+      should be closed the same way: a Traefik `basic_auth` gate in front
+      of the whole app, keyed off the customer's root-password hash, so
+      only the customer can ever reach the setup wizard to claim the
+      admin account.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Grimmory is a two-container app (its own image plus a MariaDB
+  dependency) on one HTTP port (6060, default) with bind-mounted
+  book/bookdrop/data volumes — structurally closest to
+  recipes/paperless-ngx (app + relational DB, single web UI, no other raw
+  ports) rather than the single-container recipes. It needs no external
+  API keys or OAuth registration to boot, and its DB credentials can be
+  fully server-generated with no customer input, matching our current
+  mechanism. Its one wrinkle is that the admin account is created through
+  a public first-visit setup wizard rather than via any settable
+  env var, which SCHEMA.md's basic-auth-gate pattern (already used for
+  n8n, WUD, Open WebUI, Immich) covers cleanly: front the whole app with
+  Traefik basic_auth derived from the customer's root password so no one
+  but the customer ever reaches that wizard. Upstream (grimmory-tools/
+  grimmory, an active community successor to BookLore) is releasing on a
+  healthy multi-week cadence with no signs of stalling. The main open
+  question isn't installability but catalogue value: this covers the
+  same "personal ebook library" niche as the already-evaluated
+  calibre-web candidate, so shipping both would mean picking between (or
+  offering) two competing recipes rather than filling two separate gaps.
