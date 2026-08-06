@@ -1,0 +1,81 @@
+slug: meshcentral
+name: MeshCentral
+source_description: "Self-hosted remote monitoring and management platform for desktops, servers, and IoT devices"
+
+upstream:
+  url: https://meshcentral.com
+  repo_url: https://github.com/Ylianst/MeshCentral
+  license: Apache-2.0
+  docker_image: ghcr.io/ylianst/meshcentral
+
+version_health:
+  latest_version: "1.2.4"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    14 days since the latest release (1.2.4, 2026-07-22) as of today
+    (2026-08-05). Release history shows a steady roughly-monthly cadence
+    through 2025-2026 (1.1.56 on 2026-01-21, 1.1.57 on 2026-02-25, 1.1.58 on
+    2026-03-25, 1.1.59 on 2026-04-22, 1.2.0 on 2026-05-28, then a burst of
+    patch releases 1.2.1-1.2.4 between 2026-06-24 and 2026-07-22). Single
+    primary maintainer (Ylian Saint-Hilaire, ex-Intel/current Microsoft
+    employee working on this as an independent project) but commit and
+    release activity is continuous with no archival notice or EOL signal.
+
+catalogue_fit:
+  categories: [infrastructure, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    MeshCentral is a full remote monitoring & management (RMM) platform:
+    customers install a lightweight agent on each desktop/server/IoT device,
+    which then reports in and exposes remote desktop, terminal, and file
+    management from the central web UI. This is architecturally distinct
+    from Apache Guacamole (a clientless proxy in front of existing
+    RDP/VNC/SSH servers — no agent, no fleet inventory) which is the only
+    remote-access-adjacent recipe in the catalogue, and it is currently
+    disabled (`enabled: false`) besides. No recipe today covers
+    agent-based endpoint management/monitoring at all.
+  usefulness: high
+  usefulness_rationale: >
+    Well-known, actively developed, free/open-source alternative to
+    commercial RMM tools (TeamViewer, AnyDesk, Tactical RMM's closest
+    open peer). Real demand from IT admins and MSPs wanting self-hosted
+    fleet management; fills a genuinely new capability gap rather than
+    duplicating an existing recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MeshCentral is a single-container app (Apache-2.0,
+  ghcr.io/ylianst/meshcentral, pinned tag 1.2.4) that needs only a domain
+  and bind-mounted data/files/web/backups volumes, all server-side with no
+  customer input required. It has no env-var-driven default admin
+  credential to project a hash into: like n8n, Open WebUI, and
+  Audiobookshelf already in (or gapped into) this catalogue, MeshCentral's
+  first visitor registers their own account directly through the web UI's
+  first-run flow and becomes the initial admin, after which
+  ALLOW_NEW_ACCOUNTS should be set to false to close self-registration —
+  the same "first visitor claims root" race window already accepted
+  unmitigated for those precedents, not a new blocker here. Reverse-proxy
+  fit needs one config-time caveat: MeshCentral must be told about the
+  proxy via `tlsOffload`/`trustedProxy` in config.json (documented in
+  MeshCentral's own official Traefik guide, and confirmed working in
+  several current community write-ups) so that both the web UI and the
+  agents' persistent websocket connections route correctly through
+  Traefik on the standard single public port — an old (2019, closed
+  "not planned") GitHub issue reported websocket breakage under Traefik,
+  but current official docs and recent third-party guides describe a
+  working Traefik+MeshCentral setup, so this is a config detail for the
+  recipe author, not a structural blocker. Overall: no overlap with the
+  existing catalogue (Guacamole, the nearest analog, is a different,
+  disabled, agent-less proxy), real differentiated value, and installable
+  under the current `/compose` mechanism — recommend building it now.
