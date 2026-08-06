@@ -1,0 +1,70 @@
+slug: filegator
+name: FileGator
+source_description: "Self-hosted multi-user file manager with role-based permissions and no database"
+
+upstream:
+  url: https://filegator.io/
+  repo_url: https://github.com/filegator/filegator
+  license: MIT
+  docker_image: filegator/filegator
+
+version_health:
+  latest_version: "v7.14.4"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Six tagged releases in the last ~9 months (v7.13.1 in Jan 2026 through
+    v7.14.4 on 2026-07-13), the latest only ~3 weeks before this analysis
+    (2026-08-05). Repo is not archived, last push 2026-07-23, still has
+    215 open issues being triaged. Clearly active, not dormant or EOL.
+
+catalogue_fit:
+  categories: [productivity, file-manager]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes offer a general-purpose, multi-user file
+    manager/sharing UI over a plain local repository folder. syncthing does
+    peer-to-peer sync, not a browsable web file manager with per-user roles
+    and home directories; the rest are unrelated app categories. FileGator
+    fills a "self-hosted Dropbox-lite / team file share" niche the catalogue
+    doesn't currently cover.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad appeal use case (share/upload/manage files for a team or family)
+    and genuinely no-database, single-container simplicity make it an easy
+    add. Rated medium rather than high because it's a fairly thin feature
+    set compared to full cloud-storage suites (no OCR/preview ecosystem,
+    no mobile app), so it competes more with "quick FTP replacement" than
+    "Nextcloud alternative".
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today:
+    - secret: admin_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FileGator is a single-container, single-port (8080) PHP app with no
+  external database, license MIT, and an active release cadence (latest
+  tag 3 weeks old). It ships with one hardcoded admin/admin123 account
+  whose bcrypt password hash lives in a JSON user-store file
+  (private/users.json, seeded from private/users.json.blank on first
+  boot) rather than being read from an environment variable at container
+  startup like every other generated_from recipe shipped so far
+  (Vaultwarden's ADMIN_TOKEN). The hash algorithm FileGator itself uses is
+  plain PHP password_hash(..., PASSWORD_BCRYPT), which matches a supported
+  generated_from algorithm, so the root-password projection is expressible
+  in principle — but wiring it in requires install.sh to render
+  private/users.json with the generated bcrypt hash before first
+  docker-compose up, instead of the simple ${VAR} substitution pattern
+  used everywhere else. That's a real implementation gap worth flagging
+  (hence build_with_caveats, not a clean build_now), but not a structural
+  blocker the way a missing input channel would be. Recommend building it
+  once the file-seeding approach is validated on one recipe.
