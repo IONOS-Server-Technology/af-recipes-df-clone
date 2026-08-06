@@ -54,11 +54,15 @@ installability:
       Confirmed against the official mattermost/docker compose stack
       (docker-compose.yml + env.example) and Mattermost's own auth docs:
       there is no admin-username/admin-password environment variable or
-      config field. The app boots with zero users and `EnableOpenServer`
-      (self-registration) defaults to true with
-      `RequireEmailVerification` defaulting to false — the first visitor
-      to submit the signup form is automatically promoted to System Admin,
-      no email round-trip required. This is the same shape of problem
+      config field. `EnableOpenServer` (self-registration) actually
+      defaults to false, not true — but that doesn't avoid the problem,
+      it relocates it: the documented way to bootstrap a fresh install is
+      to explicitly set `MM_TEAMSETTINGS_ENABLEOPENSERVER=true` (our
+      install.sh would have to do this) so the first visitor can reach the
+      signup form at all, at which point that first account is
+      automatically promoted to System Admin with no email round-trip
+      required (`RequireEmailVerification` defaults to false). This is the
+      same shape of problem
       documented in apps-gaps/airtrail.yaml, apps-gaps/2fauth.yaml and
       apps-gaps/activepieces.yaml: the credential is created client-side
       via self-registration, so there is no `type: password` parameter on
