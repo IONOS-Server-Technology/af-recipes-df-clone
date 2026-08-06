@@ -1,0 +1,83 @@
+slug: inkscape
+name: Inkscape
+source_description: "Browser-accessible vector graphics editor for illustrations and SVG design"
+
+upstream:
+  url: https://inkscape.org
+  repo_url: https://gitlab.com/inkscape/inkscape
+  license: GPL-3.0-or-later
+  docker_image: lscr.io/linuxserver/inkscape
+
+version_health:
+  latest_version: "1.4.4 (upstream); packaged image tracks 1.4.2 (tag 1.4.2-r8-ls96)"
+  latest_release_date: "2026-05-06 (upstream 1.4.4); image last app-version bump ~1.4.2 well before that"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Upstream Inkscape is actively developed: 1.4.4 released 2026-05-06 (a
+    maintenance/bugfix release with ~20 crash fixes), following 1.4.2
+    (2025-05-12) and 1.4.1/1.4.3 point releases in between, with 1.5 in
+    active development on GitLab. The deployable image,
+    lscr.io/linuxserver/inkscape, is rebuilt on a near-weekly cadence
+    (1.4.2-r8-ls90 through -ls96, roughly every 7 days from 2026-06-25
+    through 2026-08-06, confirmed via the Docker Hub API) but those rebuilds
+    are base-image/Alpine patch bumps, not app version bumps — the packaged
+    Inkscape version has stayed at 1.4.2 across all of them, meaning the
+    image is currently two point releases (1.4.3, 1.4.4) behind upstream as
+    of today (2026-08-05). Packaging lag rather than abandonment: the
+    linuxserver repo itself is actively maintained, just slow to pick up the
+    latest app point release.
+
+catalogue_fit:
+  categories: [productivity, creative]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a full desktop creative
+    application — the closest analogues are the gap-analysis candidates for
+    GIMP and Blender (both linuxserver "webtop" desktop-in-browser images,
+    both flagged low-usefulness/not_recommended for this catalogue) and, at
+    a different layer, draw.io/Excalidraw, which are lightweight
+    diagramming web apps rather than a full vector-illustration suite.
+    Inkscape would be the catalogue's first vector-graphics editor, but it
+    ships as a streamed desktop (KasmVNC/noVNC-style), the same pattern
+    already assessed for GIMP and Blender, not a purpose-built web app.
+  usefulness: low
+  usefulness_rationale: >
+    Same structural problem already identified for GIMP and Blender: this
+    is a full desktop environment streamed to the browser (noVNC on port
+    3000, HTTPS on 3001) for one interactive user at a time, needing
+    desktop-class RAM/CPU and a shared-memory volume rather than fitting
+    the lightweight-persistent-service shape of the rest of the catalogue.
+    The one structural precedent for "remote desktop in a browser",
+    Guacamole, is itself currently disabled, and the catalogue has so far
+    passed on this app category (GIMP, Blender) for the same reason.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential (the image's own CUSTOM_USER/PASSWORD HTTP basic auth is plaintext-compared and documented by linuxserver.io as suitable only for a trusted local network, not internet exposure)"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Inkscape is actively developed upstream (1.4.4, 2026-05-06) and the
+  lscr.io/linuxserver/inkscape image is mechanically installable today: a
+  single container serving a noVNC desktop over HTTP/HTTPS with no login of
+  its own, gated cleanly behind Traefik basic_auth using the customer's
+  root-password hash, same pattern as n8n/WUD/draw.io. The packaged app
+  version does lag upstream by two point releases despite weekly image
+  rebuilds (those rebuilds are base-image patches, not app bumps), worth
+  watching but not itself disqualifying. The real issue is fit: this is a
+  full desktop-in-browser tool, the same architecture already evaluated and
+  passed on for GIMP and Blender, needing desktop-class resources for a
+  single interactive user rather than matching the catalogue's
+  lightweight-persistent-service shape. Recommend not building unless the
+  catalogue decides to invest in the "creative desktop app via browser"
+  category as a group, at which point GIMP, Blender, and Inkscape should be
+  evaluated together rather than piecemeal.
