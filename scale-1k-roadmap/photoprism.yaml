@@ -1,0 +1,101 @@
+slug: photoprism
+name: PhotoPrism
+source_description: "PhotoPrism is an AI-powered photo management application for the decentralized web"
+
+upstream:
+  url: https://www.photoprism.app/
+  repo_url: https://github.com/photoprism/photoprism
+  license: AGPL-3.0
+  docker_image: photoprism/photoprism:260728
+
+version_health:
+  latest_version: "260728"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    PhotoPrism uses rolling, date-stamped build tags rather than semver
+    releases (e.g. 260728-bbde8f452, 260601-a7d098548, 260523-...,
+    260305-...). Releases land roughly every 4-8 weeks, most recently
+    2026-07-28 — 8 days before today (2026-08-05). This is a continuously
+    maintained, actively developed project, not a stalled one.
+
+catalogue_fit:
+  categories: [media, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Direct functional overlap with recipes/immich: both are self-hosted,
+    AI-powered photo/video libraries with face recognition, geo/map view,
+    and automatic tagging behind a single web UI. PhotoPrism's edge is a
+    lighter footprint (can run on SQLite with no external DB/cache, vs.
+    Immich's mandatory Postgres+pgvecto.rs+Redis stack) and a
+    filesystem-first "index don't import" model that some users prefer
+    over Immich's managed-library approach. It lacks Immich's official
+    mobile app with background auto-backup, which is Immich's main
+    consumer-facing draw. Per CLAUDE.md, catalogue overlap alone is not a
+    reason to reject a candidate — but it does mean PhotoPrism would need
+    to earn its slot on its own merits rather than "we don't have a photo
+    app yet."
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct audience (users who prefer PhotoPrism's UX, its
+    library-scanning model, or want a DB-free/lighter deployment than
+    Immich) but it's competing directly with an app we already ship, and
+    its most attractive features (world map, enhanced search, some AI
+    labeling) are gated behind a paid membership rather than fully free in
+    the self-hosted Community Edition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PHOTOPRISM_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      PHOTOPRISM_ADMIN_PASSWORD must be a plaintext password known to the
+      customer at first boot — it's what they type into PhotoPrism's own
+      "admin" login every time, not a pre-computed hash. The official
+      compose file ships it as a literal env var (default "insecure" in
+      the upstream example) with no support for supplying a pre-hashed
+      value; PhotoPrism hashes it internally only after receiving the
+      plaintext. `generated_from: "<algo>:ROOT_PASSWORD"` only ever
+      produces a hash string, so it cannot be projected into this field —
+      structurally the same blocker documented for Ackee
+      (apps-gaps/ackee.yaml): there is no channel today to hand the app a
+      plaintext credential the customer actually knows, short of leaking
+      their real root password verbatim.
+    - >
+      Auto-generating PHOTOPRISM_ADMIN_PASSWORD server-side and never
+      showing it to the customer doesn't work either, for the same reason
+      it doesn't work for Ackee: this is a customer-facing login field
+      (not an internal secret like a DB password), so a hidden random
+      value would lock the customer out of the app's own admin UI.
+    - >
+      Fronting the whole app with a Traefik `basic_auth` gate (using
+      `generated_from` on the root password) does not resolve this either:
+      PhotoPrism has its own login screen, so the SCHEMA.md
+      "no login of its own → gate with basic_auth" allowance doesn't
+      apply, and using a fixed/shared PHOTOPRISM_ADMIN_PASSWORD across
+      every customer install just to have *something* in the field
+      would mean every instance shares the same internal admin
+      credential, which is the anti-pattern the mechanism is meant to
+      avoid.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PhotoPrism is an actively maintained, single-container-plus-optional-DB
+  photo/video manager with a single reverse-proxy-friendly HTTP port
+  (2342) and can run standalone on SQLite, making it mechanically simple
+  to package. It fails installability today on the same credential-input
+  gap as Ackee: its only login field, PHOTOPRISM_ADMIN_PASSWORD, requires
+  a plaintext password the customer knows, and neither `generated_from`
+  (hash-only) nor Traefik `basic_auth` (app already has its own login)
+  covers that. It also directly overlaps recipes/immich, which is more
+  actively developed on the consumer side (official mobile app with
+  auto-backup) — PhotoPrism's differentiation is a lighter deployment
+  footprint and a different UX philosophy, not a missing capability.
+  Recommend revisiting only if a customer-known-plaintext credential
+  channel is added to the platform; even then this competes for build
+  priority against the photo-management slot Immich already fills.
