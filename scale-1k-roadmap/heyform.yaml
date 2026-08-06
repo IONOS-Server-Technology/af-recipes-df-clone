@@ -1,0 +1,90 @@
+slug: heyform
+name: HeyForm
+source_description: "Open-source conversational form builder with conditional logic and analytics"
+
+upstream:
+  url: https://heyform.net/
+  repo_url: https://github.com/heyform/heyform
+  license: AGPL-3.0
+  docker_image: heyform/community-edition:v3.0.0-rc.10
+
+version_health:
+  latest_version: "v3.0.0-rc.10"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.0.0-rc.10 published 2026-07-14, ~3 weeks before this analysis
+    (2026-08-05). Prior releases in the same series: rc.9 (2026-06-25),
+    rc.8 (2026-06-03), rc.7 (2026-05-15), rc.6 (2026-03-13), rc.5
+    (2026-03-03), rc.1 (2025-11-28) — a steady ~3-6 week cadence over the
+    last 9 months, so genuinely active. Caveat: the entire v3 line has
+    stayed in "-rc" (release candidate) pre-release status for 9+ months
+    with no v3.0.0 GA cut yet, and the official Docker image tag/`latest`
+    tracks these release candidates directly — there is no stable
+    non-prerelease tag to pin to. A recipe built today would pin to the
+    newest available rc build, not a hardened stable release.
+
+catalogue_fit:
+  categories: [productivity, forms, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers conversational/typeform-style form building
+    (one question at a time, conditional branching logic, response
+    analytics). n8n can technically be wired up to collect form
+    submissions via its own webhook trigger nodes, but that requires the
+    customer to build a workflow from scratch — it is not a purpose-built
+    form/survey product with a drag-and-drop builder UI, themes, and
+    built-in analytics the way HeyForm is. Nothing else in the catalogue
+    addresses this use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Forms/surveys are a common enough SMB need to be broadly useful, and
+    the conversational-form niche (vs. a plain grid-form builder) is
+    genuinely differentiated. Held to "medium" rather than "high" because
+    the upstream project itself is still pre-1.0/pre-GA after 9+ months of
+    release candidates, which is a real quality/stability signal to weigh
+    before recommending it to customers as a production form tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SESSION_KEY
+    - FORM_ENCRYPTION_KEY
+    - MONGO_PASSWORD
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: SESSION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: FORM_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: MONGO_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  HeyForm is a three-container stack (Node app + MongoDB + KeyDB/Redis)
+  exposing a single HTTP port (9513), reverse-proxy compatible and
+  structurally similar to recipes/anytype-server or recipes/immich
+  (multi-service, no raw non-HTTP ports needed). It has no boot-time
+  admin-credential env var: like Healthchecks and HedgeDoc, the first user
+  to register through HeyForm's own web UI becomes the admin, with no
+  interactive CLI step required. That default is unsafe unguarded on a
+  public instance, so the recipe should front the whole app with a
+  Traefik basic_auth:true gate projected from the customer's root
+  password (generated_from), same pattern used for Healthchecks/HedgeDoc/
+  Adminer; inside that gate the customer registers their own admin
+  account. SESSION_KEY, FORM_ENCRYPTION_KEY, and the Mongo password are
+  all server-generatable with no customer input needed, so nothing here
+  is a hard platform blocker. The catalogue fit is genuine (no existing
+  recipe does conversational/typeform-style forms), but the upstream
+  project has spent 9+ months cutting v3.0.0 release candidates without
+  a GA release, and the Docker image has no stable non-prerelease tag to
+  pin to — recommend build_with_caveats: mechanically installable today,
+  but note the pre-GA upstream status to whoever prioritizes it.
