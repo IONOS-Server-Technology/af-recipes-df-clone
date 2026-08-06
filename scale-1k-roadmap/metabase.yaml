@@ -1,0 +1,82 @@
+slug: metabase
+name: Metabase
+source_description: "Open-source business intelligence platform for data visualization and analytics"
+
+upstream:
+  url: https://www.metabase.com/
+  repo_url: https://github.com/metabase/metabase
+  license: AGPL-3.0 (Open Source edition; a separate Enterprise/Pro edition with a commercial license exists but is not required for self-hosting)
+  docker_image: metabase/metabase
+
+version_health:
+  latest_version: "v0.63.5 (63.2 also tagged same day; Metabase runs parallel minor-version tracks — 63.x, 62.x, 61.x, 60.x — each still receiving patches)"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v63.2 (and enterprise v1.63.2) released 2026-07-29, 7 days before today
+    (2026-08-05); Docker Hub shows v0.63.5 pushed within the last day of
+    this analysis, confirming an actively maintained image, not a stale
+    tag. GitHub releases show near-weekly patch cadence across four
+    concurrently supported minor tracks (63.x, 62.x, 61.x, 60.x) plus older
+    LTS-style branches (59.x, 58.x) still getting point releases as of
+    late July 2026. No EOL or maintenance-mode signal — this is a
+    well-resourced, continuously shipped commercial-backed OSS project.
+
+catalogue_fit:
+  categories: [business-intelligence, analytics, data-visualization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers BI/analytics or dashboarding.
+    n8n and paperless-ngx are the closest structural neighbors (single Java
+    web app + Postgres backing store, both proxyable behind Traefik on
+    <slug>.<base_domain>), but neither overlaps functionally — Metabase
+    lets a customer connect their own data sources (Postgres, MySQL,
+    BigQuery, Snowflake, CSV/Google Sheets, etc.) and build charts,
+    dashboards, and ad-hoc SQL question answering on top of them. This is
+    a genuinely new category for the catalogue: turning raw business data
+    a customer already has into visualizations, not managing infrastructure
+    or automating workflows.
+  usefulness: high
+  usefulness_rationale: >
+    Broad appeal: any customer running a database-backed app (several of
+    which we already host — n8n, paperless-ngx, Gitea) has a believable use
+    case for pointing Metabase at their own data and building dashboards
+    without engineering effort. BI/analytics is a mainstream SMB need with
+    no current AF answer, and Metabase is the dominant, well-known open
+    source option in that space (broader name recognition than most of the
+    current catalogue's niche tools).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, basic_auth_password]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Metabase is a single Java web app (default port 3000) with no built-in
+  env-var-based admin bootstrap: its first-run setup wizard is completed
+  interactively in the browser, where whoever visits first chooses their
+  own admin email and password — there is no MB_ADMIN_PASSWORD-style
+  variable to project a generated credential into. That leaves the same
+  exposure shape as Adminer/AFFiNE in this catalogue: a mandatory Traefik
+  basic_auth gate (projected from the customer's root password via
+  generated_from) protecting the setup wizard from being claimed by a
+  stranger before the customer completes it themselves; the app's own
+  database connection to the paired Postgres container is a plain
+  server-generated secret the customer never touches. AGPL-3.0 licensing
+  is a standard copyleft OSS license with no reseller/competing-use
+  restriction, unlike some other candidates recently flagged in this
+  triage (e.g. apps-gaps/directus.yaml) — no legal blocker here. The
+  project is actively and heavily maintained (near-weekly patches across
+  multiple concurrent minor tracks). Recommend building: high customer
+  value, no functional overlap with the existing 24 recipes, and
+  mechanically installable today under the current basic_auth mechanism.
