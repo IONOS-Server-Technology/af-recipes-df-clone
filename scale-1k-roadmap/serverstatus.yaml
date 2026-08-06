@@ -1,0 +1,146 @@
+slug: serverstatus
+name: ServerStatus
+source_description: "Multi-server real-time monitoring dashboard with lightweight client agents"
+
+upstream:
+  url: https://tz.cloudcpp.com
+  repo_url: https://github.com/cppla/ServerStatus
+  license: MIT
+  docker_image: cppla/serverstatus
+
+version_health:
+  latest_version: "2.0.0"
+  latest_release_date: "2026-07-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    "ServerStatus CN Build 2.0.0" was tagged 2026-07-10, under a month
+    before this analysis (2026-08-05), and rewrote the server side in Go
+    ("Go重构服务端，更轻更快"). It was the third release in ten days
+    (1.1.8 on 2026-07-01, 1.1.9 on 2026-07-09, 2.0.0 on 2026-07-10),
+    following a much slower earlier line (1.1.7 2025-09-03, 1.1.6
+    2025-08-15, 1.1.5 2024-09-13). Commits on master continue past the
+    release — most recently 2026-07-23 — and the `server` image on Docker
+    Hub was rebuilt the same day, so the project is clearly alive, not
+    archived, MIT, ~4.7k stars. Caveat on pinning: the Docker Hub tag list
+    has no `2.0.0` tag at all. The Go server is published only as the
+    rolling `cppla/serverstatus:server` (and `:latest`), both rebuilt
+    2026-07-23; the newest numeric tag is `1.1.7` (pushed 2026-02-27),
+    which is the *previous*, pre-rewrite server. Name ambiguity: several
+    unrelated upstreams share the name. `zdz/ServerStatus-Rust` (Rust
+    rewrite, ~1.5k stars) was ruled out as the weaker pick — its last
+    release is v1.8.1 from 2024-03-19, i.e. ~2 years 5 months stale, with
+    commits trickling to 2026-04-01; `BotoX/ServerStatus` (last commit
+    2016-01-06) and the original `mojeda/ServerStatus` (last commit
+    2015-04-21) are both long dead. Hostinger's own page names no repo but
+    references a third-party image (`jiasongji/serverstatus`); the
+    description ("lightweight client agents", real-time multi-server
+    dashboard) matches the cppla server/client pair, which is the
+    canonical maintained line and the one analysed here.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma — our only monitoring recipe — probes endpoints from the
+    outside and says up/down; ServerStatus reports from inside each host:
+    CPU, load, memory, disk, per-interface traffic with monthly baselines,
+    TCP ping/packet loss, plus service and SSL-certificate checks, all in
+    one live table covering many machines. Nothing in the current 24
+    recipes shows host resource telemetry. Its distinguishing feature
+    against the other host-metrics candidates already triaged in this
+    sweep (Beszel, Netdata, Glances) is the fleet view: one dashboard
+    aggregating agents from arbitrarily many servers, which is also
+    exactly the part that sits awkwardly inside a single-VM recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    The fleet dashboard is genuinely useful for a customer running several
+    IONOS VMs, and the agent is tiny. Capped at medium for two reasons:
+    the recipe can only deliver the local half (the customer must install
+    and credential an agent by hand on every other server, and the agent
+    port must be publicly exposed), and the project is Chinese-first —
+    README and web UI are Mandarin with no documented i18n or language
+    switch, which is a poor fit for a catalogue whose recipes carry
+    seven-language `short_description` blocks. Beszel or Netdata are the
+    stronger picks if only one host-metrics dashboard is wanted.
+
+installability:
+  recipe_type_guess: docker-compose
+  # TRAEFIK_BASIC_AUTH_PASSWORD — the dashboard has no login of its own; it
+  #   stays readable with ADMIN_TOKEN unset, so a gate is mandatory or the
+  #   customer's whole infrastructure telemetry sits open on the internet.
+  # ADMIN_TOKEN — bearer token for the /api/* management endpoints; with it
+  #   empty those endpoints return 503 and nodes cannot be added from the UI.
+  # SERVERSTATUS_NODE_PASSWORD — the per-node password in config.json that
+  #   each client agent must present (upstream sample ships s01 /
+  #   USER_DEFAULT_PASSWORD).
+  secrets_required_at_first_boot:
+    - TRAEFIK_BASIC_AUTH_PASSWORD
+    - ADMIN_TOKEN
+    - SERVERSTATUS_NODE_PASSWORD
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+    - secret: ADMIN_TOKEN
+      mechanism: server_generated_no_customer_input
+    - secret: SERVERSTATUS_NODE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ADMIN_TOKEN and the config.json node password are both patternless
+      values the recipe can generate server-side, so neither blocks — but
+      the customer does need to *read them back* to manage nodes in the UI
+      and to bring up agents on their other servers. That means SSHing into
+      their own VM and reading /opt/serverstatus/.env (or config.json).
+      Same shape as the Glances/Prometheus/Dozzle findings: a documentation
+      and first-five-minutes cost, not a missing input channel.
+    - >
+      The "multi-server" selling point is only half-deliverable by a
+      recipe. Each additional monitored host needs the customer to run
+      `cppla/serverstatus:client` there with SERVER/USER/PASSWORD matching
+      an entry in the dashboard's config.json — outside AF's single-VM
+      provisioning scope — and the server's agent listener (35601/tcp)
+      must be published publicly as a raw port (`http: false`), like
+      syncthing's 22000 or wg-easy's 51820. The HTTP UI itself is clean
+      behind Traefik on `<slug>.<base_domain>`; `reverse_proxy_compatible`
+      is false only because of that mandatory second raw port. A local
+      client sidecar (the beszel-agent shape) can make the recipe useful
+      out of the box for the AF host alone.
+    - >
+      No version-pinned image exists for the current server. The Go 2.0.0
+      server ships only as the rolling `cppla/serverstatus:server` /
+      `:latest`; the newest semver tag, `1.1.7`, is the older Python
+      server. `image-tag-pinned` would technically pass on `:server` (it
+      is not literally `:latest`) while giving none of the
+      reproducibility that rule exists for, and `app_version: "2.0.0"`
+      would not correspond to any pullable tag. A recipe should either pin
+      by digest or accept a floating tag and say so explicitly.
+    - >
+      config.json is not auto-created — the server refuses to run without
+      one and upstream expects you to download the sample, which contains
+      the well-known default node credential (`s01` /
+      `USER_DEFAULT_PASSWORD`). install.sh would have to template a fresh
+      one; shipping the sample verbatim is not acceptable.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ServerStatus (cppla/ServerStatus, MIT, ~4.7k stars) is healthy and
+  actively developed — a Go rewrite landed as 2.0.0 on 2026-07-10, under a
+  month before this analysis, with commits and image rebuilds through
+  2026-07-23. It fills a real catalogue gap: nothing among the 24 recipes
+  shows host resource telemetry, and its fleet table goes further than the
+  single-host candidates triaged elsewhere in this sweep. It is installable
+  today — a domain, a mandatory Traefik basic_auth gate (the dashboard has
+  no login of its own and stays world-readable otherwise), and server-side
+  generated values for ADMIN_TOKEN and the config.json node password, none
+  of which need a customer input channel. The caveats are what hold it to
+  build_with_caveats rather than build_now: a second public raw TCP port
+  (35601) for agents plus manual per-server agent rollout, no
+  version-pinned image tag for the 2.0.0 server (only rolling `:server`),
+  a config.json that install.sh must template instead of copying
+  upstream's default-credential sample, and a Chinese-only README and UI
+  with no documented i18n — which for our seven-language catalogue makes
+  Beszel or Netdata the better first host-metrics build.
