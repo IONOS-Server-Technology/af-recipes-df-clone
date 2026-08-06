@@ -1,0 +1,86 @@
+slug: radarr
+name: Radarr
+source_description: "Automated movie collection manager and organizer for Usenet and torrents"
+
+upstream:
+  url: https://radarr.video
+  repo_url: https://github.com/Radarr/Radarr
+  license: GPL-3.0
+  docker_image: linuxserver/radarr (pin to a version tag, e.g. 6.3.0.10514-ls313 — do not follow upstream examples that use :latest)
+
+version_health:
+  latest_version: "6.3.0.10514 (stable channel); 6.4.2.10565 exists on the develop/nightly channel, not yet promoted to stable"
+  latest_release_date: "2026-07-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable release 6.3.0.10514 shipped 2026-07-12, about 3 weeks
+    before today (2026-08-05). The develop/nightly channel is moving much
+    faster: 6.4.0.10523 (2026-07-19), 6.4.0.10540 (2026-07-26), 6.4.1.10545
+    (2026-08-02), and nightly builds up to 6.4.2.10565 as recent as
+    2026-08-05 — the same day as this research. The linuxserver/radarr
+    image tracks this closely: its stable tag (6.3.0.10514-ls313) was
+    rebuilt 2026-08-02, and its develop/nightly tags rebuilt within the
+    last day, confirming the container is still actively maintained.
+    Radarr is part of the same Servarr organization as Sonarr/Lidarr/
+    Prowlarr/Bazarr (already assessed in this catalogue) and shows the
+    identical continuous-delivery cadence. Repo is not archived, no EOL
+    notice, actively triaged. Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches movie-library
+    automation. Radarr is the movie-specific member of the "*arr" family
+    (Sonarr for TV, Lidarr for music — neither an AF recipe today either)
+    and, unlike its companions already assessed in apps-gaps
+    (Bazarr, Prowlarr), Radarr is not itself a dependent companion app —
+    it is the primary consumer that Bazarr (subtitles) and Prowlarr
+    (indexer sync) were built to serve. Radarr can track a customer's
+    movie collection, monitor for wanted/missing titles, and organize/
+    rename an existing library with zero external dependencies; its
+    "automated acquisition" feature only activates once a customer adds
+    an indexer (e.g. Prowlarr/Jackett, neither an AF recipe) and a
+    download client (e.g. qBittorrent/SABnzbd, also not an AF recipe),
+    same caveat as Lidarr.
+  usefulness: high
+  usefulness_rationale: >
+    Radarr is one of the most widely deployed self-hosted apps in the
+    "*arr" ecosystem and, notably, is the actual target app that our
+    already-assessed Bazarr and Prowlarr gap analyses both flagged as
+    "the missing piece" blocking their own full value. Adding Radarr
+    (and ideally Sonarr alongside it) would retroactively unlock real
+    standalone value for those two existing gap-analysis candidates,
+    unlike Lidarr which serves a smaller music-specific audience. Even
+    alone, Radarr still functions as a movie-library organizer/renamer
+    without an indexer or download client configured.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Radarr is a single-container app (linuxserver/radarr, port 7878, no
+  separate database service — config and its internal SQLite DB live in
+  /config) that is mechanically as simple to deploy as uptime-kuma or
+  Lidarr, and reverse-proxy compatible behind Traefik on
+  radarr.<base_domain>. Like the rest of the Servarr family, Radarr v3+
+  requires authentication and it is configured through the app's own
+  first-run wizard (choose "Forms" auth, set username/password
+  interactively in-browser) rather than an environment variable, so no
+  generated_from projection or Traefik basic_auth gate is needed to avoid
+  an open-by-default install. installable_today is true with zero
+  blocking issues. Recommendation is build_now (stronger than Lidarr's
+  build_with_caveats): Radarr is the highest-value, most widely used
+  member of the *arr family not yet in the catalogue, and unlike Bazarr/
+  Prowlarr/Lidarr it is the actual dependency those companion apps need
+  to become fully useful — shipping it first gives standalone value on
+  day one and retroactively strengthens the case for the already-assessed
+  companion apps.
