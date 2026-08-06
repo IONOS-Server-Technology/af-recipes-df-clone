@@ -1,0 +1,97 @@
+slug: kong
+name: Kong
+source_description: "Cloud-native API gateway built for hybrid and multi-cloud environments"
+
+upstream:
+  url: https://konghq.com/products/kong-gateway
+  repo_url: https://github.com/Kong/kong
+  license: Apache-2.0
+  docker_image: kong
+
+version_health:
+  latest_version: "3.9.3"
+  latest_release_date: "2026-06-17"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    3.9.3 released 2026-06-17, ~7 weeks before today (2026-08-05) — looks
+    current at a glance, but the release history behind it shows the open-
+    source line has effectively stalled: 3.9.0 (2024-12-13) -> 3.9.1
+    (2025-06-04, ~6 months later) -> 3.9.2 (2026-06-04, a full year after
+    3.9.1) -> 3.9.3 (2026-06-17, 13 days later, a security-only patch for
+    CVE-2026-49975). No 3.10 or later has ever shipped as an OSS/free
+    image. This is not incidental slowdown: Kong Inc. changed its
+    licensing model around March 2025 (Kong Gateway 3.10) to drop the
+    free/OSS mode entirely — running kong/kong-gateway:3.10+ without a
+    paid Enterprise license behaves as an expired-license install with
+    degraded functionality, and no further `kong:x.y.z` OSS images have
+    been published since 3.9.x. The `Kong/kong` GitHub repo itself is not
+    archived and still receives occasional security backports (hence
+    3.9.3), but new features, plugins, and the active development line
+    have all moved to the paid Konnect/Enterprise product, which is
+    already at 3.15.0.2 (2026-07-21) on a completely different, closed
+    distribution. For a self-hostable, license-free recipe, the relevant
+    upstream is functionally frozen in security-patch-only maintenance
+    mode, not "active" the way the 7-week-old release date alone would
+    suggest.
+
+catalogue_fit:
+  categories: [networking, infrastructure, api-gateway]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Kong is an API gateway: it proxies, authenticates, and rate-limits
+    traffic to *other* backend services that the operator configures via
+    its Admin API or Kong Manager UI after boot. None of the current
+    24 recipes are gateways/infra-plumbing in this sense, so on paper
+    there's no direct catalogue duplicate. In practice, though, every AF
+    recipe already sits behind our own Traefik instance, which fills the
+    "reverse proxy in front of a self-hosted app" role for the whole
+    catalogue. A freshly-installed Kong recipe has no backend services of
+    its own to route to — the customer would get a running gateway with
+    nothing behind it, and configuring it to do anything useful requires
+    Admin-API/decK work far beyond what a single-app recipe install flow
+    supports. The product doesn't slot into "one useful app per
+    subdomain" the way the rest of the catalogue does; it's platform
+    plumbing that competes with, rather than complements, the platform's
+    own Traefik layer.
+  usefulness: low
+  usefulness_rationale: >
+    No functional gap filled (Traefik already covers reverse-proxying for
+    every recipe), no natural standalone use for a customer who installs
+    it with nothing to gateway, and the open-source track it would need
+    to run on is in security-patch-only maintenance mode since Kong Inc.
+    discontinued the free tier at 3.10 (March 2025).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_surface_gate_credential]
+  secrets_expressible_today:
+    - secret: admin_surface_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Neither the Admin API (:8001) nor Kong Manager OSS (:8002) has any built-in authentication in the OSS build — RBAC/auth on the admin surfaces is an Enterprise-only feature. Left open, either port is a fully-privileged reconfiguration surface for the whole gateway. A Traefik basic_auth gate on both is expressible today (mechanism exists), but see the next two points on why that alone doesn't make this a useful recipe."
+    - "Even correctly gated, the recipe has nothing for the customer to use out of the box: Kong has no content or app of its own, only routing rules for backend services the customer must define post-install via the Admin API or Kong Manager, which is outside the scope of a one-click recipe install flow."
+    - "Full-featured/persistent mode needs a Postgres backend (DB-less mode is possible but requires hand-authoring a declarative YAML config off-platform, again with no supported input channel for that content)."
+    - "Upstream OSS/free distribution is frozen at 3.9.x with new features and even routine (non-CVE) fixes redirected to the paid Konnect/Enterprise product since the March 2025 licensing change — building a recipe on a discontinued free tier is a durability risk independent of the fit issues above."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Kong (kong/kong, pin 3.9.3) is mechanically installable under today's
+  /compose constraints — it's a single official Docker image with plain
+  HTTP ports, and the one credential it would need (a gate on the
+  unauthenticated Admin API and Kong Manager UI) is expressible via
+  Traefik basic_auth. The recommendation is not_recommended anyway,
+  because the fit is wrong for this catalogue: Kong is a gateway meant to
+  front other backend services the customer configures after boot, not a
+  standalone app, and our own Traefik already plays the reverse-proxy
+  role for every recipe. A fresh install would hand the customer a
+  correctly-secured gateway pointed at nothing. Compounding that, the
+  free/OSS distribution this recipe would have to run on has been frozen
+  at 3.9.x since Kong Inc. discontinued the license-free tier in March
+  2025 (3.10+ requires a paid Enterprise license) — 3.9.3 (2026-06-17) is
+  a security-only backport, not a live development line, so anything
+  built on it inherits a maintenance-only upstream with no future feature
+  path short of paying for Konnect.
