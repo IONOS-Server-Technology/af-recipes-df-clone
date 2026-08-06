@@ -23,6 +23,21 @@ version_health:
     mature/stable (breaking storage-format changes between 1.3.x point
     releases per the release notes), so pin carefully and expect the
     pinned tag to age quickly.
+    SECURITY: the upstream README links directly to a Huntress
+    security-research post, "Komari: The 'Monitoring' Tool That Didn't
+    Need Weaponising" (huntress.com/blog/komari-c2-agent-abuse, published
+    2026-04-30), documenting a real-world intrusion on 2026-04-16 in which
+    a threat actor with stolen VPN credentials installed the stock,
+    unmodified Komari agent as a persistent SYSTEM-level Windows service
+    ("Windows Update Service" via NSSM) to get command-and-control with no
+    custom infrastructure and no modification to Komari at all. The
+    agent's server-to-agent control channel ships three capabilities
+    enabled by default: exec (arbitrary PowerShell/sh command execution),
+    terminal (interactive PTY reverse shell rendered in the operator's
+    browser), and ping (network probing). Only `--disable-web-ssh` turns
+    off the interactive-terminal piece, and it is opt-in at install time,
+    not the default. Huntress' framing: "You do not weaponise [Komari];
+    you just point it at a server you 'own' and type an install command."
 
 catalogue_fit:
   categories: [monitoring, infrastructure]
@@ -39,16 +54,23 @@ catalogue_fit:
     covers server-resource telemetry (a Netdata/Glances-style role), so
     this is genuine differentiation rather than a near-duplicate of
     uptime-kuma.
-  usefulness: medium
+  usefulness: low
   usefulness_rationale: >
-    Real gap (no resource-monitoring recipe today) and a clean single-port
-    web UI, similar profile to uptime-kuma which already shipped
-    successfully. Capped at medium rather than high: Komari also ships a
-    documented "remote control" capability (remote command/terminal access
-    to monitored hosts, not just passive metrics), which is a materially
-    bigger blast radius than a read-only status page and raises the
-    security bar for how it should be gated and how the customer manages
-    which servers get agents pointed at this instance.
+    There is a real gap (no resource-monitoring recipe today) and a clean
+    single-port web UI, superficially similar to uptime-kuma which already
+    shipped successfully. That would justify "medium" or higher on
+    functional grounds alone. But Komari is not just a passive metrics
+    dashboard with an incidental remote-control extra: its agent ships
+    exec/terminal/ping control-channel capabilities enabled by default,
+    and it has a documented, named real-world abuse case (see
+    version_health.notes — the Huntress C2-agent-abuse writeup) of exactly
+    that default-on capability being used to establish persistent
+    SYSTEM-level backdoors with zero modification to the software. Hosting
+    this on customer infrastructure means shipping a functioning C2
+    implant by default unless every deployment is deliberately
+    hardened — a materially different (and higher) risk than any other
+    app in the catalogue. That risk, not just "bigger blast radius",
+    drives the rating down to low regardless of the monitoring-gap value.
 
 installability:
   recipe_type_guess: docker-compose
@@ -72,28 +94,40 @@ installability:
       verified hands-on (deploy + curl before completing the wizard)
       before a recipe ships, rather than assumed safe by analogy alone.
     - >
-      Upstream documents a built-in "remote control" feature (server-side
-      remote command/terminal execution against monitored agents,
-      explicitly Windows-callout in the README). This is a materially
-      different risk profile than a passive metrics dashboard — worth a
-      deliberate decision at recipe-authoring time (e.g., whether to
-      default it off, and whether a Traefik basic_auth gate should be
-      mandatory rather than optional given the elevated impact of any
-      dashboard compromise) even though it isn't a structural blocker
-      under the current generated_from/basic_auth mechanism.
+      Komari's agent control channel ships exec (arbitrary PowerShell/sh
+      command execution), terminal (interactive PTY reverse shell in the
+      operator's browser), and ping — all THREE ENABLED BY DEFAULT, not
+      opt-in. Huntress documented a real-world incident (2026-04-16) where
+      this default-on capability was used, with zero modification to
+      Komari, to install a persistent SYSTEM-level Windows backdoor after
+      a VPN credential compromise (see version_health.notes). The only
+      documented mitigation flag, `--disable-web-ssh`, only disables the
+      interactive-terminal piece — `exec` (arbitrary remote command
+      execution) and `ping` remain enabled regardless, so there is no
+      documented way to fully turn off the C2-capable surface even with
+      hardening flags applied. This is not a customer-secret/input-channel
+      gap the current `/compose` mechanism could close (it isn't about
+      `generated_from` or `basic_auth` at all) — it is a property of the
+      shipped software itself, so no platform change (IF-1420, IF-1312, or
+      otherwise) would resolve it.
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: not_recommended
 
 summary: >
   Komari is an actively-maintained (1.4.0 released today, 2026-08-05, on a
   multiple-releases-per-week cadence), single-container, single-HTTP-port
   (25774) server-resource-monitoring dashboard with a genuine web UI and no
   overlap with the catalogue's existing uptime-kuma (endpoint-availability,
-  not resource metrics) recipe. It is installable today under the current
-  mechanism — no customer secret is required at first boot, since the app's
-  own first-run wizard lets the customer set their admin login directly,
-  the same pattern uptime-kuma already ships with. Recommend
-  build_with_caveats: confirm the pre-wizard dashboard isn't reachable
-  unauthenticated, and deliberately decide how to handle the built-in
-  remote-control feature (elevated blast radius vs. a read-only monitor)
-  before authoring the recipe.
+  not resource metrics) recipe, and it is mechanically installable today
+  (the app's own first-run wizard lets the customer set their admin login
+  directly, no customer secret needed at first boot). Despite that, it is
+  not recommended: Komari's own README links to a Huntress security-
+  research writeup documenting a real 2026-04-16 intrusion in which the
+  stock, unmodified Komari agent was installed as a persistent SYSTEM-level
+  Windows backdoor after a VPN credential compromise — enabled by the
+  agent's exec/terminal/ping control channel, all three of which ship
+  ENABLED BY DEFAULT, with only partial mitigation (`--disable-web-ssh`
+  disables the terminal only; `exec` remains live regardless). This is a
+  documented, named C2-abuse case in default configuration, not a
+  theoretical concern, and no platform mechanism (current or pending)
+  changes that risk — recommend not_recommended over pursuing a recipe.
