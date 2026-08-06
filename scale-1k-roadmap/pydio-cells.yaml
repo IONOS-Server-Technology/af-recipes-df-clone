@@ -1,0 +1,102 @@
+slug: pydio-cells
+name: Pydio Cells
+source_description: "Self-hosted file sharing and document collaboration with team workspaces"
+
+upstream:
+  url: https://pydio.com/
+  repo_url: https://github.com/pydio/cells
+  license: AGPL-3.0
+  docker_image: pydio/cells
+
+version_health:
+  latest_version: "v5.0.2"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via the GitHub API, not training-data recall. As of today
+    2026-08-05: latest tagged release is v5.0.2 (2026-06-30), five weeks
+    ago, following v5.0.1 (2026-06-10) and the v5.0.0 major release
+    (2026-05-26, a ground-up rewrite adding a new "Pages" display, a
+    revamped metadata system, and PostgreSQL support). Before v5.0.0 the
+    project was still shipping v4.4.x patches (v4.4.17 on 2026-01-08,
+    v4.4.16 on 2025-12-02), so the v4 → v5 transition did not leave a gap
+    in maintenance. `pushed_at` on the main repo is 2026-08-05 (today),
+    repo is not archived, 2240 stars, 61 open issues. Reading this as
+    actively maintained with a healthy, roughly monthly release cadence.
+
+catalogue_fit:
+  categories: [productivity, file-sharing, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers general-purpose team
+    file sharing with workspaces/ACLs. Syncthing is peer-to-peer sync with
+    no server-side workspace or sharing-link concept, immich is
+    photo/video-specific, paperless-ngx is a document archive/OCR tool, and
+    vaultwarden is a password manager. Pydio Cells' actual niche (a
+    Nextcloud-style "team drive" with per-workspace access control, web
+    editing/preview, and share links) is genuinely new ground for the
+    catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted "our own Nextcloud/Drive" is one of the most commonly
+    requested self-hosting use cases, upstream is actively developed with
+    an official multi-arch Docker image, and the app would fill a real gap
+    rather than duplicate an existing recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD, ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Pydio Cells has no first-boot channel that accepts a pre-hashed
+      admin credential. Unlike ProjectSend (apps-gaps/projectsend.yaml),
+      Cells does support a fully non-interactive `cells configure --yaml`
+      / `CELLS_INSTALL_YAML` path (confirmed against
+      docs.pydio.com/.../yamljson-installation and the `InstallConfig`
+      proto in cmd/configure.go) that an install.sh could feed before the
+      app is ever reachable, so the "unauthenticated setup wizard race"
+      class of blocker does not apply here. The remaining problem is the
+      shape of the `FrontPassword` field itself: every description of it
+      (interactive wizard, YAML installer) treats it as the *plaintext*
+      admin password, which Cells then hashes internally at account-
+      creation time. Nothing in the upstream docs, forum threads, or
+      configure command reference documents a way to hand Cells an
+      already-computed bcrypt/argon2 hash and have it stored verbatim
+      as the credential (the way Vaultwarden's `ADMIN_TOKEN` accepts a
+      pre-hashed Argon2 value). Projecting `generated_from:
+      "bcrypt:ROOT_PASSWORD"` into `FrontPassword` would therefore not
+      give the customer's real root password as their Cells login — it
+      would hash the hash, silently locking the customer out of the
+      account our install flow just created. This is a genuine
+      plaintext-password requirement, which the schema calls out as a
+      structural blocker (`generated_from` only ever carries a hash).
+    - >
+      A Traefik `basic_auth: true` gate does not help here the way it does
+      for no-login apps (n8n, Adminer): Cells has its own login screen, so
+      gating the whole domain only adds a second credential in front of an
+      admin account we still cannot provision correctly.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Pydio Cells is upstream-healthy (v5.0.2 released 2026-06-30, active
+  monthly cadence, official Docker image, no maintenance-mode or EOL
+  signals) and would be a high-value, non-overlapping addition — the
+  catalogue has no general-purpose team file-sharing/workspace recipe
+  today. It is mechanically closer to installable than most blocked
+  candidates, since Cells does support a genuine non-interactive
+  `cells configure --yaml` install path, avoiding the unauthenticated-
+  setup-wizard race that blocks apps like ProjectSend. It still cannot
+  ship today: the admin account field that path fills (`FrontPassword`)
+  takes a plaintext password that Cells hashes itself, and there is no
+  documented way to instead hand it a pre-computed hash the way
+  `generated_from` projection requires. Recommend `blocked_on_platform`:
+  revisit if Pydio documents a pre-hashed-credential install path, or if
+  a future platform mechanism can carry more than a single hash value to
+  an app's own install flow.
