@@ -1,0 +1,146 @@
+slug: seafile
+name: Seafile
+source_description: "Self-hosted file sync and share platform with end-to-end encryption"
+
+upstream:
+  url: https://www.seafile.com/
+  repo_url: https://github.com/haiwen/seafile-server
+  license: AGPL-3.0 (server core, haiwen/seafile-server); the Seahub web UI (haiwen/seahub) is Apache-2.0, desktop/mobile clients GPLv2/GPLv3/Apache-2.0. Seafile Professional Edition is a separate proprietary product — only the Community Edition image is relevant here.
+  docker_image: seafileltd/seafile-mc
+
+version_health:
+  latest_version: "13.0.25"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Verified against Docker Hub tag metadata for seafileltd/seafile-mc and
+    upstream announcements, not training-data recall. Seafile 13.0 was
+    announced as generally available on 2026-01-05 (metadata server,
+    Table/Kanban/Gallery/Map views, notification and thumbnail servers,
+    SeaSearch full-text search). The 13.0 line has since shipped a steady
+    stream of point releases — 13.0.17 (2026-02-03), 13.0.18 (2026-02-06),
+    13.0.19 (2026-03-09), 13.0.20 (2026-03-31), 13.0.21 (2026-04-20),
+    13.0.22 (2026-05-29), 13.0.24 (2026-06-10) and the current 13.0.25
+    (2026-07-13, ~3.5 weeks / 24 days before today, 2026-08-06) — i.e.
+    roughly monthly patch releases with the official Docker image rebuilt
+    in lockstep (13.0.25 and the 13.0-latest floating tag were both pushed
+    2026-07-13). Repo is not archived, no maintenance-only or EOL signals.
+    Note on version sourcing: haiwen/seafile is the umbrella/desktop-client
+    repo and its GitHub *Releases* page is stale (it still shows old 9.x
+    client entries); server release truth lives in the admin manual
+    changelog and the Docker Hub tags, which is what the dates above come
+    from. Commercial context worth a reviewer's awareness but not a health
+    concern: Seafile Ltd. sells a proprietary Pro Edition alongside the
+    AGPL Community Edition, and some capabilities announced under the 13.0
+    banner (notably the Seafile AI features and parts of SeaSearch) are
+    Pro-only, so a CE recipe delivers the sync/share/metadata core, not
+    every feature in the 13.0 marketing material.
+
+catalogue_fit:
+  categories:
+    - productivity
+    - file-storage
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers general-purpose
+    self-hosted file sync and sharing with a server-side web UI.
+    recipes/syncthing/ is the nearest neighbour but solves a different
+    problem — peer-to-peer device-to-device replication with no server-side
+    library browser, no share links, no per-user accounts; recipes/immich/
+    is photos/video only and recipes/paperless-ngx/ is a scanned-document
+    archive. Seafile's specific angle within the "self-hosted Drive"
+    category is its block-level storage engine (fast delta sync of large
+    files, the reason it is usually benchmarked ahead of Nextcloud) plus
+    genuine client-side encrypted libraries, which is the "end-to-end
+    encryption" the Hostinger blurb refers to — the library password never
+    leaves the client, so the server stores only ciphertext. Reviewer note:
+    Seafile targets the same customer need as the Nextcloud
+    (apps-gaps/nextcloud.yaml), ownCloud (apps-gaps/owncloud.yaml),
+    OpenCloud (apps-gaps/opencloud.yaml) and Pydio Cells
+    (apps-gaps/pydio-cells.yaml) gap-analyses; none of those are recipes
+    yet, so there is no catalogue overlap to reject on, but they should be
+    weighed as one group.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted file sync/share is one of the most-requested self-hosting
+    use cases and the catalogue has no recipe for it at all. Seafile is a
+    well-known, mature entrant with first-party desktop and mobile clients,
+    an official multi-arch Docker image, and the differentiating
+    encrypted-library feature the Hostinger listing leads with.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - INIT_SEAFILE_ADMIN_PASSWORD
+    - INIT_SEAFILE_MYSQL_ROOT_PASSWORD
+    - SEAFILE_MYSQL_DB_PASSWORD
+    - JWT_PRIVATE_KEY
+  secrets_expressible_today:
+    - secret: INIT_SEAFILE_MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SEAFILE_MYSQL_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_PRIVATE_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Seafile's only first-boot channel for the admin account,
+      INIT_SEAFILE_ADMIN_EMAIL / INIT_SEAFILE_ADMIN_PASSWORD (documented
+      default `me@example.com` / `asecret`), takes the *plaintext*
+      password. The entrypoint hands it to Seahub's account-creation path,
+      which stores Seafile's own internal hash of whatever string it
+      receives — Seahub is Django-based and its stored credential is a
+      `pbkdf2_sha256$...` value. Projecting `generated_from:
+      "argon2:ROOT_PASSWORD"` (or bcrypt) into that variable would make the
+      *hash string* the login password: Seafile would hash the hash, and
+      the customer, who only ever knows their root password, could not log
+      in to the account our install flow just created. Per SCHEMA.md this
+      is the structural case — a genuine plaintext-password requirement,
+      which `generated_from` can never satisfy because it only ever carries
+      a hash. Same shape as apps-gaps/pydio-cells.yaml.
+    - >
+      No documented way to hand Seafile a pre-computed credential instead.
+      The nearest theoretical path — seeding the Seahub `EmailUser` row
+      with an already-hashed password — needs the hash in Django's
+      `pbkdf2_sha256` format, which is not in `generated_from`'s supported
+      algorithm list (`argon2`, `bcrypt`) today. SCHEMA.md classes an
+      unsupported-but-addable algorithm as `blocked_on_platform` rather
+      than a hard no, so naming it here: `pbkdf2_sha256` (Django-format,
+      including the iteration count and salt encoding) would be the
+      required addition, and it would additionally need upstream (or the
+      recipe) to guarantee that pre-seeding the user table before first
+      login is supported and survives Seafile's own schema migrations —
+      neither of which upstream documents.
+    - >
+      A Traefik `basic_auth: true` gate does not rescue this the way it
+      does for no-login apps: Seafile has its own login screen and its
+      desktop/mobile sync clients authenticate against it, so an extra
+      HTTP-basic layer would both leave the un-provisionable admin account
+      behind it and break the native clients' sync endpoints.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Seafile is upstream-healthy and a high-value catalogue gap: 13.0.25 was
+  released on 2026-07-13 (24 days before today, 2026-08-06) on a roughly
+  monthly patch cadence following the 13.0 GA on 2026-01-05, the official
+  seafileltd/seafile-mc image is rebuilt per release, and no recipe in the
+  current 24 covers general-purpose file sync and sharing. It is
+  structurally a Paperless-ngx/Immich-shaped stack — app container plus a
+  private MySQL/MariaDB and Redis — and it is reverse-proxy-friendly: since
+  12.0 the bundled Caddy is an optional compose file that can be dropped,
+  after which the seafile container serves its whole UI plus the /seafhttp
+  file-transfer endpoint on a single internal HTTP port 80, exactly what
+  Traefik on <slug>.<base_domain> wants (the optional websocket
+  notification server on 8083 can simply be left disabled). The blocker is
+  the admin credential: INIT_SEAFILE_ADMIN_PASSWORD is a plaintext-only
+  input that Seafile re-hashes itself, so root-password projection would
+  set the customer's login to a hash string they never see, and there is no
+  documented pre-hashed-credential path — the DB-seeding alternative would
+  need `pbkdf2_sha256` support that `generated_from` does not have.
+  Recommend blocked_on_platform: revisit if Seafile documents a pre-hashed
+  admin-credential input, or if the platform gains either a `pbkdf2_sha256`
+  projection algorithm or a real channel for a customer-supplied value.
