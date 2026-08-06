@@ -1,0 +1,107 @@
+slug: pufferpanel
+name: PufferPanel
+source_description: "Open-source web panel for managing Minecraft, Factorio, Rust, and other game servers"
+
+upstream:
+  url: https://pufferpanel.com
+  repo_url: https://github.com/PufferPanel/PufferPanel
+  license: Apache-2.0
+  docker_image: pufferpanel/pufferpanel (pin to a version tag, e.g. 3.0.9 — do not follow upstream examples that use :latest)
+
+version_health:
+  latest_version: "3.0.9"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.0.9 tagged and pushed to Docker Hub 2026-07-14, about 3 weeks
+    before today (2026-08-05). GitHub API confirms the repo is not
+    archived and was last pushed to on 2026-08-01. Release cadence
+    over the last ~7 months is roughly monthly to bi-monthly (3.0.4
+    2026-03-02, 3.0.5 2026-03-03, 3.0.6 2026-03-17, 3.0.7 2026-04-21,
+    3.0.8 2026-05-27, 3.0.9 2026-07-14). 119 open issues, actively
+    triaged. Note: an initial web search summary mis-dated these same
+    releases as 2024 (likely a training-data year-guessing artifact
+    from the source page's date formatting); the dates above were
+    re-verified directly against the GitHub Releases API and Docker
+    Hub tag-push timestamps, which are authoritative. Clearly active,
+    not dormant.
+
+catalogue_fit:
+  categories: [gaming, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches game server
+    hosting/management. PufferPanel would be a genuinely new category
+    (gaming) — it lets a customer run and administer Minecraft,
+    Factorio, Rust, and other game server processes from one web
+    panel, distinct from anything else offered today.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, actively maintained open-source alternative to
+    Pterodactyl in the self-hosted game-panel space, and would open a
+    net-new category for the catalogue. Usefulness is capped at medium
+    rather than high because of the SFTP port (see below) and, more
+    importantly, the installability blocker below — a customer cannot
+    actually log into the panel without a step our current mechanism
+    has no way to perform.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_username, admin_password, admin_email]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      PufferPanel has no first-run web setup wizard and no
+      environment-variable path to provision the initial admin
+      account. The official image's entrypoint.sh only runs
+      `pufferpanel db upgrade` then `pufferpanel run` — it does not
+      read any ADMIN_*-style env vars. The only supported way to
+      create the first (admin) user is the CLI command
+      `pufferpanel user add --admin`, which must be run interactively
+      or with --name/--email/--password flags *inside the already-running
+      container* (i.e. via `docker exec` after `docker compose up`).
+      Our install.sh mechanism performs a single `docker compose up`
+      and does not perform a post-boot exec step, so there is no
+      channel to create the admin account at all today.
+    - >
+      Even if a post-boot exec step existed, the `--password` flag on
+      `pufferpanel user add` expects the user's plaintext password
+      (it is hashed in-process via bcrypt and stored), not a
+      pre-computed hash. `generated_from: "<algo>:ROOT_PASSWORD"` only
+      ever projects a hash of the customer's root password, so it
+      could not be handed to this flag even with an exec channel —
+      this is a genuine plaintext-only requirement, not just a missing
+      supported-algorithm entry.
+    - >
+      Web UI (port 8080) is reverse-proxy compatible, but the panel
+      also needs port 5657 for SFTP (file transfer to/from managed
+      game servers) — a raw TCP protocol, not HTTP, so it cannot be
+      fronted by Traefik's HTTP routing the way the rest of our
+      catalogue is. This is a secondary concern next to the admin-
+      account blocker above, but would still need a raw TCP exposure
+      mechanism (NodePort/LoadBalancer per CLAUDE.md guidance) for the
+      SFTP feature to work at all.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PufferPanel is an actively maintained (latest 3.0.9, 2026-07-14),
+  Apache-2.0 game-server panel that would open a genuinely new
+  "gaming" category for the catalogue with no existing overlap. It is
+  not installable under the current recipe mechanism, though: the
+  official Docker image provides no way to provision the first admin
+  account except an interactive/flagged CLI command run via `docker
+  exec` after the container is already up, and even that command
+  requires a plaintext password rather than the hash our
+  `generated_from` projection supplies — so there is no boot-time
+  channel for the required admin credential today, structurally
+  distinct from the "no channel for an external API key" case. A
+  secondary concern is the SFTP port (5657), a raw TCP protocol that
+  doesn't fit our Traefik-fronted HTTP model. Recommend
+  `blocked_on_platform`: revisit if/when the install mechanism gains a
+  supported post-boot provisioning step, and treat the plaintext-vs-hash
+  mismatch as a real blocker to resolve, not just an extensible-algorithm
+  gap.
