@@ -16,7 +16,7 @@ version_health:
   notes: >
     Today is 2026-08-05. v2.2.2 (2026-05-10) is the newest tagged release,
     about 3 months old. Releases were roughly monthly through the project's
-    first half of 2026 (v1.7.2 2026-01-16 through v2.2.2 2026-05-10, six
+    first half of 2026 (v1.7.2 2026-01-16 through v2.2.2 2026-05-10, ten
     tagged releases in under 4 months), but no new version tag has landed
     since — only a rolling `dev` image tag (last pushed ~13 days ago,
     ~2026-07-24). Commit history on `main` shows activity as recently as
@@ -52,8 +52,12 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: []
-  secrets_expressible_today: []
+  secrets_required_at_first_boot: [SECRET_KEY, TEMP_LINK_SECRET_KEY]
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: TEMP_LINK_SECRET_KEY
+      mechanism: server_generated_no_customer_input
   blocking_issues:
     - >
       Full AI semantic search requires the customer to supply an external
@@ -72,7 +76,9 @@ summary: >
   customer creates their own admin username/password interactively through
   the app's own UI — the same no-boot-secret pattern already used for
   gitea and Immich, so it is not blocked by the root-password-hash /
-  basic-auth-only mechanism. The catch is the marquee AI semantic search
+  basic-auth-only mechanism. The compose file's internal signing keys
+  (SECRET_KEY, TEMP_LINK_SECRET_KEY) are trivially server-generated with no
+  customer input needed. The catch is the marquee AI semantic search
   feature: it needs an externally-configured embedding provider (API key)
   and optionally a standalone Milvus/Qdrant instance, neither of which have
   a customer-input channel today, so a shipped recipe would boot fine but
