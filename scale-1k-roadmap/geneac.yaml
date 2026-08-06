@@ -1,0 +1,82 @@
+slug: geneac
+name: Geneac
+source_description: "Self-hosted Rails genealogy sitebuilder for publishing family trees and research"
+
+upstream:
+  url: https://www.geneac.net/
+  repo_url: https://github.com/mrysav/geneac
+  license: MIT
+  docker_image: null
+
+version_health:
+  latest_version: "v0.1.0 (pre-release)"
+  latest_release_date: "2026-02-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Only one GitHub Release exists, v0.1.0, explicitly flagged as a
+    pre-release, tagged 2026-02-10 (~6 months before today, 2026-08-05).
+    Commit activity on main is weekly-to-biweekly with the most recent commit
+    on 2026-07-16, so the project is not dormant — but it has never cut a
+    stable/GA release and the maintainer (a single individual, ~26 stars) has
+    not tagged since the pre-release. Treat as early-stage/beta software, not
+    a mature project with a real version-support policy.
+
+catalogue_fit:
+  categories: [genealogy, personal-website, cms]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers genealogy/family-tree publishing; the closest
+    parallels in the catalogue are general self-hosted CMS/wiki tools (e.g.
+    an-otter-wiki), not this specific niche. It would be a genuinely new
+    category for the catalogue rather than a duplicate.
+  usefulness: low
+  usefulness_rationale: >
+    Real differentiation, but a single-maintainer, pre-1.0, ~26-star project
+    with no stable release is a thin foundation for a supported recipe, and
+    genealogy sitebuilders are a narrow niche compared to the productivity/
+    media/dev-tool apps that make up the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PROMOTION]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No official/published Docker image — upstream ships only a Dockerfile
+      (ruby:4.0.3-slim based, multi-stage) that must be built from source;
+      the checked-in docker-compose.yml is dev-only (a single Redis service,
+      no app/db services), so there is no upstream compose reference to
+      adapt for production.
+    - >
+      Auth is Devise-based self-registration (devise_for :users, open
+      :registerable) with no admin-bootstrap mechanism: the users table has
+      an `admin` boolean defaulting to false, db/seeds.rb is empty, and there
+      is no env var, rake task, or route that promotes a user to admin — the
+      only way found in the source is a manual `rails runner`/console
+      command run against a specific user record after they've already
+      signed up through the web UI. Since account creation happens
+      post-deploy (out of band from install.sh) and the customer's chosen
+      email is not known at deploy time, there is no automatable path today
+      to grant the deploying customer admin rights, and admin access is
+      required to manage the family-tree content the app exists to publish.
+    - >
+      Requires a Rails `secret_key_base` / encrypted credentials master key
+      at runtime (see upstream issue #705) — this is a server-generatable,
+      non-customer-facing secret so not blocking on its own, but it adds
+      setup complexity on top of building a custom image.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Geneac fills a genealogy-sitebuilder niche the catalogue doesn't currently
+  cover and is under active weekly development, but it has no official
+  Docker image (only a dev-only compose file and a from-source Dockerfile),
+  and — more fundamentally — its Devise-based self-registration has no
+  automatable way to grant admin rights to the deploying customer's account,
+  which our current recipe mechanism (root-password projection or Traefik
+  basic_auth) cannot express. Combined with a single-maintainer, pre-1.0,
+  ~26-star project that has never cut a stable release, this is not
+  recommended for a recipe today.
