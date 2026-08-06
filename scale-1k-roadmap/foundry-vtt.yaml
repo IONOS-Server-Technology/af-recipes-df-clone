@@ -1,0 +1,62 @@
+slug: foundry-vtt
+name: Foundry VTT
+source_description: "Self-hosted virtual tabletop for online RPG campaigns with maps and dice"
+
+upstream:
+  url: https://foundryvtt.com/
+  repo_url: https://github.com/felddy/foundryvtt-docker
+  license: Proprietary (commercial, per-seat license purchased from Foundry Gaming LLC) — core software is closed-source; felddy/foundryvtt-docker is only a community installer wrapper (Unlicense), not the app itself
+  docker_image: felddy/foundryvtt (community-maintained wrapper; no official image from Foundry Gaming LLC)
+
+version_health:
+  latest_version: "14.365"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable release 14.365 shipped 2026-07-15, about 3 weeks before
+    this analysis (2026-08-05). V14 has been the stable line since roughly
+    March 2026, following V13's stable release in August 2025. Foundry
+    Gaming LLC ships regular point releases and is under active commercial
+    development — no dormancy or EOL signal.
+
+catalogue_fit:
+  categories: [gaming, tabletop, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches tabletop/RPG hosting;
+    this would be a genuinely new category (gaming/community) rather than
+    infra, productivity, or media-management tooling we already cover.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (self-hosted game night servers is a common
+    Hostinger/VPS use case) but gated entirely behind a per-customer paid
+    Foundry license, which caps the addressable audience to people who
+    already own a license — unlike our other recipes, which are free/OSS
+    end to end.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - FOUNDRY_USERNAME (customer's foundryvtt.com account username)
+    - FOUNDRY_PASSWORD (customer's foundryvtt.com account password)
+    - or FOUNDRY_RELEASE_URL (a short-lived signed download URL the customer must copy from their Foundry account's "Purchased Licenses" page for every install/update)
+  secrets_expressible_today: []
+  blocking_issues:
+    - "The felddy/foundryvtt-docker image needs the customer's actual foundryvtt.com account credentials (or a manually-copied timed download URL from that account) to download and license the software on first boot. This is an arbitrary third-party account credential, not a hash of the customer's own server root password, so it has no expressible mechanism even after IF-1420 (generated_from) or IF-1312 (Traefik basic_auth) land — those only cover one root-password-derived secret or a basic-auth gate, not a username+password pair (or one-time URL) for an external service."
+    - "Foundry's core software is proprietary and requires a valid per-seat license purchased directly from Foundry Gaming LLC; the container cannot function at all without that license being supplied by the customer, so this is a structural blocker independent of any future generic secret-input channel."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Foundry VTT is an actively maintained, well-liked commercial virtual
+  tabletop with no overlap in our current catalogue, but it cannot boot
+  without the customer's own foundryvtt.com account credentials (or a
+  manually-obtained timed download URL) to fetch and license the
+  proprietary core software. That is an external third-party credential
+  with no supported input channel today (root-password projection and
+  Traefik basic_auth don't cover it), so it stays blocked_on_platform until
+  a generic customer-supplied-secret mechanism exists — not something
+  IF-1420/1312 alone would unblock.
