@@ -1,0 +1,92 @@
+slug: langfuse
+name: Langfuse
+source_description: "Open-source LLM engineering platform for observability and evaluation"
+
+upstream:
+  url: https://langfuse.com
+  repo_url: https://github.com/langfuse/langfuse
+  license: "MIT (core); ee/, web/src/ee/, worker/src/ee/ subfolders under a separate commercial license (ee/LICENSE)"
+  docker_image: langfuse/langfuse
+
+version_health:
+  latest_version: "4.4.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released ~1 day before today (2026-08-05). v4 line is shipping patch/minor
+    releases every few days: 4.0.0 (2026-07-29) → 4.1.0 (2026-07-28+7d) →
+    4.3.1 (~3 days before 4.4.0) → 4.4.0 (2026-08-04). langfuse.com/changelog
+    shows near-daily entries through late July 2026. Repo has 32k+ GitHub
+    stars, not archived, and the team states Langfuse became part of
+    ClickHouse Inc. in January 2026 with headcount roughly doubling since —
+    unambiguously active, not maintenance-only.
+
+catalogue_fit:
+  categories: [ai, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue has LLM-serving/chat apps (ollama, open-webui) but nothing
+    for LLM observability, tracing, prompt management, or evaluation.
+    Langfuse is complementary rather than competing with those: a developer
+    who self-hosts ollama/open-webui for inference would use Langfuse to
+    trace and evaluate the calls their own apps make against it (or against
+    any OpenAI/Anthropic-compatible API). No functional overlap with any of
+    the 24 existing recipes.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand from the same self-hoster/developer audience
+    (widely used self-hosted LLM-ops tool, YC-backed, now backed by
+    ClickHouse). Medium rather than high because it's a developer-tooling
+    play, not a broad consumer app — valuable to customers building their
+    own LLM-integrated products, not to the wider self-hoster base the way
+    n8n or Immich are.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [NEXTAUTH_SECRET, SALT, ENCRYPTION_KEY, POSTGRES_PASSWORD, CLICKHOUSE_PASSWORD, REDIS_AUTH, MINIO_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SALT
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CLICKHOUSE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_AUTH
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Langfuse's official docker-compose stack is 5 backing services
+  (langfuse-web, langfuse-worker, postgres, clickhouse, redis, minio) behind
+  a single public HTTP port (langfuse-web:3000); every other service binds
+  localhost-only in the upstream compose, so it's reverse-proxy-compatible
+  the same way Immich (server + ML + redis + postgres, one public port) is —
+  a reasonable structural template. Every infra secret it needs at boot
+  (NEXTAUTH_SECRET, SALT, ENCRYPTION_KEY, and the Postgres/ClickHouse/
+  Redis/MinIO credentials) is an opaque value the app never surfaces to the
+  customer, so all seven can be server-generated with no input channel
+  needed — no `generated_from`/root-password projection or Traefik
+  basic_auth gate required for those. The admin account itself needs no env
+  var either: email/password signup is enabled by default and the first
+  person to sign up becomes the org owner, the same first-visitor-claims-
+  admin pattern already accepted for Kutt, Uptime Kuma, and Gitea.
+  `AUTH_DISABLE_SIGNUP` exists to lock signup down after that first claim,
+  which a recipe should set post-bootstrap as good practice but isn't a
+  platform blocker. No external API key or OAuth registration is required
+  to boot — LLM provider keys are a runtime, in-app config a customer
+  enters after login for their own tracing project, not a deployment-time
+  secret. Recommend build_with_caveats: mechanically installable today, but
+  the 5-service ClickHouse-backed stack is heavier (RAM/disk) than most of
+  the current catalogue and worth flagging to whoever prioritizes the
+  backlog rather than treating it as a drop-in build_now.
