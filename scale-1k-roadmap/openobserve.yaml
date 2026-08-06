@@ -1,0 +1,78 @@
+slug: openobserve
+name: OpenObserve
+source_description: "Cloud-native observability platform for logs, metrics, traces, and dashboards"
+
+upstream:
+  url: https://openobserve.ai/
+  repo_url: https://github.com/openobserve/openobserve
+  license: AGPL-3.0 (open-source edition; separate commercial Enterprise Edition also exists)
+  docker_image: public.ecr.aws/zinclabs/openobserve (mirrored on Docker Hub as openobserve/openobserve)
+
+version_health:
+  latest_version: v0.91.5
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Patch releases roughly every 3-7 days (v0.91.1 2026-07-02, v0.91.2 07-17,
+    v0.91.3 07-21, v0.91.4 07-27, v0.91.5 07-30), plus a v0.92.0-rc3 release
+    candidate cut 2026-08-05 (today). Latest stable is 6 days old as of
+    today's date. Project passed 20,000 GitHub stars in July 2026 per
+    upstream announcements. No signs of slowing, maintenance-only, or EOL.
+
+catalogue_fit:
+  categories: [monitoring, observability, devtools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma (our only existing monitoring recipe) is a lightweight
+    up/down status checker. OpenObserve is a full logs/metrics/traces
+    observability stack (Datadog/Splunk/Elasticsearch-style), a materially
+    different and heavier use case — customers running multi-service
+    self-hosted stacks (e.g. our own n8n, Immich, Gitea recipes) would use
+    it to centralize log/metric ingestion and dashboards. No true duplicate
+    in the current 24-recipe catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Observability is a common, high-intent self-host category with no
+    representative in the catalogue beyond basic uptime checks. Single
+    binary/single container deployment, low resource floor, and an active,
+    well-adopted upstream make it an attractive candidate on merit alone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ZO_ROOT_USER_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      OpenObserve has its own built-in login (root user) that gates all
+      functionality — there is no way to use the app meaningfully without
+      logging in as ZO_ROOT_USER_EMAIL / ZO_ROOT_USER_PASSWORD. This is not
+      an app with "no login of its own" that a Traefik basic_auth gate could
+      stand in for; the customer must actually authenticate to the app
+      itself to get any value from it.
+    - >
+      ZO_ROOT_USER_PASSWORD is read by the container as a plaintext
+      password at startup (set directly via env var, e.g.
+      ZO_ROOT_USER_PASSWORD="Complexpass#123") — the app does not accept a
+      pre-computed hash in any supported or unsupported algorithm. Per
+      apps-gaps/SCHEMA.md this is the genuine-plaintext case, which is a
+      hard structural blocker: generated_from only ever projects a hash of
+      the customer's root (server) password, never the plaintext, so there
+      is no way to pass a customer-meaningful password into this variable
+      today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OpenObserve is an active, well-maintained, high-value observability app
+  with no equivalent already in the catalogue (Uptime Kuma covers uptime
+  pings only, not logs/metrics/traces). It is mechanically simple to deploy
+  (single container, local-disk storage is fine for self-host scale, one
+  HTTP port, reverse-proxy friendly) but its own admin login only accepts a
+  plaintext ZO_ROOT_USER_PASSWORD, which the current /compose mechanism has
+  no channel to supply (generated_from projects a hash, not plaintext, and
+  a Traefik gate can't substitute for the app's mandatory internal login).
+  Revisit as build_now once a plaintext-password (or app-side hash support)
+  projection channel exists.
