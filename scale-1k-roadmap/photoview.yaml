@@ -1,0 +1,87 @@
+slug: photoview
+name: Photoview
+source_description: "Self-hosted photo gallery with RAW support, face recognition, and EXIF browsing"
+
+upstream:
+  url: https://photoview.github.io/
+  repo_url: https://github.com/photoview/photoview
+  license: AGPL-3.0
+  docker_image: photoview/photoview
+
+version_health:
+  latest_version: "2.4.0"
+  latest_release_date: "2024-06-23"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    Latest tagged/versioned release is v2.4.0, published 2024-06-23 —
+    just over 2 years before today (2026-08-05) — so by tag alone this
+    looks dormant. But the underlying project is not stale: master had a
+    commit as recent as 2026-07-31 (a security fix for a SQL injection in
+    the album download route, #1453), and the `photoview/photoview` Docker
+    Hub image's `latest`/`2`/`2.4`/`2.4.0` tags were all repushed within the
+    last day, tracking master directly rather than a cut release. In other
+    words, the project abandoned discrete semver releases in favor of a
+    continuously-rebuilt floating tag; v2.4.0's own release notes call it
+    "the 1st release after project restart" following an earlier lull. Net:
+    active development and even security patching, but no real versioned
+    release cadence to point a pin at — the "2.4.0" tag today is not the
+    same image bytes it was in 2024, which matters for reproducible pins.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >-
+    Nearly identical value proposition to Immich already in the catalogue —
+    both are self-hosted photo galleries with RAW support, EXIF browsing,
+    and face recognition/grouping, which is exactly Hostinger's description
+    of this app. The real difference is architectural, not feature-level:
+    Photoview is a read-only browser over an existing directory tree the
+    operator already has on disk/NAS (no upload/backup pipeline, no mobile
+    app), so it is lighter weight (single Go binary + one DB) than Immich's
+    full backup-and-sync suite (ML service, Redis, Postgres, mobile
+    clients). That's a real but narrow niche: a customer who already has an
+    organized photo library and just wants a browsing/sharing UI over it,
+    rather than a phone-backup target.
+  usefulness: low
+  usefulness_rationale: >-
+    The feature list customers would search for (RAW, face recognition,
+    EXIF) is already covered, more actively, by Immich, which also ships
+    proper versioned releases roughly weekly. Photoview's only edge — being
+    lighter weight for browsing an already-organized library — is a thin
+    wedge against an existing recipe, and its stale-tag/floating-release
+    situation (see version_health) makes it a weaker pick for a second
+    "photo gallery" slot than the alternative of just pointing such a
+    customer at Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >-
+  Photoview is mechanically installable today: the official docker-compose
+  example is just the `photoview/photoview` app container plus a MariaDB (or
+  Postgres/SQLite) database behind one HTTP port (80, typically mapped to
+  8000), no extra raw ports. It needs no external API keys or OAuth
+  registration — the only first-boot secret is the database password, which
+  the platform can generate server-side and never has to reach the customer.
+  The admin account itself is created interactively through Photoview's own
+  first-visit setup wizard (username, password, and root photo path), the
+  same self-serve pattern already accepted for immich and uptime-kuma, so no
+  root-password projection or basic_auth gate is needed either. Despite
+  being technically buildable, this is a not_recommended pick: it duplicates
+  Immich's core pitch (RAW, EXIF, face recognition) almost exactly while
+  being less actively released (no versioned tag in 2+ years, now tracking a
+  floating master build instead) and narrower in scope (browse-only, no
+  backup/mobile story). Note the app name is ambiguous — a same-named but
+  unrelated Android library (Baseflow/PhotoView, an ImageView zoom widget,
+  Apache-2.0) exists on GitHub and was ruled out as the wrong project for
+  this analysis.
