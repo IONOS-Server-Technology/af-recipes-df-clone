@@ -45,7 +45,7 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: []
+  secrets_required_at_first_boot: [basic_auth_password]
   secrets_expressible_today: []
   blocking_issues:
     - >
@@ -72,8 +72,14 @@ installability:
       init scripts, not exposed via any documented env var on api-server
       or the UI. Per the schema this alone would not block installability
       — it could be gated behind Traefik basic_auth like other apps with
-      fixed default credentials — but that workaround still requires the
-      single-HTTP-port precondition above, which FeatBit does not meet.
+      fixed default credentials (hence secrets_required_at_first_boot
+      names basic_auth_password) — but secrets_expressible_today is left
+      empty because that gate can't actually be wired up: Traefik
+      basic_auth on a single router would only cover the UI's origin,
+      leaving the separately-addressed api-server/evaluation-server
+      origins unprotected, so the mechanism doesn't reach the multi-origin
+      surface. The multi-origin problem above is the real blocker, not the
+      secret-input mechanism.
   installable_today: false
   recommendation: blocked_on_platform
 
