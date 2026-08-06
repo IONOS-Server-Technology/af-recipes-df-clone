@@ -1,0 +1,82 @@
+slug: neko
+name: Neko
+source_description: Self-hosted virtual browser for collaborative web browsing and streaming
+
+upstream:
+  url: https://neko.m1k1o.net/
+  repo_url: https://github.com/m1k1o/neko
+  license: Apache-2.0
+  docker_image: ghcr.io/m1k1o/neko/chromium (one of several per-browser/app images under ghcr.io/m1k1o/neko/*; no single "the" image — chromium is the typical default)
+
+version_health:
+  latest_version: v3.1.5
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v3.1.5) published 2026-08-05, one day before analysis date
+    (2026-08-06). Multiple releases in the preceding months (v3.1.1-v3.1.4 in
+    April 2026, v3.0.8-v3.0.10 across Sep 2025-Jan 2026). Actively maintained,
+    no signs of slowdown.
+
+catalogue_fit:
+  categories: [remote-access, collaboration, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [guacamole]
+  differentiation: >
+    Guacamole (present but disabled in the catalogue) gateways to external
+    RDP/VNC/SSH targets over TCP/websocket through the browser. Neko instead
+    runs and streams a self-contained browser/desktop session via WebRTC,
+    aimed at synchronous multi-user watch-parties and collaborative browsing
+    rather than remote-desktop administration. Distinct use case, but both
+    compete for the same "remote-access-in-a-browser" catalogue slot, and
+    Neko's WebRTC transport is materially harder to expose than Guacamole's
+    pure-TCP one (see reverse_proxy_compatible below).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, differentiated use case (shared browsing sessions, watch parties,
+    isolated browsing sandbox) not covered by any of the 24 shipped recipes.
+    Value is capped by the infra mismatch below rather than by demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - NEKO_MEMBER_MULTIUSER_USER_PASSWORD
+    - NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD
+  secrets_expressible_today:
+    - secret: NEKO_MEMBER_MULTIUSER_USER_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      Neko's WebRTC media transport requires a dedicated UDP port range
+      (NEKO_WEBRTC_EPR, commonly 56000-56100) to be publicly reachable and
+      mapped 1:1 (host port == container port, per NEKO_WEBRTC_EPR) for each
+      instance, plus NEKO_WEBRTC_NAT1TO1 set to the instance's own public
+      IP. Traefik only fronts HTTP(S) on 80/443; it has no mechanism to
+      route a customer-specific raw UDP port range. This is the same class
+      of problem noted for Runner/af-api connectivity in CLAUDE.md — the
+      fix is a routable per-customer UDP exposure (NodePort/LoadBalancer
+      with a real public IP), not something the recipe layer can paper
+      over with Traefik alone. Without direct UDP reachability the browser
+      stream simply will not connect (WebRTC ICE fails).
+    - >
+      Per-instance public IP / port-range allocation for NAT1TO1 is an
+      infra-provisioning need beyond what any existing recipe requires
+      (all 24 current recipes are single-HTTP-port, Traefik-fronted).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Neko is an active, well-maintained project (Apache-2.0, latest release
+  2026-08-05) offering a genuinely differentiated use case — shared/streamed
+  browser sessions — not covered elsewhere in the catalogue. Its two login
+  passwords (user/admin) both map cleanly onto generated_from root-password
+  projection, so the auth-secrets side is solvable today. The blocker is
+  structural: Neko needs a customer-specific public UDP port range for
+  WebRTC plus a 1:1 NAT mapping to a public IP, which our Traefik-only
+  exposure model cannot provide. Recommend revisiting once a routable
+  per-customer UDP/LoadBalancer exposure mechanism exists on the platform;
+  not buildable as a standard recipe today.
