@@ -1,0 +1,85 @@
+slug: ghostfolio
+name: Ghostfolio
+source_description: "Open-source wealth management software for tracking investment portfolios"
+
+upstream:
+  url: https://ghostfol.io
+  repo_url: https://github.com/ghostfolio/ghostfolio
+  license: AGPL-3.0
+  docker_image: ghostfolio/ghostfolio
+
+version_health:
+  latest_version: "3.42.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active: 8 tagged releases in the 9 days from 3.35.0
+    (2026-07-27) to 3.42.0 (2026-08-04), roughly one release per day, and
+    the repo's last push was 2026-08-05T19:34Z — same day as today
+    (2026-08-05). CHANGELOG.md has an active "Unreleased" section with
+    fresh entries. No archival, maintenance-only, or EOL signal
+    whatsoever.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal finance
+    or investment tracking. Ghostfolio is a portfolio/wealth tracker
+    (stocks, ETFs, crypto, performance analytics) rather than a budgeting
+    tool, so it's distinct even from Actual Budget (a separate
+    apps-gaps candidate, not yet a recipe) which targets envelope
+    budgeting instead. Strong "keep my brokerage data off someone else's
+    server" appeal, broadening the catalogue into a new consumer-facing
+    category.
+  usefulness: high
+  usefulness_rationale: >
+    Investment/portfolio tracking is a mainstream, privacy-sensitive
+    self-hosting use case with no existing catalogue coverage, and
+    Ghostfolio is the most prominent open-source project in that niche
+    with a very active upstream, making it a good broadening bet for the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BASIC_AUTH_GATE
+    - POSTGRES_PASSWORD
+    - REDIS_PASSWORD
+    - ACCESS_TOKEN_SALT
+    - JWT_SECRET_KEY
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ACCESS_TOKEN_SALT
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Ghostfolio is a 3-container stack (its own app image + Postgres 15 +
+  Redis, per upstream's docker/docker-compose.yml) exposing a single HTTP
+  port (3333), so it's reverse-proxy-compatible the same way n8n and
+  Immich are. It has no traditional username/password admin login of its
+  own — by default it lets anyone who reaches the UI click "create
+  account" and self-issue a random "security token" as their credential,
+  with no built-in setting today to disable public sign-up (confirmed via
+  an open, unresolved upstream feature request). That makes it a no-login
+  app like Adminer: it must ship behind a mandatory Traefik basic_auth
+  gate rather than via generated_from root-password projection, and that
+  gate is fully expressible under the current mechanism. All other
+  first-boot secrets (Postgres/Redis passwords, ACCESS_TOKEN_SALT,
+  JWT_SECRET_KEY) are patternless server-generated values nothing
+  customer-facing ever reads. With an extremely active upstream and zero
+  blocking issues, this is a build_now candidate that fills a genuine gap
+  (no finance/investment-tracking app in the catalogue today).
