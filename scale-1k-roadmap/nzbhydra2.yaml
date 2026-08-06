@@ -1,0 +1,81 @@
+slug: nzbhydra2
+name: NZBHydra2
+source_description: "Usenet meta-search aggregator that unifies indexers behind one Newznab API"
+
+upstream:
+  url: https://github.com/theotherp/nzbhydra2
+  repo_url: https://github.com/theotherp/nzbhydra2
+  license: GPL-3.0
+  docker_image: linuxserver/nzbhydra2 (pin to a version tag, e.g. v8.9.0-ls100 — do not follow upstream examples that use :latest)
+
+version_health:
+  latest_version: "v8.9.0"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v8.9.0 shipped 2026-07-09, about one month before today
+    (2026-08-05). Preceding tags land at a steady roughly-monthly-to-biweekly
+    cadence (v8.8.5 2026-06-29, v8.8.4 2026-06-19, v8.8.3 2026-06-07, v8.8.2
+    2026-06-06, v8.8.1 2026-05-02, v8.8.0 2026-04-26, v8.7.1/v8.7.0
+    2026-04-19, v8.6.0 2026-04-18). v8.9.0 itself added new OIDC
+    authentication support (Authentik/Keycloak), showing the project is
+    still adding features, not just patching. The linuxserver/nzbhydra2
+    image tracks these releases closely (v8.9.0-ls100 pushed within hours of
+    the upstream tag). Repo is not archived, has thousands of commits and
+    active issue/PR traffic. Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches Usenet/indexer
+    aggregation. NZBHydra2 is the Newznab-side counterpart to Jackett
+    (already analyzed in apps-gaps/jackett.yaml for the torrent/Torznab
+    side): it queries multiple Usenet indexers, merges and deduplicates
+    results, and hands them off to a downstream NZB download client
+    (SABnzbd/NZBGet) or automation tool (Sonarr/Radarr/Lidarr) via its own
+    Newznab-compatible API. None of those downstream pieces — a download
+    client or a *arr automation app — exist as AF recipes today, so like
+    Jackett it is a middle link in a pipeline rather than a self-contained
+    destination.
+  usefulness: low
+  usefulness_rationale: >
+    Well-known and actively maintained in the self-hosted Usenet community,
+    but structurally identical to Jackett's case: its only output is search
+    results/an API for other tools (SABnzbd, NZBGet, Sonarr, Radarr,
+    Lidarr) to consume. With none of those in the catalogue, a standalone
+    NZBHydra2 install gives a customer nothing to act on directly — no
+    downloaded file, no library, no completed automation. Same
+    recommendation logic as Jackett: defer until/unless AF decides to build
+    out a media-automation stack with a download client behind it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  NZBHydra2 (via linuxserver/nzbhydra2) is a single-container app with a web
+  UI on one HTTP port (5076), config and internal state living under
+  /config with no separate database service — as mechanically simple as
+  uptime-kuma or Jackett, and reverse-proxy compatible behind Traefik on
+  nzbhydra2.<base_domain>. Its own login (Config > Auth > Login form) is
+  off by default and configured interactively after first boot, with no
+  environment variable to pre-seed a username/password or hash at
+  container start, so — exactly like Jackett — the correct fix is gating
+  the whole app behind a required Traefik basic_auth projected from the
+  customer's root password rather than relying on the app's optional
+  built-in auth. With that gate this is mechanically installable today
+  (installable_today: true), but the recommendation is build_with_caveats:
+  the app's real value is entirely as an upstream feed for a Usenet
+  download client and/or Sonarr/Radarr/Lidarr, none of which exist in the
+  current catalogue, so shipping it alone hands a customer an aggregated
+  search API with nothing downstream to send results to.
