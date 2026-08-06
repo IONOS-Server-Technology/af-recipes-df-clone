@@ -1,0 +1,65 @@
+slug: ntfy
+name: ntfy
+source_description: "Self-hosted push notification server for sending alerts via simple HTTP requests"
+
+upstream:
+  url: https://ntfy.sh/
+  repo_url: https://github.com/binwiederhier/ntfy
+  license: Apache-2.0 OR GPL-2.0
+  docker_image: binwiederhier/ntfy
+
+version_health:
+  latest_version: "v2.27.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: v2.24.0 (2026-06-04), v2.25.0 (2026-06-24), v2.26.0
+    (2026-07-09), v2.26.3 (2026-07-20), v2.27.0 (2026-08-04) — new releases
+    every 2-3 weeks, latest one day before today (2026-08-05). No
+    archival/EOL signal.
+
+catalogue_fit:
+  categories: [notifications, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 shipped recipes is a general-purpose push-notification
+    hub. ntfy is a single self-contained pub/sub HTTP server: any script,
+    cron job, monitoring tool, or CI pipeline can POST/PUT a message to a
+    topic URL and it fans out to the ntfy Android/iOS/desktop apps or web
+    push — genuinely new category, not a competitor to anything we ship
+    (per project note, overlap wouldn't disqualify it anyway, but there
+    isn't any here).
+  usefulness: high
+  usefulness_rationale: >
+    Broadly useful standalone infra: works with any of the customer's other
+    self-hosted services (or their own scripts) as a generic alerting
+    channel, not tied to a single vendor SaaS account. Single tiny Go
+    binary/container, minimal resource footprint, real web UI for managing
+    topics/subscriptions.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic-auth gate credential (ntfy ships with no auth/login of its own by default — open read/write to all topics)]
+  secrets_expressible_today:
+    - secret: basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ntfy is an actively maintained (releases every 2-3 weeks), Apache-2.0/GPL-2.0,
+  single-container Go app with a web UI and a tiny footprint (~32MB image, one
+  SQLite-backed volume for cache/config, no external DB dependency). Out of the
+  box it has no login of its own — the server is open for everyone to read and
+  write any topic — so it needs a Traefik basic_auth gate, which is fully
+  expressible today via generated_from root-password projection into the
+  gate's Basic Auth credential, exactly like n8n/WUD/Open WebUI. Because ntfy
+  clients (curl, scripts, the ntfy apps) already send credentials as HTTP
+  Basic Auth when the server requires auth, gating the whole public port this
+  way is a natural fit, not a workaround. Adds a genuinely new,
+  broadly-useful category to the catalogue with no mechanism blockers —
+  recommend building now.
