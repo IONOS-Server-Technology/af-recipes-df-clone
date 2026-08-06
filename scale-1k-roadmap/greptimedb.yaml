@@ -61,15 +61,26 @@ installability:
       GreptimeDB's bundled dashboard (served at /dashboard on the HTTP
       port, 4000) has no login of its own by default — the instance is
       wide open unless the operator enables GreptimeDB's built-in "static
-      user provider". That mechanism loads a file of plaintext
-      `user=password` lines at startup and has no hash-based variant; it
-      cannot be populated via `generated_from` (which only ever supplies a
-      hash of the customer's root password, never plaintext). This is the
-      genuine-plaintext-requirement case the schema calls a structural
-      blocker, not a supported-algorithm gap — so GreptimeDB's own auth is
-      not usable here. Resolvable the same way as grafana-loki.yaml: leave
-      GreptimeDB's built-in auth disabled and put a Traefik `basic_auth`
-      gate in front of the dashboard/HTTP port instead.
+      user provider". That provider's user file supports three password
+      formats (per
+      https://docs.greptime.com/user-guide/deployments-administration/authentication/static/):
+      `plain:<password>` (plaintext, the default), `mysql_native_password:
+      <sha1-hash>` (MySQL wire-protocol handshake), and
+      `pbkdf2_sha256:<iterations>:<salt>:<hash>` — a hash stored at rest,
+      usable with the HTTP/gRPC and PostgreSQL protocols. So this is not
+      the genuine-plaintext-requirement case; GreptimeDB's own auth CAN be
+      populated with a hash. The real gap is that `generated_from`'s
+      currently-supported algorithm list (`argon2`, `bcrypt`) doesn't
+      include `pbkdf2_sha256` yet, so that hash can't be produced by the
+      platform today. Per the schema, that makes GreptimeDB's own login a
+      `blocked_on_platform` case (needed algo: `pbkdf2_sha256`), not a hard
+      structural blocker — once `generated_from` supports `pbkdf2_sha256`,
+      GreptimeDB's own per-app admin login would be the preferred
+      customer-facing auth path over a shared gate credential. Until then,
+      the practical mechanism expressible today is the same as
+      grafana-loki.yaml: leave GreptimeDB's built-in auth disabled and put
+      a Traefik `basic_auth` gate in front of the dashboard/HTTP port
+      instead.
     - >
       GreptimeDB exposes three additional raw (non-HTTP) protocol ports
       for actually writing/reading data — gRPC (4001), MySQL wire protocol
@@ -78,9 +89,11 @@ installability:
       HTTP traffic. If these are made public (needed for a customer to
       ingest metrics/logs from agents running outside the AF customer's
       own docker network, the product's main use case) they would sit
-      open on the internet with no authentication, because the only
-      auth GreptimeDB itself supports is the plaintext static-user file
-      ruled out above. Mitigation: keep 4001-4003 un-published (internal
+      open on the internet with no authentication, because GreptimeDB's
+      only auth mechanism (the static-user provider, discussed above) has
+      no expressible path today — `generated_from` doesn't support the
+      `pbkdf2_sha256` hash it needs, and a Traefik `basic_auth` gate can't
+      protect non-HTTP wire protocols. Mitigation: keep 4001-4003 un-published (internal
       docker-network only, reachable only by other containers on the same
       customer stack) and restrict the recipe to HTTP-based ingestion
       paths (OTLP/HTTP, Prometheus remote-write, InfluxDB line protocol —
@@ -96,13 +109,16 @@ summary: >
   maintained, Apache-2.0 unified metrics/logs/traces database with SQL and
   PromQL query support and a bundled web dashboard on its HTTP port
   (4000) — a genuine gap versus the current 24 recipes, none of which is
-  an observability datastore. It has no login of its own by default, and
-  its only built-in auth mechanism (a plaintext static-user file) cannot
-  be populated via `generated_from`'s hash-only channel, so the dashboard
-  would need a Traefik `basic_auth` gate the same way grafana-loki.yaml
-  resolves it. The bigger caveat is its three raw non-HTTP protocol ports
-  (gRPC 4001, MySQL 4002, PostgreSQL 4003) used for data ingestion/query —
-  a Traefik basic_auth gate cannot protect those, so a recipe would need to
+  an observability datastore. It has no login of its own by default; its
+  built-in static-user auth mechanism does support a hashed credential
+  (`pbkdf2_sha256`), but that algorithm isn't in `generated_from`'s
+  currently-supported list (`argon2`, `bcrypt`) yet, so it's a
+  `blocked_on_platform` gap rather than a structural blocker — until that
+  lands, the dashboard needs a Traefik `basic_auth` gate the same way
+  grafana-loki.yaml resolves it. The bigger caveat is its three raw
+  non-HTTP protocol ports (gRPC 4001, MySQL 4002, PostgreSQL 4003) used
+  for data ingestion/query — a Traefik basic_auth gate cannot protect
+  those, so a recipe would need to
   keep them internal-only and restrict customers to HTTP-based ingestion
   (OTLP, Prometheus remote-write, InfluxDB line protocol), a real reduction
   from GreptimeDB's full protocol surface. Installable today with that
