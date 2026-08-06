@@ -1,0 +1,73 @@
+slug: firefox
+name: Firefox
+source_description: "Self-hosted Firefox browser accessible through web interface"
+
+upstream:
+  url: https://www.linuxserver.io/
+  repo_url: https://github.com/linuxserver/docker-firefox
+  license: GPL-3.0 (container packaging; Firefox itself is MPL-2.0)
+  docker_image: lscr.io/linuxserver/firefox
+
+version_health:
+  latest_version: "1153.0build1-1xtradeb1.2404.1-ls113"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    LinuxServer.io ships a new tagged build roughly every 3-6 days (ls110
+    on 07-23, ls111 on 07-25, ls112 on 07-31, ls113 on 08-01), tracking
+    upstream Firefox/Xubuntu package updates. As of today (2026-08-05) the
+    latest tag is 4 days old. This is a rolling-release image with no
+    "version" in the traditional sense beyond the Firefox build baked in;
+    it is actively maintained and not a fork someone could confuse with a
+    different, EOL "Firefox" project.
+
+catalogue_fit:
+  categories: [productivity, remote-access]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes provide a remote, disposable web
+    browser instance. Guacamole is the closest conceptual neighbor
+    (browser-delivered remote access) but it's a gateway *to* other
+    machines over RDP/VNC/SSH, not a browser session of its own — no
+    functional overlap. This app would give customers an isolated,
+    always-on Firefox session (streamed via Selkies/WebRTC, previously
+    KasmVNC) reachable from any device, useful for browsing isolation,
+    geo-fixed IP browsing from the server, or accessing internal-network
+    sites only the server can reach.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful niche (browser isolation / secure remote browsing /
+    a stable IP for browsing), but narrower appeal than typical catalogue
+    apps, and the container ships a full desktop-in-browser with a
+    terminal that has passwordless sudo — meaningful blast radius if
+    exposed without care.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Single-container app streaming a full Firefox desktop over HTTP (port
+  3000, HTTPS on 3001) via Selkies (formerly KasmVNC) — no built-in admin
+  login of its own (the optional CUSTOM_USER/PASSWORD basic-auth env vars
+  are just an alternate way to do the same gate, not a customer-facing
+  app login). That makes it installable today the same way as WUD/n8n:
+  gate the single public port behind Traefik basic_auth:true, with the
+  password projected from the customer's root password via
+  `generated_from`. Needs shm_size: 1gb and security_opt:
+  seccomp=unconfined at the compose level (both expressible in plain
+  docker-compose, not blockers). Release cadence is actively maintained.
+  Recommend build_with_caveats: mechanically installable, but the
+  passwordless-sudo terminal inside the streamed desktop means the
+  basic_auth gate must be treated as mandatory, not optional, and the
+  recipe write-up should call out that this exposes a full Linux shell,
+  not just a browser, to anyone who gets past the gate.
