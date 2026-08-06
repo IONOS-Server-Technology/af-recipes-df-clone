@@ -1,0 +1,65 @@
+slug: hister
+name: Hister
+source_description: "Local-first search engine that full-text indexes your browser history"
+
+upstream:
+  url: https://hister.org/
+  repo_url: https://github.com/asciimoo/hister
+  license: AGPL-3.0-or-later
+  docker_image: ghcr.io/asciimoo/hister
+
+version_health:
+  latest_version: v0.17.0
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly release cadence since v0.9.0 (2026-03-16): v0.10.0 (03-20),
+    v0.11.0 (03-30), v0.12.0 (04-09), v0.13.0 (04-23), v0.14.0 (05-11),
+    v0.15.0 (06-03), v0.16.0 (07-01), v0.17.0 (07-28). As of today
+    (2026-08-05) the latest stable release is 8 days old, and a "rolling"
+    tag was pushed the same day as this analysis — the project is under
+    active, frequent development. No archival or EOL signal.
+
+catalogue_fit:
+  categories: [productivity, search, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes offer personal full-text search over a
+    user's own browsing/reading history and local files. Closest neighbors
+    (paperless-ngx/paperless-ai for document indexing, immich for media)
+    target a different content type. Hister is a genuinely new category:
+    a self-hosted, privacy-first alternative to relying on browser history
+    search or third-party bookmarking/read-it-later services, with browser
+    extensions, CLI, HTTP API, and MCP interfaces for AI-assistant search.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but real audience (privacy-conscious power users, researchers,
+    people wanting AI-assistant-searchable personal knowledge bases via
+    MCP). Not a mainstream "everyone wants this" app like a password
+    manager or monitoring tool, but distinct enough to add catalogue
+    breadth rather than overlap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Hister is a single-container, single-port (4433) HTTP app with no
+  authentication enabled by default (auth is opt-in via app.access_token,
+  app.user_handling, or OAuth/SSO, none of which map to our current
+  root-password-hash-only input channel). It fits our mechanism cleanly
+  today by fronting it with a mandatory Traefik basic_auth gate, the same
+  pattern already used for n8n, WUD, OpenClaw, Open WebUI, and Immich. The
+  project is actively maintained with a monthly release cadence and no
+  EOL/dormancy signal, and it fills a category gap (personal full-text
+  search over browsing history/local files/documentation) not covered by
+  any of the 24 existing recipes. Recommended to build.
