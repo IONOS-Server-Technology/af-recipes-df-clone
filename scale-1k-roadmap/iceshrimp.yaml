@@ -57,33 +57,38 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: []
+  secrets_required_at_first_boot: [admin_signup_credential]
   secrets_expressible_today: []
   blocking_issues:
     - >
       No admin/root credential is set via environment variable or config at
-      container boot. Like Mastodon/Misskey-family servers generally,
+      container boot. Like Mastodon/Misskey-family servers generally, and
+      matching the same shape documented in apps-gaps/2fauth.yaml,
+      apps-gaps/activepieces.yaml, and apps-gaps/airtrail.yaml,
       Iceshrimp.NET's admin account is created through its own web-based
       registration flow after the instance comes up — the first account to
       register (or the first account an operator manually promotes) becomes
-      admin. This means there is no `generated_from` target and no
-      structural need for one; the mechanism problem here isn't "how do we
-      inject a password" but a race-condition risk: with the server
-      publicly reachable behind the customer's domain the moment the
-      compose stack boots, an unrelated visitor (or a fediverse-scanning
-      bot) could register first and claim the initial account before the
-      customer does, on an instance that — per default fediverse-server
-      posture — may allow open registration out of the box. This needs a
-      Traefik `basic_auth` gate on first boot (customer's root-password
-      hash) so nobody but the customer can reach the registration page
-      until they've claimed the admin account and, separately, closed
-      public registration in the app's own settings. That gate is
-      expressible today via `generated_from`+`traefik_basic_auth`, but
-      *only* as a temporary first-boot lock — the gate would need to come
-      off afterward for the instance to actually federate/serve the public
-      web, which our current one-shot bootstrap-token mechanism has no
-      lifecycle hook for (no "remove gate after customer completes setup"
-      step exists in `/compose` or `/bootstrap` today).
+      admin. There is no `type: password` parameter on the app's own login
+      to target with `generated_from: "<algo>:ROOT_PASSWORD"`, because the
+      credential is created client-side via self-registration, not injected
+      via env var. With the server publicly reachable behind the customer's
+      domain the moment the compose stack boots, an unrelated visitor (or a
+      fediverse-scanning bot) could register first and claim the initial
+      account before the customer does, on an instance that — per default
+      fediverse-server posture — may allow open registration out of the box.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger races to register first" version
+      of this problem, but per the 2FAuth/Activepieces/AirTrail precedent,
+      today's basic_auth mechanism has no channel to also hand the customer
+      a *second*, distinct credential for the in-app signup form beyond the
+      single root-password projection already used for the gate itself —
+      so it does not fully resolve the underlying provisioning gap. Even if
+      it did, the gate would need to come off after the customer claims the
+      admin account for the instance to actually federate/serve the public
+      web, and our current one-shot bootstrap-token mechanism has no
+      lifecycle hook for that ("remove gate after customer completes setup"
+      is not a step `/compose` or `/bootstrap` support today).
     - >
       Full service topology needs confirming against a canonical
       docker-compose.yml before drafting a recipe: PostgreSQL 15+ is a hard
@@ -103,17 +108,19 @@ installability:
 summary: >
   Iceshrimp.NET is an actively developed (latest release 6 days old),
   Mastodon-API-compatible ActivityPub server with no current catalogue
-  overlap and a real niche audience. Unlike most blocked apps in this
-  catalogue it needs no external API key or OAuth registration — its
-  blocker is structural to how fediverse servers bootstrap: the admin
-  account is claimed via public web registration after boot rather than
-  injected at container start, creating a first-registrant race condition
-  that our current one-shot `/compose`+`/bootstrap` mechanism can't safely
-  close (a temporary basic_auth gate would need to be lifted post-setup,
-  which isn't supported today). Also still beta-labeled software from a
-  small team, competing with more established fediverse servers for the
-  same audience. Recommend `blocked_on_platform`: revisit once the
-  bootstrap mechanism supports a "gate until customer completes in-app
-  setup, then release" lifecycle, and confirm the full service topology
+  overlap and a real niche audience. It fails the installability test for
+  the same structural reason as 2FAuth, Activepieces, and AirTrail: there
+  is no env var to preset the sole admin account, so the app relies on an
+  open, first-visitor self-registration screen that neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  hand to the customer exclusively — and even a temporary gate would need
+  to be lifted post-setup for the instance to federate, which our current
+  one-shot `/compose`+`/bootstrap` mechanism has no lifecycle hook for.
+  Also still beta-labeled software from a small team, competing with more
+  established fediverse servers for the same audience. Recommend
+  `blocked_on_platform`: revisit once upstream adds an env-var-driven
+  initial-admin flow, or the platform gains a second customer-facing
+  credential channel beyond root-password projection (plus a
+  gate-then-release lifecycle hook), and confirm the full service topology
   (Postgres/Redis/Meilisearch) against upstream's canonical compose file
   at that point.
