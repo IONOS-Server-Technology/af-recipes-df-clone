@@ -1,0 +1,108 @@
+slug: organizr
+name: Organizr
+source_description: "Homelab services organizer with tabbed access, user groups, and multi-auth"
+
+upstream:
+  url: https://organizr.org/
+  repo_url: https://github.com/causefx/Organizr
+  license: GPL-3.0
+  docker_image: ghcr.io/organizr/organizr
+
+version_health:
+  latest_version: "v2-master (rolling, no tagged release)"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confusing two-eras situation. "V1" (the original PHP app, tagged
+    releases like 1.90) was explicitly sunset by the maintainer on
+    2019-02-26 — the 1.90 release notes literally say "Update before FEB 28
+    to keep v1 working" and told users to pin to a v1-master branch if they
+    didn't want to move to the V2 rewrite. That branch/version line has had
+    no release in over 7 years and is dead. "V2" (current, on the
+    `v2-master` branch) is where all activity now happens — last commit
+    2026-05-19, about 2.5 months before today (2026-08-05), with ongoing
+    feature/security work (e.g. an SSRF-hardening commit). So the project
+    is alive, but it has never cut a single tagged/versioned release for V2
+    in its ~7 years of existence — there is no "latest stable version"
+    number to point to, only "whatever HEAD of v2-master is right now."
+    Compounding this: the official `ghcr.io/organizr/organizr` Docker image
+    is a thin Alpine/s6 wrapper that does not bundle the app at all — per
+    its own README, "the preferred way to update organizr is to restart the
+    container, as we grab the latest commit on startup" from whichever
+    `branch` env var you set (default v2-master). That means even pinning
+    the Docker image tag does not pin the app version: two customers
+    deploying the same recipe on different days (or the same customer
+    restarting their container) can silently get different app code with
+    no version number attached to either. This is incompatible with this
+    repo's "pin a specific, current stable tag, never :latest" convention,
+    because there is no stable tag to pin — the mechanism has no concept of
+    one.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Same "front door" startpage/dashboard niche as five other
+    already-analyzed candidates: homarr.yaml, heimdall.yaml, dashy.yaml,
+    flame.yaml, and glance.yaml (mafl.yaml is the same niche too, already
+    rated not_recommended). None of the current 24 shipped recipes are a
+    bookmark/launcher dashboard, so the underlying gap is real, but
+    Organizr would be the sixth candidate competing for the exact same
+    catalogue slot with no other recipe yet built for it. Organizr's one
+    distinguishing pitch versus the other five is tabbed iframe embedding
+    of an app's own UI inside the dashboard (not just a link-out tile) plus
+    built-in SSO against Plex/Emby/LDAP — a genuinely different feature set
+    from Homarr/Dashy/Glance's tile-and-widget model, but that only matters
+    if a customer already runs Plex/Emby/LDAP, which none of our 24
+    recipes provide.
+  usefulness: low
+  usefulness_rationale: >
+    The startpage/dashboard slot is already thoroughly covered by higher-
+    quality, better-versioned candidates (Homarr and Dashy are both
+    build_now with active weekly/near-daily tagged releases). Organizr adds
+    no capability those don't already offer for our customer base, its
+    signature SSO integrations (Plex/Emby/LDAP) target a use case outside
+    our current catalogue, and — separate from the redundancy — it cannot
+    be version-pinned the way every other recipe in this repo is, which is
+    a real cost independent of how many dashboard apps we already have
+    candidates for.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No stable, pinnable app version exists. Organizr's admin account is
+      created through an in-browser setup wizard (choose SQLite/MySQL,
+      create username/master password) rather than any env-var-settable
+      login, so — like Homarr/Dashy/Glance — a Traefik basic_auth gate
+      keyed off the customer's root-password hash is mechanically fine for
+      the secrets side. But the app itself is fetched live from git at
+      every container start regardless of which Docker tag is deployed
+      (per upstream's own README), so this repo's "pin a specific current
+      stable tag" convention has no valid target here — there is no tag
+      that corresponds to a fixed, reproducible app version.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Organizr is mechanically installable under the current secrets mechanism
+  (Traefik basic_auth gate, same pattern as Homarr/Dashy/Glance), and the
+  underlying v2-master branch is under active development (last commit
+  ~2.5 months before this analysis). But it is a weak candidate on two
+  independent grounds: it is the sixth already-analyzed app targeting the
+  identical startpage/dashboard catalogue slot (after Homarr, Heimdall,
+  Dashy, Flame, Glance, Mafl) with no clear advantage for our customer base
+  over the strongest of those (Homarr, Dashy), and unlike all of them it
+  has never cut a tagged release in ~7 years — the official Docker image
+  pulls whatever the live git branch HEAD is at each container restart,
+  so there is no version to pin, undermining the reproducibility every
+  other recipe in this repo relies on. Recommend not_recommended: redundant
+  niche plus a real, structural versioning gap, not just a preference call.
