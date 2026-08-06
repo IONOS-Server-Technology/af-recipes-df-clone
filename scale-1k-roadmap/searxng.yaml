@@ -1,0 +1,81 @@
+slug: searxng
+name: SearXNG
+source_description: "Privacy-respecting metasearch engine aggregating results from multiple sources"
+
+upstream:
+  url: https://docs.searxng.org/
+  repo_url: https://github.com/searxng/searxng
+  license: AGPL-3.0-or-later
+  docker_image: searxng/searxng
+
+version_health:
+  latest_version: "2026.8.5-1689cb1b5"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    SearXNG deliberately publishes no tagged GitHub releases ("There aren't
+    any releases here" on the releases page) — it ships a rolling
+    date+commit-hash Docker tag built from master, typically several times
+    per week. Docker Hub shows 2026.8.5-1689cb1b5, 2026.8.4-c63835bd2,
+    2026.8.3-aa059419f, 2026.8.1-8892414dc and 2026.7.31-6bfd82705 all
+    within the last week (as of 2026-08-05), i.e. the newest image is
+    same-day. Very active fork-successor of the original searx (~35k stars,
+    issues and PRs actively triaged). The dated tags are precise and
+    pinnable, so `image-tag-pinned` is satisfiable, but the recipe would
+    need a deliberate bump cadence because there is no stable "x.y" line to
+    track — every pin ages fast and upstream engine breakages are fixed
+    only on master.
+
+catalogue_fit:
+  categories: [productivity, privacy, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides search. The closest
+    privacy-adjacent entries (adguard-home, pihole) block trackers at the
+    DNS layer rather than replacing the search engine itself, and
+    open-webui/ollama do LLM chat with no built-in web-search backend.
+    SearXNG is also the canonical self-hosted search provider for
+    Open WebUI's web-search feature, so it pairs directly with a recipe we
+    already ship.
+  usefulness: high
+  usefulness_rationale: >
+    Broad-appeal, single-purpose privacy app that is easy for a
+    non-technical customer to understand ("your own Google that doesn't
+    track you"), plus a concrete power-user role as the search backend for
+    the existing Ollama/Open WebUI pair. Lightweight (one ~90 MB container
+    plus an optional Valkey), no database to provision, and stateless
+    enough that backup/restore concerns are minimal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SEARXNG_SECRET, basic_auth_password]
+  secrets_expressible_today:
+    - secret: SEARXNG_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SearXNG is a single-container web app on one HTTP port (8080) that needs
+  nothing from the customer but a domain: SEARXNG_BASE_URL is derivable from
+  APP_DOMAIN, and the one mandatory secret — server.secret_key, overridable
+  via the SEARXNG_SECRET env var, default "ultrasecretkey" — is a patternless
+  random value no customer ever reads, so it can be generated server-side
+  (`openssl rand -hex 32`). No external API keys, no OAuth, no account
+  linking; the aggregated engines are queried anonymously. It has no login of
+  its own, and an open instance on a public domain will be abused as a
+  scraping relay and get its IP rate-limited or banned by upstream engines,
+  so a Traefik basic_auth:true gate on the public port should be treated as
+  required rather than optional (same pattern as n8n/WUD/Adminer), with the
+  gate password projected from the customer's root password. Worth building,
+  with two caveats: pin the dated rolling tag and expect a
+  faster-than-usual bump cadence (no stable release line exists), and note
+  that a basic_auth gate means an Open WebUI integration must send those
+  credentials, plus SearXNG's JSON output format has to be enabled in
+  settings.yml for that use case.
