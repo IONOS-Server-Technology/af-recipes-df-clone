@@ -1,0 +1,67 @@
+slug: mstream
+name: mStream
+source_description: Lightweight self-hosted music streaming server with native iOS and Android apps
+
+upstream:
+  url: https://mstream.io/
+  repo_url: https://github.com/IrosTheBeggar/mStream
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/mstream (community-maintained by LinuxServer.io; upstream ships no official image of its own)
+
+version_health:
+  latest_version: "6.19.3"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via GitHub release feed, package.json on master, and the
+    LinuxServer.io Docker Hub tag list — all agree on 6.19.3 as current,
+    with a release dated the day before this analysis (2026-08-05/06) and
+    a run of near-weekly releases through July-August 2026 (6.16.x-6.19.x).
+    Upstream CHANGELOG.md also documents an in-progress major rewrite
+    (SQLite migration, Rust scanner, Subsonic API, DLNA) landing across
+    the 6.5.x-6.19.x line, consistent with active, non-maintenance-mode
+    development. LinuxServer's own image changelog shows base-image
+    rebases as recently as 2026-08-07 and 2026-04-24, so packaging is
+    kept current too.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal music streaming (Immich is
+    photo/video, not audio). mStream would be the catalogue's first
+    audio-streaming app, with native iOS/Android apps as a customer draw
+    Hostinger's blurb specifically calls out.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (stream your own music library) with low
+    resource needs and a simple single-container deployment, but it's a
+    niche/personal-use app rather than a broad-appeal one, and it ships
+    "public mode" (no auth) by default, which raises the bar on what the
+    recipe must gate before it's safe to expose.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  mStream is an active, well-maintained single-container music streaming
+  server (official LinuxServer.io image, one HTTP port, /config + /music
+  volumes) with no overlap in the current 24-recipe catalogue. Its own
+  admin/user login is created interactively through the web UI or
+  config.json — the v5+ USER/PASSWORD env vars are deprecated and there
+  is no first-boot env-var channel for an admin credential — and by
+  default the server runs in "public mode" with no login required at all.
+  That makes a Traefik basic_auth gate (not generated_from) the correct
+  and sufficient mechanism to make first boot safe, exactly like the
+  n8n/WUD/Open WebUI pattern, so it is installable under the current
+  platform mechanism with no blockers.
