@@ -1,0 +1,79 @@
+slug: lnbits
+name: LNbits
+source_description: "Self-hosted Lightning wallet with tip jars, paywalls, and creator subscriptions"
+
+upstream:
+  url: https://lnbits.com/
+  repo_url: https://github.com/lnbits/lnbits
+  license: MIT
+  docker_image: lnbits/lnbits
+
+version_health:
+  latest_version: "v1.5.6"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.5.6 shipped 2026-07-15, about 3 weeks before today (2026-08-05).
+    Tagged releases have landed roughly every 2-4 weeks all year
+    (v1.5.2 2026-03-23, v1.5.3 2026-03-30, v1.5.4 2026-04-23, v1.5.5
+    2026-07-08, v1.5.6 2026-07-15), and a v1.6.0 release-candidate series
+    is already in flight (1.6.0-rc1 2026-07-31, v1.6.0-rc2 2026-08-05 —
+    the same day as this analysis). GitHub reports the repo's default
+    branch was last pushed 2026-08-05 (today) and it carries 1,225 stars,
+    not archived, with no EOL notice. This is a healthy, actively
+    developed project by any measure.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches Bitcoin/Lightning
+    payments, tip jars, paywalls, or creator-subscription tooling —
+    LNbits opens a genuinely new category (self-custodial Lightning
+    wallet management and payment tooling) rather than competing with an
+    existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    LNbits is a well-established, actively maintained project in the
+    Bitcoin/Lightning ecosystem (1.2k stars, official demo instance,
+    large plugin/extension marketplace) with a real and distinct
+    audience — creators and small merchants wanting tip jars, paywalls,
+    or point-of-sale Lightning payments. Usefulness is medium rather than
+    high because it is a niche vertical (self-custodial Bitcoin payments)
+    compared to the broad productivity/security/media tools already in
+    the catalogue, and the app is only genuinely useful once the customer
+    connects a real Lightning funding source (their own node or a
+    third-party Lightning service) after install — out of the box with no
+    funding source it only demos with fake/void payments.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LNbits is a single-container app (lnbits/lnbits, Python/FastAPI,
+  SQLite by default with no separate database service required)
+  listening on one HTTP port (5000), fully reverse-proxy compatible
+  behind Traefik on lnbits.<base_domain> — structurally as simple to
+  deploy as uptime-kuma or vaultwarden. On first browser visit LNbits
+  prompts the visitor to interactively create their own SuperUser
+  account in-browser (credentials never touch env vars, the compose
+  file, or any bootstrap channel), the same self-serve first-run pattern
+  already used by uptime-kuma/lidarr/immich/linkstack, so no
+  generated_from projection or Traefik basic_auth gate is required to
+  avoid shipping an open-by-default install. installable_today is true
+  with zero blocking issues; the only caveat is that the app ships with
+  a fake "VoidWallet" funding source by default, so the customer must
+  configure a real Lightning backend themselves via the Admin UI after
+  install to use it for actual payments — that's normal post-install
+  app configuration, not a blocked secret-input channel, so it does not
+  affect installability. Combined with an actively maintained upstream
+  and a genuinely new category for the catalogue, LNbits is a reasonable
+  build_now candidate.
