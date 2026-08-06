@@ -52,15 +52,36 @@ installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot: [MAUTIC_ADMIN_PASSWORD, MAUTIC_DB_PASSWORD, MYSQL_ROOT_PASSWORD]
   secrets_expressible_today:
-    - secret: MAUTIC_ADMIN_PASSWORD
-      mechanism: generated_from_root_password
     - secret: MAUTIC_DB_PASSWORD
       mechanism: server_generated_no_customer_input
     - secret: MYSQL_ROOT_PASSWORD
       mechanism: server_generated_no_customer_input
-  blocking_issues: []
-  installable_today: true
-  recommendation: build_with_caveats
+  blocking_issues:
+    - >
+      DB credentials are fine: MAUTIC_DB_HOST/PORT/DATABASE/USER/PASSWORD
+      on the official mautic/mautic image are genuine env vars, so
+      MAUTIC_DB_PASSWORD and MYSQL_ROOT_PASSWORD are server-generated with
+      no customer input needed — no blocker here.
+    - >
+      The admin account is blocked. There is no MAUTIC_ADMIN_PASSWORD /
+      MAUTIC_ADMIN_EMAIL env var on the official image at all — checked
+      against github.com/mautic/docker-mautic's own README ("Environment
+      Variables" section), which lists only DB connection settings,
+      DOCKER_MAUTIC_ROLE/worker tuning, and PHP_INI_* settings. The only
+      two supported ways to create the first admin account are (a) the
+      `mautic:install` console command
+      (`php ./bin/console mautic:install <url> --admin_email=...
+      --admin_password=...`), which takes the password as a **plaintext**
+      CLI argument and hashes it internally, or (b) the browser-based
+      first-run web install wizard / REST API user-create endpoint, which
+      takes a `plainPassword` field — also plaintext only. Neither path
+      accepts a pre-computed hash. Per SCHEMA.md's decision table, a
+      genuine requirement for the plaintext password (not a hash) is a
+      structural blocker — `generated_from` only ever produces a hash, so
+      it has nowhere to project into either provisioning path. This is the
+      same failure mode as apps-gaps/matrix-synapse.yaml.
+  installable_today: false
+  recommendation: blocked_on_platform
 
 summary: >
   Mautic is a PHP app (official mautic/mautic image, pin to
@@ -69,17 +90,15 @@ summary: >
   three-plus-container stack similar in shape to the paperless-ngx
   template, but with an extra always-on worker rather than paperless's
   auxiliary services. It exposes a single HTTP port and is
-  Traefik-compatible with no other raw ports needed. The installer
-  accepts MAUTIC_ADMIN_EMAIL/MAUTIC_ADMIN_PASSWORD and MYSQL credentials
-  as plain env vars with no OAuth or external API key needed to boot, so
-  the admin password projects cleanly from the customer's root password
-  via generated_from (same pattern as Vaultwarden's ADMIN_TOKEN) and the
-  DB/root MySQL passwords are server-generated with no customer input —
-  clearing the /compose constraint with zero blocking issues. The caveat
-  is operational complexity, not mechanics: the cron worker needs a
-  scheduled task running Mautic console commands every minute, and actual
-  email delivery requires the customer to configure an SMTP transport
-  post-install (not a boot-time secret, so not blocking, but worth
-  surfacing). Recommend build_with_caveats — a high-value, genuinely new
-  category for the catalogue, installable today, but more involved to
-  build and operate than our single-container recipes.
+  Traefik-compatible with no other raw ports needed. DB/root MySQL
+  passwords are server-generated with no customer input, so that part of
+  the stack is fine. It fails installability today because the official
+  image has no MAUTIC_ADMIN_PASSWORD/EMAIL env var at all: the only
+  supported ways to provision the first admin account are the
+  `mautic:install` CLI command or the web install wizard/REST API, and
+  both take the account password as plaintext rather than a hash, so
+  `generated_from` (hash-only) has nothing to project into. Recommend
+  `blocked_on_platform` — a high-value, genuinely new category for the
+  catalogue, but blocked on the same plaintext-password gap identified in
+  apps-gaps/matrix-synapse.yaml until the platform gains a plaintext
+  credential channel distinct from `generated_from`.
