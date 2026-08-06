@@ -1,0 +1,107 @@
+slug: mindsdb
+name: MindsDB
+source_description: "MindsDB is an AI platform for building machine learning models from enterprise data"
+
+upstream:
+  url: https://mindsdb.github.io/engine/
+  repo_url: https://github.com/mindsdb/mindsdb
+  license: MIT (core engine); some enterprise/ML handlers ship under separate license terms in-repo
+  docker_image: mindsdb/mindsdb
+
+version_health:
+  latest_version: "v26.1.0"
+  latest_release_date: "2026-04-23"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    MindsDB uses CalVer (v26.x = 2026). Release history was near-monthly
+    through early 2026 (v25.14.0 on 2026-01-19, v26.0.0 on 2026-02-25,
+    v26.0.1 on 2026-03-03, v26.1.0 on 2026-04-23) then stopped — no tag
+    since, ~3.5 months as of today (2026-08-05). This gap coincides with a
+    company-wide product pivot: MindsDB Inc. rebranded its flagship product
+    to "MindsHub" (workspace UI "Cowork") in 2026, repositioning the
+    original SQL/federated-ML query engine — the product this candidate and
+    Hostinger's description refer to — as one absorbed component of the new
+    platform rather than the primary offering. The mindsdb/mindsdb GitHub
+    repo's main branch and README have already been rewritten to describe
+    the unrelated MindsHub Cowork superproject (FastAPI backend, SQLite,
+    ports 26866/3000, ANTHROPIC_API_KEY-driven agent orchestration) — a
+    completely different architecture from the classic engine. The classic
+    engine's docs (docs.mindsdb.com) now 301-redirect to
+    mindsdb.github.io/engine/, and its source lives in a separately
+    repositioned repo (mindsdb/engine, last updated 2026-06-12, itself
+    re-described as a "Semantic Query Engine for AI Agents" rather than the
+    original in-database ML pitch). The Docker Hub image mindsdb/mindsdb has
+    had no tag newer than v26.1.0 pushed. Company messaging (mindshub.ai)
+    says the query engine "continues as part of the MindsHub platform" and
+    existing workloads don't need to move, but there is no evidence of
+    continued standalone releases of the classic engine as its own product
+    — treat this as maintenance-only, riding on a company that has visibly
+    moved its investment elsewhere.
+
+    Name ambiguity: "MindsDB" is ambiguous as of 2026. This analysis targets
+    the classic SQL/ML query engine (docker image mindsdb/mindsdb, ports
+    47334/47335) because that's what Hostinger's description ("building
+    machine learning models from enterprise data") matches. The company's
+    current flagship product is a different, unrelated app: MindsHub Cowork
+    (github.com/mindsdb/mindshub), an agent-workspace tool with its own
+    docker-compose (FastAPI api + web frontend, SQLite storage, no
+    federated-query engine at all). Do not conflate the two if this gap is
+    revisited later — a future candidate for "MindsHub"/"Cowork" would need
+    its own separate analysis.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does federated SQL-style
+    querying and in-database ML model training over a customer's existing
+    data sources. open-webui/ollama are LLM chat front-ends, hermes-agent
+    and openclaw are automation/agent tools, paperless-ai is document
+    intelligence for a single app — none let a customer point SQL-style
+    queries at their existing MySQL/Postgres/Mongo/etc. and train predictive
+    models against it. MindsDB's web editor (port 47334) is a single
+    reverse-proxy-friendly HTTP port; the MySQL-protocol port (47335) is
+    optional extra surface a recipe would not need to expose for the web-UI
+    use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated capability for a data/analytics-minded
+    customer, but it's a fairly technical, SQL-fluent audience compared to
+    most of the catalogue, and the product itself is in a state of visible
+    strategic drift (see version_health) which undercuts confidence in
+    long-term support for exactly the classic-engine use case this analysis
+    covers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik_basic_auth_gate
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  The classic MindsDB engine (mindsdb/mindsdb:v26.1.0) is MIT-licensed,
+  ships an official single-container Docker image, needs no external API
+  key to boot (embedding/agent features that need OpenAI/Anthropic/etc.
+  keys are opt-in, post-boot, per-integration, not first-boot requirements),
+  and its optional built-in login (MINDSDB_USERNAME/MINDSDB_PASSWORD)
+  compares the password as plaintext — it cannot accept a generated_from
+  hash, so the right fit is to leave that built-in auth disabled and gate
+  the whole app behind Traefik basic_auth (root-password-derived, per
+  IF-1312), the same "no login of its own" pattern used for other
+  no-native-auth recipes. That makes it mechanically installable today. The
+  caveat is version_health: the company has pivoted its flagship product to
+  MindsHub Cowork, an unrelated tool that has taken over the mindsdb/mindsdb
+  GitHub repo's main branch and README, leaving the classic engine's
+  Docker image stale since 2026-04-23 (~3.5 months) with no clear signal of
+  continued independent releases. Recommend build_with_caveats: flag this
+  version-health risk to a human reviewer before committing build time, and
+  re-check upstream in a few months to see whether the classic engine gets
+  a fresh release or is quietly wound down.
