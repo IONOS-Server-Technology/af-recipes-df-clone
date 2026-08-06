@@ -1,0 +1,105 @@
+slug: shynet
+name: Shynet
+source_description: "Privacy-first web analytics without cookies or fingerprinting"
+
+upstream:
+  url: https://shynet.dev
+  repo_url: https://github.com/milesmcc/shynet
+  license: Apache-2.0
+  docker_image: milesmcc/shynet:latest
+
+version_health:
+  latest_version: "v0.14.0"
+  latest_release_date: "2026-03-15"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v0.14.0 (2026-03-15) is the latest tag, ~4.7 months before today
+    (2026-08-05) — two same-day security fixes (an ALLOWED_HOSTS
+    wildcard-default password-reset issue and a stored XSS in the
+    urldisplay/iconify template filters). The prior tag, v0.13.1, shipped
+    2023-07-28, so v0.14.0 followed a ~2.6-year gap with no tagged release
+    at all. Commit history matches: after v0.14.0's two commits on
+    2026-03-15, the most recent commits before that are 2024-12-19 and
+    2024-06-05 — i.e. long, multi-month-to-multi-year silences broken by
+    short bursts, not steady cadence. Repo is not archived (`archived:
+    false` via GitHub API) and has 63 open issues, so it isn't formally
+    EOL, but the pattern reads as an occasionally-revived single-maintainer
+    project rather than one under active development — "sporadic" fits
+    better than "active" or even "slowing".
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers website
+    analytics/traffic tracking. Shynet is a cookie-free, no-JS-required
+    alternative to Google Analytics in the same space as Plausible,
+    Matomo, Ackee, and GoatCounter (all currently `apps-gaps`
+    candidates, none yet built) — a real, recognizable category, just one
+    we'd be picking a specific implementation within rather than
+    introducing.
+  usefulness: medium
+  usefulness_rationale: >
+    Privacy-first analytics has a genuine recurring audience, but Shynet
+    specifically is the weakest-maintained option among the analytics
+    candidates already surfaced (Plausible and Ackee both show more
+    recent/active upstream work); a customer comparing options would
+    likely be steered toward one of those instead once they're built.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DJANGO_SECRET_KEY, ADMIN_ACCOUNT]
+  secrets_expressible_today:
+    - secret: DJANGO_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Shynet has no environment variable for setting an admin
+      username/password at first boot. The only way to create the first
+      account is `./manage.py registeradmin <email>`
+      (shynet/core/management/commands/registeradmin.py), a one-off
+      management command that must be run via `docker exec` (or
+      `docker run`) against the running container, after which it
+      generates a random 10-character password
+      (`get_random_string(10)`) and prints it to stdout/console —
+      it is never customer-supplied, never hash-verified, and there is no
+      channel in the current `/compose` flow to run an interactive
+      post-boot exec step or surface console output back to the customer.
+      `generated_from: "<algo>:ROOT_PASSWORD"` doesn't apply — this isn't
+      a hash-verified field, it's a command whose entire output is a
+      random secret with no input side at all.
+    - >
+      Gating the app behind Traefik `basic_auth` instead (root
+      password) doesn't fully solve it either: with no admin account
+      ever created, a customer who gets past the gate lands on Shynet's
+      own login screen with nothing to log in with. Public self-signup
+      (`ACCOUNT_SIGNUPS_ENABLED=true`) would let a customer create *a*
+      account, but by default only superusers can create tracked
+      "services" (sites to monitor) per the `ONLY_SUPERUSERS_CREATE`
+      setting, and self-signup does not grant superuser — so even that
+      path leaves the customer with an account that can log in but can't
+      do the one thing the app is for, short of a second manual
+      exec/DB step to promote the user.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Shynet is a reverse-proxy-friendly, single-HTTP-port (8080) Django +
+  Postgres app with no direct overlap in the current catalogue —
+  cookie-free web analytics is a real category we don't cover yet. It
+  fails installability today for a harder reason than a missing
+  `generated_from` mapping: there is no environment-variable or
+  hash-verified credential field at all for the admin account. The only
+  bootstrap path is an interactive `manage.py registeradmin` exec that
+  prints a random password to console output, which the current
+  `/compose`-only mechanism has no way to run or surface, and public
+  self-signup doesn't grant the superuser role needed to add tracked
+  sites. Combined with a sporadic release history (a ~2.6-year gap
+  between v0.13.1 and v0.14.0) and stronger-maintained alternatives
+  already in `apps-gaps` (Plausible, Ackee), this is a `not_recommended`
+  rather than a `blocked_on_platform` — even if a future admin-bootstrap
+  mechanism existed, Shynet specifically isn't the analytics app worth
+  spending it on.
