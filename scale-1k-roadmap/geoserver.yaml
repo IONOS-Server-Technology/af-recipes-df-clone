@@ -1,0 +1,83 @@
+slug: geoserver
+name: GeoServer
+source_description: "Open-source geospatial server publishing maps and spatial data via OGC standards"
+
+upstream:
+  url: https://geoserver.org/
+  repo_url: https://github.com/geoserver/geoserver
+  license: GPL-2.0
+  docker_image: kartoza/geoserver
+
+version_health:
+  latest_version: "3.0.0"
+  latest_release_date: "2026-06-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    GeoServer core is clearly active: 3.0.0 shipped 2026-06-11 (~2 months
+    before today, 2026-08-05), preceded by 2.28.4 (2026-05-27), a 3.0-RC
+    (2026-04-20), 2.27.5 (2026-02-18), 2.28.2 (2026-03-04), 2.27.4
+    (2025-12-19), 2.28.1 (2025-11-25), and 2.27.3/2.28.0 (2025-10). The
+    project maintains multiple parallel support branches (2.27.x, 2.28.x,
+    now 3.0.x) with patch releases every 1-2 months — a healthy,
+    well-governed OSGeo project, not a one-person effort. The community
+    Docker image (kartoza/docker-geoserver, published as kartoza/geoserver)
+    tracks upstream closely: it already has a 3.0.0 build
+    (3.0.0--v2026.07.12, ~25 days before today) and a prior 2.28.4 build
+    (~2 months before today), so unlike some community images it isn't
+    lagging behind core.
+
+catalogue_fit:
+  categories: [gis, mapping, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers geospatial/GIS serving.
+    GeoServer publishes maps and spatial datasets (vector + raster) via
+    OGC standards (WMS/WFS/WCS/WMTS) with a web admin console for managing
+    layers, workspaces, and stores — a genuinely new category versus the
+    productivity/monitoring/automation/media apps already in the
+    catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    GIS/mapping is a real, broader-than-niche self-hosting use case (small
+    businesses, local government, hobbyist mappers, developers building
+    location-based apps) compared to e.g. bioinformatics workflow
+    platforms, but it's still a specialized audience relative to
+    general-purpose apps like Vaultwarden or n8n. Worth carrying as a
+    differentiator once the credential handling below is resolved, not a
+    must-have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The kartoza/geoserver image sets the initial admin account via
+      GEOSERVER_ADMIN_USER / GEOSERVER_ADMIN_PASSWORD, both consumed as
+      plaintext at container startup (used to call GeoServer's own REST
+      API to set the account, not stored pre-hashed). generated_from only
+      ever projects a hash, never plaintext, so this parameter has no
+      expressible input channel today — it is a genuine plaintext
+      requirement, not just an unsupported hash algorithm.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  GeoServer (via the community-maintained but closely-tracking
+  kartoza/geoserver image) runs as a single container on port 8080 with no
+  mandatory external database — PostGIS is optional and only needed for
+  advanced vector backends, so it fits the single-VM, Traefik-fronted
+  recipe pattern cleanly. It cannot use generated_from for its own admin
+  login because GEOSERVER_ADMIN_PASSWORD is consumed as plaintext, not a
+  hash, so the recipe should instead leave the image's admin credentials
+  at a recipe-fixed (non-customer-facing) value and gate the whole app
+  behind Traefik basic_auth with the root-password hash projected there —
+  the same pattern used for Galaxy/Adminer/n8n. That makes it mechanically
+  installable today; it's a genuinely new category for the catalogue with
+  a real but specialized audience, so worth building but not high
+  priority.
