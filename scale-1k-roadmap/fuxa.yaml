@@ -1,0 +1,79 @@
+slug: fuxa
+name: FUXA
+source_description: "Open-source web-based SCADA/HMI for industrial process visualization"
+
+upstream:
+  url: https://frangoteam.github.io/FUXA/
+  repo_url: https://github.com/frangoteam/FUXA
+  license: MIT
+  docker_image: frangoteam/fuxa
+
+version_health:
+  latest_version: "1.3.3"
+  latest_release_date: "2026-06-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Consistent monthly-ish release cadence over the past year: v1.2.6
+    (2025-07-02), v1.2.7 (2025-10-02), v1.2.8 (2025-12-18), v1.2.9
+    (2026-01-04), v1.2.10 (2026-01-25), v1.2.11 (2026-02-08), v1.3.0
+    (2026-03-05), v1.3.1 (2026-04-09), v1.3.2 (2026-05-19), v1.3.3
+    (2026-06-21). ~45 days since the last tagged release as of 2026-08-05,
+    and the repo's default branch was pushed to on 2026-08-05 itself (same
+    day as this analysis), so active development continues between
+    releases too. Repo is not archived, has 385 open issues being actively
+    triaged, and the June 2026 release includes both new features (AR mode,
+    new device drivers) and security hardening (JWT lifecycle, Socket.IO
+    admin operations).
+
+catalogue_fit:
+  categories: [automation, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    FUXA is a SCADA/HMI (industrial process visualization) tool — it builds
+    dashboards that poll industrial protocols (Modbus, OPC-UA, Siemens S7,
+    BACnet, MQTT, EtherNet/IP) and visualize/historize the data. The closest
+    existing recipe by shape is home-assistant, but that targets consumer
+    smart-home integrations, not industrial fieldbus/PLC protocols. No
+    recipe in the current 24 covers industrial automation/SCADA, so this
+    would open a genuinely new, more technical customer segment (small
+    manufacturers, integrators, hobbyist industrial-IoT users) rather than
+    duplicating anything shipping today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche with no overlap, and the single-container/embedded-
+    SQLite deployment model is simple to host. Audience is narrower and more
+    specialized (industrial/OT users) than the general productivity,
+    security, and AI tools that dominate the catalogue, and most customers
+    provisioning a generic cloud VM won't have Modbus/OPC-UA/S7 field
+    devices to connect it to in the first place.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  FUXA is a single-container, actively maintained (monthly releases, not
+  archived, commits as recent as today) SCADA/HMI web app with an embedded
+  SQLite/file-backed data store, no external database dependency, and a
+  single HTTP+WebSocket port (1881) that is reverse-proxy compatible.
+  Its official Docker image ships a fixed, hardcoded default login
+  (admin/123456) with no environment variable to set or override it at
+  boot — the password can only be changed manually after logging in with
+  the default credential. Per the platform's schema guidance, a fixed
+  default credential the customer would otherwise hit unprotected on first
+  boot is not a hard blocker: gating the whole app behind a Traefik
+  basic_auth credential (projected from a hash of the customer's root
+  password) closes the real exposure window before the customer logs in
+  and changes the in-app default. This makes FUXA installable today and a
+  reasonable build candidate, filling a genuinely new industrial-automation
+  niche, albeit for a narrower, more technical audience than most of the
+  current catalogue.
