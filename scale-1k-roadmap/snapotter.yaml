@@ -1,0 +1,77 @@
+slug: snapotter
+name: SnapOtter
+source_description: "Self-hosted image processing suite with 55+ tools and local AI"
+
+upstream:
+  url: https://snapotter.com/
+  repo_url: https://github.com/snapotter-hq/SnapOtter
+  license: "AGPL-3.0-or-later, dual-licensed with a commercial license for non-AGPL use"
+  docker_image: snapotter/snapotter
+
+version_health:
+  latest_version: v2.2.0
+  latest_release_date: 2026-07-29
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v2.2.0 shipped 2026-07-29, one week before today
+    (2026-08-05). Release history shows a fast, regular cadence over the
+    preceding months: v2.1.0 (2026-07-10), v2.0.0 (2026-07-07, a major
+    scope expansion from an image-only tool to a 200+ tool suite across
+    image/video/audio/PDF/files), v1.17.2 (2026-06-08), v1.17.1
+    (2026-05-18), v1.17.0 (2026-05-16, added SSO and an image editor),
+    down through v1.15.9 (2026-04-24). That is roughly a release every
+    1-3 weeks with substantive feature work in each, plus active CI/CD.
+    Repo has ~2.2k stars and 2,167+ commits on main. No archival notice,
+    no EOL signal; this reads as an early-stage but genuinely
+    actively-developed project.
+
+catalogue_fit:
+  categories: [productivity, media, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a general-purpose
+    file-conversion/compression/editing toolkit. Immich is AI-powered
+    photo *management* (backup, search, albums, sharing of a growing
+    library) rather than one-off transform tooling; Paperless-ngx is
+    document *archival* with OCR as a side effect of indexing, not an
+    interactive OCR/convert/compress tool. SnapOtter's pitch — resize,
+    convert, compress, watermark, background-removal, upscaling,
+    OCR, plus equivalent video/audio/PDF/file tools, all via a browser
+    UI or REST API, with local AI models replacing CloudConvert/TinyPNG/
+    Smallpdf/Otter.ai style SaaS tools — has no equivalent today.
+  usefulness: high
+  usefulness_rationale: >
+    Ad-hoc file conversion/compression/OCR is a near-universal need and
+    "keep my files off third-party SaaS while doing it" is a strong,
+    concrete self-hosting pitch distinct from what any existing recipe
+    covers. Local-AI features (background removal, upscaling, OCR) work
+    on CPU with optional GPU acceleration, so it doesn't require
+    specialized hardware to be useful out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SnapOtter is an actively-developed, self-hosted file-processing suite
+  (image/video/audio/PDF/file conversion, compression, OCR, and local-AI
+  editing) shipped as an official multi-arch Docker image
+  (snapotter/snapotter) alongside Postgres 17 and Redis 8, exposing a
+  single HTTP port (1349) that fits cleanly behind Traefik. It ships a
+  fixed default admin/admin login that the app forces the user to change
+  on first web login rather than accepting any customer-supplied value at
+  boot, so per the current mechanism the right move is a Traefik
+  basic_auth gate in front of it rather than generated_from projection —
+  fully expressible today, no blocking issue. Combined with a real
+  differentiation gap in the catalogue (no existing recipe does general
+  file conversion/compression/OCR) and a fast, healthy release cadence,
+  this is a strong build_now candidate.
