@@ -1,0 +1,72 @@
+slug: openttd
+name: OpenTTD
+source_description: Open-source multiplayer game server for the classic Transport Tycoon Deluxe
+
+upstream:
+  url: https://www.openttd.org/
+  repo_url: https://github.com/OpenTTD/OpenTTD
+  license: GPL-2.0
+  docker_image: redditopenttd/openttd:15.3
+  # No official image published by the OpenTTD project itself. redditopenttd/openttd
+  # is the most widely used community image (100k+ pulls, tracks stable/testing releases
+  # 1:1 with upstream tags). Alternatives considered: jaknu/openttd, ghcr.io/ropenttd/openttd,
+  # andreashauschild/openttd-server — all smaller/less-maintained community forks of the same idea.
+
+version_health:
+  latest_version: "15.3"
+  latest_release_date: "2026-04-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Stable 15.3 released 2026-04-04 (~4 months before today, 2026-08-05).
+    Development is clearly active: 15.0 shipped 2026-01-01, and the next major
+    line is already in beta (16.0-beta1 2026-06-25, 16.0-beta2 2026-07-12).
+    Project has 20+ years of continuous history and an active core team.
+
+catalogue_fit:
+  categories: [gaming]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches game-server hosting;
+    this would open a new "gaming" category. Customer value is real (self-hosting
+    a multiplayer Transport Tycoon server for friends/community is a common
+    ask), but it's a different shape of product than our productivity/dev-tool
+    recipes: no HTTP surface, no admin web UI, connects via a native game client.
+  usefulness: low
+  usefulness_rationale: >
+    Legitimate niche demand, but the app speaks a raw custom TCP/UDP protocol
+    (game port 3979 TCP+UDP, admin/rcon over the same channel) with no HTTP
+    component at all — it can't sit behind Traefik like the rest of the
+    catalogue, and per CLAUDE.md a raw port needs NodePort/LoadBalancer-level
+    exposure rather than a domain-based reverse-proxy route.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [RCON_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No HTTP/web UI at all — the game client and rcon admin console both speak OpenTTD's
+       native TCP/UDP protocol on port 3979, so there is no surface for Traefik to front and
+       no basic_auth gate is possible."
+    - "rcon (admin console) access is gated by rcon_pw, a config value the server compares
+       against the plaintext password the client sends over the game protocol — it is not a
+       hashed login. generated_from only ever projects a hash (argon2/bcrypt) of the customer's
+       root password, so it cannot supply what this parameter actually needs. This is a genuine
+       plaintext requirement, not just an unsupported hash algorithm, so it is a structural
+       blocker rather than something IF-1420 could later extend to cover."
+    - "Even the optional in-game server_password (gates joining the game itself) has the same
+       plaintext-comparison requirement, so it has no expressible mechanism either."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  OpenTTD is an active, well-maintained open-source project (latest stable 15.3,
+  next major line already in beta) with genuine customer demand for self-hosted
+  multiplayer game servers, but it doesn't fit the AF recipe mechanism as it
+  exists today: it has no HTTP surface for Traefik, and both its admin (rcon)
+  and optional join password are plaintext comparisons that generated_from's
+  hash-only projection cannot supply. Not recommended for now — would need a
+  first-class plaintext-secret input channel (not just a new hash algorithm)
+  plus raw TCP/UDP exposure support before revisiting.
