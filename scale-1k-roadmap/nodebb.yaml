@@ -50,23 +50,24 @@ catalogue_fit:
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot:
-    - NODEBB_ADMIN_USERNAME
-    - NODEBB_ADMIN_PASSWORD
-    - NODEBB_ADMIN_EMAIL
-    - NODEBB_DB_PASSWORD (Mongo/Postgres backend password)
+    - admin__username
+    - admin__password
+    - admin__email
+    - postgres__password (or mongo__password, depending on DB backend)
   secrets_expressible_today:
-    - secret: NODEBB_DB_PASSWORD (Mongo/Postgres backend password)
+    - secret: postgres__password (or mongo__password, depending on DB backend)
       mechanism: server_generated_no_customer_input
   blocking_issues:
     - >
-      NodeBB's own setup path (`src/install.js`, `createAdmin()`) takes
-      NODEBB_ADMIN_USERNAME/NODEBB_ADMIN_PASSWORD/NODEBB_ADMIN_EMAIL (or an
-      equivalent `admin:*` setup-JSON block) as plaintext and calls
+      NodeBB's own setup path (`src/cli/setup.js`, `createAdmin()` in
+      `src/install.js`) takes the double-underscore-nested env vars
+      admin__username/admin__password/admin__email (or an equivalent
+      `admin:*` setup-JSON block) as plaintext and calls
       `User.create({ password: ... })`, which bcrypt-hashes it internally.
       There is no supported path to hand NodeBB a pre-computed hash — this
       is a genuine plaintext-password requirement, the same structural
       blocker documented for Flarum, so `generated_from` (which only ever
-      carries a hash) cannot express it. If NODEBB_ADMIN_PASSWORD is omitted
+      carries a hash) cannot express it. If admin__password is omitted
       entirely, NodeBB will auto-generate a random 8-character password and
       print it once to container logs — not a usable customer-facing flow.
     - >
