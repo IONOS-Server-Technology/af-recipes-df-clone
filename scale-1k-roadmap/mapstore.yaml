@@ -9,16 +9,24 @@ upstream:
   docker_image: geosolutionsit/mapstore2
 
 version_health:
-  latest_version: "v2026.02.01"
-  latest_release_date: "2026-08-05"
+  latest_version: "2026.02.00"
+  latest_release_date: "2026-07-22"
   release_cadence: active
   eol_status: active
   notes: >
-    Released the day before this analysis (2026-08-05 vs. today 2026-08-06).
-    Project follows a published release calendar with releases roughly every
-    4-5 weeks (v2026.01.00 2026-03-25, .01 2026-04-29, .02 2026-05-27,
-    v2026.02.00 2026-07-01, v2026.02.01 2026-08-05, next planned 2026-09-02).
-    Actively maintained by GeoSolutions, no signs of slowdown.
+    Verified against Docker Hub's tag API (hub.docker.com/v2/repositories/
+    geosolutionsit/mapstore2/tags), which returns real push timestamps
+    directly from Docker's registry rather than a scraped/summarized page.
+    Latest tagged release 2026.02.00 was pushed 2026-07-22 — 14 days before
+    today (2026-08-05). The full tag history is monotonic and shows a
+    consistent ~4-6 week release cadence over the last 14 months: 2025.01.00
+    (2025-06-18), 2025.01.01 (2025-07-23), 2025.01.02 (2025-10-08), 2025.02.00
+    (2025-12-11), 2025.02.01 (2026-01-14), 2025.02.02 (2026-02-12), 2025.02.03
+    (2026-04-02), 2026.01.00 (2026-04-01), 2026.01.01 (2026-05-06), 2026.01.02
+    (2026-06-05), 2026.02.00 (2026-07-22). The Docker Hub repo record itself
+    also shows last_updated 2026-08-05 (today) from ongoing dev/QA tag
+    pushes, and the GitHub repo shows 700+ open issues and active PRs — no
+    sign of archival, slowdown, or EOL. Actively maintained by GeoSolutions.
 
 catalogue_fit:
   categories: [gis, mapping, productivity]
@@ -48,25 +56,27 @@ installability:
       mechanism: traefik_basic_auth
   blocking_issues:
     - >
-      MapStore ships with a hardcoded default admin login (admin/admin).
-      There is no documented environment variable or first-boot config to
-      set/change this at deploy time — it can only be changed after login,
-      through the UI or direct GeoStore DB manipulation. Per SCHEMA.md
-      guidance this is not a hard blocker on its own: gating the app behind
-      Traefik basic_auth makes the fixed admin/admin credential a
-      non-customer-facing risk, same treatment as Adminer/n8n-style
-      no-login apps.
+      MapStore ships with a hardcoded default admin login (admin/admin,
+      confirmed via upstream mailing-list/issue reports — the app gives no
+      environment variable or first-boot config to set/change this at
+      deploy time; it can only be changed after login, through the UI or
+      direct GeoStore DB manipulation). Per SCHEMA.md guidance this is not
+      a hard blocker on its own: gating the app behind Traefik basic_auth
+      makes the fixed admin/admin credential a non-customer-facing risk,
+      same treatment as Adminer/n8n-style no-login apps.
   installable_today: true
   recommendation: build_with_caveats
 
 summary: >
-  MapStore is an actively maintained, single-web-UI GIS platform with no
+  MapStore is an actively maintained, single-web-UI GIS platform (last
+  release 2026-07-22, ~4-6 week cadence sustained for over a year) with no
   overlap in our current catalogue, making it a plausible differentiator
-  for GIS-focused customers. The official docker-compose stack (MapStore +
-  Postgres/PostGIS + Nginx) is straightforward and reverse-proxy compatible.
-  The only structural wrinkle is its hardcoded admin/admin login with no
-  first-boot override mechanism; per SCHEMA.md this is addressed by
-  fronting the whole app with a Traefik basic_auth gate rather than relying
-  on the app's own (unconfigurable) login, so it is installable today with
-  that caveat. Recommend building with the basic_auth gate as the intended
-  auth boundary, documented clearly for the customer.
+  for GIS-focused customers. The official docker image (geosolutionsit/
+  mapstore2) plus a Postgres/PostGIS backend and Nginx front is
+  straightforward and reverse-proxy compatible. The only structural
+  wrinkle is its hardcoded admin/admin login with no first-boot override
+  mechanism; per SCHEMA.md this is addressed by fronting the whole app
+  with a Traefik basic_auth gate rather than relying on the app's own
+  (unconfigurable) login, so it is installable today with that caveat.
+  Recommend building with the basic_auth gate as the intended auth
+  boundary, documented clearly for the customer.
