@@ -1,0 +1,62 @@
+slug: opnform
+name: OpnForm
+source_description: "Open-source form builder with conditional logic, embeds, and response management"
+
+upstream:
+  url: https://opnform.com
+  repo_url: https://github.com/OpnForm/OpnForm
+  license: AGPL-3.0 (core), proprietary add-ons for Enterprise features (open-core model)
+  docker_image: jhumanj/opnform-api
+
+version_health:
+  latest_version: "2.2.4"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v2.2.4 was 8 days before today (2026-08-05). Releases are
+    frequent (v2.0.0 on 2026-06-08, v2.0.1 on 2026-06-12, v2.0.2 on
+    2026-06-25, v2.1.0 on 2026-06-30, v2.2.0/2.2.1/2.2.2 on 2026-07-14,
+    v2.2.3/2.2.4 on 2026-07-28) — roughly weekly cadence over the last two
+    months, clearly active development, not maintenance-only.
+
+catalogue_fit:
+  categories: [productivity, forms, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers form-building/data-collection. n8n covers
+    workflow automation but has no purpose-built form UI, conditional
+    logic, or response management. OpnForm would be a genuinely new
+    category (Typeform/Google Forms alternative) for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, distinct use case (forms, surveys, lead capture) with no
+    overlap, but it ships as a 7-container stack (api, api-worker,
+    api-scheduler, ui, redis, postgres, nginx ingress) — heavier
+    operational footprint than most single-container recipes, and the
+    free self-hosted tier caps at 2 total users (Enterprise license
+    needed for more), which limits appeal for teams.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OpnForm is an active, well-maintained AGPL-3.0 open-core form builder with
+  no overlap in our current 24-recipe catalogue. Admin account creation
+  happens through an interactive first-visit setup wizard (customer sets
+  their own email/password directly in OpnForm's own UI), the same pattern
+  already used by n8n's recipe, so it needs no `generated_from` projection
+  or Traefik `basic_auth` gate — installable today with just a domain.
+  Caveats: it's a 7-container stack (Postgres + Redis + 3 Laravel/Nuxt
+  processes + nginx ingress), needs `TRUSTED_PROXIES` configured correctly
+  behind Traefik, and the free self-hosted tier is capped at 2 users, which
+  may disappoint customers expecting team use. Recommend build_with_caveats:
+  worth building, but scope customer expectations around the user cap and
+  budget for the heavier multi-service compose file.
