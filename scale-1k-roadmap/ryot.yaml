@@ -1,0 +1,82 @@
+slug: ryot
+name: Ryot
+source_description: "Self-hosted tracker for media, fitness, books, and daily habits"
+
+upstream:
+  url: https://ryot.io
+  repo_url: https://github.com/IgnisDa/ryot
+  license: GPL-3.0
+  docker_image: ignisda/ryot
+
+version_health:
+  latest_version: "v10.4.2"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Very active single-maintainer project (IgnisDa). Latest release v10.4.2 was
+    tagged 2026-07-23, two weeks before today (2026-08-06), and v10.3.x shipped
+    roughly fortnightly through May–July 2026. Docker Hub `ignisda/ryot` carries
+    matching `v10`, `v10.4`, `v10.4.2` tags plus per-commit `develop` builds.
+    Open-core: the community edition is GPL-3.0, while "Ryot Pro" (profile
+    sharing, recommendations, supercharged collections) is a paid licence key —
+    the free edition is fully usable without it. Not to be confused with the
+    unrelated `saketchopra/ryot` fork or the "Ryot" name used by other small
+    projects; the IgnisDa repo is the upstream Hostinger lists.
+
+catalogue_fit:
+  categories: [media, productivity, self-tracking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue tracks personal media
+    consumption or fitness. Immich is the only adjacent media recipe and it
+    stores photos rather than tracking what a user watches, reads, plays or
+    lifts. Ryot is a single-container Rust app plus Postgres serving one HTTP
+    port (8000), so it fronts cleanly on `ryot.<base_domain>` with the existing
+    Traefik setup.
+  usefulness: medium
+  usefulness_rationale: >-
+    A genuinely popular consumer self-hosting app (Goodreads/Trakt/Letterboxd
+    replacement in one) with importers and Jellyfin/Plex/Kodi sync, which is a
+    good fit for the hobbyist end of the VPS market. It is a personal-use app
+    rather than a business tool, so it broadens catalogue appeal without
+    serving the prosumer/infra segment most existing recipes target.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SERVER_ADMIN_ACCESS_TOKEN
+    - POSTGRES_PASSWORD
+    - BASIC_AUTH_CREDENTIAL
+  secrets_expressible_today:
+    - secret: SERVER_ADMIN_ACCESS_TOKEN
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Ryot is mechanically installable today: `ignisda/ryot:v10.4.2` plus
+  `postgres:18-alpine`, one HTTP port (8000), and only two secrets the server
+  can generate itself — `SERVER_ADMIN_ACCESS_TOKEN` (validated non-empty at
+  boot, but never needed by the customer for normal use) and the Postgres
+  password. Ryot has its own login, but registration is controlled solely by
+  the env var `USERS_ALLOW_REGISTRATION` (default true) with no runtime admin
+  toggle, and there is no seeded first admin — so the recipe must either leave
+  signup permanently open on a public URL or put a Traefik `basic_auth` gate
+  in front (IF-1312) and let the customer register behind it; the gate is the
+  right call and is the one first-boot credential needing projection. The main
+  caveat is feature degradation, not a blocker: movies/TV need a customer TMDB
+  or TVDB token and video games need Twitch/IGDB or GiantBomb credentials, and
+  those external API keys have no input channel today, so a shipped recipe
+  would boot with books, anime/manga, audiobooks, podcasts, music, fitness and
+  habits working and the movie/show/game trackers dark until the customer edits
+  the env file by hand. Also note the basic-auth gate breaks the Jellyfin/Plex
+  webhook integrations and the mobile clients, which is an acceptable trade for
+  a first pass but should be documented.
