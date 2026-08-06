@@ -1,0 +1,106 @@
+slug: jellyswarrm
+name: Jellyswarrm
+source_description: "Reverse proxy that merges multiple Jellyfin servers into one unified library"
+
+upstream:
+  url: https://github.com/LLukas22/Jellyswarrm
+  repo_url: https://github.com/LLukas22/Jellyswarrm
+  license: GPL-2.0
+  docker_image: ghcr.io/llukas22/jellyswarrm (pin to a release tag, e.g. v0.3.0 — upstream's own compose example uses :latest)
+
+version_health:
+  latest_version: "v0.3.0"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.3.0 shipped 2026-07-27, about 9 days before today (2026-08-05).
+    Releases have landed roughly every 1-4 months since the project's first
+    tag (v0.1.1 2025-08-24, v0.1.4 2025-10-03, v0.1.5 2025-10-29, v0.2.0
+    2025-12-07, v0.2.1 2026-03-15, v0.3.0 2026-07-27), with the underlying
+    repo pushed to as recently as 2026-08-04 (yesterday). Repo is not
+    archived, has 825 stars and 28 open issues being actively triaged.
+    Project explicitly self-describes as "still in early development" with
+    some features (QuickConnect, WebSocket/SyncPlay, audio streaming,
+    bitrate adaptation, media management) marked in-progress or unreliable
+    in its own README — active but pre-1.0 and unstable in places.
+
+catalogue_fit:
+  categories: [media, video, streaming, utility]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches media-server aggregation.
+    However Jellyswarrm is a companion/multiplier app, not a standalone media
+    server: it has no value unless the customer already runs (or has access
+    to) two or more separate Jellyfin instances elsewhere to merge — and we
+    don't currently offer Jellyfin itself as a recipe either (see
+    apps-gaps/jellyfin.yaml, also blocked). Its addressable audience among
+    AF customers is therefore narrower and more specialized than a
+    general-purpose media server would be.
+  usefulness: low
+  usefulness_rationale: >
+    Real but niche demand (self-hosters running Jellyfin at multiple sites
+    or with friends/family "server federation") — visible in a dedicated
+    awesome-jellyfin listing and community threads. Low priority for our
+    catalogue specifically because it presupposes existing external
+    Jellyfin infrastructure the customer manages themselves, and because the
+    project is explicitly early/unstable on several features (SyncPlay,
+    audio streaming, bitrate adaptation still listed as broken/incomplete
+    by upstream itself).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JELLYSWARRM_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Jellyswarrm's admin login (`JELLYSWARRM_USERNAME`/`JELLYSWARRM_PASSWORD`
+      env vars) is deploy-time configurable, unlike Jellyfin's interactive-
+      wizard-only setup — a structural improvement over that comparable gap.
+      But the credential must be the app's real, usable plaintext login: its
+      Rust backend (`crates/jellyswarrm-proxy/src/ui/auth/mod.rs`) authenticates
+      the admin account with a direct `password == config.password` string
+      comparison against the raw `Password` value loaded straight from the
+      `JELLYSWARRM_PASSWORD` env var (`config.rs`) — there is no
+      hash-verification step anywhere in that path (contrast with
+      Vaultwarden's `ADMIN_TOKEN`, which is verified via bcrypt/argon2 against
+      a stored hash and so accepts a `generated_from`-projected hash as the
+      configured value while the customer still types their real root
+      password). Projecting `generated_from: "<algo>:ROOT_PASSWORD"` into
+      `JELLYSWARRM_PASSWORD` would store a hash string as the literal
+      comparison value, meaning the customer would have to type that hash
+      (not their root password) to log in — unusable, and not what
+      `generated_from` is for.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (customer's root
+      password hash) and setting `JELLYSWARRM_PASSWORD` to a fixed/internal
+      default does not resolve this the way it does for Adminer-style
+      no-login apps: the customer still needs to know and use the
+      Jellyswarrm admin credential themselves afterward to add Jellyfin
+      servers and manage user mappings through the `/ui` admin panel — it is
+      the app's actual working login, not a redundant inner gate. A fixed
+      default here would leave every deployment sharing the same admin
+      credential with no customer-facing way to learn or change it via our
+      pipeline.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Jellyswarrm is a single-container (ghcr.io/llukas22/jellyswarrm), single-port
+  (3000) reverse-proxy aggregator for Jellyfin libraries — structurally
+  simple and Traefik-compatible, and an actively maintained, non-archived
+  project with a release 9 days ago. It fills a real but narrow niche
+  (merging multiple externally-run Jellyfin servers) that doesn't overlap
+  anything in our 24 recipes, though its value is capped by requiring
+  customers to already operate separate Jellyfin infrastructure, and by our
+  catalogue not yet offering Jellyfin itself. It is blocked today because
+  its admin login is a direct plaintext-equality check with no hash
+  verification, so `generated_from` cannot project a usable credential into
+  it, and a Traefik `basic_auth` gate doesn't substitute since the customer
+  still needs a real, individually-known admin credential to operate the
+  app. Recommend revisiting only if upstream adds hash-based admin-password
+  verification, or if the platform gains a plaintext-secret input channel
+  (which per SCHEMA.md is a deliberate architectural exclusion, not just an
+  unbuilt feature).
