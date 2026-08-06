@@ -1,0 +1,93 @@
+slug: orangehrm
+name: OrangeHRM
+source_description: "Open-source HR platform for employee, leave, and recruitment management"
+
+upstream:
+  url: https://www.orangehrm.com/
+  repo_url: https://github.com/orangehrm/orangehrm
+  license: "GPL-3.0 (GPL-2.0-or-later prior to v5.6, converted to GPLv3 in v5.6)"
+  docker_image: orangehrm/orangehrm
+  # OrangeHRM Inc. also sells a commercial "Advanced"/PRO product (per-
+  # employee-per-month SaaS or self-managed) with modules like Performance,
+  # Compensation, Surveys, an AI assistant ("Citra"), REST API access, and
+  # payroll/ADP/QuickBooks connectors. Web search results for "OrangeHRM
+  # 2025/2026 releases" surface that product's announcements (e.g. "8.0",
+  # "Citra AI", "v6.5.11") alongside the open-source repo's own tags —
+  # those are a different codebase/offering, not releases of
+  # github.com/orangehrm/orangehrm. This analysis is scoped to the free
+  # "Starter" open-source edition matching Hostinger's description and the
+  # orangehrm/orangehrm Docker image, verified via the GitHub Releases API
+  # (see version_health) rather than general web search summaries.
+
+version_health:
+  latest_version: "v5.9"
+  latest_release_date: "2026-06-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Verified via `api.github.com/repos/orangehrm/orangehrm/releases`
+    (general web search results for this project were unreliable/
+    inconsistent about dates, so the raw API timestamps were used
+    instead). v5.9 published 2026-06-28T23:46:59Z, ~5.5 weeks before this
+    analysis (2026-08-05). Recent cadence: v5.6 (2024-01-28) -> v5.6.1
+    (2024-03-27, ~2mo) -> v5.7 (2024-07-19, ~4mo) -> v5.8 (2025-11-21, a
+    ~16-month gap) -> v5.8.1 (2026-04-06, ~4.5mo) -> v5.9 (2026-06-28,
+    ~3mo). The one long gap (mid-2024 to late-2025) is real, but the last
+    three releases have landed on a normal 3-5 month rhythm and the repo
+    shows continuous commit activity (7,900+ commits, dozens of open
+    issues/PRs actively triaged), so this reads as active, not slowing or
+    dormant. Docker Hub's orangehrm/orangehrm image tracks releases
+    closely: 5.9/latest pushed the same day as the GitHub tag.
+
+catalogue_fit:
+  categories: [human-resources, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers HR/people-management
+    (employee records, leave/time tracking, recruitment pipeline). The
+    closest adjacent gap is apps-gaps/akaunting.yaml (business accounting),
+    a different function entirely. OrangeHRM would open a genuinely new
+    business-software category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    HR record-keeping (PII: salaries, leave, performance, applicant data)
+    is a strong self-hosting/compliance draw for small-to-mid businesses,
+    and the open-source "Starter" edition includes Employee Info, Leave,
+    Time, and Recruitment modules out of the box, matching Hostinger's
+    description exactly. The free edition is capped mainly by missing
+    premium modules (Performance, Compensation, Surveys, an AI assistant)
+    and by no REST API/payroll-connector access — those are paid-tier
+    upsells, not artificial usage caps like Akaunting's BSL limits — so it
+    remains a fully usable, unrestricted free product for its target
+    audience (guidance suggests under ~50 employees).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OrangeHRM ships as a single web container (orangehrm/orangehrm, PHP/
+  Apache) plus a MariaDB container, matching the paperless-ngx-style
+  multi-container pattern; DB connection details are plain env vars
+  (ORANGEHRM_DATABASE_HOST/USER/PASSWORD/NAME) that install.sh can wire to
+  a server-generated MariaDB root password with zero customer input.
+  There is no admin-account env var: the app's own admin login is created
+  by whoever completes its first-visit browser setup wizard (choose
+  "Fresh Install", accept the license, confirm the pre-filled DB
+  connection, then set an admin username/password) — the same pattern
+  already shipped for Uptime Kuma, which has no basic_auth gate either, so
+  this is a proven-acceptable mechanism, not a new blocker. Pinned Docker
+  tags exist and track releases closely (5.9 pushed same day as the
+  GitHub tag), and the project remains actively released (last tag
+  ~5.5 weeks old) despite one unusually long historical gap in 2024-2025.
+  No blocking issues; recommend building this recipe — it fills a real
+  gap (no HR/people-management app in the catalogue today) with a clean,
+  mechanically installable single-HTTP-port app.
