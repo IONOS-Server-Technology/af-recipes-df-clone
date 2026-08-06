@@ -1,0 +1,94 @@
+slug: lldap
+name: LLDAP
+source_description: "Lightweight authentication server providing a simplified LDAP backend for self-hosted apps"
+
+upstream:
+  url: https://github.com/lldap/lldap
+  repo_url: https://github.com/lldap/lldap
+  license: GPL-3.0
+  docker_image: lldap/lldap
+
+version_health:
+  latest_version: "v0.6.3"
+  latest_release_date: "2026-04-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.6.3 (2026-04-30) is ~3 months old as of today (2026-08-05). Tagged
+    semver releases themselves land infrequently and unevenly (v0.5.0
+    2023-09-14 -> v0.6.0 2024-11-09, ~14 months; v0.6.1 13 days after
+    v0.6.0; v0.6.2 2025-08-17, ~9 months after v0.6.1; v0.6.3 2026-04-30,
+    ~8.5 months after v0.6.2). However the repo itself is clearly active,
+    not just slow-tagging: `pushed_at` is 2026-07-19, commits land weekly
+    (e.g. an OsRng hardening fix and an LDAP-filter panic fix both merged
+    2026-07-19), 121 open issues are being triaged, and Docker Hub
+    continuously publishes date-tagged builds off main well past the last
+    semver tag (2026-07-19, 2026-05-26, 2026-05-25, etc.) — so "latest
+    installable" is effectively newer than the last named release. Not
+    archived, not maintenance-only, no EOL signal.
+
+catalogue_fit:
+  categories: [security, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides a shared identity/user
+    directory. Vaultwarden is a password manager (stores secrets for one
+    user), not an identity provider; adguard-home/pihole/wg-easy are
+    DNS/VPN, a different domain entirely. LLDAP would let a customer stand
+    up one lightweight LDAP directory and point other self-hosted
+    LDAP-capable apps at it (Gitea, Guacamole, and Home Assistant — all
+    already in this catalogue — support LDAP auth, plus Authelia/Authentik/
+    Nextcloud-style setups outside it) instead of managing separate local
+    accounts per app.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, non-duplicated capability (single sign-on-ish user directory),
+    but its value is entirely relational: standing up LLDAP alone gives a
+    customer a web UI to manage users/groups with nothing yet consuming
+    them. It only pays off once the customer also configures a
+    second, LDAP-aware app (in or outside this catalogue) to bind to it —
+    a manual, customer-side integration step in the target app's own admin
+    settings, not something our recipe mechanism needs to drive. Skews
+    toward a technical/power-user audience rather than broad appeal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - LLDAP_LDAP_USER_PASS (admin password — both the LDAP bind password and the web admin-UI login)
+    - LLDAP_JWT_SECRET (JWT signing secret)
+    - LLDAP_KEY_SEED (seed for the server's password-encryption private key)
+  secrets_expressible_today:
+    - secret: LLDAP_LDAP_USER_PASS
+      mechanism: generated_from_root_password
+    - secret: LLDAP_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: LLDAP_KEY_SEED
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  LLDAP is an active (last commit 2026-07-19, weekly-ish cadence though
+  official semver tags land unevenly every 9-14 months; latest tag v0.6.3,
+  GPL-3.0), single-container Rust app with an official Docker image
+  (lldap/lldap) and a single admin-facing HTTP web UI port (17170,
+  Traefik-compatible) plus an LDAP protocol port (3890) that only needs to
+  be reachable by other containers on the same stack, not the public
+  internet — same "internal-only secondary port" pattern already used by
+  adguard-home/pihole. Mechanically it is fully installable today: the one
+  customer-facing secret is a single admin password
+  (LLDAP_LDAP_USER_PASS) that doubles as both the LDAP bind credential and
+  the web-UI login, which maps cleanly onto `generated_from:ROOT_PASSWORD`
+  (the exact Vaultwarden ADMIN_TOKEN pattern); the JWT signing secret and
+  the private-key seed are both patternless values the customer never
+  needs to see or supply. The caveat is entirely about usefulness, not
+  mechanism: LLDAP alone is a directory with no consumer — it only becomes
+  valuable once the customer separately configures another LDAP-aware app
+  (several of which already exist in this catalogue) to authenticate
+  against it, a manual post-install step in that other app's own settings.
+  Recommend build_with_caveats: technically clean to ship, but document the
+  "pair it with an LDAP client app" dependency prominently so customers
+  don't install it expecting standalone functionality.
