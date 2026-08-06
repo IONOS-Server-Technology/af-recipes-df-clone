@@ -1,0 +1,80 @@
+slug: invio
+name: Invio
+source_description: "Minimalist self-hosted invoicing system for freelancers and small teams"
+
+upstream:
+  url: https://github.com/kittendevv/invio
+  repo_url: https://github.com/kittendevv/invio
+  license: Unlicense
+  docker_image: ghcr.io/kittendevv/invio:latest
+
+version_health:
+  latest_version: v2.1.1
+  latest_release_date: 2026-06-08
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v2.1.1 released 2026-06-08, ~2 months before today (2026-08-05).
+    Tag history shows near-weekly to monthly releases from Feb through Jun 2026
+    (v1.13.0 through v2.1.1, including a v2.0.0-beta1), so cadence reads as a
+    young but genuinely active project, not dormant. v2.1.1 itself was a
+    security fix ("SSRF IPv6 guard bypass in remote template installer"),
+    which is a healthy sign of upstream responsiveness.
+
+catalogue_fit:
+  categories: [productivity, business, finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers invoicing/billing for
+    freelancers or small teams. Invio would be a net-new category for the
+    catalogue: a single lightweight container (SvelteKit frontend + backend,
+    SQLite storage) offering client-facing shareable invoice links with no
+    client account required — a real gap versus general-purpose tools like
+    n8n or paperless-ngx.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, common SMB/freelancer use case with no catalogue overlap, but the
+    project is very young (first stable v2.0.0 only in Apr 2026) with a small
+    community (roughly 970 stars at time of writing) and no long track record
+    yet, so durability is unproven.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASS, JWT_SECRET]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      ADMIN_PASS is documented and confirmed (Quick Start wiki, .env.example)
+      as a plaintext admin login password consumed directly by the app at
+      startup/login — not a field that accepts a pre-computed hash the way
+      Vaultwarden's ADMIN_TOKEN does. generated_from can only ever project a
+      hash of the customer's root password, never the plaintext itself, so
+      there is no channel to populate ADMIN_PASS with something the customer
+      actually knows and can type in. This is the "genuine requirement for
+      the plaintext password" case the schema calls a hard blocker, not a
+      generated_from-algorithm gap.
+    - >
+      JWT_SECRET is a server-side signing secret with no customer-facing
+      value — this one is NOT a blocker on its own (server_generated_no_customer_input
+      would cover it), it's listed here only because it's required at boot;
+      the actual blocker is ADMIN_PASS above.
+    - >
+      Traefik basic_auth is not a substitute here: Invio ships its own admin
+      login (the ADMIN_PASS-driven page), so per the schema this mechanism is
+      reserved for apps with no login of their own — stacking a second gate
+      in front of an app whose real credential remains unset doesn't solve
+      the plaintext-password gap.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Invio is a clean, single-purpose invoicing app that would genuinely fill a
+  gap in the catalogue (no billing/invoicing recipe exists today) and is
+  reverse-proxy-friendly as a single container. It is blocked today purely on
+  mechanism: its ADMIN_PASS env var requires the actual plaintext admin
+  password, which our root-password projection (generated_from, hash-only)
+  cannot supply. Revisit once the platform supports projecting a plaintext
+  credential (or if upstream adds hashed-token support for ADMIN_PASS the
+  way Vaultwarden's ADMIN_TOKEN does).
