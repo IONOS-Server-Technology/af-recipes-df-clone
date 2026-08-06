@@ -1,0 +1,108 @@
+slug: headscale
+name: Headscale
+source_description: "Self-hosted Tailscale-compatible control server for WireGuard mesh networking"
+
+upstream:
+  url: https://headscale.net/
+  repo_url: https://github.com/juanfont/headscale
+  license: BSD-3-Clause
+  docker_image: headscale/headscale
+
+version_health:
+  latest_version: "v0.29.3"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.29.3 published 2026-07-29 (confirmed via GitHub releases API), only
+    7 days before today (2026-08-05). Prior tags show a steady, fast
+    cadence: v0.29.2 (2026-07-01), v0.29.1 (2026-06-18), v0.29.0
+    (2026-06-17, preceded by four betas from 2026-05-22 through
+    2026-06-15), v0.28.0 (2026-02-04). Repo is not archived, last push
+    2026-07-30, and is under clearly active development by juanfont/
+    the Tailscale-alternative community.
+
+catalogue_fit:
+  categories: [security, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy]
+  differentiation: >
+    Headscale is a re-implementation of Tailscale's proprietary
+    coordination-server API: customers install the standard Tailscale (or
+    any tailscale-compatible) client on each device and point it at this
+    server to form a mesh VPN, rather than configuring individual
+    site-to-site WireGuard tunnels by hand. wg-easy, already in the
+    catalogue, solves a related but architecturally different problem — a
+    single hub-and-spoke WireGuard server with a web UI for issuing
+    per-client configs/QR codes. Headscale's pitch ("run your own
+    Tailscale") is a distinct, well-known one for technical customers who
+    already use Tailscale clients, but it overlaps enough in
+    "self-hosted VPN mesh" positioning that both would compete for the
+    same buyer intent.
+  usefulness: medium
+  usefulness_rationale: >
+    "Self-hosted Tailscale" is a recognizable, frequently-requested
+    product for technical/homelab and small-business customers, and there
+    is real demand distinct from wg-easy's simpler hub model. However, the
+    lack of any first-party web UI (see below) significantly limits how
+    self-service this can be made for an AF customer without shell access.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_UI_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_UI_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Headscale ships **no first-party web UI** at all — confirmed against
+      upstream docs (headscale.net/stable/ref/integration/web-ui/): "Headscale
+      doesn't provide a built-in web interface but users may pick one from
+      the available options," explicitly listing headscale-ui,
+      HeadscaleUi, Headplane, and headscale-admin as "community
+      contributions... not maintained by the headscale authors." The
+      official image exposes only an HTTP control-plane API (port 8080)
+      managed via the `headscale` CLI (typically `docker exec` into the
+      container) — there is no web login, no admin account, and no way
+      for a customer to create users or issue device-enrollment
+      (pre-auth) keys without shell access to the container. Wrapping the
+      whole domain in Traefik `basic_auth` (as we do for auth-less apps
+      like Adminer) protects the control-plane API from anonymous
+      internet access, but does not give the customer any actual UI to
+      operate the app — the fundamental day-2 workflow (add a device to
+      the mesh) is unreachable through the browser alone.
+    - >
+      Bundling one of the third-party UIs (e.g. Headplane, headscale-admin)
+      to fix the above would introduce its own unsolved credential problem:
+      Headplane authenticates admin sessions via a Headscale-generated API
+      key (treated as full-access, bypassing any role system) or via OIDC.
+      Neither fits our mechanism — an API key is an opaque token, not a
+      password hash field `generated_from` can populate, and OIDC requires
+      third-party app registration, which the schema explicitly rules out
+      as a blocker (no channel for arbitrary external credentials/app
+      registration).
+    - >
+      Practical mesh connectivity also typically requires the embedded
+      DERP relay, which needs a raw UDP STUN port (3478) exposed publicly
+      alongside the HTTPS control port — the same "extra raw port beyond
+      one HTTP port" shape as wg-easy's 51820/udp, so this would not be
+      purely reverse-proxy-compatible even setting the UI problem aside.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Headscale is an active, fast-moving, well-regarded open-source
+  Tailscale-control-server reimplementation with a real "self-hosted
+  Tailscale" pitch distinct from wg-easy, but it is a poor fit for our
+  current recipe mechanism: the official image ships no web UI whatsoever,
+  and the app's actual day-2 operation (enrolling devices, managing users)
+  requires CLI/shell access we cannot expose to an AF customer through a
+  domain + login flow. A Traefik `basic_auth` gate can secure the bare
+  control-plane API but cannot substitute for a missing UI, and the
+  available third-party UIs introduce credential channels (API keys, OIDC)
+  our mechanism has no way to project. Combined with the extra raw UDP
+  port needed for the embedded DERP relay, this is not a good build_now or
+  even build_with_caveats candidate today — it is a product-fit gap (no
+  operable web interface), not primarily a platform-secrets gap, so
+  `not_recommended` rather than `blocked_on_platform`.
