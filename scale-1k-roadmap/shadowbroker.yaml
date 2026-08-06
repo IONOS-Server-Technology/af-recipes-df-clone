@@ -1,0 +1,87 @@
+slug: shadowbroker
+name: Shadowbroker
+source_description: "Real-time OSINT dashboard aggregating 60+ live global intelligence feeds"
+
+upstream:
+  url: https://github.com/BigBodyCobain/Shadowbroker
+  repo_url: https://github.com/BigBodyCobain/Shadowbroker
+  license: AGPL-3.0
+  docker_image: ghcr.io/bigbodycobain/shadowbroker-frontend + ghcr.io/bigbodycobain/shadowbroker-backend
+
+version_health:
+  latest_version: "v0.9.84"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: v0.9.84 shipped 2026-08-05, i.e. one day before this
+    analysis (2026-08-06), and ten releases landed between 2026-03-14
+    (v0.9.5) and 2026-08-05 — roughly one every two weeks. Repo is young
+    (~3k stars, launched late 2025/early 2026) and still pre-1.0, so
+    breaking changes between 0.9.x tags are likely; a recipe would need
+    regular version bumps. GHCR publishes version-pinned tags (0.9.84,
+    0.9.83, ...) alongside :latest, so pinning per RFC-002 is possible.
+    Name is ambiguous: dozens of near-identical GitHub forks exist
+    (dionpapadopoulos, markwjkelly, DarkFunct, shadown, cephurs/
+    ShadowbrokerOSIntel, and an explicitly archived johan-martensson/
+    Shadowbroker-archived), plus the unrelated "Shadow Brokers" leak group
+    and unrelated data-marketplace projects using the name. BigBodyCobain
+    is the upstream all forks point back to and the only one publishing
+    GHCR images, so it is the right pick; the archived fork is NOT the
+    upstream and must not be mistaken for it.
+
+catalogue_fit:
+  categories: [monitoring, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a geospatial/intelligence
+    dashboard. uptime-kuma monitors the customer's own services and
+    home-assistant surfaces their own devices; Shadowbroker visualises
+    external public feeds (ADS-B flights, AIS vessels, satellite TLEs, USGS
+    seismic, GPS-jamming, news/Telegram OSINT) on one MapLibre map. It is a
+    novel "wow-factor" category for the catalogue rather than a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    High curiosity/demo appeal and a genuinely self-host-shaped app (the
+    reason to run it on your own VPS is that no analytics or query history
+    leaves your box). But it is a hobbyist/enthusiast tool, not business
+    software, its most valuable layers (global flight coverage, all vessel
+    tracking) are dark without customer-supplied API keys we cannot pass
+    today, and upstream states the project is for "educational and personal
+    research purposes" with per-feed provider ToS governing data use.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Shadowbroker is a two-container stack (Next.js frontend on 3000, FastAPI
+  backend on 8000) with official version-pinned GHCR images, a healthcheck
+  endpoint at /api/health, and a single volume; only the frontend needs to be
+  public, with the backend reached in-cluster at http://backend:8000, so it
+  fronts cleanly on Traefik at shadowbroker.<base_domain>. It has no accounts
+  or login of any kind, so a Traefik basic_auth:true gate is mandatory rather
+  than optional — that gate credential is the one secret needed and it is
+  expressible today via root-password projection (IF-1312/IF-1420). It boots
+  and renders useful keyless layers (USGS seismic, satellite TLEs, news,
+  Telegram OSINT, partial ADS-B) with an empty env, so no API key blocks
+  install; but OPENSKY_CLIENT_ID/SECRET (flagged critical upstream) and
+  AIS_API_KEY (ships layer empty without it) have no customer input channel,
+  so customers get a permanently degraded subset of the advertised "60+
+  feeds" — that is the main caveat and an argument for prioritising this
+  behind apps that are fully functional out of the box. Two further caveats
+  for a recipe author: the shipped compose defaults join a Tor-onion peer
+  mesh and a public Meshtastic MQTT broker (MESH_INFONET_FLEET_JOIN=true,
+  MESH_BOOTSTRAP_SEED_PEERS pointing at a .onion, MESH_MQTT_* with baked-in
+  credentials) which should be explicitly disabled in an IONOS recipe, and
+  ADMIN_KEY is empty by default (acceptable only because the basic_auth gate
+  is the real auth boundary). Pre-1.0 with ~fortnightly releases means
+  ongoing version-bump maintenance.
