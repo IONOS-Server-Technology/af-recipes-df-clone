@@ -1,0 +1,108 @@
+slug: plane
+name: Plane
+source_description: "Open-source project management tool for issue tracking and sprints"
+
+upstream:
+  url: https://plane.so/
+  repo_url: https://github.com/makeplane/plane
+  license: AGPL-3.0
+  docker_image: makeplane/plane-frontend
+
+version_health:
+  latest_version: "v1.4.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.4.0 (stable) released 2026-07-31, about 5 days before this analysis
+    (2026-08-05); v1.4.1-rc1/rc2 release candidates followed on 2026-08-04
+    and 2026-08-05 respectively, so upstream is actively cutting new builds
+    right up to today. Prior stable releases: v1.3.1 (2025-05-14), v1.3.0
+    (2025-04-06), v1.2.3 (2025-03-05), v1.2.2 (2025-02-23) — roughly monthly
+    cadence sustained over more than a year. Not archived, not in
+    maintenance-only mode; clearly active, well-funded (backed by Plane
+    the company, YC-funded) open-core project.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers project management / issue
+    tracking / sprint planning. Gitea is the closest existing recipe by
+    audience (developer-tools) but is a git-hosting server whose issue
+    tracker is a secondary feature bolted onto repository management —
+    it has no sprints, cycles, roadmaps, or Kanban/Gantt views. Plane is a
+    dedicated Jira/Linear-style tool: issues, cycles (sprints), modules,
+    pages/docs, and a "God mode" instance-admin panel — a genuinely new
+    category for the catalogue and one with mainstream, everyday-use
+    appeal (every team doing software work needs some form of this).
+  usefulness: high
+  usefulness_rationale: >
+    Project/issue tracking is a category most self-hosting customers
+    actively look for by name (as a Jira/Linear/Asana alternative), and
+    Plane is one of the most complete, actively developed, and widely
+    deployed open-source options in that space (its own blog cites
+    100,000+ Docker and 44,000 Kubernetes self-hosted deploys). High
+    everyday utility, unlike some of the narrower niche apps triaged
+    elsewhere in this pipeline.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [instance_admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Confirmed against the official self-host release artifacts
+      (docker-compose.yml + variables.env published on the v1.4.0 GitHub
+      release, and developers.plane.so/self-hosting docs): there is no
+      admin-username/admin-password environment variable anywhere in the
+      stack. All internal secrets (SECRET_KEY, LIVE_SERVER_SECRET_KEY,
+      POSTGRES_PASSWORD, RABBITMQ_PASSWORD, MinIO root credentials) are
+      inter-service plumbing with sensible defaults, not the customer-facing
+      account. Instead, the first visitor to reach the deployed URL is shown
+      a "Let's secure your instance" screen where they type any email and
+      password of their choosing to become the sole Instance Admin with
+      access to /god-mode. This is the same first-visitor
+      self-registration-race shape already documented in
+      apps-gaps/pinepods.yaml, apps-gaps/airtrail.yaml,
+      apps-gaps/2fauth.yaml, and apps-gaps/activepieces.yaml — there is no
+      `type: password` login parameter on Plane's own account to target
+      with `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential
+      is created client-side via self-registration, not injected via env
+      var or accepted as a pre-hashed value.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would stop
+      a random internet stranger from reaching that signup screen, but per
+      the same precedent it only supplies one root-password-derived
+      credential (for the gate itself) — it cannot also hand the customer a
+      second, distinct credential for the in-app instance-admin signup form,
+      so the race is only pushed one layer deeper (first person through the
+      shared gate becomes Instance Admin instead of first person on the
+      open internet). Compounding this, Plane's default instance setting
+      "Allow anyone to sign up without an invite" is ON out of the box,
+      meaning even after an admin is set, further open self-registration
+      into workspaces continues until someone manually visits /god-mode →
+      Authentication and disables it — a step with no automated hook in our
+      current install flow.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Plane is an active, well-funded, actively-released (stable build 5 days
+  before this analysis, release candidates cut daily) project-management
+  tool that would fill a genuinely new, high-appeal category — nothing in
+  the current 24 recipes covers issue tracking / sprints / Kanban. It is
+  architecturally reverse-proxy-compatible: the official stack ships its
+  own bundled proxy container (makeplane/plane-proxy) fronting five
+  internal services (web, api, space, admin, live) on a single port 80/443,
+  which Traefik can sit in front of exactly like it already does for other
+  multi-service recipes (immich, anytype-server). It is blocked today for
+  the same structural reason as PinePods, AirTrail, 2FAuth, and
+  Activepieces: there is no env var to preset the sole Instance Admin
+  account, only an open first-visitor self-registration screen that neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  hand to the customer exclusively. Revisit if upstream adds an
+  env-var-driven initial-admin flow, or the platform gains a second
+  customer-facing credential channel beyond root-password projection.
