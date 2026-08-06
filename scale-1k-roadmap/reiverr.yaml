@@ -1,0 +1,119 @@
+slug: reiverr
+name: Reiverr
+source_description: "TV-friendly Jellyfin, TMDB, Sonarr, and Radarr discovery and playback frontend"
+
+upstream:
+  url: https://github.com/aleksilassila/reiverr
+  repo_url: https://github.com/aleksilassila/reiverr
+  license: AGPL-3.0
+  docker_image: ghcr.io/aleksilassila/reiverr (pin to a version tag such as v2.2.0 — do not follow upstream README's :latest example)
+
+version_health:
+  latest_version: "v2.2.0"
+  latest_release_date: "2025-02-22"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v2.2.0 shipped 2025-02-22 (marked a pre-release on GitHub, not even a
+    full stable release) and is, as of today 2026-08-05, about 18 months
+    old with no newer tag. `git log` on `master` confirms the same date for
+    the last real commit — the only push activity visible since then is a
+    dependabot dependency-bump branch (2026-02-19), not a merge to master.
+    The repo is not archived and the maintainer is still responsive:
+    in issue #188 ("Status Project", opened 2026-01-13 asking if the
+    project is still supported), the maintainer replied on 2026-02-13
+    saying they "recently started working on the project again" with "a
+    pretty comprehensive and big plan," promising a timeline update "in
+    the next couple of months." As of the most recent comments on that
+    same issue (2026-06-12 and 2026-06-28, both community members asking
+    for a progress update with no maintainer reply), six months have
+    passed since that promise with nothing landed on master. This is a
+    stalled/dormant project with a stated-but-unfulfilled revival intent,
+    not an actively maintained one — treat the "still supported" framing
+    with the same skepticism the maintainer's own community is now
+    expressing.
+
+catalogue_fit:
+  categories: [media, discovery]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a combined
+    discovery+playback frontend for a media-server stack. Conceptually
+    closest is the previously gap-analyzed (not yet built) Jellyseerr,
+    which is request-management-only (no playback) — Reiverr additionally
+    plays media back directly via a Jellyfin plugin and can stream via a
+    Jackett/torrent-stream plugin, so it is not a pure duplicate even
+    against that unshipped candidate. However Reiverr's entire value
+    (TMDB discovery, Jellyfin playback, Sonarr/Radarr library status) is
+    structurally dependent on external services the customer must already
+    run and manually connect after first login — none of Jellyfin, TMDB
+    accounts, Sonarr, Radarr, or Jackett exist as AF recipes today, so like
+    Jellyseerr this is a dependent piece of a larger media-stack pipeline,
+    not a self-contained destination a customer can install and use alone.
+  usefulness: low
+  usefulness_rationale: >
+    Niche within an already-niche self-hosted-media-stack audience (its own
+    README describes it as "still in early stages" even before the
+    18-month development stall), requires the customer to already run and
+    hold admin credentials for at least one other self-hosted service
+    (Jellyfin) not present in our catalogue to get any value from it, and
+    that upstream dependency is itself stalled. Low priority relative to
+    building the media-server pieces (Jellyfin) this app would actually
+    sit on top of.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_account_credential, jwt_signing_secret]
+  secrets_expressible_today:
+    - secret: jwt_signing_secret
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Reiverr's admin account is seeded via the optional `ADMIN_USERNAME`
+      / `ADMIN_PASSWORD` environment variables — a config-seed hook that
+      Jellyfin, for comparison, lacks entirely. However, inspection of the
+      upstream source (backend/src/auth/auth.service.ts,
+      backend/src/users/users.service.ts) confirms the app does not hash
+      passwords at all: `user.password === password` is a plain string
+      comparison, and `users.service.ts` even has a `// TODO: Hash
+      password` comment marking it unimplemented. `ADMIN_PASSWORD` must
+      therefore be supplied as the literal plaintext credential the
+      customer will type to log in. Per SCHEMA.md, `generated_from` only
+      ever carries a hash of the root password, never the plaintext — this
+      is a genuine plaintext-only requirement, which SCHEMA.md calls out
+      explicitly as a structural blocker (distinct from the softer
+      "unsupported hash algorithm" case, which would not block on its
+      own).
+    - >
+      Leaving `ADMIN_USERNAME`/`ADMIN_PASSWORD` unset falls back to
+      "whoever submits any username/password first becomes admin" — the
+      same unauthenticated-race self-registration pattern the existing
+      `jellyfin.yaml` gap analysis already treated as insufficient even
+      when combined with a defensive Traefik `basic_auth` gate, since the
+      customer still ends up hand-picking their own in-app credential
+      rather than the platform projecting one it already controls. Kept
+      consistent with that precedent here rather than treated as a
+      workaround.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Reiverr is a single-container, reverse-proxy-friendly Svelte/NestJS web
+  app (ghcr.io/aleksilassila/reiverr, port 9494) structurally similar to
+  Uptime Kuma/Vaultwarden-style single-container recipes, but it fails
+  installability on the same plaintext-admin-credential problem as
+  Jellyfin — worse, in fact, since its source confirms passwords are
+  stored and compared in cleartext with no hashing at all, so there is no
+  possible `generated_from` projection, hashed or not. Its practical
+  value is also structurally capped: it is a discovery/playback frontend
+  for an existing Jellyfin (plus optionally Sonarr/Radarr/Jackett) stack
+  the customer must already run elsewhere, none of which exist as AF
+  recipes today. On top of both problems, upstream development has been
+  stalled for roughly 18 months (last real commit 2025-02-22) despite a
+  maintainer promise in early 2026 to resume work, which six months of
+  follow-up community comments show has not yet materialized. Recommend
+  `not_recommended` — low standalone value, no catalogue pairing, a
+  genuine plaintext-credential blocker, and a dormant upstream with an
+  unfulfilled revival promise.
