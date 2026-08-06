@@ -1,0 +1,78 @@
+slug: mage-ai
+name: Mage AI
+source_description: Mage AI is a data pipeline tool for building and managing ETL workflows
+
+upstream:
+  url: https://mage.ai
+  repo_url: https://github.com/mage-ai/mage-ai
+  license: Apache-2.0
+  docker_image: mageai/mageai
+
+version_health:
+  latest_version: "0.9.79"
+  latest_release_date: "2026-01-21"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    0.9.79 ("The Pitt") is just over 6.5 months old as of 2026-08-05, with no
+    newer tag since. Release cadence has been drifting from roughly monthly
+    in 2024 (Apr/May/Jun/Aug/Sep) to multi-month gaps in 2025 (Dec 2024 →
+    Mar 2025 → Sep 2025 x2 → Jan 2026), so the current 6.5-month silence
+    since 0.9.79 continues an existing slowdown rather than being an
+    isolated gap. Repo itself is not dormant — the most recent commit to
+    `master` is dated 2026-07-30, with clustered but ongoing activity through
+    Feb–Jul 2026 — but most of that visible energy (docs banners, "ProOnly"
+    references) appears to be steering users toward the commercial "Mage
+    Pro" product (the company closed a $12M Series A in July 2026), which
+    lines up with the OSS release cadence cooling off. Not archived, no
+    announced EOL.
+
+catalogue_fit:
+  categories: [data-engineering, etl, automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover ETL / data-pipeline orchestration.
+    n8n is general workflow automation (app/API glue, not a notebook-style
+    Python/SQL/R pipeline builder with schedulers and data-source
+    connectors), and open-webui/ollama are LLM chat/inference tools, not
+    data engineering. Mage AI would be a genuinely new category (Airflow/
+    Dagster-style pipeline builder) rather than duplicating existing ground.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for a self-hosted ETL/pipeline builder and it would
+    fill a category gap, but the audience (data engineers building
+    Python/SQL pipelines) is narrower than most of our current consumer/
+    small-business recipes, and the slowing OSS release cadence plus visible
+    upsell pressure toward "Mage Pro" add some risk to featuring it as a
+    flagship free recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  The official `mageai/mageai` image is a single container on port 6789
+  (SQLite metadata store by default, no external database required for a
+  basic install), so it's mechanically simple and reverse-proxy-compatible.
+  Since 0.9.78+, authentication is on by default and Mage auto-creates an
+  owner account (admin@admin.com / admin) unless overridden via
+  `DEFAULT_OWNER_EMAIL`/`DEFAULT_OWNER_PASSWORD` — those env vars take a
+  plaintext password the app hashes itself, which `generated_from` (hash-only
+  projection) cannot supply, and there is no other per-customer input
+  channel today. That's the same "fixed default admin credential" shape as
+  Lowcoder/Adminer-style apps: rather than blocking on it, gate the whole
+  domain behind Traefik `basic_auth` (root-password-derived) so the
+  unchangeable default admin/admin login is never customer-facing-exposed.
+  That makes it installable today with no platform blockers. The open
+  caveats are a narrower target audience (data engineers, not general
+  consumers) and a cooling OSS release cadence (6.5 months since the last
+  tag, alongside a for-profit "Mage Pro" push) — enough to recommend
+  build_with_caveats rather than an unqualified build_now.
