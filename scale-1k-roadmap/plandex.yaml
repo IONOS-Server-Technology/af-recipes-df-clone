@@ -1,0 +1,112 @@
+slug: plandex
+name: Plandex
+source_description: "Open-source terminal AI coding agent for large multi-step coding tasks"
+
+upstream:
+  url: https://plandex.ai/
+  repo_url: https://github.com/plandex-ai/plandex
+  license: MIT
+  docker_image: plandexai/plandex-server
+
+version_health:
+  latest_version: "server/v2.2.1 (cli/v2.2.1)"
+  latest_release_date: "2025-07-16"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Cadence was roughly monthly through mid-2025 (v2.1.6 2025-05-27,
+    v2.1.7 2025-06-04, v2.1.8 2025-06-08, v2.2.0 2025-07-01, v2.2.1
+    2025-07-16), then stopped entirely: no release since v2.2.1, over 13
+    months before this analysis (2026-08-05). The last commit to `main` of
+    any kind was on 2025-10-03, a docs/README update announcing that
+    "Plandex Cloud is winding down as of 10/3/2025 and no longer accepting
+    new users" — i.e. the vendor's own hosted product was discontinued,
+    and there has been no commit activity (~10 months) since that
+    announcement. The GitHub repo is not marked archived and issues/PRs
+    remain open, but the combination of a killed commercial offering and
+    total code silence since is a strong dormancy signal rather than a
+    quiet-but-healthy project. The docs subdomain (docs.plandex.ai) and
+    marketing site (plandex.ai) both failed to resolve (DNS SERVFAIL)
+    during this research session — noted as a soft signal only, since
+    search engines still have both indexed; not treated as a confirmed
+    outage.
+
+catalogue_fit:
+  categories: [developer-tools, ai]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [claude-code, gemini-cli]
+  differentiation: >
+    All three are terminal AI coding agents, but Plandex's actual
+    differentiator is architectural, not cosmetic: it maintains a
+    persistent, versioned "plan" per task (multi-file diff sandbox, full
+    change history, ability to review/rewind before applying to the real
+    repo) backed by a Postgres-persisted server, versus claude-code/
+    gemini-cli which apply edits directly with no separate review/rollback
+    layer. It also indexes up to ~20M tokens of project context via
+    tree-sitter maps and supports a real multi-user/team server mode
+    (shared plans across an org) that neither existing CLI recipe offers.
+    Per CLAUDE.md's overlap policy this is evaluated on its own merits, not
+    penalized for covering similar ground.
+  usefulness: low
+  usefulness_rationale: >
+    The differentiation above is real, but the specific self-hosted-server
+    mode that delivers it (team plans, Postgres persistence) is exactly
+    the part now unmaintained for over a year with the vendor's own cloud
+    version of the same feature discontinued. Shipping a recipe whose
+    unique selling point rides on the least-maintained part of a
+    single-maintainer project that has gone quiet is high risk for low
+    reward — a customer gets a CLI tool materially inferior in support and
+    momentum to the two comparable tools already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The self-hosted server ships two modes. "Local mode" (LOCAL_MODE=1,
+      the Docker Compose example in app/docker-compose.yml) is explicitly
+      documented as "designed for local use with a single user" and skips
+      real account verification entirely — anyone who can reach the API
+      port can sign up as an org member. That is not safe to expose on a
+      public <slug>.<base_domain> without a Traefik basic_auth gate in
+      front of the whole API surface (expressible today, listed above).
+    - >
+      "Production mode" (GOENV=production, the mode meant for real
+      multi-user exposure) instead requires SMTP_HOST/SMTP_PORT/
+      SMTP_USER/SMTP_PASSWORD for email-based PIN verification — an
+      external third-party service credential with no customer-supplied
+      value channel in the current /compose mechanism. Production mode is
+      therefore not installable_today; only the local-mode-plus-basic-auth
+      path is.
+    - >
+      Either way, actually using Plandex to code requires the customer to
+      supply their own LLM provider API key (OpenRouter, Anthropic,
+      OpenAI, or a Claude Pro/Max login) at CLI-usage time. Per the
+      claude-code/gemini-cli precedent this is not a first-boot blocker —
+      it's entered interactively by the CLI user themselves, same as the
+      existing recipes' ANTHROPIC_API_KEY / GEMINI_API_KEY parameters.
+    - >
+      No web UI at all — it is a CLI (`plandex`/`pdx`) talking to an HTTP
+      API server, so `reverse_proxy_compatible` in the browsable-app sense
+      is false even though the API port itself could sit behind Traefik.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Plandex is mechanically installable as a docker-compose recipe (Postgres
+  + plandexai/plandex-server, run in LOCAL_MODE with the whole API gated
+  behind Traefik basic_auth, LLM API key supplied by the customer
+  interactively via the CLI) — production mode is blocked on an SMTP
+  credential with no input channel, but the local-mode path clears the
+  installable_today bar. The recommendation is not_recommended anyway:
+  the project's one commercial cloud offering was wound down on
+  2025-10-03 and there has been no commit of any kind since, versus a
+  steady near-monthly cadence before that. Its genuine architectural
+  differentiation over claude-code/gemini-cli (persistent reviewable
+  plans, team server mode) is precisely the unmaintained self-hosted-server
+  part of the project, making it a weak bet to ship a recipe around right
+  now.
