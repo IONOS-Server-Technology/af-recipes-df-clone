@@ -1,0 +1,80 @@
+slug: patchmon
+name: PatchMon
+source_description: "Self-hosted Linux patch management and fleet monitoring platform"
+
+upstream:
+  url: https://patchmon.net/
+  repo_url: https://github.com/PatchMon/PatchMon
+  license: AGPL-3.0
+  docker_image: ghcr.io/patchmon/patchmon-server
+
+version_health:
+  latest_version: "2.0.2"
+  latest_release_date: "2026-04-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.0.2 (2026-04-28) is a fix-up release two days after 2.0.1
+    (2026-04-26), which itself followed 2.0.0 (2026-04-24) — a major
+    architectural rewrite (Go backend, Windows/FreeBSD agents). Before
+    that, 1.4.0 (2026-02-13) and 1.4.2 (2026-02-20) landed compliance
+    scanning, OIDC/SSO, and a web SSH terminal. As of today (2026-08-05)
+    it has been just over 3 months since 2.0.2 with no newer tag, but the
+    cadence across the preceding six months (multiple releases roughly
+    every 2-6 weeks) reads as actively developed, not slowing.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does OS-level Linux/FreeBSD/Windows
+    package patch management. Uptime Kuma covers uptime/service monitoring,
+    not patching, and WUD (What's Up Docker) tracks container *image* update
+    availability, not OS packages on the host. PatchMon gives a customer a
+    fleet-wide view of pending OS updates, patch policies (immediate /
+    maintenance-window / delayed), and compliance scanning (OpenSCAP/Docker
+    Bench) across any number of their own Linux servers via a lightweight
+    outbound-only agent — a genuinely new capability for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    High value for a customer who runs multiple servers and wants central
+    patch visibility/compliance; lower value for a customer whose only
+    infrastructure is the single VPS running the recipe itself, since the
+    interesting payoff (fleet-wide patching) only shows up once other hosts
+    are enrolled as agents against it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, postgres_password, redis_password, jwt_secret]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+    - secret: redis_password
+      mechanism: server_generated_no_customer_input
+    - secret: jwt_secret
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PatchMon ships as a single web app (Go server with embedded React UI,
+  port 3000) behind Postgres 17 and Redis 7, with an optional bundled
+  guacd container for its web SSH terminal feature — a four-container
+  stack comparable in shape to paperless-ngx/n8n, and it works fine behind
+  Traefik on a single HTTP(S)+WSS port. Like n8n, the app itself has no
+  pre-provisioned admin login: the first visitor to the web UI creates an
+  arbitrary admin username/password with no customer-value channel today,
+  so it needs the same Traefik basic_auth:true gate (password projected
+  from the customer's root password via generated_from) as the actual
+  auth boundary in front of the app's own setup wizard. Postgres/Redis
+  passwords and the JWT signing secret are all patternless secrets the
+  server can generate itself, with no customer-facing value. OIDC/SSO and
+  AI-assistant API keys are optional, added post-deployment through the UI,
+  not required at first boot. Nothing today blocks shipping this as a
+  recipe; recommend building it, noting the differentiated fleet-patching
+  use case is strongest for multi-server customers.
