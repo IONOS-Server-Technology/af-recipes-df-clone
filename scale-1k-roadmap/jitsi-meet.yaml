@@ -1,0 +1,106 @@
+slug: jitsi-meet
+name: Jitsi Meet
+source_description: "Self-hosted video conferencing platform with screen sharing and recording"
+
+upstream:
+  url: https://jitsi.org/
+  repo_url: https://github.com/jitsi/docker-jitsi-meet
+  license: Apache-2.0
+  docker_image: ghcr.io/jitsi/web (+ ghcr.io/jitsi/prosody, ghcr.io/jitsi/jicofo, ghcr.io/jitsi/jvb — multi-image stack, no single "jitsi-meet" image)
+
+version_health:
+  latest_version: "stable-11146-1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released the day before this analysis (2026-08-05); prior tags
+    stable-11146 (2026-08-03), stable-11031 (2026-06-08), stable-10978
+    (2026-05-20), stable-10888 (2026-03-30) show a steady ~3-6 week release
+    cadence with no gaps. Repo not archived, actively pushed to
+    (last push same day as latest release). Clearly active, not EOL or
+    dormant.
+
+catalogue_fit:
+  categories: [communication, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers video/audio conferencing —
+    closest is Guacamole (remote desktop) which is a completely different
+    use case. Jitsi Meet would be the first real-time communication app in
+    the catalogue, giving customers a self-hosted Zoom/Meet alternative
+    with screen sharing.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted video conferencing is a broadly appealing, well-known
+    category (privacy-conscious teams, schools, communities wanting to
+    avoid Zoom/Meet). Jitsi Meet is the dominant open-source option in this
+    space, well maintained, with no equivalent in our catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JICOFO_AUTH_PASSWORD
+    - JICOFO_COMPONENT_SECRET
+    - JVB_AUTH_PASSWORD
+  secrets_expressible_today:
+    - secret: JICOFO_AUTH_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JICOFO_COMPONENT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: JVB_AUTH_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Not reverse-proxy compatible: the video bridge (JVB) requires a raw
+      UDP port (10000/udp by default) exposed directly to the internet for
+      WebRTC media (RTP), on top of the normal 80/443 HTTP(S) for the web
+      UI/signaling. This is mechanically expressible (wg-easy already
+      declares a raw public UDP port the same way), but it means Jitsi
+      cannot sit purely behind Traefik like our typical single-HTTP-port
+      recipes — it needs an additional publicly routable UDP port on the
+      host, which the AF network layer would need to support per-customer.
+    - >
+      Default configuration ships with no authentication at all — anyone
+      with a room link can create or join a meeting (ENABLE_AUTH=0 by
+      default). This is intentional product design (like a Zoom-style open
+      link), not a missing admin login, so it does not block installability
+      the way an unauthenticated admin panel would — but gating the whole
+      domain behind Traefik basic_auth (our usual fallback for no-login
+      apps) is not really usable here, since it would also block the
+      external guests the app is meant to let in without a shared secret.
+      Flagging this as a product trade-off a human should decide on, not a
+      hard technical blocker.
+    - >
+      Hostinger's description explicitly mentions "recording", which the
+      base docker-jitsi-meet compose does not provide — that requires the
+      separate Jibri component (its own service, its own XMPP
+      recorder/transcriber passwords, and materially higher RAM, 8GB+ per
+      upstream docs). A recipe built from the base compose would not match
+      the advertised feature set unless Jibri is included, which raises the
+      minimum spec well above our typical recipe footprint.
+    - >
+      Minimum viable spec (web + prosody + jicofo + jvb, no Jibri) is ~2
+      CPU cores / 4GB RAM per upstream guidance, noticeably heavier than
+      most of our current single-container recipes.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Jitsi Meet is an active, well-maintained project (release the day before
+  this analysis, ~monthly cadence) with zero overlap in our current
+  catalogue and clear customer appeal as the first video-conferencing
+  recipe. The credentials it needs at first boot (Jicofo/JVB internal auth
+  passwords) are all server-generatable with no customer input required, so
+  the usual secrets-projection blocker does not apply here. The real blocker
+  is architectural: JVB needs a raw public UDP port for WebRTC media, which
+  falls outside the single-HTTP-port-behind-Traefik model most recipes use,
+  and the app's intentionally-open-by-default meeting access doesn't fit
+  cleanly into our only no-login fallback (Traefik basic_auth) without
+  breaking the guest-access use case. Recommend revisiting once the
+  platform has a story for exposing a raw per-customer UDP port
+  (comparable to what wg-easy already needs), and deciding deliberately
+  whether an open-by-default meeting room is acceptable for a shipped
+  recipe or whether auth should be mandatory.
