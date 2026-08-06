@@ -1,0 +1,79 @@
+slug: serge
+name: Serge
+source_description: "Self-hosted LLaMA chat interface powered by llama.cpp with no API needed"
+
+upstream:
+  url: https://serge.chat
+  repo_url: https://github.com/serge-chat/serge
+  license: MIT OR Apache-2.0
+  docker_image: ghcr.io/serge-chat/serge
+
+version_health:
+  latest_version: "0.9.0"
+  latest_release_date: "2024-02-14"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >-
+    Repository was archived by the owner on 2026-07-20 and is now read-only —
+    no further commits, releases or security fixes are possible. The last
+    tagged release, 0.9.0, is from 2024-02-14, roughly 29-30 months before
+    today (2026-08-05); the 12 releases before it shipped every few weeks
+    through late 2023, so development effectively stopped in early 2024. The
+    only activity after that was dependabot dependency bumps on `main`, and
+    even those stop at 2025-06-22 (~13.5 months ago). On GHCR the `latest`,
+    `0.9` and `0.9.0` tags were last pushed over two years ago; only the
+    floating `main` tag was rebuilt more recently (~1 year ago). This is an
+    abandoned project by every available signal.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Serge bundles a llama.cpp inference backend, a model downloader and a
+    SvelteKit chat UI into one container, so it is a single-image substitute
+    for the existing open-webui + ollama pairing rather than an addition to
+    it. It offers strictly less than that pairing does — no support for
+    external providers, no RAG/document workspaces, no tool calling, no
+    plugin ecosystem — and its model support is frozen at the GGUF/llama.cpp
+    state of early 2024.
+  usefulness: low
+  usefulness_rationale: >-
+    The "chat with a local LLM, nothing leaves the server" use case is
+    already covered by the shipping open-webui recipe (which bundles Ollama)
+    and by the ollama recipe itself, both of which are actively maintained
+    upstream. A customer choosing Serge would get a smaller feature set on
+    top of a two-and-a-half-year-old, now-archived codebase and a stale
+    llama.cpp build.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SERGE_JWT_SECRET, BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: SERGE_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >-
+  Serge is mechanically trivial to install: one official container
+  (ghcr.io/serge-chat/serge), one HTTP port (8008) that sits cleanly behind
+  Traefik on serge.<base_domain>, SQLite-on-a-volume for state, and the only
+  meaningful env var is SERGE_JWT_SECRET, a patternless random string the
+  platform can generate server-side (upstream even ships a hardcoded default
+  for it). It has no built-in account registration or admin credential of its
+  own, so like adminer/n8n it would need a mandatory Traefik `basic_auth`
+  gate — expressible today via IF-1312 — otherwise a customer's LLM would sit
+  open on the internet. Despite that, this is a clear do-not-build: the
+  upstream repo was archived read-only on 2026-07-20, the last release
+  (0.9.0) is ~30 months old, and even the dependabot-only commit stream dried
+  up in June 2025. The only pinnable release tag on GHCR (0.9.0) is over two
+  years stale — the sole newer artefact is the mutable `main` tag, which
+  RFC-002 pinning does not allow — so a recipe would ship a frozen llama.cpp
+  build that can never receive a security fix. Functionally it is a weaker
+  single-container version of the open-webui + ollama pairing the catalogue already ships, so there is no
+  capability gap to justify adopting an abandoned codebase.
