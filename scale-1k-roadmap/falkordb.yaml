@@ -1,0 +1,92 @@
+slug: falkordb
+name: FalkorDB
+source_description: "High-performance graph database with OpenCypher support and built-in web UI"
+
+upstream:
+  url: https://www.falkordb.com/
+  repo_url: https://github.com/FalkorDB/FalkorDB
+  license: "SSPL-1.0 (Server Side Public License v1)"
+  docker_image: falkordb/falkordb
+
+version_health:
+  latest_version: "v4.20.1"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.20.1 (2026-07-15) is the latest stable tag on Docker Hub, about 3
+    weeks before today (2026-08-05). Docker Hub tag history shows frequent
+    releases through 2026 (v4.18.4 through v4.20.1, roughly every 1-3
+    weeks), plus a continuously-updated "edge" tag pushed as recently as
+    today. No archival notice, no EOL announcement — this is an actively
+    maintained project (backed by a commercial entity, FalkorDB Inc., which
+    also runs a paid FalkorDB Cloud offering).
+
+catalogue_fit:
+  categories: [database, developer-tools, ai-ml]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe is a standalone database — the catalogue's 24
+    recipes are all end-user applications (password managers, workflow
+    automation, photo management, monitoring, etc.), several with their own
+    embedded Postgres/SQLite. FalkorDB is a Redis-module graph database
+    (OpenCypher/Property Graph, marketed for GraphRAG/LLM knowledge-graph
+    use cases) that would appeal to a different, more developer-facing
+    customer than the rest of the catalogue — closest adjacency is
+    ollama/open-webui (AI-stack tooling), not any single-container web app.
+  usefulness: low
+  usefulness_rationale: >
+    It has a bundled web UI (FalkorDB Browser, port 3000) which is a plus,
+    but the product's actual value is the raw graph-query protocol on port
+    6379 (standard Redis wire protocol), which other services/apps must
+    connect to directly — that's a raw TCP port, not something Traefik can
+    front the way it fronts an HTTP app. As a standalone catalogue item
+    (rather than an internal dependency wired into another recipe) its
+    audience is narrow: developers building a GraphRAG/knowledge-graph
+    backend, not a typical self-hosted-app end user.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [REDIS_ROOT_PASSWORD, BROWSER_UI_AUTH]
+  secrets_expressible_today:
+    - secret: REDIS_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "FalkorDB Browser (the web UI on :3000) ships its own NextAuth-based
+      login/user-management layer (auth.ts in the falkordb-browser repo),
+      not a single fixed admin token/password field. Public docs don't
+      document an env var to project a hashed initial-admin credential into
+      it the way Vaultwarden's ADMIN_TOKEN works, so BROWSER_UI_AUTH has no
+      confirmed expressible mechanism today — would need either upstream
+      support for a generated_from-style hash injection, or fronting the
+      whole UI with Traefik basic_auth instead of relying on its native
+      login (unconfirmed whether that's compatible with its own auth flow)."
+    - "The core database protocol (port 6379, Redis wire protocol) is raw
+      TCP, not HTTP — Traefik can't front it the way it fronts a web app, so
+      if this recipe's purpose is letting a customer's own external tooling
+      query the graph, that port must be exposed directly rather than
+      through the reverse-proxy pattern the rest of the catalogue uses."
+    - "License is SSPL-1.0, whose service-provision clause specifically
+      targets exactly this scenario (making the software's functionality
+      available to third parties as a service) and requires the entire
+      management stack be released under SSPL in that case. This is a
+      legal/business call for IONOS, not a technical one — flagging for
+      review before any recipe work starts, independent of the technical
+      blockers above."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  FalkorDB is an actively maintained, frequently released graph database
+  (v4.20.1, released 2026-07-15) with a bundled web UI, but it doesn't fit
+  the catalogue mechanically or strategically today. Its own login system
+  (FalkorDB Browser) has no documented hash-injection hook compatible with
+  our generated_from/basic_auth mechanisms, and its real value is a raw
+  Redis-protocol port that doesn't reverse-proxy the way our other recipes
+  do. On top of that, its SSPL-1.0 license has a service-provision clause
+  that squarely covers offering it as an Application Factory recipe, which
+  is a legal question independent of the technical gaps. Given a narrow
+  developer-only audience versus the rest of the catalogue, this is a
+  not_recommended candidate rather than blocked_on_platform.
