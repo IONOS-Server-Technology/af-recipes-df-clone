@@ -1,0 +1,96 @@
+slug: humhub
+name: HumHub
+source_description: "Open-source enterprise social network and intranet platform for teams"
+
+upstream:
+  url: https://www.humhub.com/
+  repo_url: https://github.com/humhub/humhub
+  license: AGPL-3.0-or-later
+  docker_image: humhub/humhub
+
+version_health:
+  latest_version: "1.18.4"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag is 1.18.4, released 2026-07-21 (15 days before this
+    analysis) alongside a 1.19.0-beta.1 pre-release cut the same day.
+    Release history shows a steady cadence of roughly one release per
+    month over the past year (1.17.5 2025-12-11, 1.18.0-beta.5
+    2025-11-13, 1.18.0 2026-02-04, 1.18.1 2026-03-02, 1.18.2 2026-03-22,
+    1.18.3 2026-05-18, 1.18.4 2026-07-21). The GitHub repo has 738 open
+    issues and 77 open PRs, consistent with an actively maintained project
+    rather than one in maintenance-only mode. The official `humhub/docker`
+    image is kept current with matching tags (`1.18.4`, `stable`,
+    `stable-nightly`), unlike some other candidates in this catalogue
+    whose Docker Hub image lags behind GitHub releases.
+
+catalogue_fit:
+  categories: [collaboration, productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover a general-purpose enterprise
+    social network / intranet (activity streams, groups/spaces, wikis,
+    file sharing, member directory). Gitea and OpenGist are developer-
+    focused code/collaboration tools, not a company-wide social intranet.
+    This would open a genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted intranet/social-network platforms are a real SMB use case
+    (HumHub advertises 4,500+ organizations using it) with no current
+    catalogue entry, so there's plausible demand. It is, however, a
+    heavier, more configuration-heavy app than most of our single-purpose
+    recipes (requires a MySQL/MariaDB backend, background cron/queue
+    workers for mail and search indexing) and its value is most apparent
+    for teams that will invest time in setting up spaces/modules — a
+    smaller slice of self-hoster traffic than a password manager or
+    monitoring tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_PASSWORD, ADMIN_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ADMIN_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      HumHub's own admin account is not projectable via `generated_from`.
+      Both the browser install wizard and its scriptable equivalent (Yii
+      console command `yii installer/create-admin-account
+      --admin_pass=<password>`, confirmed to exist for unattended/CI use)
+      take the admin password as plaintext and hash it internally at
+      account-creation time — there is no field that accepts a
+      pre-computed hash, so a `generated_from` hash of the customer's
+      root password could never be handed to it directly. This mirrors
+      the SCHEMA.md "genuine requirement for the plaintext password"
+      case, not the extensible-algorithm case.
+    - >
+      Workaround (same pattern accepted for `apps-gaps/horilla.yaml`):
+      install.sh can run the console admin-creation command with a fixed,
+      recipe-baked credential (not customer-supplied, not secret) and put
+      the entire app behind a Traefik `basic_auth` gate keyed to the
+      customer's root-password hash. The gate becomes the real security
+      boundary; the fixed HumHub-internal login is only reachable by
+      someone who already passed it. This keeps the recipe installable
+      today but means the customer never gets a HumHub admin login tied
+      to their own root password — only the gate is.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  HumHub is active upstream (monthly release cadence, current release
+  2026-07-21, matching official Docker image) and would fill a genuine
+  gap — no social-network/intranet recipe exists in the current 24. It is
+  mechanically installable today only via the same workaround used for
+  Horilla: a fixed, non-customer-facing admin login created via HumHub's
+  console installer, with the whole app gated behind Traefik basic_auth
+  as the actual security boundary, since HumHub's admin account has no
+  hash-based credential channel. Recommend build_with_caveats: worth
+  building, but flag to the developer that the customer's HumHub-internal
+  admin login is decoupled from their root password, unlike our
+  `generated_from`-backed recipes.
