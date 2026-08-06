@@ -1,0 +1,94 @@
+slug: sqlchat
+name: SQLChat
+source_description: "AI-powered SQL client that queries databases using natural language chat"
+
+upstream:
+  url: https://sqlchat.ai/
+  repo_url: https://github.com/sqlchat/sqlchat
+  license: MIT
+  docker_image: sqlchat/sqlchat
+
+version_health:
+  latest_version: null
+  latest_release_date: null
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    The repo has never cut a formal GitHub release or tag — the Releases
+    page says "There aren't any releases here", and package.json carries no
+    version field either. Docker Hub only publishes two floating tags,
+    `latest` and `website-latest` (pushed by the `bytebaseci` account,
+    ~4 months before this analysis, i.e. around 2026-04), no versioned tags
+    at all. Commit activity is real but bursty: the last commit landed
+    2026-04-21 (a single bugfix, #185), preceded by a ~9-month gap back to
+    2025-07-10/12 (a cluster of chore/build commits). As of today
+    (2026-08-05) that's ~3.5 months quiet since the last commit, sitting
+    inside a pattern of long dry spells punctuated by isolated fixes — not
+    archived, but not a maintained release cadence either.
+
+catalogue_fit:
+  categories: [ai, database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a database client — closest
+    neighbors are AI-chat-shaped apps (Open WebUI, Hermes Agent,
+    Paperless-AI) but none of them talk to a customer's SQL database.
+    SQLChat's actual pitch (chat-based natural-language querying of
+    MySQL/Postgres/MSSQL) is a genuinely new category, not a variant of an
+    existing recipe.
+  usefulness: low
+  usefulness_rationale: >
+    The idea (natural-language SQL) is appealing, but this specific
+    implementation requires bringing your own OpenAI key and single-user
+    session, has never made a versioned release, and shows only sporadic
+    maintenance. A customer would likely get a better experience from a
+    more actively maintained alternative; low confidence this specific
+    project is what we'd want representing the category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENAI_API_KEY, NEXTAUTH_SECRET, BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      OPENAI_API_KEY is a required environment variable at boot — the app
+      will not function without a valid OpenAI key, and there is no
+      self-hosted local-model fallback documented. This is an external
+      third-party API key with no input channel in the current /compose
+      mechanism (no customer-supplied-value support), so the app cannot
+      boot into a usable state for any customer today.
+    - >
+      By default (without NEXT_PUBLIC_USE_DATABASE enabling an account
+      system) SQLChat ships with no login of its own — the web UI, and any
+      database credentials a user enters into it, would sit open on the
+      public port. A Traefik basic_auth gate is expressible today
+      (mechanism above) and would be mandatory to ship this safely, but it
+      does not solve the OPENAI_API_KEY blocker above.
+    - >
+      No pinned, versioned Docker tag exists upstream to build a recipe
+      against — Docker Hub only has floating `latest`/`website-latest`
+      tags and GitHub has never cut a release. RFC-002's image-tag-pinned
+      rule has no upstream tag to pin to short of pinning a specific image
+      digest, which upstream doesn't document as a supported deployment
+      path.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  SQLChat is a single-container (port 3000), reverse-proxy-compatible
+  Next.js app with no functional overlap in the current catalogue, but it
+  is blocked on multiple independent grounds: it hard-requires a
+  customer-supplied OpenAI API key with no channel to project one today,
+  ships with no login of its own so it would need a mandatory basic_auth
+  gate just to be safe, and has never published a pinned/versioned release
+  or Docker tag to build a recipe against. Combined with a sporadic,
+  gap-prone commit history and no formal releases, this isn't just
+  blocked_on_platform — even if the API-key mechanism existed, the
+  upstream project's own maintenance signal is too thin to recommend
+  building on top of it right now.
