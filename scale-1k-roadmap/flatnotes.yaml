@@ -1,0 +1,75 @@
+slug: flatnotes
+name: flatnotes
+source_description: "Database-less Markdown note-taking app with wikilinks and full-text search"
+
+upstream:
+  url: https://github.com/dullage/flatnotes
+  repo_url: https://github.com/dullage/flatnotes
+  license: MIT
+  docker_image: dullage/flatnotes:v5.5.4
+
+version_health:
+  latest_version: v5.5.4
+  latest_release_date: 2025-10-20
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    Prior history (Jun 2024 - Oct 2025) shows a fairly steady cadence of a
+    release every 1-3 months. As of today (2026-08-05), it has been just
+    over 9.5 months since v5.5.4 (2025-10-20) and there has been no commit
+    to the main branch since 2025-10-20 either — the project has gone
+    completely quiet, not just between releases. Repo is not archived, MIT
+    license intact, 118 open issues with no visible triage activity in that
+    window. Treating this as maintenance-only rather than active; not
+    calling it archived/EOL outright since there's no explicit
+    announcement, but the silence is long enough to flag.
+
+catalogue_fit:
+  categories: [productivity, notes]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal note-taking / wiki-style
+    markdown editing. Closest adjacent categories are dev-tool text storage
+    (opengist, for pastes/gists, not notes) and general wikis
+    (an-otter-wiki, apache-jspwiki, dokuwiki — multi-user wiki engines, not
+    single-user note apps). flatnotes' pitch is specifically a
+    database-less, single flat folder of markdown files with wikilinks and
+    full-text search — closer to a self-hosted Obsidian/Notational Velocity
+    than a wiki, so it would be a genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal markdown note-taking is a common self-hosting want and
+    flatnotes is lightweight (single container, ~90MB image, no DB) which
+    fits the AF's low-footprint recipe profile well. Usefulness is capped
+    at medium rather than high because of the maintenance concerns above
+    and because the note-taking niche is already well served by
+    higher-profile alternatives (e.g. Trilium, Joplin Server) that a future
+    gap-analysis pass might rate higher on activity/feature grounds.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  flatnotes is a single-container, database-less markdown note app (image
+  dullage/flatnotes:v5.5.4, port 8080, one volume) that is reverse-proxy
+  compatible and would fill a genuinely empty niche in the catalogue
+  (personal note-taking, distinct from our existing wiki/pastebin recipes).
+  Its own login (FLATNOTES_AUTH_TYPE=password) needs FLATNOTES_PASSWORD as
+  plaintext, which generated_from cannot supply (it only ever projects a
+  hash) — but the app supports FLATNOTES_AUTH_TYPE=none, so the recipe can
+  disable built-in auth and gate the app entirely behind a Traefik
+  basic_auth credential instead, the same pattern used for n8n/WUD/Open
+  WebUI. That makes it mechanically installable today. The recommendation
+  is build_with_caveats rather than build_now because upstream has had zero
+  commits and zero releases for 9.5+ months as of 2026-08-05, despite a
+  previously steady cadence — worth a fresh maintenance check before
+  committing a recipe to it.
