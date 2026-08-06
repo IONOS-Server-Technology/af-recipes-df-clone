@@ -1,0 +1,85 @@
+slug: sillytavern
+name: SillyTavern
+source_description: "Power-user LLM frontend for AI characters across many text generation backends"
+
+upstream:
+  url: https://sillytavern.app
+  repo_url: https://github.com/SillyTavern/SillyTavern
+  license: AGPL-3.0
+  docker_image: ghcr.io/sillytavern/sillytavern
+
+version_health:
+  latest_version: "1.18.0"
+  latest_release_date: "2026-05-03"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    1.18.0 was published 2026-05-03, about 3 months before today (2026-08-05).
+    Preceding tagged releases: 1.17.0 (2026-03-28), 1.16.0 (2026-02-14),
+    1.15.0 (2025-12-28), 1.14.0 (2025-11-22), 1.13.5 (2025-10-16) — a
+    roughly 4-6 week cadence through early 2026, so a 3-month gap since
+    1.18.0 is the longest in the recent series. However the repo is not
+    dormant: commits continued on the default branch through at least
+    2026-07-07 (e.g. a TTS-extension model update), and the project ships a
+    separate `staging` GHCR tag that is rebuilt continuously between tagged
+    releases (pushed ~18h before this analysis) alongside `latest`/`release`
+    tracking the last stable tag. Repo is not archived, 31.7k GitHub stars,
+    no maintenance-only or EOL notice found. Read as active development with
+    a slower-than-usual release cadence recently, not a stalled project.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Open WebUI is a general-purpose chat UI bundled with Ollama for local
+    model management/inference. SillyTavern is a distinct "power user"
+    frontend built around persistent AI characters/personas, group chats,
+    and roleplay-oriented prompt/world-building tooling, and it connects to
+    a much wider set of backends (OpenAI, Anthropic, KoboldAI/KoboldCpp,
+    text-generation-webui, NovelAI, Cloudflare Workers AI, and more) rather
+    than shipping its own inference engine. The audience (roleplay/character
+    chat power users bringing their own backend or API key) is genuinely
+    different from Open WebUI's "local model chat" audience, so there is
+    conceptual overlap (both are LLM chat frontends) but not functional
+    duplication.
+  usefulness: medium
+  usefulness_rationale: >
+    SillyTavern has a large, dedicated hobbyist community (31.7k stars) and
+    is the de facto standard self-hosted frontend for AI-character roleplay,
+    filling a niche adjacent to but distinct from Open WebUI. Usefulness is
+    medium rather than high because the app is single-container, low
+    resource, and does no inference itself (it is a UI shell that requires
+    the customer to already have or configure an LLM backend/API key of
+    their own from within the app after login), narrowing the audience
+    versus a self-contained tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SillyTavern ships as a single official container
+  (ghcr.io/sillytavern/sillytavern, pin to 1.18.0) serving one HTTP port
+  (8000), backed by two bind-mounted directories (config, data) and no
+  external database, so it fits our reverse-proxy pattern cleanly. The app
+  has its own optional auth (basicAuthMode / enableUserAccounts in
+  config.yaml), but those store plaintext credentials compared literally by
+  the app rather than a hash it verifies -- not a fit for `generated_from`,
+  which only ever carries a hash of the root password. Leaving that
+  built-in auth disabled and gating the whole app behind a Traefik
+  basic_auth credential (the n8n/WUD/Open-WebUI-style pattern for
+  no-usable-login apps) covers the "don't sit open on the internet"
+  requirement with a mechanism we already support. SillyTavern needs no
+  external API key or OAuth registration to boot -- the customer supplies
+  their own LLM backend/API key inside the app after logging in, which is
+  outside our /compose parameter surface and not a blocker for a first
+  boot. Recommend building now.
