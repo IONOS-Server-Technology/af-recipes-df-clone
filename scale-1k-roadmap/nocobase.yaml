@@ -5,7 +5,20 @@ source_description: "NocoBase is an extensible no-code/low-code platform for bui
 upstream:
   url: https://www.nocobase.com
   repo_url: https://github.com/nocobase/nocobase
-  license: Apache-2.0 (core, since v2.0.3, 2026-02-26; was AGPL-3.0 before that — some optional plugins remain AGPL-3.0)
+  license: >
+    Custom "NocoBase License Agreement" (not plain Apache-2.0). The
+    Community Edition (core, since v2.0.3, 2026-02-26; was AGPL-3.0 before
+    that — some optional plugins remain AGPL-3.0) is governed by this
+    agreement, which incorporates Apache-2.0 by reference but states its
+    own supplementary terms prevail wherever they conflict with
+    Apache-2.0. Those supplementary terms (clause 5.4) explicitly forbid
+    using the Community Edition to "provide to the public any form of
+    no-code, zero-code, low-code, AI platform SaaS/PaaS products", and
+    (clause 5.2/5.3) forbid removing NocoBase branding/attribution from
+    the UI or code without a paid Commercial license. See
+    https://github.com/nocobase/nocobase/blob/main/LICENSE.txt (operative
+    agreement) vs. LICENSE-APACHE.txt (plain Apache-2.0 text, incorporated
+    by reference only).
   docker_image: nocobase/nocobase
 
 version_health:
@@ -66,19 +79,44 @@ installability:
       the gate — this isn't the "fixed default credential behind a proxy
       gate is fine" case, because there's no way for the customer to ever
       learn or set that inner credential.
+    - >
+      Separately from the platform-mechanism issue above, NocoBase's
+      Community Edition license (the custom "NocoBase License Agreement",
+      not plain Apache-2.0 — see upstream.license) clause 5.4 explicitly
+      prohibits using the Software to "provide to the public any form of
+      no-code, zero-code, low-code, AI platform SaaS/PaaS products". An
+      af-recipe hosting NocoBase for IONOS customers to build no-code apps
+      on is arguably exactly this: a productized no-code/low-code
+      SaaS/PaaS offering built on the original/modified Software. This is
+      a legal/business blocker independent of the INIT_ROOT_PASSWORD
+      issue — even if a plaintext-credential projection channel existed
+      tomorrow, this licensing restriction would still need to be cleared
+      (e.g. via a paid Commercial license, which itself still forbids the
+      SaaS/PaaS use per its own clause) before this app could ship as a
+      recipe.
+    - >
+      Clause 5.2/5.3 of the same agreement also forbids removing or
+      changing NocoBase's branding/name/version/license info from the UI
+      or code without a paid Commercial license, constraining how any
+      eventual recipe could present/white-label the app.
   installable_today: false
   recommendation: blocked_on_platform
 
 summary: >
-  NocoBase is a strong catalogue candidate on merit — active development,
-  Apache-2.0 core, official Docker image, single reverse-proxy-friendly
-  HTTP port, and no functional overlap with anything currently in the
-  catalogue. It is blocked today purely on the credential-projection
-  mechanism: its first-boot admin account requires a plaintext
-  INIT_ROOT_PASSWORD that only NocoBase's own install step can hash, and
-  `generated_from` only ever supplies a hash. This isn't fixable by
-  wrapping the app in Traefik `basic_auth` the way Adminer-style tools are,
-  since the customer still needs a working NocoBase login behind that
-  gate. Recommend revisiting once there is either a plaintext-secret
-  projection channel or an API-driven post-boot "set admin password" step
-  that `install.sh` could drive non-interactively.
+  NocoBase is strong on technical/catalogue merits — active development,
+  official Docker image, single reverse-proxy-friendly HTTP port, and no
+  functional overlap with anything currently in the catalogue. However it
+  has two independent, unrelated blockers. (1) Platform mechanism: its
+  first-boot admin account requires a plaintext INIT_ROOT_PASSWORD that
+  only NocoBase's own install step can hash, and `generated_from` only
+  ever supplies a hash — not fixable by wrapping the app in Traefik
+  `basic_auth` the way Adminer-style tools are, since the customer still
+  needs a working NocoBase login behind that gate. (2) Licensing: the
+  Community Edition is governed by a custom "NocoBase License Agreement"
+  (incorporating but overriding Apache-2.0) whose clause 5.4 bars using it
+  to offer no-code/low-code SaaS/PaaS products to the public — which an
+  af-recipe hosting it for IONOS customers plausibly is. Either blocker
+  alone would prevent shipping this recipe today; both would need to be
+  resolved (a plaintext-secret projection channel or post-boot
+  password-set API for #1, and legal clearance or a Commercial license
+  for #2) before revisiting.
