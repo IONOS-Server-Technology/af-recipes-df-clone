@@ -1,0 +1,93 @@
+slug: halo
+name: Halo
+source_description: "Modern open-source CMS with plugin marketplace and block-based editor"
+
+upstream:
+  url: https://www.halo.run
+  repo_url: https://github.com/halo-dev/halo
+  license: GPL-3.0
+  docker_image: halohub/halo:2.25.4
+
+version_health:
+  latest_version: "v2.25.4"
+  latest_release_date: "2026-06-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.25.4 (the latest stable, non-prerelease tag) shipped 2026-06-24 —
+    about 6 weeks before today (2026-08-05). A v2.26.0-beta.1 prerelease
+    was published the same day as this analysis (2026-08-05), and the
+    repo was pushed to at that same timestamp — actively worked on, not
+    dormant. Release history over the last five months shows a steady
+    roughly-monthly minor cadence with patch releases in between:
+    v2.23.0 (2026-03-13) -> v2.24.0 (2026-04-16) -> v2.25.0 (2026-06-12)
+    -> v2.25.1..v2.25.4 (2026-06-15 to 2026-06-24). 39.5k GitHub stars,
+    124 open issues, not archived. Docker Hub tags track releases within
+    minutes of each GitHub release being cut. Clearly an active,
+    well-maintained project.
+
+catalogue_fit:
+  categories: [cms, blogging, website-builder, publishing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website/CMS
+    builder — closest neighbors (Gitea, Opengist) are source-control/
+    snippet tools, not a place to build a blog, knowledge base, or small
+    business site. Halo is a broader, more WordPress-like tool than
+    apps-gaps/ghost.yaml (also unbuilt): a plugin marketplace and
+    100+ free themes aimed at "personal blog to knowledge base to
+    company site to online store" rather than Ghost's narrower,
+    newsletter/paid-subscription publishing focus. Its plugin/theme
+    ecosystem and documentation skew heavily Chinese-language, which is
+    a real differentiator from Ghost's audience but also narrows Halo's
+    appeal for a Western customer base relative to Ghost's brand
+    recognition.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuinely empty category (general CMS/website builder) and
+    is actively developed with a large, real community (39.5k stars),
+    but its plugin/theme ecosystem and most community support channels
+    are primarily Chinese-language, which caps its appeal for an
+    English/German/etc.-first customer base compared to WordPress-class
+    alternatives or the narrower but internationally well-known Ghost.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - postgres_password
+    - "Traefik basic-auth gate credential (temporarily protects the unauthenticated /console first-run initialization page, where a visitor would otherwise be able to claim the superadmin account before the customer does)"
+  secrets_expressible_today:
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Halo is an actively maintained (v2.25.4, 2026-06-24; roughly-monthly
+  cadence; a beta shipped the same day as this analysis), GPL-3.0-licensed
+  CMS that fills a real gap — none of the current 24 recipes is a
+  general-purpose website/blog builder. It's a single Java app
+  (halohub/halo, port 8090) plus a Postgres sidecar, structurally close to
+  recipes/n8n and recipes/paperless-ngx (app + DB, reverse-proxy friendly
+  on one HTTP port). The blocker is the superadmin account: Halo does
+  expose JVM properties
+  (--halo.security.initializer.superadminusername/superadminpassword) to
+  preset it, but per upstream (confirmed via halo-dev/halo#4280) these
+  only ever accept a plaintext password with no default fallback — exactly
+  the "genuine plaintext requirement" SCHEMA.md calls a structural blocker
+  for `generated_from`, since that mechanism only ever carries a hash.
+  Left unset, the account is instead claimed by whoever first visits
+  `/console`'s unauthenticated initialization wizard — a claim race, the
+  same situation already accepted for apps-gaps/ghost.yaml. The fix is the
+  same one: gate the app behind Traefik `basic_auth` (projected from the
+  customer's root-password hash) until the customer completes the wizard
+  themselves and disables the gate. That clears the /compose constraint
+  with zero hard blocking issues, but the wizard-then-unlock step plus a
+  DB sidecar to keep healthy keep this at build_with_caveats rather than
+  build_now.
