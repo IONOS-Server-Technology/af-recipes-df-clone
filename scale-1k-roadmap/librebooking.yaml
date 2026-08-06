@@ -45,73 +45,99 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [LB_DATABASE_PASSWORD, LB_INSTALL_PASSWORD]
+  secrets_required_at_first_boot:
+    - LB_DATABASE_PASSWORD
+    - LB_INSTALL_PASSWORD
+    - MYSQL_ROOT_PASSWORD
+    - TRAEFIK_BASIC_AUTH
   secrets_expressible_today:
     - secret: LB_DATABASE_PASSWORD
       mechanism: server_generated_no_customer_input
     - secret: LB_INSTALL_PASSWORD
       mechanism: server_generated_no_customer_input
-  blocking_issues:
-    - >
-      Setting LB_DATABASE_PASSWORD/LB_INSTALL_PASSWORD only gets LibreBooking
-      partway there. Per the official docker/RUN.md and docker/SETUP.md
-      (github.com/LibreBooking/docker) and bin/entrypoint.sh, the Docker
-      entrypoint only sed-patches config/config.php with the DB connection
-      string and the install-password value — it does NOT create the
-      database schema/tables or the admin account. Completing setup still
-      requires visiting /install in a browser, entering the install
-      password to unlock the wizard, clicking through "Create the
-      database" and "Create the database user", then filling in and
-      submitting a registration form (email/username/password) for the
-      application administrator — all described in SETUP.md as one
-      continuous /install-gated sequence, not a step reachable separately.
-      install.sh could plausibly script these as server-side HTTP form
-      posts using the server-generated LB_INSTALL_PASSWORD (no customer
-      involvement needed for the DB-creation steps), the same way it
-      already shells out for container orchestration. But the admin
-      registration step is the actual blocker: that form takes a plaintext
-      password and LibreBooking hashes it itself on submission, so there
-      is no way to hand it a pre-computed hash the way
-      generated_from:ROOT_PASSWORD projection expects (that mechanism is
-      built for apps that read a hash directly off a config/env value, e.g.
-      Vaultwarden's ADMIN_TOKEN — not for one that hashes whatever plaintext
-      a form receives). install.sh never has the customer's plaintext root
-      password, only a hash of it, so it cannot submit that registration
-      form with a password the customer will actually be able to log in
-      with later. Nor is this the n8n pattern (first visitor sets their own
-      password live, in-app, no wizard gate): SETUP.md gives no evidence of
-      a public registration route the customer could reach without first
-      supplying the server-only install password, so we could not confirm a
-      path for the customer to end up with a self-chosen admin credential
-      at all. Resolving this would need either a documented
-      install-password-independent registration endpoint (unconfirmed) or a
-      new secret-delivery channel beyond generated_from/basic_auth
-      (doesn't exist today) — flagging as a genuine blocker rather than
-      glossing over it as a simple env-var equivalence to n8n.
-  installable_today: false
-  recommendation: build_with_caveats
-  # Caveat (not blocking on its own): docs flag that reminder emails need a
-  # job scheduler (cron) hitting a URL periodically — not required to boot
-  # or use the app, but worth a documented cron/sidecar container follow-up
-  # if this is revisited.
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: TRAEFIK_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  # How the two-step setup lands on our mechanism, verified against upstream
+  # (github.com/LibreBooking/docker and github.com/LibreBooking/librebooking):
+  #
+  # 1. Container boot. bin/entrypoint.sh only sed-patches config/config.php —
+  #    ['database'][user|password|name|hostspec], ['install.password'],
+  #    ['default.timezone'], ['logging'][folder|level|sql]. It does NOT create
+  #    the DB schema and does NOT create an admin account. All of these env
+  #    vars are patternless server-side values; the customer never sees them.
+  #
+  # 2. Schema creation, scripted by install.sh — no HTML form scraping needed.
+  #    The /install wizard (gated by Presenters/Install/InstallSecurityGuard.php,
+  #    which compares the submitted password to ConfigKeys::INSTALLATION_PASSWORD)
+  #    is only a browser front-end over SQL files upstream ships in
+  #    database_schema/. INSTALLATION.rst documents the manual equivalent, and
+  #    install.sh can run it directly against the MariaDB companion using the
+  #    server-generated MYSQL_ROOT_PASSWORD, in this documented order:
+  #      create-db.sql → create-user.sql → create-schema.sql →
+  #      upgrades/*.sql (in version order) → create-data.sql
+  #    The docs warn explicitly that skipping the upgrade scripts breaks
+  #    create-data.sql, so the recipe must apply them in version order.
+  #    Because this path exists, LB_INSTALL_PASSWORD can stay a purely
+  #    server-side value the customer never needs — it exists only to keep the
+  #    web installer locked once install.sh has finished.
+  #
+  # 3. Admin account — this is the n8n pattern, not a hash projection.
+  #    Web/register.php → Pages/RegistrationPage.php extends ActionPage and is
+  #    NOT behind InstallSecurityGuard or any install-password check; it only
+  #    needs the schema to exist. BASIC-CONFIGURATION.rst shows
+  #    'registration' => ['allow.self.registration' => true] on by default, and
+  #    INSTALLATION.rst states: "When you later register an account with the
+  #    admin email address, the user will be given admin privileges." So the
+  #    customer visits register.php and types their OWN plaintext username and
+  #    password into the app's own form — exactly like n8n's owner-setup
+  #    screen. No pre-computed hash ever has to reach the app, so the
+  #    generated_from:ROOT_PASSWORD hash-projection limitation simply does not
+  #    apply here.
+  #
+  # SECURITY BOUNDARY — call this out in the recipe, do not gloss over it:
+  # admin.email is a plain config.php value with no customer-input channel
+  # today, so it has to be left at a fixed, recipe-known default (upstream ships
+  # 'admin@example.com'). Combined with self-registration being open by default,
+  # that means anyone who can reach register.php before the real customer does
+  # can register the admin address and claim admin. Therefore the Traefik
+  # basic_auth gate is not a nice-to-have here — it IS the auth boundary that
+  # protects the instance during the window between install and the customer's
+  # first login. It must be mandatory on the public port, and the recipe must
+  # not leave register.php exposed without it. (This is the same reasoning
+  # SCHEMA.md applies to a fixed/default credential sitting behind basic_auth.)
+  #
+  # Caveats (neither blocking): (a) reminder emails need an external job
+  # scheduler (cron) hitting a URL periodically — not required to boot or use
+  # the app, but worth a cron/sidecar follow-up; (b) registration captcha is
+  # enabled by default, which is fine for the human customer completing
+  # register.php in a browser but means the recipe should not try to automate
+  # that step.
+  installable_today: true
+  recommendation: build_now
 
 summary: >
   LibreBooking is an active, GPL-3.0 room/equipment/resource-booking web app
   with an official single-container Docker image (needs a MariaDB
   companion), a single HTTP port, and monthly releases through August 2026 —
   no EOL or dormancy concerns. It fills a category gap none of the current
-  24 recipes cover. However, the Docker entrypoint only pre-populates
-  config.php with the DB connection string and install-wizard password; it
-  does not create the DB schema or the admin account. Per upstream's own
-  docker/SETUP.md, admin registration is bundled inside the same
-  install-password-gated /install wizard as the DB-creation steps, and that
-  registration form takes a plaintext password the app hashes itself —
-  incompatible with the generated_from:ROOT_PASSWORD mechanism (which only
-  ever carries a hash), and with no confirmed customer-reachable path to
-  set their own credential the way n8n's first-visitor flow allows. This is
-  a real, unresolved gap under the current /compose mechanism, not a clean
-  env-var equivalence to n8n — recommend build_with_caveats pending a
-  hands-on spike to confirm whether a customer-reachable registration route
-  exists independent of the install-password gate. Usefulness rated medium
-  given the narrower niche relative to the catalogue's
-  productivity/automation/AI focus.
+  24 recipes cover. Setup is two steps, and both fit the current mechanism:
+  the entrypoint only pre-populates config.php (DB connection string, install
+  password) without creating the schema or an admin account, but install.sh
+  can create the schema server-side by importing upstream's own
+  database_schema/*.sql files in the documented order — the /install wizard is
+  just a browser front-end over those, so no HTML form scripting is needed and
+  every secret involved (LB_DATABASE_PASSWORD, LB_INSTALL_PASSWORD,
+  MYSQL_ROOT_PASSWORD) is patternless and server-generated. The admin account
+  is then the n8n pattern: register.php is a public, unauthenticated page that
+  is not behind the install-password guard, self-registration is on by default,
+  and whoever registers with the configured admin.email gets admin — so the
+  customer types their own plaintext credential into the app's own form and no
+  hash projection is required. The one thing to be explicit about is that
+  admin.email has no customer-input channel and must stay at a fixed default,
+  which makes the mandatory Traefik basic_auth gate the real auth boundary
+  protecting open self-registration until the customer completes signup.
+  Recommend build_now; usefulness rated medium given the narrower niche
+  relative to the catalogue's productivity/automation/AI focus.
