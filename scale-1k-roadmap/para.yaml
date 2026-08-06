@@ -1,0 +1,85 @@
+slug: para
+name: Para
+source_description: "Open-source backend framework with REST API for object persistence and search"
+
+upstream:
+  url: https://paraio.org
+  repo_url: https://github.com/Erudika/para
+  license: Apache-2.0
+  docker_image: erudikaltd/para
+
+version_health:
+  latest_version: "1.54.7"
+  latest_release_date: "2026-06-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.54.7 was tagged 2026-06-04, roughly 2 months before today
+    (2026-08-05) — well within normal cadence for this project. Releases
+    over the preceding months (1.54.6 on 2026-06-03, 1.54.5 on
+    2026-05-05, 1.54.4/1.54.3 on 2026-04-28, 1.54.1 on 2026-04-24, 1.54.0
+    on 2026-04-20, 1.53.0 on 2026-03-24, 1.52.5 on 2026-02-13) show a
+    steady multi-release-per-month pace including recent feature work
+    (1.54.0 added an MCP server implementation based on Spring AI).
+    Repo has 2,100+ commits, single primary maintainer (albogdano /
+    Erudika) still actively pushing Docker Hub builds (`latest` tag
+    updated within the last few days as of research). Not archived, not
+    EOL, not slowing.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Para is a headless backend-as-a-service framework — it stores
+    arbitrary JSON objects, auto-indexes and makes them searchable, and
+    exposes that through a signed REST API (AWS Signature V4-style
+    request signing, plus JWT and access/secret key auth). It ships no
+    end-user-facing screens at all; you talk to it exclusively via API
+    calls or one of its client SDKs (JS, Java, PHP, C#, Android, iOS).
+    Nothing in the current 24-recipe catalogue is a bare backend
+    framework in this sense — every existing recipe is a complete,
+    self-contained end-user application with its own UI (password
+    manager, photo library, notes, monitoring dashboard, etc.). Para is
+    infrastructure for a developer to build a *different* app on top of,
+    not an app a customer installs and immediately uses.
+  usefulness: low
+  usefulness_rationale: >
+    The AF catalogue targets self-hosters who want a working application
+    reachable at a domain, not a bare BaaS layer that only becomes useful
+    once someone writes custom client code against it. A customer who
+    deploys Para gets an empty JSON store with no screens to look at —
+    there is no comparable "why would I install this standalone" case
+    the way there is for every other recipe. It would fit a
+    developer-platform or PaaS-adjacent catalogue, not this
+    consumer/prosumer self-hosted-app catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [para.app_secret_key]
+  secrets_expressible_today:
+    - secret: para.app_secret_key
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Para is a single-container Java/Spring app (image erudikaltd/para,
+  latest stable 1.54.7) listening on one HTTP port (8080), embedding H2 +
+  Lucene by default so it needs no external database or search cluster
+  to boot — mechanically it would sit behind Traefik like any other
+  recipe. Its only first-boot secret is `para.app_secret_key`, a signing
+  key for its "root app" that Para itself never requires a customer to
+  choose — it can be generated server-side with no customer input, the
+  same pattern used for other apps' JWT/session-signing secrets — so
+  there is no structural blocker under the current /compose mechanism.
+  Upstream is unambiguously active (multi-release-per-month cadence,
+  feature work as recent as April 2026). The recommendation is
+  not_recommended purely on fit: Para is a headless backend framework
+  with no web UI and no standalone end-user value — a customer installs
+  it to write a custom app against its REST API, which is a different
+  product category from every app currently in the catalogue and a poor
+  match for a self-hosted-app storefront aimed at people who want a
+  finished application, not a library to build one.
