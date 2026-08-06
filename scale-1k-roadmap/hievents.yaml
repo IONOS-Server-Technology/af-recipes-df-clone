@@ -1,0 +1,93 @@
+slug: hievents
+name: Hi.Events
+source_description: "Open-source self-hosted event management and ticketing platform"
+
+upstream:
+  url: https://hi.events
+  repo_url: https://github.com/HiEventsDev/hi.events
+  license: AGPL-3.0 (with additional terms; separate commercial license also offered)
+  docker_image: daveearley/hi.events-all-in-one:v.1.11.0-beta
+
+version_health:
+  latest_version: "v.1.11.0-beta"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    daveearley/hi.events-all-in-one:v.1.11.0-beta (and matching `latest`
+    tag) was pushed to Docker Hub ~27 days before this analysis
+    (2026-08-05), i.e. around 2026-07-09. Tag history shows a steady
+    roughly-monthly cadence back through v1.9.0-beta (~3 months ago),
+    v1.8.0-beta (~4 months ago), v1.7.1-beta/v1.7.0-beta (~4-5 months ago),
+    down to v1.1.0-beta.2 (~11 months ago) — consistent, ongoing releases,
+    not dormant. Notable caveat: every tagged release since the project's
+    first (v1.1.0 onward) still carries a `-beta` suffix; after roughly a
+    year and 11+ releases the project has never cut a non-beta stable tag.
+    That's a maturity/stability signal worth flagging to a reviewer even
+    though it doesn't indicate abandonment — the opposite, in fact, given
+    the release cadence.
+
+catalogue_fit:
+  categories: [events, ticketing, business-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes address event management or ticket
+    sales — the closest adjacent categories (n8n for automation, Gitea/
+    Opengist for dev collaboration) are unrelated domains. Hi.Events is a
+    genuine self-hosted alternative to Eventbrite/Tickettailor: event
+    pages, ticket types, seating/checkout flow, promo codes, and payouts
+    via a customer's own Stripe account. This is a distinct, recognizable
+    "self-hosted alternative to X" niche the catalogue doesn't cover yet.
+  usefulness: high
+  usefulness_rationale: >
+    Clear, well-known SaaS category (Eventbrite-style ticketing) with an
+    obvious value proposition for a small business/community-organizer
+    customer wanting to avoid per-ticket SaaS fees, and it's structurally
+    simple to run (one app container + Postgres + Redis, single HTTP
+    port). The perpetual-beta versioning tempers confidence somewhat but
+    doesn't offset the clear market fit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - APP_KEY (Laravel app encryption key)
+    - JWT_SECRET (auth token signing key)
+    - POSTGRES_PASSWORD (database password)
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: APP_KEY (Laravel app encryption key)
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET (auth token signing key)
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD (database password)
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Hi.Events ships an official all-in-one Docker image
+  (daveearley/hi.events-all-in-one) bundling the Laravel backend and React
+  frontend behind a single HTTP port, backed by Postgres and Redis — a
+  three-container shape structurally close to n8n's, and fully reverse-
+  proxy compatible on <slug>.<base_domain>. Every secret needed at first
+  boot (APP_KEY, JWT_SECRET, the Postgres password) is a random value the
+  app itself never asks a human to type in, so all are server-generatable
+  with no customer input required. The app has no admin env-var login of
+  its own — the upstream quick-start has the first user visit
+  /auth/register and self-signup, and registration is open by default
+  (APP_DISABLE_REGISTRATION=false) — so there is no `generated_from`
+  projection target; the same pattern used for Immich applies: gate the
+  whole app behind Traefik basic_auth keyed off the customer's root-
+  password hash, so only the customer can reach the registration page.
+  Stripe keys are optional at boot (the app ships with placeholder test
+  keys and only payment/checkout features need real ones), so they are
+  not a blocker for `installable_today`, though a recipe should surface a
+  post-install note that ticket sales require the customer to connect
+  their own Stripe account manually via the UI. Net: mechanically
+  installable today with no platform changes needed, and it fills a real,
+  currently-empty catalogue niche (event ticketing) — build_now.
