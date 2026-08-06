@@ -1,0 +1,75 @@
+slug: movary
+name: Movary
+source_description: "Movary tracks, rates, and explores your movie watch history with Plex sync"
+
+upstream:
+  url: https://docs.movary.org
+  repo_url: https://github.com/leepeuker/movary
+  license: MIT
+  docker_image: leepeuker/movary
+
+version_health:
+  latest_version: "0.72.0"
+  latest_release_date: "2026-05-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release is 0.72.0 (2026-05-22), ~2.5 months before today
+    (2026-08-05). Release history shows a near-monthly cadence through 2026
+    (0.70.0 on 2026-01-17, 0.70.1 on 2026-01-26, 0.71.0 on 2026-03-28,
+    0.71.1 on 2026-04-11, 0.72.0 on 2026-05-22), with an earlier ~4-month
+    gap between 0.69.0 (2025-10-30) and 0.70.0. The current gap is within
+    the project's normal variance, not a sign of slowdown. Repo is not
+    archived; README explicitly states the project is still pre-1.0 and
+    "experimental (but usable)", warning of "sudden breaking changes from
+    time to time" before a 1.0 release — a real maturity caveat distinct
+    from abandonment.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Immich is the only existing "media" recipe and it covers photo/video
+    backup and management — a different job (storage/organization vs.
+    watch-history tracking, rating, and stats). Movary is a Trakt/
+    Letterboxd-style movie diary with automatic play-tracking via a Plex/
+    Jellyfin/Emby/Kodi scrobbler, TMDB/IMDb metadata enrichment, and
+    Mastodon cross-posting. No recipe in the current 24-app catalogue
+    covers this personal movie-tracking niche.
+  usefulness: low
+  usefulness_rationale: >
+    Genuinely unduplicated, but it is a personal-hobby tool (movie diary
+    for one user or a small household) rather than something an SME
+    customer base is likely to seek out, and it depends on the customer
+    already running Plex/Jellyfin/Emby/Kodi and a TMDB account to get real
+    value out of it. Niche appeal plus the project's own pre-1.0 stability
+    caveat keep this from being a high-value catalogue addition right now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - registration_gate  # Movary has open self-registration (first visitor becomes the account owner); no admin-password env var exists to project a customer credential into
+  secrets_expressible_today:
+    - secret: registration_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Movary is mechanically installable today: it defaults to SQLite (no
+  separate database container needed), needs only a domain, and its only
+  first-boot secret concern is that account creation is open self-
+  registration with no admin-password env var — exactly the Monica pattern
+  — so a Traefik basic_auth gate is required to stop a random visitor from
+  claiming the account before the customer does. TMDB_API_KEY is marked
+  "required" in upstream docs for full metadata/search functionality, but
+  it is configurable via the authenticated web settings UI post-provision
+  (like an OpenRouter key would be for hermes-agent), so it does not block
+  installability, only full usefulness on first login. The catalogue gap
+  (personal movie-tracking/scrobbling) is real and unduplicated by Immich
+  or anything else in the current 24 recipes, but the niche, personal-use
+  nature of the app and its own pre-1.0 "expect breaking changes" caveat
+  make this a build-with-caveats candidate rather than a priority pick.
