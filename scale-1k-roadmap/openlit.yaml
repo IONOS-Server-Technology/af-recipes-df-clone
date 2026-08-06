@@ -1,0 +1,110 @@
+slug: openlit
+name: OpenLIT
+source_description: "OpenTelemetry-native observability and cost monitoring for LLM apps"
+
+upstream:
+  url: https://openlit.io
+  repo_url: https://github.com/openlit/openlit
+  license: Apache-2.0
+  docker_image: ghcr.io/openlit/openlit (paired with clickhouse/clickhouse-server — two-image stack, no single "the" image)
+
+version_health:
+  latest_version: "openlit-1.24.2"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    openlit-1.24.2 published 2026-07-28, 8 days before today (2026-08-05).
+    Preceding platform tags (1.24.1, 1.24.0, 1.23.0) shipped 2026-07-15,
+    2026-07-13, 2026-07-09 — roughly weekly to biweekly cadence for the last
+    month, on top of separate near-weekly Python/TypeScript SDK releases in
+    the same repo. GitHub repo confirmed not archived, pushed_at
+    2026-08-03, 2.7k stars, 58 open issues. Unambiguously active.
+
+catalogue_fit:
+  categories: [ai, monitoring, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does LLM-call observability,
+    tracing, or cost monitoring — ollama and open-webui are inference/chat
+    endpoints, not instrumentation targets. OpenLIT would fill a real gap
+    for a customer who has their own LLM-integrated app and wants to trace
+    calls, GPU usage, and cost against it. That said, this is the same
+    niche as the still-unbuilt Langfuse candidate (see apps-gaps/langfuse.yaml)
+    — both are self-hosted, ClickHouse-backed, OpenTelemetry-based LLM
+    observability platforms with SDK auto-instrumentation for 50+ LLM
+    providers. Langfuse is materially further ahead on installability (see
+    below) and would fill this niche with fewer platform blockers, so
+    OpenLIT is redundant against that candidate even though it doesn't
+    duplicate anything already shipped as a recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand from the developer/AI-builder audience, and a
+    credible fast-moving project. Not high because it's a narrow
+    developer-tooling niche (valuable only to customers instrumenting their
+    own LLM apps, not the broader self-hoster base), and it is currently
+    blocked on the same structural issue as HyperDX/Apache SkyWalking (see
+    installability) rather than being a clean drop-in.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OPENLIT_DB_PASSWORD, NEXTAUTH_SECRET, OPENLIT_VAULT_ENCRYPTION_KEY, CRON_JOB_SECRET]
+  secrets_expressible_today:
+    - secret: OPENLIT_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: OPENLIT_VAULT_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CRON_JOB_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Not a single-HTTP-port app: the upstream docker-compose.yml (confirmed
+      live today) publishes the web UI/API on 3000 AND the OpenTelemetry
+      collector's raw ingestion ports 4317 (gRPC) and 4318 (HTTP) directly
+      on the host. OpenLIT's entire value proposition is receiving traces
+      pushed by a customer's own OpenTelemetry-instrumented application —
+      which is typically a separate service the customer runs elsewhere, so
+      those OTLP ports must be reachable directly by that pusher, not just
+      routable to a browser through Traefik on 80/443. This is the exact
+      same structural mismatch already documented for HyperDX
+      (apps-gaps/hyperdx.yaml) and Apache SkyWalking: every current recipe
+      is a single browser-facing HTTP port fronted by Traefik, and exposing
+      raw ingestion ports per customer VM is a product decision that
+      hasn't been made yet.
+    - >
+      Login uses a hardcoded default credential with no environment-variable
+      override: the upstream README instructs first login with email
+      user@openlit.io / password openlituser, and neither the shipped
+      docker-compose.yml nor the documented configuration env vars expose a
+      way to set this at deploy time (auth-related env vars are limited to
+      NEXTAUTH_SECRET and optional Google/GitHub OAuth client IDs/secrets —
+      no admin email/password var exists). Per apps-gaps/SCHEMA.md this is
+      not a blocker on its own — a Traefik basic_auth gate in front of the
+      app would be the correct mitigation — but it stacks with the raw-port
+      issue above, since basic_auth only gates the browser-facing port 3000
+      and does nothing for the OTLP ports that also need to stay open.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OpenLIT is an active, fast-shipping (roughly biweekly releases) open-source
+  LLM observability platform that would fill a real gap in the catalogue —
+  nothing currently does LLM-call tracing/cost monitoring — but it fails
+  installability today for the same structural reason as HyperDX: its core
+  function requires the OpenTelemetry collector's raw ports (4317 gRPC,
+  4318 HTTP) to be reachable by a customer's own instrumented application,
+  not just a browser through Traefik, and no per-customer raw-port exposure
+  mechanism exists yet. All four infra secrets it needs (ClickHouse
+  password, NextAuth secret, vault encryption key, cron secret) are
+  patternless and server-generatable with no blocker, and its hardcoded
+  default admin credential is a soft issue Traefik basic_auth could cover —
+  but that doesn't resolve the OTLP-port gap. It's also the same niche as
+  the still-unbuilt Langfuse candidate, which reaches installable_today
+  without this blocker, making OpenLIT a lower-priority pick even once
+  raw-port exposure ships. Recommend blocked_on_platform: revisit once
+  per-customer raw-port/NodePort exposure exists, at which point Langfuse
+  should likely be built first given its cleaner installability.
