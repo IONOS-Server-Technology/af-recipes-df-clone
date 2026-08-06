@@ -1,0 +1,97 @@
+slug: plausible-analytics
+name: Plausible Analytics
+source_description: "Plausible is a lightweight, privacy-first Google Analytics alternative"
+
+upstream:
+  url: https://plausible.io
+  repo_url: https://github.com/plausible/analytics
+  license: AGPL-3.0
+  docker_image: ghcr.io/plausible/community-edition:v3.2.1
+
+version_health:
+  latest_version: "v3.2.1"
+  latest_release_date: "2026-05-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.2.1 (2026-05-15) is the latest tagged release, ~2.8 months before
+    today (2026-08-05) — a security patch removing an exposed
+    `/storybook` endpoint (CVE-2026-8467 / GHSA-55hg-8qxv-qj4p, remote
+    code execution). Preceding tags: v3.0.0 (2025-04-11) -> v3.1.0
+    (2025-11-13, ~7 months) -> v3.2.0 (2026-01-26, ~2.5 months) -> v3.2.1
+    (2026-05-15, ~3.7 months, patch-only). Cadence has been tightening,
+    not slowing. `master` on the app repo (`plausible/analytics`) has
+    commits as recently as 2026-08-04/05/06 (day of and day before/after
+    this analysis) — clearly active, well-staffed development, not a
+    single-maintainer project. Self-hosting is distributed via a
+    separate, actively-updated companion repo,
+    `plausible/community-edition`, which ships the `compose.yml` /
+    `ghcr.io/plausible/community-edition` image consumed here; that repo
+    has no tagged releases of its own (it tracks the app repo's version
+    tags) but its `master` also has commits on 2026-08-06. No archival,
+    maintenance-only, or EOL signal anywhere.
+
+catalogue_fit:
+  categories: [analytics, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers privacy-first web
+    analytics. Uptime-Kuma is the nearest "dashboard with a small backing
+    DB" shape but monitors uptime/latency, not visitor traffic — a
+    fundamentally different use case. Plausible is one of the
+    best-known self-hosted GA alternatives (cookie-free, no personal-data
+    collection, GDPR-friendly by design) and a genuinely common ask for
+    anyone running a marketing site or SaaS product who wants analytics
+    without Google.
+  usefulness: high
+  usefulness_rationale: >
+    Real, non-overlapping niche with strong name recognition and evergreen
+    demand (every site owner eventually wants basic traffic analytics),
+    version health is healthy/active, and the upstream self-hosting story
+    (an official docker-compose distribution, actively maintained) is
+    mature. Clear build candidate on product merits alone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Plausible CE's official `plausible/community-edition` compose stack is
+  three containers — `postgres:16-alpine` (user/account data),
+  `clickhouse/clickhouse-server:24.12-alpine` (events data), and the app
+  itself, `ghcr.io/plausible/community-edition:v3.2.1` — fronted by a
+  single HTTP port (default 8000, reconfigurable via `HTTP_PORT`) that
+  Plausible's own entrypoint can even TLS-terminate directly, so it sits
+  behind Traefik exactly like Immich's or Paperless-ngx's multi-service
+  stacks already do. The two required env vars, `BASE_URL` and
+  `SECRET_KEY_BASE` (a random ≥64-byte secret used for session signing),
+  are both server-side — `BASE_URL` derives from the assigned domain and
+  `SECRET_KEY_BASE` is exactly the kind of patternless secret AF already
+  generates with no customer input. Postgres's own password is likewise
+  internal-only (default `postgres`, container-to-container, never
+  customer-facing). The one real credential concern: Plausible has no
+  admin env var at all — the first person to open the assigned domain
+  gets a plain signup form and becomes the instance's first (and
+  effectively admin) user. `DISABLE_REGISTRATION` defaults to
+  `invite_only`, but the shipped registration plug
+  (`PlausibleWeb.Plugs.MaybeDisableRegistration`, confirmed by reading
+  `lib/plausible_web/plugs/maybe_disable_registration.ex` in the v3.2.1
+  source) explicitly bypasses that restriction on "first launch" (no users
+  yet in the DB) — so registration is open by design for exactly the
+  window that matters. That's the same open-first-registration race
+  n8n and WUD already ship with in this catalogue; per SCHEMA.md the fix
+  is a mandatory Traefik `basic_auth: true` gate keyed off the customer's
+  root-password hash, which closes the race without needing any
+  Plausible-side change. With that gate, `installable_today` is true.
+  Version health is strong (active app-repo commits days before this
+  analysis, tightening tagged-release cadence, a promptly-patched CVE)
+  and the product niche (privacy-first web analytics) has zero overlap
+  with the existing 24 recipes. Recommend `build_now`.
