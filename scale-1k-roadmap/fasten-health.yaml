@@ -1,0 +1,82 @@
+slug: fasten-health
+name: Fasten Health
+source_description: "Self-hosted personal and family electronic medical record manager"
+
+upstream:
+  url: https://github.com/fastenhealth/fasten-onprem
+  repo_url: https://github.com/fastenhealth/fasten-onprem
+  license: GPL-3.0
+  docker_image: ghcr.io/fastenhealth/fasten-onprem
+
+version_health:
+  latest_version: v1.1.3
+  latest_release_date: 2024-10-01
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    No release since v1.1.3 (2024-10-01) — over 22 months as of today
+    (2026-08-05). The upstream repo (fastenhealth/fasten-onprem) was
+    archived by its owner on 2026-07-18 (read-only, confirmed on the
+    GitHub repo page), just over two weeks before this analysis. The
+    project went from a roughly quarterly release cadence (v1.0.0 through
+    v1.1.3, Dec 2023-Oct 2024) to a long silent period and then a formal
+    shutdown. This is a hard EOL signal, not just slow maintenance — the
+    Docker image (ghcr.io/fastenhealth/fasten-onprem) will not receive
+    further security patches.
+
+catalogue_fit:
+  categories: [health, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal/family health-record management;
+    the closest neighbors (paperless-ngx, paperless-ai) are generic
+    document management, not clinical-data aggregation with FHIR/EHR
+    provider integrations. Would have been a genuine category addition
+    if actively maintained.
+  usefulness: low
+  usefulness_rationale: >
+    The feature set (aggregating records from 25,000+ US healthcare
+    provider portals) is niche and US-centric, and now sits on a
+    permanently frozen, unpatched image following the archival — shipping
+    it as a recipe would mean handing customers a dead, security-stale
+    app with no upstream to escalate bugs to.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Fasten has no admin/root credential settable via environment
+      variable or config at container boot — the app itself has no
+      pre-provisioned login. The first user to reach the instance
+      completes a self-service signup wizard in the web UI, choosing
+      their own username and password interactively. This is exactly the
+      "app with no login of its own" case the schema anticipates: a
+      Traefik basic_auth gate (mechanism above) is the only available
+      first-boot secret, protecting the signup race until the customer
+      completes their own in-app registration. That part is expressible
+      today.
+    - >
+      Independent of the auth-projection question, upstream is archived
+      (2026-07-18) with its last release 22 months old — see
+      version_health. This is the actual blocker for recommending the
+      app, not the credential mechanism.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Fasten Health is mechanically installable today (single-container,
+  single HTTP port, no login of its own — a Traefik basic_auth gate
+  covers the first-boot secret need) and would have filled a real gap in
+  the catalogue as the only personal health-record manager. However, the
+  upstream repository was archived by its owner on 2026-07-18, roughly
+  two weeks before this analysis, following a nearly two-year gap since
+  its last release (v1.1.3, 2024-10-01). Shipping a recipe on top of a
+  frozen, unpatched image for an app that stores sensitive medical data
+  is not advisable; recommend not_recommended pending a fork with active
+  maintenance, if one emerges.
