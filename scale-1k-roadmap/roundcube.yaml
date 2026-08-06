@@ -1,0 +1,133 @@
+slug: roundcube
+name: Roundcube
+source_description: "Browser-based IMAP webmail client with a modern interface and plugin support"
+
+upstream:
+  url: https://roundcube.net/
+  repo_url: https://github.com/roundcube/roundcubemail
+  license: GPL-3.0-or-later
+  docker_image: roundcube/roundcubemail:1.7.2-apache
+
+version_health:
+  latest_version: 1.7.2 (current stable); 1.6.17 (1.6.x LTS branch, maintained in parallel)
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.7.0 landed 2026-05-10 as the first stable of the 1.7 line (after a long
+    rc cycle), followed by 1.7.1 on 2026-05-24 and the security release 1.7.2
+    on 2026-07-05 — about one month before today (2026-08-06). The 1.6.x
+    branch moved to LTS/security-only mode when 1.7.0 shipped and still gets
+    coordinated releases (1.6.17, same day as 1.7.2, fixing CVE-2026-54432
+    and CVE-2026-54433 among others); 1.5.x is explicitly no longer
+    maintained. Repo is not archived and was pushed to on 2026-08-05
+    (yesterday); the official Docker images (roundcube/roundcubemail) were
+    rebuilt 2026-08-03, so both source and image publishing are live. Two
+    supported branches, regular security response, no dormancy signal.
+    Name is unambiguous — roundcube/roundcubemail is the only project using
+    it; roundcube/roundcubemail-docker (also active, pushed 2026-07-07) is
+    the same org's image-build repo, not a competing upstream.
+
+catalogue_fit:
+  categories: [productivity, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches email. Roundcube is the
+    best-known self-hosted webmail client — a single PHP app on one HTTP port
+    (80) that speaks IMAP/SMTP to a mail server the customer already has, so
+    it gives them a private browser inbox for their existing mailboxes
+    without a third-party webmail provider. Structurally it is a
+    uptime-kuma/vaultwarden-shaped recipe (one container, SQLite by default,
+    one public HTTP port, no raw protocol ports of its own) and sits behind
+    Traefik on roundcube.<base_domain> with no special handling; the only
+    proxy-related knob is ROUNDCUBEMAIL_REQUEST_PATH, and that stays "/" for
+    a subdomain deployment.
+  usefulness: high
+  usefulness_rationale: >
+    Webmail is one of the most recognizable self-hosting asks and Roundcube
+    is the default answer to it — huge install base, shipped by most hosting
+    control panels, so customers arrive already knowing the name. It pairs
+    naturally with IONOS mail products (the customer points it at their own
+    IMAP/SMTP), which makes it more commercially relevant than most
+    single-purpose utilities in the catalogue. Rated high rather than medium
+    for that recognition plus the empty category, with the honest caveat that
+    it is only useful to a customer who already has a mailbox somewhere — it
+    is a client, not a mail server.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ROUNDCUBEMAIL_DES_KEY (session/password encryption key)
+    - ROUNDCUBEMAIL_DB_PASSWORD (only if MariaDB/Postgres is used instead of the default SQLite; internal)
+    - basic_auth_password (Traefik gate in front of the login page)
+  secrets_expressible_today:
+    - secret: ROUNDCUBEMAIL_DES_KEY (session/password encryption key)
+      mechanism: server_generated_no_customer_input
+    - secret: ROUNDCUBEMAIL_DB_PASSWORD (only if MariaDB/Postgres is used instead of the default SQLite; internal)
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password (Traefik gate in front of the login page)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Not a blocker, but the central design decision for the recipe: the
+      image's documented "required" env vars ROUNDCUBEMAIL_DEFAULT_HOST and
+      ROUNDCUBEMAIL_SMTP_SERVER are exactly the kind of arbitrary
+      customer-specific value /compose cannot carry (each customer's mail
+      server hostname differs). They cannot simply be left unset either —
+      the entrypoint defaults both to `localhost` and unconditionally writes
+      `$config['imap_host'] = '<host>:<port>'`, so an unconfigured instance
+      points at a non-existent local IMAP server and every login fails.
+      The fix needs no new platform mechanism: the entrypoint appends
+      `include()` lines for every `/var/roundcube/config/*.php` file *after*
+      the generated docker config, so a small PHP override shipped with the
+      recipe and bind-mounted there wins. Setting `$config['imap_host'] = '';`
+      makes Roundcube render a "Server" textbox on the login page (documented
+      behaviour in config/defaults.inc.php: "Leave blank to show a textbox at
+      login"), and `$config['smtp_host'] = 'tls://%h:587';` routes outgoing
+      mail to whatever host the user logged in against (`%h` = user's IMAP
+      hostname). The customer then supplies their own mail host and
+      credentials interactively at first login — no /compose input needed.
+      This must be spelled out in the recipe; copying the upstream example
+      compose verbatim would hardcode mail.example.org and ship dead.
+    - >
+      Consequence of the blank-host approach, and why the Traefik
+      `basic_auth` gate above is treated as required rather than optional:
+      with `imap_host` blank, an unauthenticated visitor can make the
+      instance open IMAP/SMTP connections to any hostname they type, i.e.
+      use the customer's box as a credential-probing / outbound-connection
+      springboard. Roundcube does have its own login (the customer's IMAP
+      credentials — no admin account and no `generated_from` projection
+      needed), but that login is not the boundary that stops this, so the
+      public port should sit behind Traefik `basic_auth` projected from the
+      customer's root password (IF-1312), same pattern already used for
+      n8n/WUD/Immich.
+    - >
+      OAuth2/OIDC login (ROUNDCUBEMAIL_OAUTH_CLIENT_SECRET, Gmail/M365
+      XOAUTH2) is genuinely unsupportable today — it needs a third-party app
+      registration with no input channel — but it is entirely optional and
+      off by default, so it does not gate first boot. The recipe should just
+      not advertise it.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Roundcube is a healthy, actively maintained (stable 1.7.2 on 2026-07-05,
+  1.6.x LTS in parallel, repo pushed yesterday), GPL-3.0-or-later PHP webmail
+  client with an official pinned image (roundcube/roundcubemail:1.7.2-apache),
+  one HTTP port, SQLite by default, and no raw protocol ports — a
+  uptime-kuma-shaped single-container recipe that fronts cleanly on Traefik
+  and fills an empty category (no email app among the current 24 recipes).
+  It is installable today with no new platform mechanism, but not by copying
+  the upstream compose: the customer's IMAP/SMTP hostname is an arbitrary
+  per-customer value /compose cannot supply, so the recipe must bind-mount a
+  config override into /var/roundcube/config setting `imap_host = ''` (login
+  page then prompts for the server) and `smtp_host = 'tls://%h:587'`, letting
+  the customer enter their own mail host and credentials at first login.
+  Because a blank host lets anonymous visitors aim the instance at arbitrary
+  mail servers, the public port should be gated with Traefik `basic_auth`
+  from the root password; all other secrets (des_key, optional DB password)
+  are server-generated and never customer-facing. Hence
+  build_with_caveats — high value, but the recipe author must get the
+  blank-host + gate design right.
