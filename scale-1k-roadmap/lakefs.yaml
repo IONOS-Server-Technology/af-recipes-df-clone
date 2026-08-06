@@ -1,0 +1,88 @@
+slug: lakefs
+name: LakeFS
+source_description: "Git-like version control and data lakehouse management platform"
+
+upstream:
+  url: https://lakefs.io
+  repo_url: https://github.com/treeverse/lakeFS
+  license: Apache-2.0
+  docker_image: treeverse/lakefs
+
+version_health:
+  latest_version: "1.86.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.86.0 shipped today (2026-08-05), and the run-up to it shows a tight,
+    consistent cadence: v1.85.0 (2026-08-03), v1.84.1 (2026-07-25), v1.84.0
+    (2026-07-23), v1.83.0 (2026-07-09), v1.82.0 (2026-06-16), v1.81.1
+    (2026-05-21), v1.81.0 (2026-05-07) — releases roughly every 1-3 weeks,
+    several of them security patches shipped within days of disclosure
+    (e.g. v1.86.0 itself fixes an unauthorized-repository-listing issue via
+    the S3 gateway API). Repo is not archived; commit activity is current.
+    Upstream company Treeverse raised a $20M growth round in mid-2025 and
+    continues to fund development, including this OSS core alongside a
+    separate paid Enterprise/Cloud tier — no sign of the OSS line being
+    deprecated in favor of the paid product the way Kong's was. Clearly
+    `active`, not just recently active.
+
+catalogue_fit:
+  categories: [developer-tools, data-engineering, data-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    LakeFS applies git-like semantics (branches, commits, merges, atomic
+    rollback) to data lake / object-storage content, aimed at data
+    engineering and ML teams who need reproducible, versioned datasets.
+    Gitea is the closest nominal sibling ("git-like version control") but
+    it versions source code repositories, not bulk object-storage data, and
+    has a completely different backend model (SSH + Git wire protocol vs.
+    an S3-compatible gateway in front of a blockstore). None of the current
+    24 recipes touch data-lake/data-versioning at all, so this is a
+    genuinely new category rather than a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability with no catalogue overlap, and it's a
+    single-container, no-external-dependency deploy when run with
+    `LAKEFS_DATABASE_TYPE=local` + `LAKEFS_BLOCKSTORE_TYPE=local` (no
+    Postgres or S3/MinIO required — matches recipes like `uptime-kuma` /
+    `vaultwarden` in shape). The catch is audience: this is a developer/
+    data-engineering tool, not a general-purpose self-hosted app a typical
+    customer reaches for on its own. It's useful to teams already doing
+    data-lake or ML-pipeline work, a narrower slice than e.g. Immich or
+    n8n, closer to Appsmith's or Gitea's audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LakeFS (treeverse/lakefs, pin 1.86.0) is mechanically installable today.
+  Run with `LAKEFS_DATABASE_TYPE=local` and `LAKEFS_BLOCKSTORE_TYPE=local`
+  it needs no external Postgres or S3/MinIO service, so it fits a single-
+  container docker-compose recipe with one HTTP port, cleanly reverse-
+  proxyable through Traefik. LakeFS has no env var to preset an admin
+  account at boot: the first visit to the base URL redirects to a one-time
+  `/setup` wizard that itself generates and displays an access-key-ID /
+  secret-access-key pair for whoever completes it, shown only once. That
+  is the same "first-visitor race" shape as Appsmith's signup wizard — an
+  anonymous visitor could reach `/setup` before the customer and claim the
+  generated admin credential — so it needs the same fix: a Traefik
+  `basic_auth` gate in front closes the race, after which the customer
+  completes the wizard themselves and receives their own credential
+  directly in the browser. No app-generated secret needs an out-of-band
+  delivery channel (unlike Atomic Server's console-only invite token), so
+  this doesn't hit the `blocked_on_platform` case. Upstream is clearly
+  `active` — releases every 1-3 weeks including fast security patches, and
+  the company behind it is funded and shipping both the OSS core and a
+  paid Enterprise tier in parallel. The main caveat is audience: this is a
+  data-engineering/dev tool, useful but narrower than most of the
+  catalogue's general-purpose apps. Recommend build_now.
