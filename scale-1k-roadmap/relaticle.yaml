@@ -1,0 +1,102 @@
+slug: relaticle
+name: Relaticle
+source_description: "Open-source CRM with native AI agent support and REST API automation"
+
+upstream:
+  url: https://relaticle.com/
+  repo_url: https://github.com/relaticle/relaticle
+  license: AGPL-3.0
+  docker_image: ghcr.io/relaticle/relaticle
+
+version_health:
+  latest_version: "v3.3.19"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.3.19 shipped 2026-07-29, about a week before today (2026-08-05).
+    Releases are landing multiple times a week (v3.3.10 through v3.3.19
+    all within a roughly six-week window, June 22 - July 29), a very
+    healthy cadence for a project at 1.5k GitHub stars / 167 forks with
+    1,300+ commits, 5 open issues and 9 open PRs. Modern stack (Laravel
+    13, Filament 5, PHP 8.4) with a public roadmap. No signs of slowing,
+    maintenance-only, or archival.
+
+catalogue_fit:
+  categories: [crm, productivity, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers CRM/sales-pipeline
+    use cases. Relaticle's specific angle is native AI-agent integration
+    (an MCP server exposing 30 tools plus a full REST API) on top of a
+    conventional contacts/companies/deals CRM, which pairs naturally with
+    the catalogue's existing AI-adjacent recipes (ollama, open-webui,
+    hermes-agent, openclaw) as something an agent could actually operate
+    against. Genuinely new ground, not a variant of anything already
+    shipped.
+  usefulness: high
+  usefulness_rationale: >
+    CRM is a common SMB/freelancer need with no self-hosted representation
+    in the catalogue today, and the AI-agent/MCP angle is a differentiator
+    IONOS could market distinctly from generic "yet another CRM" self-host
+    guides. Single reverse-proxy-friendly web UI, standard Postgres+Redis
+    backing services matching the existing n8n/paperless-ngx/immich
+    pattern this catalogue already supports well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [app_key, db_password, admin_account_gate]
+  secrets_expressible_today:
+    - secret: app_key
+      mechanism: server_generated_no_customer_input
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: admin_account_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Relaticle has no CLI-free, env-var-driven way to seed an initial
+      admin account. The upstream self-hosting guide's documented path is
+      `docker compose exec app php artisan make:filament-user`, an
+      interactive CLI prompt with no non-interactive/env-var equivalent —
+      not expressible via `generated_from` (there is no single admin
+      password parameter on the app to project a hash into).
+    - >
+      The actual first-run path is web self-registration at `/app/register`.
+      With the default `REQUIRE_EMAIL_VERIFICATION=true` and no SMTP
+      configured (there is no channel for a customer-supplied mail-relay
+      credential either), nobody can complete verification and sign in.
+      Setting `REQUIRE_EMAIL_VERIFICATION=false` removes that block but
+      upstream's own docs warn "anyone who can reach `/app/register` can
+      create a working account" — i.e. whoever visits the domain first
+      after deployment becomes the CRM owner, a race any internet scanner
+      wins if the domain is reachable before the customer's first visit.
+    - >
+      This race is closeable with the same tool used for no-login apps:
+      gate the entire domain behind Traefik `basic_auth` (customer's root
+      password hash) so no unauthenticated request reaches `/app/register`
+      before the customer does. That is a workable fit for our mechanism,
+      not a structural blocker — but it is a caveat on the recipe design
+      (permanent basic_auth in front of an app that has its own login),
+      not a zero-caveat `build_now`.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Relaticle is an actively maintained (weekly releases), AGPL-3.0
+  Laravel/Filament CRM with a distinctive AI-agent/MCP angle that fills a
+  genuine gap — no CRM exists in the current 24-recipe catalogue. It runs
+  as a standard multi-container docker-compose stack (app + horizon worker
+  + scheduler + Postgres 17 + Redis 7) matching patterns already proven in
+  n8n/paperless-ngx/immich, behind a single reverse-proxy-friendly port.
+  The one real wrinkle is initial-admin bootstrapping: there's no env-var
+  or `generated_from` path to seed an admin account directly, only an
+  interactive CLI command or open self-registration at `/app/register`.
+  That registration endpoint is a first-come-first-served race if exposed
+  unauthenticated, so the recipe needs a permanent Traefik `basic_auth`
+  gate (root-password hash) in front of the whole app plus
+  `REQUIRE_EMAIL_VERIFICATION=false` (no SMTP input channel exists) to be
+  safely installable today — workable, but a caveat-laden design rather
+  than a clean `build_now`.
