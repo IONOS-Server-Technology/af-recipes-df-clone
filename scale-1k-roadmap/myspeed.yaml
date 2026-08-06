@@ -1,0 +1,78 @@
+slug: myspeed
+name: MySpeed
+source_description: Internet speed test tracker with automated testing and statistics
+
+upstream:
+  url: https://myspeed.dev
+  repo_url: https://github.com/gnmyt/MySpeed
+  license: MIT
+  docker_image: germannewsmaker/myspeed
+
+version_health:
+  latest_version: "1.0.9"
+  latest_release_date: "2024-05-21"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Latest tagged/packaged stable release is v1.0.9 (2024-05-21) — roughly
+    26 months before today (2026-08-05). The Docker Hub `germannewsmaker/myspeed`
+    stable tag matches: last pushed ~2 years ago. However, the repo itself is
+    NOT archived and NOT dead: the `development` branch had a commit as
+    recently as 2026-08-03 (2 days before today, a dependabot-driven PR
+    merge), and the `development` Docker tag was pushed 4 days before today.
+    So this reads as an unusual split: active ongoing development, but the
+    maintainer has stopped cutting stable version tags/releases for over two
+    years. Any recipe pinning to a "current stable" tag would pin to
+    2024-era code while upstream `development` has moved on substantially —
+    worth flagging as a packaging-process risk distinct from project health.
+
+catalogue_fit:
+  categories: [networking, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No shipped recipe in the current 24-recipe catalogue does bandwidth
+    testing. Uptime Kuma (our only monitoring recipe) checks
+    availability/latency of customer-specified endpoints, not throughput.
+    MySpeed runs recurring speed tests (via Ookla, LibreSpeed, or Cloudflare
+    backends) on a cron schedule and stores history/graphs/notifications —
+    it is a bandwidth-monitoring client, not a speed-test server for others
+    to hit. Note: there is an open gap-analysis candidate for LibreSpeed
+    (`apps-gaps/librespeed.yaml`, not yet a shipped recipe) which covers the
+    adjacent "host your own speedtest.net-style test server" use case.
+    MySpeed and LibreSpeed are conceptually adjacent (both "self-hosted
+    speed test" tools) but solve different problems — LibreSpeed is the
+    thing being tested against, MySpeed is the thing doing the testing and
+    tracking history over time — so building both would not be pure
+    duplication, though a customer likely only needs one.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand (home users, small ISPs/MSPs monitoring their own
+    uplink quality over time) but a narrow, single-purpose utility with a
+    modest ceiling. Lightweight (single container, file-based storage by
+    default, one HTTP port), which keeps the bar low, but the packaging
+    stall (see version_health) tempers enthusiasm versus LibreSpeed's more
+    consistently active release cadence.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  MySpeed is a lightweight, single-container, reverse-proxy-friendly
+  bandwidth-monitoring tool with no direct duplicate in our catalogue and a
+  real (if niche) use case. It needs no customer-supplied secret at first
+  boot — like Uptime Kuma, the admin account is created by the customer
+  through the web UI on first visit, not injected via env var — so it is
+  mechanically installable today with no platform blockers. The caveat is
+  version health: upstream hasn't cut a stable release in ~26 months even
+  though the `development` branch is still actively committed to, so a
+  recipe pinned to the "latest stable" tag would ship noticeably stale code
+  relative to what upstream is actually running. Recommend build_with_caveats:
+  worth building, but flag the stale-stable-tag risk and re-check before
+  committing to a specific pinned version.
