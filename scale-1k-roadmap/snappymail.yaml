@@ -1,0 +1,103 @@
+slug: snappymail
+name: SnappyMail
+source_description: "Lightweight self-hosted webmail client for accessing IMAP email in any browser"
+
+upstream:
+  url: https://snappymail.eu/
+  repo_url: https://github.com/the-djmaze/snappymail
+  license: AGPL-3.0
+  docker_image: djmaze/snappymail:v2.38.2
+
+version_health:
+  latest_version: "v2.38.2"
+  latest_release_date: "2024-10-09"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    No tagged release since v2.38.2 on 2024-10-09 — roughly 22 months before
+    today (2026-08-05), and the djmaze/snappymail Docker Hub tags stop at
+    that same version ("almost 2 years ago" per Docker Hub, matching the
+    release date). However master is not dormant: commits continue into
+    2026 (most recently seen around 2026-03-11, plus multiple commits
+    through mid-2025), the repo is not archived, and issues/PRs are still
+    being triaged. This is the same shape as apps-gaps/slskd.yaml — active
+    development that has simply stopped cutting tagged stable releases —
+    worth re-verifying the exact latest commit/tag before pinning a recipe.
+
+catalogue_fit:
+  categories: [email, communication, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches email/webmail —
+    this would be the first recipe in that category. SnappyMail is a
+    lightweight, single-container webmail *client* only: it needs no
+    database for its simplest deployment (SQLite-backed), no mail is
+    delivered or stored by the app itself, and it works behind a single
+    HTTP port (8888) with no extra raw ports, confirmed by upstream's own
+    examples/docker/docker-compose.traefik.yml. It gives a customer who
+    already has IMAP/SMTP mailboxes elsewhere (their own mail server, a
+    business email provider, etc.) a self-hosted webmail UI instead of
+    relying on that provider's own webmail or a desktop/mobile mail app.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for customers who specifically want to keep webmail access
+    off a third-party provider's UI, but the audience is narrower than a
+    typical AF recipe because the app is a pure client — it does nothing
+    useful until the customer already has a working mailbox elsewhere and
+    then configures it in, which is an extra manual step most self-hosters
+    of a "one-click app" won't expect. It doesn't compete with or replace
+    a full mail server stack (e.g. Mailu, docker-mailserver), which nobody
+    in the current catalogue offers either.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "SnappyMail admin panel (/?admin) access gate"
+  secrets_expressible_today:
+    - secret: "SnappyMail admin panel (/?admin) access gate"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The admin panel's own login (username "admin", password
+      auto-generated at first container start and written to
+      /var/lib/snappymail/_data_/_default_/admin_password.txt inside the
+      container) has no environment variable or hash-accepting input at
+      boot — the only documented way to retrieve it is `docker exec ...
+      cat admin_password.txt`, which is not a channel /compose exposes.
+      Workaround: leave that internal password as an opaque
+      server-generated value nothing customer-facing ever reads, and put
+      the real auth boundary at Traefik basic_auth (root-password hash) in
+      front of the app (or at least the /?admin path), same pattern as
+      n8n/WUD/Open WebUI. This makes SnappyMail mechanically installable
+      once IF-1312 (basic_auth) ships — not a hard blocker, just
+      blocked_on_platform.
+    - >
+      Separately from the auth mechanics: even once the admin panel is
+      reachable, the app is not useful to an end user until someone visits
+      /?admin at least once post-deploy to add a Domain (mapping the
+      customer's email domain to their real IMAP/SMTP host) or enable
+      manual server entry on the login form. That is a one-time
+      app-configuration step, not a customer-supplied secret, so it does
+      not block /compose mechanically — but it means this can't be a
+      zero-touch "log in and go" recipe the way e.g. Vaultwarden is;
+      onboarding docs would need to tell the customer to configure their
+      mail provider before the webmail login screen does anything useful.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  SnappyMail would be the first email/webmail-category recipe in the
+  catalogue and is mechanically simple — single container, no database
+  required, one HTTP port, reverse-proxy friendly. It's currently blocked
+  the same way apps-gaps/slskd.yaml is: its own admin-panel login only
+  exposes a container-internal auto-generated password with no
+  hash-accepting or env-var input path, so it needs Traefik basic_auth
+  (IF-1312) rather than generated_from to gate it safely. Upstream is
+  healthy but release cadence has gone sporadic (no tagged version since
+  2024-10-09, ~22 months ago, even though master keeps taking commits) —
+  worth re-checking closer to build time. Usefulness is real but medium:
+  it only serves customers who already have a mailbox elsewhere and are
+  willing to do a one-time admin-panel setup step, a narrower fit than a
+  typical single-purpose self-hosted app.
