@@ -1,0 +1,84 @@
+slug: nocobase
+name: NocoBase
+source_description: "NocoBase is an extensible no-code/low-code platform for building applications"
+
+upstream:
+  url: https://www.nocobase.com
+  repo_url: https://github.com/nocobase/nocobase
+  license: Apache-2.0 (core, since v2.0.3, 2026-02-26; was AGPL-3.0 before that — some optional plugins remain AGPL-3.0)
+  docker_image: nocobase/nocobase
+
+version_health:
+  latest_version: "v2.1.36 (tag, 2026-08-05)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active — the GitHub releases page shows multiple stable
+    patch releases per week (v2.1.33 on 2026-07-31, v2.1.34 on 2026-08-01,
+    v2.1.35 and v2.1.36 both on 2026-08-05, today's date) alongside a
+    parallel v3.0.0-alpha prerelease track. Docker Hub tags confirm the
+    same cadence (2.1.36 and 2.1.36-full images pushed 2026-08-05). No
+    EOL/deprecation signals; this is a well-funded, fast-moving project.
+
+catalogue_fit:
+  categories: [no-code, internal-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    NocoBase is a no-code/low-code *application builder* — customers model
+    data collections, workflows, and UIs to stand up internal tools/admin
+    panels (Airtable/Retool-style), not a fixed-purpose app. n8n is the
+    closest thing in the current catalogue but is scoped to workflow/API
+    automation, not database-backed app/UI building, so there's no real
+    functional overlap — a customer could reasonably want both. No other
+    recipe in the 24-app catalogue covers this space.
+  usefulness: high
+  usefulness_rationale: >
+    No-code internal-tool builders (Airtable, Retool, Budibase) are a
+    popular self-hosting category with no representation in the catalogue
+    today; NocoBase is one of the most active open-source options in that
+    space and would fill a real gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, DB_PASSWORD, INIT_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The app's own first-boot admin login is bootstrapped from
+      INIT_ROOT_PASSWORD (documented default: admin@nocobase.com /
+      admin123, username nocobase), which NocoBase's install routine reads
+      and hashes itself internally — it needs the **plaintext** password,
+      not a pre-computed hash. `generated_from` only ever projects a hash
+      (argon2/bcrypt) of the customer's root password, so there is no
+      channel to seed this field with a value the customer could actually
+      use to log into the built app afterward. Unlike Adminer-style tools,
+      NocoBase's core product *is* the logged-in app-builder session, so
+      gating the whole thing behind Traefik `basic_auth` (leaving
+      INIT_ROOT_PASSWORD at a fixed/random server-side value) would still
+      leave the customer locked out of the NocoBase UI itself once past
+      the gate — this isn't the "fixed default credential behind a proxy
+      gate is fine" case, because there's no way for the customer to ever
+      learn or set that inner credential.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  NocoBase is a strong catalogue candidate on merit — active development,
+  Apache-2.0 core, official Docker image, single reverse-proxy-friendly
+  HTTP port, and no functional overlap with anything currently in the
+  catalogue. It is blocked today purely on the credential-projection
+  mechanism: its first-boot admin account requires a plaintext
+  INIT_ROOT_PASSWORD that only NocoBase's own install step can hash, and
+  `generated_from` only ever supplies a hash. This isn't fixable by
+  wrapping the app in Traefik `basic_auth` the way Adminer-style tools are,
+  since the customer still needs a working NocoBase login behind that
+  gate. Recommend revisiting once there is either a plaintext-secret
+  projection channel or an API-driven post-boot "set admin password" step
+  that `install.sh` could drive non-interactively.
