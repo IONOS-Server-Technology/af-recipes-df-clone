@@ -1,0 +1,114 @@
+slug: nango
+name: Nango
+source_description: "Open-source OAuth and API integration platform for 300+ services"
+
+upstream:
+  url: https://nango.dev
+  repo_url: https://github.com/NangoHQ/nango
+  license: Elastic License 2.0 (ELv2) — source-available, not OSI-approved open source
+  docker_image: nangohq/nango-server:hosted
+
+version_health:
+  latest_version: "v0.71.3"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v0.71.3 shipped 2026-08-03, two days before today
+    (2026-08-05). Release history shows a rapid, near-weekly cadence
+    (v0.71.0 on 2026-07-14, v0.71.1 on 2026-07-20, v0.71.2 on 2026-07-21,
+    v0.71.3 on 2026-08-03; v0.70.7-v0.70.9 through June 2026). Repo is not
+    archived and shows active development with recent feature work
+    (MFA sign-in gating added in the latest release).
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [n8n]
+  differentiation: >
+    Nango is an OAuth/API-connector backend meant to be embedded into a
+    product a developer is building (300+ prebuilt OAuth integrations,
+    credential storage, API proxying, webhook handling) — it targets
+    developers wiring auth into their own app, not end users automating
+    tasks. n8n is a workflow-automation tool for end users connecting apps
+    together interactively. The audiences and use cases differ enough that
+    this isn't a straight duplicate, but it does compete for some of the
+    same "connect my app to third-party APIs" mindshare as n8n's node
+    library.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct developer-infrastructure niche (managed OAuth/token
+    handling for building integrations) not covered by any of the 24
+    current recipes. But it's a narrower audience than most of the
+    catalogue — useful mainly to customers who are themselves building a
+    SaaS product with third-party integrations, not general SME/homelab
+    users — and the free self-hosted tier is an intentionally
+    feature-limited edition of a commercial product (see licensing note
+    below), which caps how compelling it is as a catalogue addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - NANGO_ENCRYPTION_KEY  # AES-GCM key for encrypting stored tokens/secrets
+    - NANGO_DB_PASSWORD  # Postgres password, internal only
+    - dashboard_gate  # no forced admin-login env var; dashboard is open by default unless gated
+  secrets_expressible_today:
+    - secret: NANGO_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: NANGO_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: dashboard_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Official docker-compose.yaml is a 4+ container stack (Postgres,
+      Redis, the nango-server app, optional Elasticsearch for logs) and
+      exposes two separate public HTTP ports from the same server
+      container (SERVER_PORT 3003 for the API/dashboard, CONNECT_UI_PORT
+      3009 for the embeddable connect widget) plus the raw Postgres
+      (5432) and Redis (6379) ports bound directly on the host in the
+      shipped compose file — those two data-store ports need to be
+      removed/firewalled, and the two HTTP ports both need Traefik
+      routing (e.g. two host rules on the same domain), which is more
+      surface than our single reverse-proxied port pattern is built for.
+      Structurally closest existing template is recipes/immich/ (multi-
+      container stack, Postgres + Redis dependencies) rather than a
+      single-container recipe.
+    - >
+      Elastic License 2.0: prohibits "provid[ing] the software to third
+      parties as a hosted or managed service" that exposes a substantial
+      set of its functionality. Each Application Factory deployment is a
+      single customer's own dedicated instance rather than a shared
+      multi-tenant service we operate, which is the more defensible
+      reading of ELv2's exception, but this is a legal judgment call, not
+      an engineering one — worth a compliance sign-off before treating
+      this as clear to ship, independent of the mechanical installability
+      question below.
+    - >
+      The product's entire value proposition (300+ OAuth integrations) is
+      unusable until the customer supplies an OAuth client ID/secret per
+      third-party service they want to connect — that happens through
+      Nango's own post-login settings UI (not a first-boot secret we'd
+      need to inject), so it does not block installability, but it does
+      mean the app is inert until the customer does non-trivial
+      per-integration setup themselves after provisioning.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Nango boots with only server-generated secrets (encryption key, DB
+  password) plus a Traefik basic_auth gate in place of its own optional,
+  non-forced dashboard login — the auth mechanism itself isn't the
+  blocker. What blocks installable_today is shape: the official stack is
+  multi-container (Postgres, Redis, optionally Elasticsearch) and exposes
+  two distinct public HTTP ports from one container (dashboard/API on
+  3003, connect-widget UI on 3009) plus raw DB/cache ports bound in the
+  shipped compose file, none of which fits our current single-port-behind-
+  Traefik recipe pattern without real compose surgery. Separately, the
+  Elastic License 2.0's hosted-service restriction and the fact that the
+  free self-hosted tier is a deliberately limited edition of a commercial
+  product both warrant a second look before prioritizing this — flagged
+  as blocked_on_platform rather than not_recommended because the
+  underlying app is active, well-maintained, and fills a real gap for
+  developer-focused customers.
