@@ -1,0 +1,98 @@
+slug: rallly
+name: Rallly
+source_description: "Self-hosted scheduling and group-poll tool for picking the best date and time across teams"
+
+upstream:
+  url: https://rallly.co/
+  repo_url: https://github.com/lukevella/rallly
+  license: AGPL-3.0-or-later
+  docker_image: lukevella/rallly:4.12.1
+
+version_health:
+  latest_version: "v4.12.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the latest tag (v4.12.1) was cut today, and
+    the prior release (v4.12.0) landed two days earlier (2026-08-03). This
+    caps a steady, near-monthly cadence through 2026 (v4.9.0 on 2026-04-21,
+    v4.9.1/v4.9.2 on 2026-04-22, v4.10.0 on 2026-04-29, v4.10.1 on
+    2026-05-14, v4.10.2 on 2026-05-21, v4.11.0 on 2026-06-19, v4.11.1 on
+    2026-06-20, v4.12.0/v4.12.1 on 2026-08-03/08-05). The project is clearly
+    actively maintained, including prompt security patches (v4.10.1 patched
+    a Next.js CVE and a React Server Components DoS the same cycle it was
+    disclosed) and a same-week fix for a self-hosting regression (v4.11.1
+    the day after v4.11.0 broke `NEXT_PUBLIC_BASE_URL` handling for
+    self-hosted instances).
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes address group scheduling or
+    date/time polling. Rallly fills a distinct, everyday productivity
+    niche — "when can everyone meet" — that is not adjacent to any
+    existing catalogue entry (closest by category, n8n and Anytype Server,
+    solve automation and note-taking, not scheduling).
+  usefulness: high
+  usefulness_rationale: >
+    Group scheduling is a common, easily understood self-hosting use case
+    (a self-hosted alternative to Doodle/When2Meet) with broad appeal
+    beyond the developer/AI-tooling audience most of the current catalogue
+    skews toward. Upstream is small, single-purpose, and actively
+    maintained, which lowers long-term support risk relative to larger
+    multi-service candidates.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [postgres_password, secret_password, basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+    - secret: secret_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Rallly's own login is passwordless: the space owner signs in via a
+      magic link emailed by the instance's configured SMTP server
+      (SMTP_HOST/SMTP_USER/SMTP_PWD — the customer's own mail provider
+      credentials), and the first user matching INITIAL_ADMIN_EMAIL claims
+      admin at /control-panel the same way. Customer-supplied SMTP
+      credentials have no input channel today (same class as an external
+      API key), so that path is not expressible via `/compose` as it
+      stands. A base install is still installable, though: setting
+      EMAIL_LOGIN_ENABLED=false with no SSO configured disables all
+      account login (registration is disabled too), leaving the app as a
+      pure anonymous poll tool — creating and voting on polls works
+      entirely through guest-session cookies with no account of any kind,
+      confirmed by Rallly's own "Quick Create"/guest-session flow that
+      predates and does not depend on the login system. Gating the whole
+      domain behind Traefik basic_auth (per the schema's "no login of its
+      own" pattern) covers the resulting open-by-default surface.
+    - >
+      Running in that degraded mode loses email notifications to poll
+      creators (new votes/comments) and cross-device continuity for a
+      poll's owner (no way to sign back in and manage past polls from a
+      different browser without SMTP-backed magic links) — this is a real
+      feature loss versus Rallly's intended UX, not just a cosmetic
+      caveat, but the core scheduling/polling workflow described in
+      Hostinger's listing keeps working end-to-end.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Rallly is a small, actively maintained, single-purpose scheduling-poll
+  app with no overlap in the current 24-recipe catalogue and broad
+  everyday appeal. It ships behind a magic-link (SMTP-backed) login for
+  the space owner/admin, which has no customer-supplied-credential channel
+  today, but the app is designed to also work with zero accounts at all
+  (guest-session poll creation and voting) — running it that way, gated
+  behind Traefik basic_auth, is installable today at the cost of losing
+  email notifications and cross-device poll management for the owner.
+  Recommend building with that caveat documented, rather than blocking on
+  the SMTP-dependent full feature set.
