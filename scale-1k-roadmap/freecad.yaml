@@ -1,0 +1,70 @@
+slug: freecad
+name: FreeCAD
+source_description: "Browser-accessible parametric 3D CAD modeler for engineering and design"
+
+upstream:
+  url: https://www.freecad.org/
+  repo_url: https://github.com/FreeCAD/FreeCAD
+  license: LGPL-2.0-or-later
+  docker_image: lscr.io/linuxserver/freecad (community/LinuxServer.io KasmVNC webtop wrapper; no official image from the FreeCAD project itself, which does not ship Docker images or a browser UI on its own)
+
+version_health:
+  latest_version: "1.1.3"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    FreeCAD 1.1.3 shipped 2026-07-25, about 11 days before this analysis
+    (2026-08-05); 1.1 itself released 2026-03-25 with several point releases
+    since. Weekly development builds continue in parallel. Actively
+    developed core project, no dormancy signal. The linuxserver/docker-freecad
+    wrapper (the actual thing this recipe would run) also tracks upstream
+    releases and has ongoing GitHub Actions activity, so both layers are
+    healthy.
+
+catalogue_fit:
+  categories: [productivity, engineering, design]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches CAD/engineering
+    design; this would be a genuinely new category. FreeCAD is a real,
+    well-known open-source 3D parametric modeler, so there is legitimate
+    customer demand for a "CAD workstation in a browser" VPS use case that
+    guacamole (generic remote-desktop gateway) only partially covers —
+    FreeCAD-via-LinuxServer ships the app pre-installed and ready, no
+    separate desktop/VM setup needed.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for hobbyists/engineers wanting a persistent, anywhere-
+    accessible CAD workstation, but it's a heavier, more niche single-user
+    tool (needs real CPU/RAM for a full desktop session, not just a service)
+    compared to the rest of the catalogue, and the "browser-accessible" part
+    is a third-party KasmVNC wrapper rather than a feature of FreeCAD itself.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "linuxserver/docker-freecad exposes two ports: 3000 (the KasmVNC web UI, HTTP/HTTPS) and 3001 (a data websocket server used by the KasmVNC session). Traefik can front port 3000 on a single domain, but port 3001 is a second raw port the container needs reachable for the desktop session to work correctly, which is not the simple single-HTTP-port shape our other Traefik-fronted recipes use — marked reverse_proxy_compatible: false pending confirmation that both ports can be routed through one Traefik entrypoint (e.g. via websocket-aware routing on the same port, if the image supports that) rather than needing 3001 exposed separately."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FreeCAD itself is an actively maintained, real open-source CAD tool with
+  no overlap in our current catalogue, but "browser-accessible" here means
+  wrapping it in LinuxServer.io's KasmVNC webtop image, not a native FreeCAD
+  web feature. The image ships with no built-in auth by default (its
+  optional CUSTOM_USER/PASSWORD env vars are documented by LinuxServer as
+  suitable only for a trusted local network, not internet exposure), so it
+  needs a mandatory Traefik basic_auth gate — expressible today via
+  generated_from projection of the customer's root password, same pattern
+  as Adminer/WUD/n8n. The remaining open question is the second exposed
+  port (3001, KasmVNC's data websocket) alongside the main UI port (3000),
+  which doesn't cleanly fit the single-HTTP-port-behind-Traefik shape most
+  of our recipes assume — worth a closer compose-level look before treating
+  this as a straightforward build_now.
