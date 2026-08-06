@@ -1,0 +1,107 @@
+slug: listmonk
+name: Listmonk
+source_description: "High-performance self-hosted newsletter and mailing list manager"
+
+upstream:
+  url: https://listmonk.app/
+  repo_url: https://github.com/knadh/listmonk
+  license: AGPL-3.0
+  docker_image: listmonk/listmonk
+
+version_health:
+  latest_version: "v6.2.0"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Steady ~3-month major-release cadence through 2026: v6.0.0 (2026-01-02),
+    v6.1.0 (2026-03-29, ~86 days later), v6.2.0 (2026-06-26, ~89 days later).
+    v6.2.0 is ~40 days old as of today (2026-08-05) — well inside the
+    established cadence, no gap. Each release ships real security fixes
+    (v6.1.0 addressed CSRF issues, v6.2.0 fixed campaign/list permission
+    validation), indicating an actively maintained project, not
+    maintenance-only. No EOL or archival signal found.
+
+catalogue_fit:
+  categories: [marketing, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes cover email newsletter / mailing
+    list campaign management. Listmonk is a Mailchimp-style tool (campaigns,
+    subscriber lists, segmentation, drag-and-drop/HTML email builder,
+    bounce handling) — a genuinely new category for the catalogue. Note:
+    `apps-gaps/keila.yaml` analyzed a different app in this same niche
+    (newsletter/mailing-list management) and was not recommended
+    (`blocked_on_platform`) — Listmonk is a distinct upstream from Keila,
+    considered here on its own merits, not a duplicate entry for the same
+    project.
+  usefulness: high
+  usefulness_rationale: >
+    Real, distinct use case (customer-owned newsletter/mailing list) with no
+    overlap in the current catalogue, a large user base (20k+ GitHub stars),
+    and — unlike Keila — no requirement for a customer-supplied external
+    SMTP relay just to boot; SMTP is configured later through Listmonk's own
+    admin settings UI once the customer is already logged in, which is the
+    customer's own post-install configuration, not a blocker for us.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES admin/app DB password (companion Postgres 12+ service)
+    - TRAEFIK_BASIC_AUTH (temporary gate on the public port until the customer completes first-run admin setup)
+  secrets_expressible_today:
+    - secret: POSTGRES admin/app DB password
+      mechanism: server_generated_no_customer_input
+    - secret: TRAEFIK_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  # Verified against upstream docs (listmonk.app/docs/installation,
+  # listmonk.app/docs/configuration) and the shipped docker-compose.yml
+  # (github.com/knadh/listmonk/blob/master/docker-compose.yml):
+  #
+  # 1. Listmonk needs a companion Postgres (>=12) instance. The DB
+  #    credentials (LISTMONK_db__user/password/database) are patternless
+  #    server-generated values the customer never sees or needs —
+  #    same pattern as every Postgres-backed recipe already shipped
+  #    (n8n, paperless-ngx).
+  #
+  # 2. Admin account creation is the LibreBooking/n8n pattern, not a hash
+  #    projection: LISTMONK_ADMIN_USER / LISTMONK_ADMIN_PASSWORD are
+  #    documented as OPTIONAL. If left unset, the first visitor to the app's
+  #    web UI (port 9000) is presented with a setup screen to create the
+  #    Super Admin account themselves, typing their own plaintext
+  #    credential directly into the app's own form. No pre-computed hash
+  #    ever has to reach the app, so the generated_from:ROOT_PASSWORD
+  #    hash-projection limitation does not block this — the recipe simply
+  #    omits both env vars and lets the customer self-register.
+  #
+  # SECURITY BOUNDARY — same reasoning as apps-gaps/librebooking.yaml:
+  # leaving LISTMONK_ADMIN_USER/PASSWORD unset means the "create Super
+  # Admin" setup screen is open, unauthenticated, and public on the domain
+  # from the moment the container boots until the real customer completes
+  # it. Whoever reaches it first claims the Super Admin account. A
+  # mandatory Traefik basic_auth gate on the public port is therefore the
+  # real auth boundary protecting that window, not a nice-to-have — the
+  # recipe must not expose port 9000 without it.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Listmonk is an active (v6.2.0, released 2026-06-26, steady ~3-month
+  release cadence, AGPL-3.0), single-binary/single-container newsletter and
+  mailing-list manager with an official Docker image and a single HTTP port
+  (9000) that is fully Traefik-compatible. It fills a genuine category gap
+  in the current 24-recipe catalogue (no existing recipe covers newsletter
+  campaigns), and — unlike the similarly-niched Keila, which is blocked on
+  a mandatory external SMTP relay input — Listmonk boots and serves its UI
+  without any SMTP configuration; that's a purely post-login, customer-side
+  setting. Its only structural requirement is a companion Postgres
+  instance (patternless, server-generated credentials) plus the same
+  self-registration pattern already validated for LibreBooking: leave the
+  optional LISTMONK_ADMIN_USER/PASSWORD env vars unset and let the first
+  visitor create the Super Admin account themselves through the app's own
+  setup screen, protected by a mandatory Traefik basic_auth gate during the
+  window before the customer completes that step. Installable under
+  today's mechanism with no blocking issues; recommend build_now.
