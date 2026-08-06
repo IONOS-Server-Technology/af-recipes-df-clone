@@ -1,0 +1,91 @@
+slug: itop
+name: iTop
+source_description: "Open-source ITSM platform and CMDB for IT service and infrastructure management"
+
+upstream:
+  url: https://www.itophub.io/
+  repo_url: https://github.com/Combodo/iTop
+  license: AGPL-3.0
+  docker_image: null
+
+version_health:
+  latest_version: "3.3.0-beta1"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release is 3.3.0-beta1 (2026-07-23), only ~13 days before
+    today (2026-08-05). The last full stable release is 3.2.3-1 (2026-06-04,
+    ~2 months ago). Release history (2.7.x and 3.x tracks combined) shows a
+    steady cadence of roughly one release every 2-4 months going back
+    through 2024-2025, with commits on the `develop` branch as recently as
+    mid-2026. This is a healthy, actively maintained project, not dormant or
+    at risk of EOL.
+
+catalogue_fit:
+  categories: [infrastructure, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers ITSM/CMDB. Portainer
+    and Uptime Kuma are container-management and uptime-monitoring tools
+    respectively — adjacent infra-ops territory but a different job
+    (ticketing, asset/configuration tracking, change management) than
+    tracking what's actually deployed and its incident/service history.
+    iTop would appeal to customers running an MSP-style or internal IT
+    operation who want a helpdesk + CMDB, not just uptime checks.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists among IT admins and small MSPs, but it's a niche,
+    process-heavy tool (ticketing, CMDB, SLAs) compared to the broadly
+    useful single-purpose apps that make up most of the catalogue — a
+    smaller and more specialized slice of the customer base would actually
+    stand up a full ITSM stack versus, say, a password manager or file sync
+    tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No official production-grade Docker image. `itop/itop` exists as a
+      Combodo-owned namespace on Docker Hub but has zero published tags.
+      Combodo's own `Combodo/docker-environment` repo explicitly states "this
+      environment is intended for development and testing purposes only. It
+      should not be used for production." The only images that actually run
+      iTop in a container are unofficial third-party ones (e.g.
+      `vbkunin/itop`, `supervisions/itop`) with no vendor security patching
+      commitment — a supply-chain trust gap versus every other recipe in
+      this catalogue, which pins an image the upstream project itself
+      publishes and maintains.
+    - >
+      iTop's setup flow (interactive install wizard, or its scripted
+      `unattended-install.php --param-file=<xml>` equivalent) creates the
+      local admin account from a plaintext password that iTop hashes
+      internally with its own scheme — there is no documented way to hand it
+      a pre-computed hash the way `generated_from` projects one. That alone
+      would still be workable (set a fixed/internal default admin password
+      and put the real customer-facing gate at Traefik `basic_auth`, per the
+      "fixed default credential behind a gate" pattern), but it stacks on
+      top of the missing-image problem above rather than resolving it.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  iTop is an actively maintained, AGPL-3.0 open-source ITSM/CMDB platform
+  with no functional overlap in our current 24 recipes and a real (if
+  niche) audience among MSP/IT-admin customers. The blocker isn't the
+  secrets mechanism — a Traefik basic_auth gate over a fixed internal admin
+  credential would work fine there — it's that upstream ships no
+  maintained production Docker image: the official Docker Hub namespace has
+  no tags, and Combodo's own containerized environment is explicitly
+  dev/test-only. Shipping this recipe would mean us authoring and
+  indefinitely patching a custom PHP/Apache/MySQL Dockerfile ourselves,
+  which is a materially larger and open-ended commitment than any other
+  recipe in the catalogue takes on, for a medium-usefulness niche tool.
+  Recommend not_recommended rather than build_with_caveats until upstream
+  publishes and maintains its own image.
