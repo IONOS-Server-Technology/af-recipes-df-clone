@@ -1,0 +1,86 @@
+slug: lobechat
+name: LobeChat
+source_description: "Modern open-source AI chat framework supporting multiple LLM providers"
+
+upstream:
+  url: https://lobehub.com
+  repo_url: https://github.com/lobehub/lobe-chat
+  license: >-
+    LobeHub Community License (Apache-2.0 base + commercialization clause) —
+    free to self-host and use as-is, but building/distributing a derivative
+    commercial product on top of it requires a separate commercial license
+    from LobeHub.
+  docker_image: lobehub/lobe-chat
+
+version_health:
+  latest_version: "1.143.3"
+  latest_release_date: "2026-01-25"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >-
+    `github.com/lobehub/lobe-chat` now returns an HTTP 301 to
+    `github.com/lobehub/lobehub` — GitHub's signal for a repo rename, so the
+    codebase and history continue, but the project has been rebranded and
+    repositioned from "LobeChat, a self-hosted AI chat framework" to
+    "LobeHub, a Chief Agent Operator" (an AI-agent-team management platform).
+    The `lobehub/lobe-chat` Docker image — the artifact this gap analysis is
+    scoped to — has not shipped a new tag since 1.143.3 on 2026-01-25 (~6.5
+    months before today, 2026-08-05), a sharp break from its prior cadence of
+    roughly weekly releases through 2025. Meanwhile `lobehub/lobehub`, the
+    new umbrella product's image, is being pushed multiple times per day
+    (latest canary build same-day as this analysis) — active development
+    continues, just not on the plain chat-app product or image Hostinger's
+    catalogue entry describes. Effectively the "LobeChat" product as listed
+    is in maintenance-only limbo: not archived, but superseded by a
+    differently-scoped, differently-licensed successor.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >-
+    Same "self-hosted chat UI over multiple LLM providers" core already
+    covered by open-webui (which we bundle with Ollama). LobeChat's
+    incremental features — a plugin/tool marketplace, multi-modal
+    vision/TTS, and an "artifacts" canvas — are real but land in the same
+    niche, and the specific product tier this gap analysis targets (the
+    plain multi-provider chat app) is the half of the project that has
+    stopped shipping, while ongoing development effort has moved to the
+    heavier, differently-licensed LobeHub agent platform.
+  usefulness: low
+  usefulness_rationale: >-
+    Meaningful overlap with an existing, better-maintained recipe
+    (open-webui) plus a clear dormancy/pivot signal on the exact artifact
+    Hostinger's description points at. Adding a recipe now would mean
+    shipping on top of an image that has been effectively frozen for over
+    six months while the vendor's attention has moved to a separate,
+    license-encumbered product.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [access-gate credential]
+  secrets_expressible_today:
+    - secret: access-gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >-
+  LobeChat is mechanically installable today: it has no built-in user-account
+  system of its own in single-user Docker mode (its optional `ACCESS_CODE` is
+  a single shared plaintext password, not a hashed admin login our
+  `generated_from` mechanism could target), so it fits the same pattern as
+  Adminer — front it with a Traefik `basic_auth` gate instead and leave
+  `ACCESS_CODE` unset. It also boots fine with no LLM provider key configured
+  server-side, since LobeChat's own model is for each user to paste their own
+  provider API key into the browser UI (stored client-side), so no
+  OPENAI_API_KEY-shaped blocker exists either. Despite being installable,
+  this is a `not_recommended` candidate: it overlaps substantially with the
+  already-shipped open-webui recipe, and the specific "LobeChat" artifact
+  Hostinger's catalogue entry names has had no new image tag in ~6.5 months
+  because the upstream project renamed and repositioned itself into LobeHub,
+  a broader (and Community-License-restricted) AI-agent-operator platform.
+  Building a recipe now means shipping a maintenance-only image for a
+  product the vendor has effectively moved on from.
