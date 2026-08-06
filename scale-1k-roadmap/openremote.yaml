@@ -1,0 +1,82 @@
+slug: openremote
+name: OpenRemote
+source_description: "Open-source IoT platform for device management, automation, and connected assets"
+
+upstream:
+  url: https://openremote.io/
+  repo_url: https://github.com/openremote/openremote
+  license: AGPL-3.0
+  docker_image: openremote/manager (paired with openremote/keycloak, openremote/postgresql, openremote/proxy — all official, same org)
+
+version_health:
+  latest_version: "1.28.1"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly tagged releases through 2026: 1.22.0 (04-13), 1.23.0
+    (05-01), 1.24.0 (05-22), 1.25.0 (06-18), 1.26.0 (06-30), 1.27.0 (07-21),
+    1.28.0/1.28.1 (07-29/07-30). Latest stable is 6 days old as of today
+    (2026-08-05). No signs of slowing, maintenance-only, or EOL — this is
+    one of the more actively released projects surveyed.
+
+catalogue_fit:
+  categories: [iot, automation, device-management]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [home-assistant]
+  differentiation: >
+    Home Assistant (our existing IoT/automation recipe) targets consumer
+    smart-home control. OpenRemote is aimed at fleet/enterprise IoT device
+    management (energy, building, asset management use cases) with
+    multi-tenant Keycloak-backed access control and an MQTT device-ingest
+    layer — a materially different, more B2B-leaning audience than Home
+    Assistant, so not a strict duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiated niche (enterprise/fleet IoT vs. consumer smart
+    home), but it is the heaviest stack surveyed for this category: 4
+    containers (manager, Keycloak, Postgres, a bundled proxy) versus Home
+    Assistant's single container, which raises both the resource floor and
+    the operational surface a customer has to reason about.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OR_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      OR_ADMIN_PASSWORD is forwarded as KEYCLOAK_ADMIN_PASSWORD to bootstrap
+      Keycloak's initial realm admin user, and Keycloak's admin-bootstrap
+      env var only accepts a plaintext value (it hashes internally once the
+      container starts) — there is no supported way to hand it a
+      pre-computed hash in any algorithm. Per apps-gaps/SCHEMA.md this is
+      the genuine-plaintext case: generated_from only ever projects a hash
+      of the customer's root password, never the plaintext, so there is no
+      channel to supply a customer-meaningful admin credential today (same
+      class of blocker as OpenObserve's ZO_ROOT_USER_PASSWORD).
+    - >
+      The upstream compose stack ships its own bundled `proxy` container
+      that terminates TLS and provisions Let's Encrypt certificates
+      directly (LE_EMAIL/DOMAINNAME env vars) on ports 80/443 — this
+      duplicates/conflicts with our Traefik-managed ingress rather than
+      sitting cleanly behind it as a single upstream HTTP service the way
+      our other recipes do.
+    - >
+      Core device-connectivity functionality (MQTT ingest) is exposed on
+      port 8883, a raw TCP protocol port rather than HTTP — outside what
+      Traefik can front on <slug>.<base_domain>. This isn't a fatal blocker
+      by itself but is a real gap versus "single HTTP port" recipes.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OpenRemote is an active, frequently-released, genuinely differentiated
+  IoT app (enterprise/fleet device management vs. Home Assistant's
+  consumer smart-home focus) but is not installable under the current
+  mechanism: its Keycloak-backed admin bootstrap needs a real plaintext
+  password with no hash-projection channel today, and the upstream stack's
+  bundled TLS-terminating proxy plus a raw MQTT port on 8883 would also
+  need real recipe-level rework to fit cleanly behind Traefik. Revisit once
+  a plaintext-password channel exists, and separately scope how much of
+  the bundled proxy/MQTT surface a recipe would need to preserve.
