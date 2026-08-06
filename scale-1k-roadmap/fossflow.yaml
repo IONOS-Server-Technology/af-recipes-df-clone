@@ -1,0 +1,95 @@
+slug: fossflow
+name: FossFLOW
+source_description: "Browser-based isometric diagramming tool for infrastructure visualization"
+
+upstream:
+  url: https://stan-smith.github.io/FossFLOW/
+  repo_url: https://github.com/stan-smith/FossFLOW
+  license: "Unlicense (app) / MIT (bundled Isoflow rendering engine)"
+  docker_image: stnsmith/fossflow
+
+version_health:
+  latest_version: "master (rolling, no semver tags/GitHub Releases)"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    IMPORTANT — upstream repo state is unusual and worth flagging to a human
+    reviewer. `github.com/stan-smith/FossFLOW` returns a genuine GitHub 404
+    today (2026-08-05; confirmed with a plain `curl -I`, not a rate-limit or
+    redirect artifact — same request against a known-good repo returns 200).
+    The Wayback Machine's closest snapshot shows the repo still live and
+    populated on 2026-05-06, so it disappeared (deleted, renamed, or made
+    private) sometime in the ~3 months before today. Despite that, the
+    project is NOT dead: the official Docker Hub image
+    (`stnsmith/fossflow`, pushed by user `stnsmith` — the same handle as the
+    vanished GitHub org) is still being rebuilt from a `master` branch every
+    few days, with the most recent push 2026-07-26 (~10 days before today)
+    and a dense history of `master-<commit>` tags going back through
+    2026-03. The npm package `fossflow` (the forked Isoflow rendering
+    library) last published 1.0.5 on 2025-07-04 and looks stalled by
+    comparison, but the app itself clearly still has an active build
+    pipeline. Net read: active development continues, but the canonical
+    source location is currently missing/unstable, and there is no tagged
+    release to pin to — only commit-hash-suffixed Docker tags off a moving
+    `master`. A human should re-check `github.com/stan-smith/FossFLOW`
+    before greenlighting a recipe; if it stays gone, the effective upstream
+    for provenance purposes becomes the Docker Hub image alone, which is a
+    weaker supply-chain position than our other recipes (no reviewable
+    source repo, no issue tracker, no license file to point to on GitHub).
+
+catalogue_fit:
+  categories: [productivity, developer-tools, diagramming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does diagramming/visual
+    design — closest neighbors (opengist for code snippets, uptime-kuma for
+    monitoring) are in adjacent developer-tooling categories but don't
+    overlap functionally. FossFLOW is a niche but recognizable tool
+    (isometric infrastructure diagrams, AWS/GCP-style architecture
+    drawings) with an active online community and no comparable
+    open-source alternative already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (isometric architecture diagramming) with no
+    catalogue overlap, and it is a single lightweight container with no
+    login of its own — mechanically one of the simplest apps we could ship.
+    Capped at medium rather than high because of the upstream-repo
+    instability noted above and because the tool is fundamentally a
+    single-user local-storage-first app (diagrams save to the browser by
+    default); the optional server-side storage mode is the only thing that
+    makes self-hosting meaningfully better than just using the static
+    GitHub Pages build directly.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [FOSSFLOW_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: FOSSFLOW_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FossFLOW is a single-container React/Node app (official image
+  `stnsmith/fossflow`, one HTTP port — observed as container port 80 in
+  community deployment guides, or 3000 per the Dockerfile in community
+  forks) with no built-in authentication and optional server-side diagram
+  storage (`ENABLE_SERVER_STORAGE=true` + a `/data/diagrams` volume,
+  otherwise diagrams live only in browser localStorage). It is
+  reverse-proxy-compatible and structurally similar to our uptime-kuma
+  recipe: single port, no database, no admin login of its own — so it
+  would need a Traefik `basic_auth` gate (same pattern as n8n/WUD/Open
+  WebUI) to avoid sitting open on the internet once server-side storage is
+  enabled, which is fully expressible under the current mechanism. It fills
+  a genuine gap (no diagramming tool in the catalogue) and is mechanically
+  installable today. The one real caveat is upstream stability: the GitHub
+  repo the project point to has vanished within the last ~3 months even
+  though the Docker image keeps shipping, and there's no tagged release to
+  pin — only rolling commit-hash tags off `master`. Recommend
+  build_with_caveats: worth building, but pin to a specific
+  `master-<commit>` digest (not `:latest`) and have a human re-verify the
+  GitHub repo's status before shipping, given the unusual disappearance.
