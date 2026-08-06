@@ -1,0 +1,88 @@
+slug: mqttx
+name: MQTTX
+source_description: "Browser-based MQTT 5.0 client for debugging brokers over WebSocket"
+
+upstream:
+  url: https://mqttx.app/
+  repo_url: https://github.com/emqx/MQTTX
+  license: Apache-2.0
+  docker_image: "emqx/mqttx-web:v1.13.0"
+
+version_health:
+  latest_version: "v1.13.0"
+  latest_release_date: "2026-01-23"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.13.0 tagged 2026-01-23, about 6.5 months before today (2026-08-05)
+    — no MQTTX release since. Prior gaps were shorter and fairly regular:
+    v1.11.0 (2024-10-22) → v1.11.1 (2024-12-13, ~7wk) → v1.12.0
+    (2025-06-25, ~6mo, after two betas in March 2025) → v1.12.1
+    (2025-09-30, ~3mo) → v1.13.0 (2026-01-23, ~4mo). The current 6.5-month
+    silence is longer than every prior gap except the one preceding
+    v1.12.0, so this reads as a mild slowdown rather than active
+    abandonment. Repo is EMQ Technologies-backed (same org as the EMQX
+    broker), not archived, issues still open on GitHub. Note: this is the
+    MQTTX Desktop/CLI/Web monorepo — releases aren't cut separately per
+    platform, so "latest release" covers Web too; the Docker Hub
+    `emqx/mqttx-web` image tag `v1.13.0`/`latest` was last pushed in
+    step with this release (~6 months ago from Docker Hub's own
+    timestamp), confirming Web tracks the same release train.
+
+catalogue_fit:
+  categories: [iot, developer-tools, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides an MQTT client. This is a debugging/testing
+    tool, not infrastructure — it connects (from the browser, via
+    MQTT-over-WebSocket) to a broker the user points it at, such as an
+    EMQX or Eclipse Mosquitto instance (both already researched as
+    apps-gaps candidates, currently blocked_on_platform, and neither
+    installed as a recipe today). MQTTX complements rather than
+    duplicates those: it's the client side of the same workflow, useful
+    even against a broker running entirely outside this catalogue (a
+    customer's existing EMQX Cloud instance, a Mosquitto box elsewhere,
+    etc.), so it doesn't require either broker recipe to ship first to be
+    useful.
+  usefulness: low
+  usefulness_rationale: >
+    Single-container static web app, HTTP-only, no raw ports — the
+    easiest possible shape for this catalogue's Traefik-fronted pattern.
+    But the audience is narrow and technical (developers debugging MQTT
+    traffic) and, unlike Home Assistant or the broker candidates, it
+    doesn't itself store or manage any persistent customer data — it's a
+    stateless client UI a technical user could equally well run locally
+    or reach via mqttx.app's own hosted web client. That caps the value of
+    a dedicated managed instance.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - Traefik basic_auth gate (MQTTX Web has no login screen of its own;
+      broker connection details — host, port, credentials — are entered
+      by the end user at runtime inside the browser UI, not supplied at
+      container boot)
+  secrets_expressible_today:
+    - secret: Traefik basic_auth gate (MQTTX Web has no login screen of its own; broker connection details — host, port, credentials — are entered by the end user at runtime inside the browser UI, not supplied at container boot)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MQTTX Web is a stateless, single-container, HTTP-only client tool with
+  no built-in login — exactly the shape our Traefik `basic_auth` gate
+  mechanism (IF-1312) was built for, and it needs nothing else at boot
+  (broker host/credentials are entered by the user inside the browser,
+  not supplied as container config). It doesn't overlap any existing
+  recipe and pairs naturally with the still-unbuilt EMQX/Mosquitto broker
+  candidates without depending on either. Recommend build_now, with the
+  caveat that usefulness is low: the audience is narrow (developers
+  debugging MQTT traffic) and the tool holds no persistent customer
+  state, so the case for a dedicated managed instance versus running it
+  locally or via mqttx.app's own hosted client is thin. Release cadence
+  has slowed slightly (6.5 months since v1.13.0, longer than the
+  project's typical 2-4 month gaps) but the project shows no sign of
+  going EOL.
