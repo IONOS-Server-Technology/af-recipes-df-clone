@@ -1,0 +1,83 @@
+slug: smokeping
+name: SmokePing
+source_description: "Long-running network latency and packet-loss monitor with RRD graphs"
+
+upstream:
+  url: https://oss.oetiker.ch/smokeping/
+  repo_url: https://github.com/oetiker/SmokePing
+  license: GPL-2.0
+  docker_image: linuxserver/smokeping:2.9.0
+
+version_health:
+  latest_version: "v2.9.0"
+  latest_release_date: "2025-02-19"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v2.9.0 is the latest tagged release, dated 2025-02-19 — about 17.5
+    months before today (2026-08-05) — and its tagged-release history is
+    very uneven: the prior tag, v2.8.2, dates to 2018, meaning ~7 years
+    passed between those two releases. Despite the sparse tagging, the
+    master branch has ongoing commit activity well past the v2.9.0 tag
+    (UI/dark-mode work and bug fixes merged through May 2026, ~3 months
+    ago), so the project is not dormant or abandoned — just very
+    infrequent about cutting version tags. The community-maintained
+    `linuxserver/smokeping` image tracks the same 2.9.0 version and is
+    rebuilt regularly for base-layer/security updates (most recent build
+    tags from late July 2026) without a new upstream SmokePing version to
+    package.
+
+catalogue_fit:
+  categories: [monitoring, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    SmokePing is a network-layer latency/packet-loss trend recorder: a
+    daemon repeatedly pings (via fping and other probe plugins) a
+    customer-configured list of hosts and renders long-running RRD graphs
+    of latency and loss over time. Uptime Kuma, the closest existing
+    recipe, is a service-availability checker (HTTP/TCP/ping up-or-down
+    with alert notifications) — it does not retain or graph historical
+    latency/jitter trends the way SmokePing's RRD archive does. No recipe
+    in the current 24-recipe catalogue does long-horizon network
+    performance trending.
+  usefulness: low
+  usefulness_rationale: >
+    Legitimate, well-known tool for network engineers who want historical
+    latency/packet-loss graphs (ISP link quality, WAN path monitoring),
+    but it is a narrow, technical-audience utility, is not useful without
+    the customer first hand-editing a Targets config file to name hosts
+    to monitor, and its web UI is a functional but dated Perl/CGI/RRD
+    graph viewer rather than a modern app-like experience. Narrower
+    appeal than Uptime Kuma for the same "is my stuff up" self-hosting
+    need most customers actually have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SmokePing is a single official-ish container (community-maintained
+  `linuxserver/smokeping`, pin to `2.9.0`) exposing one HTTP port (80,
+  serving `/smokeping/smokeping.cgi`) with local `/config` and `/data`
+  volumes and no external database — structurally similar to Uptime
+  Kuma. It has zero built-in authentication, so it is installable today
+  only behind a mandatory Traefik `basic_auth` gate keyed off the
+  customer's root-password hash, the same pattern already used for
+  n8n/WUD/Adminer. Upstream is not abandoned (commits as recent as May
+  2026) but tags releases very rarely and unevenly (7 years between
+  v2.8.2 and v2.9.0), and — separate from the secrets question — the app
+  is functionally empty until a customer hand-edits a Targets config file
+  to name hosts to monitor, which our current provisioning flow has no
+  way to pre-populate. No overlap with Uptime Kuma (service up/down vs.
+  long-horizon latency/loss trending), but it's a narrow, technical-
+  audience tool with a dated UI. Recommend build_with_caveats: technically
+  installable with the basic_auth workaround, but low priority given its
+  narrow appeal and the empty-by-default first-run experience.
