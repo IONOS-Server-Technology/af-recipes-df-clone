@@ -1,0 +1,79 @@
+slug: nzbget
+name: NZBGet
+source_description: "Efficient C++ Usenet binary downloader with PAR2 repair and web UI"
+
+upstream:
+  url: https://nzbget.com/
+  repo_url: https://github.com/nzbgetcom/nzbget
+  license: GPL-2.0
+  docker_image: lscr.io/linuxserver/nzbget
+
+version_health:
+  latest_version: "v26.2"
+  latest_release_date: "2026-06-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Name is ambiguous: the original project at github.com/nzbget/nzbget
+    (maintainer "hugbug") was archived by its owner on 2022-11-18 with a
+    last stable release of v21.1 (2021-06-03) — that upstream is dead.
+    However, a community fork at github.com/nzbgetcom/nzbget has continued
+    development under active maintenance, with releases roughly every
+    6-8 weeks (v25.3 2025-09-01, v25.4 2025-10-09, v26.0 2026-02-02, v26.1
+    2026-04-07, v26.2 2026-06-18, ~7 weeks before today 2026-08-05, plus a
+    2026-08-03 testing pre-release). The widely-used
+    linuxserver.io Docker image (lscr.io/linuxserver/nzbget) now tracks
+    this fork's v26.x line, not the archived original. This analysis
+    treats nzbgetcom/nzbget as the real upstream — the "NZBGet" a customer
+    would get today is this fork, not the dead original repo.
+
+catalogue_fit:
+  categories: [downloads, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches Usenet/binary downloading —
+    there is no *arr-style media-acquisition app in the catalogue at all
+    (no Sonarr/Radarr/SABnzbd equivalent either). NZBGet would be a first
+    entry in that space: a single lightweight container that fetches and
+    PAR2-repairs binaries from Usenet via a web UI, appealing to
+    self-hosters building a media-automation stack.
+  usefulness: medium
+  usefulness_rationale: >
+    Solid utility for a specific audience (Usenet users), but it's most
+    valuable paired with indexers/*arr apps we don't offer either, and
+    requires the customer to already have a Usenet provider account —
+    narrower appeal than broad-audience recipes like Vaultwarden or
+    Uptime Kuma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [nzbget_control_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: nzbget_control_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  NZBGet is a single-container, single-HTTP-port (6789) web app installable
+  today, but its own login is HTTP Basic Auth against a fixed username
+  ("nzbget", not configurable) and a ControlPassword that the app only
+  accepts as plaintext (env var NZBGET_PASS on the linuxserver image) — it
+  has no way to accept a pre-hashed value, so `generated_from` cannot
+  target it directly. The workable pattern is the same as Adminer/WUD: set
+  NZBGET_PASS to a random server-generated secret the customer never needs
+  (mechanism: server_generated_no_customer_input, closing off the known
+  default credential), then put the actual customer-facing auth boundary
+  at Traefik with `basic_auth: true`, whose password is projected from the
+  root-password hash via `generated_from`. Structurally this ships fine.
+  The name is ambiguous, though: the original nzbget/nzbget project is
+  archived and dead since 2022, and the linuxserver Docker image now
+  tracks a different, actively-maintained community fork
+  (nzbgetcom/nzbget, releases every 6-8 weeks). Recommend build_with_caveats
+  — flag the fork provenance to reviewers, and weigh usefulness against
+  the fact we have no companion *arr/indexer recipes to pair it with yet.
