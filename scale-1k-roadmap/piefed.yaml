@@ -1,0 +1,97 @@
+slug: piefed
+name: PieFed
+source_description: "Federated Reddit-style link aggregator with strong moderation tools"
+
+upstream:
+  url: https://join.piefed.social/
+  repo_url: https://codeberg.org/rimu/pyfedi
+  license: AGPL-3.0-or-later
+  docker_image: null
+
+version_health:
+  latest_version: "v1.7.10"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.7.10 tagged 2026-08-05, the same day as this analysis. Tags in the
+    preceding month show a very tight cadence — v1.7.9 (2026-08-03),
+    v1.7.8 (2026-07-24), v1.7.7 (2026-07-19), v1.7.6 (2026-07-17), v1.7.5
+    (2026-07-10), v1.7.4/v1.7.3 (2026-07-08), v1.7.2 (2026-07-06) — multiple
+    releases per week. Repo shows 78 releases and 7000+ commits on main.
+    Clearly an actively developed, non-EOL project with an engaged
+    single-lead (rimu) + contributor community (Matrix room, in-app devs
+    community).
+
+catalogue_fit:
+  categories: [social, fediverse, community, forum]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers federated link-aggregation /
+    forum-style social software. Gitea and Opengist are code-hosting tools,
+    not discussion platforms. PieFed (a Lemmy/Kbin-style ActivityPub
+    federated Reddit alternative) would be a genuinely new category for
+    customers wanting to run their own fediverse community.
+  usefulness: medium
+  usefulness_rationale: >
+    Federated forum software has real demand (Lemmy/Kbin communities exist
+    and grow), and PieFed differentiates on moderation tooling. But it is a
+    multi-service stack (Postgres + Redis + Celery workers) requiring a
+    real domain for ActivityPub federation, background cron jobs, and
+    ongoing moderation attention — a heavier commitment than most of our
+    current single-purpose utility recipes, which narrows the addressable
+    customer base somewhat.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      There is no official pre-built image on a registry. The shipped
+      `compose.yaml` builds the app image from a Dockerfile in the
+      checked-out git tag (`git checkout v1.7.x && docker compose up
+      --build`); third-party images exist (e.g. elestio/piefed,
+      dockur/piefed) but are unofficial repackagings, not the upstream
+      recommended path. A recipe would need to pin a git ref and build
+      on first boot rather than pull a tagged image — workable, but a
+      different pattern than our other docker-compose recipes.
+    - >
+      The admin account is created by `flask init-db` (run once via
+      `docker exec` after first boot), which collects username, email,
+      and password through interactive `input()` prompts in
+      app/cli.py — not via any environment variable. Critically,
+      `User.set_password()` (app/models.py) always calls
+      `generate_password_hash(password)` on whatever plaintext it is
+      given; there is no code path that accepts a pre-computed hash
+      instead. Our platform's only secret-projection mechanism,
+      `generated_from: "<algo>:ROOT_PASSWORD"`, only ever supplies a
+      hash of the customer's root password, never the plaintext, so it
+      cannot be threaded through this flow. This is the same structural
+      problem documented for PicoShare (`apps-gaps/picoshare.yaml`): a
+      genuine requirement for a plaintext customer-known secret, not an
+      unsupported hash algorithm, so it is not the "flag as
+      blocked_on_platform with the algo named" carve-out in SCHEMA.md by
+      itself — see the mitigation note below.
+    - >
+      A Traefik `basic_auth` gate in front would not resolve the second
+      issue: PieFed has its own login separate from any gate, and the
+      admin account still needs a password the customer knows, which our
+      mechanism cannot supply as plaintext.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PieFed is an actively developed (releases multiple times a week, latest
+  v1.7.10 on 2026-08-05), reverse-proxy-friendly federated link-aggregator
+  that would add a genuinely new social/community category to the catalogue.
+  It is blocked today for two independent reasons: there is no official
+  pre-built image to pin (the app is built from source at a git tag), and
+  its one-time `flask init-db` admin setup requires the plaintext admin
+  password via an interactive prompt, which our `generated_from` mechanism
+  (hash-only) cannot supply. The image-building issue is a recipe-design
+  problem we could likely work around; the plaintext-admin-password issue is
+  the same structural blocker seen with PicoShare and requires a platform
+  change (a plaintext-secret projection channel) before this can ship.
