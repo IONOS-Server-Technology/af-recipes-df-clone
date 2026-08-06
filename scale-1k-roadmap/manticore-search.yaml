@@ -1,0 +1,95 @@
+slug: manticore-search
+name: Manticore Search
+source_description: "Open-source search engine with full-text and vector search via MySQL protocol"
+
+upstream:
+  url: https://manticoresearch.com/
+  repo_url: https://github.com/manticoresoftware/manticoresearch
+  license: GPL-3.0
+  docker_image: manticoresearch/manticore
+
+version_health:
+  latest_version: "28.6.6"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Calendar-versioned, near-monthly release train through 2026: 25.0.0
+    (2026-03-30), 27.1.5 (2026-06-19), 28.4.4 (2026-07-10), 28.6.6
+    (2026-07-31, 5 days before this analysis on 2026-08-05). Repo is not
+    archived, releases carry real feature work (v27.0.0 in June 2026 added
+    built-in authentication/authorization; v25.0.0 added hybrid search and
+    S3 backup/restore), and Docker Hub tags track releases within hours.
+    Unambiguously active, not maintenance-only.
+
+catalogue_fit:
+  categories: [search, database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides a full-text/vector search
+    engine. It would be positioned as infrastructure for developers/AI
+    builders (e.g. RAG backends, site search) rather than an end-user app —
+    closest in spirit to Ollama (headless engine, consumed via API by other
+    software) rather than to any UI-driven recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real capability gap it fills (search/vector search backend), but no web
+    UI and a narrow, technical target audience (developers wiring it into
+    their own app), and — per below — the flagship "talk to it over the
+    MySQL wire protocol" angle from Hostinger's own description is the part
+    that doesn't fit our exposure model cleanly.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Manticore's default listeners are three raw ports: 9306 (MySQL wire
+      protocol), 9308 (HTTP/JSON API, including a /sql endpoint), 9312
+      (binary protocol for clustering). There is no bundled web UI. Traefik
+      basic_auth is an HTTP-router middleware — it cannot gate the MySQL
+      wire protocol on 9306 or the binary protocol on 9312, only the HTTP
+      port 9308.
+    - >
+      Built-in authentication (auth users/tokens) only shipped in v27.0.0
+      (June 2026) and is off by default — with it off, anyone who can reach
+      9306/9308/9312 has unrestricted read/write/DDL access. Turning it on
+      doesn't give us an input channel either: bootstrapping the first
+      admin (`--auth` / `--auth-non-interactive`) and `CREATE USER ...
+      IDENTIFIED BY '<password>'` both take the admin password as
+      plaintext, not a hash — `generated_from` only ever projects a hash of
+      the customer's root password, so it cannot supply what this flow
+      needs. This is a genuine plaintext-password requirement, not a
+      hash-algorithm gap, per SCHEMA.md's "not a hard no" carve-out.
+    - >
+      Net effect: 9306 (the MySQL-protocol port Hostinger's own description
+      calls out) and 9312 cannot be safely published publicly today —
+      either leave them auth-off-and-open, or auth-on with no way to set
+      the admin credential. Only 9308 (HTTP API) is realistically
+      publishable, gated by Traefik basic_auth same as Adminer/n8n/WUD, at
+      the cost of losing the MySQL-client-compatible use case entirely.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Manticore Search is a genuinely active project (releases through
+  2026-07-31, five days before this analysis) filling a real gap (no
+  search/vector-search recipe exists today), but its exposure model doesn't
+  match ours cleanly: no web UI, and its two more interesting ports — the
+  MySQL wire protocol (9306, the specific hook in Hostinger's own
+  description) and the binary clustering protocol (9312) — are raw TCP,
+  which Traefik basic_auth cannot gate, while the app's own built-in auth
+  (new as of v27.0.0, June 2026) needs a plaintext admin password with no
+  projection channel today. A recipe could still ship by publishing only
+  the HTTP/JSON API (port 9308, including its /sql endpoint) behind a
+  Traefik basic_auth gate and keeping 9306/9312 unpublished/internal-only —
+  installable, but it drops the headline "connect over MySQL protocol"
+  capability, leaving a narrower, more niche offering than the source
+  description promises. Recommend build_with_caveats: worth building for
+  developers who're fine with the HTTP API, but flag the MySQL-port
+  limitation explicitly before committing.
