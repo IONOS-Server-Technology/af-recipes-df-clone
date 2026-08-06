@@ -1,0 +1,66 @@
+slug: hemmelig
+name: Hemmelig
+source_description: "Share end-to-end encrypted secrets through self-destructing one-time links"
+
+upstream:
+  url: https://hemmelig.app/
+  repo_url: https://github.com/HemmeligOrg/Hemmelig.app
+  license: MIT
+  docker_image: hemmeligapp/hemmelig:v7.4.8
+
+version_health:
+  latest_version: v7.4.8
+  latest_release_date: "2026-03-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Multiple tagged releases per month through Feb-Mar 2026 (v7.4.3 through
+    v7.4.8 in the space of a month), plus a separate CLI release (cli-v1.0.2)
+    in Jan 2026. Latest release is ~4.5 months old as of 2026-08-05, well
+    within a normal gap for this project's cadence — no sign of slowdown,
+    archival, or EOL.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover ephemeral, client-side-encrypted
+    secret sharing (one-time links for passwords, API keys, tokens passed
+    between people/teams). Opengist is the closest existing recipe in spirit
+    (share text via a link) but it's a persistent git-backed snippet host
+    with no encryption or self-destruct model — different use case.
+    Vaultwarden is long-term credential storage, not point-in-time sharing.
+    Hemmelig fills a genuinely distinct "burn-after-reading" niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful, low-friction utility for teams already self-hosting who want to
+    stop pasting secrets into Slack/email — clear differentiator from what's
+    in the catalogue today. Not a high-demand flagship app, but cheap to
+    support: single container, SQLite, no external dependencies.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_JWT_SECRET, SECRET_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: SECRET_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Hemmelig is a single-container app (hemmeligapp/hemmelig, port 3000, SQLite
+  on a bind-mounted volume, no external DB) that is actively released and
+  fits cleanly behind Traefik on <slug>.<base_domain>. Its core feature —
+  creating and viewing a self-destructing encrypted secret link — needs no
+  login at all, so the app's own admin/root account (SECRET_ROOT_USER /
+  SECRET_ROOT_PASSWORD, plaintext env vars, not a hash) is only used for an
+  optional admin panel that a typical customer never needs. Both
+  SECRET_ROOT_PASSWORD and SECRET_JWT_SECRET can be generated server-side and
+  never surfaced to the customer, same as a DB password — no
+  generated_from/basic_auth machinery required. MIT-licensed, no license
+  concerns. Installable today with no platform blockers; worth building.
