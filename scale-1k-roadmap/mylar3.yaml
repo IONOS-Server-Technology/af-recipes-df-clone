@@ -1,0 +1,81 @@
+slug: mylar3
+name: Mylar3
+source_description: "Self-hosted automated comic book downloader and library manager"
+
+upstream:
+  url: https://mylarcomics.com
+  repo_url: https://github.com/MylarComics/mylar3
+  license: GPL-3.0
+  docker_image: linuxserver/mylar3
+
+version_health:
+  latest_version: "0.10.0"
+  latest_release_date: "2026-06-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Name is ambiguous — the "Mylar3" name is shared by two distinct
+    upstreams. The original repo, https://github.com/mylar3/mylar3, has had
+    no commits and no releases since v0.8.3 on 2025-08-17 (over a year
+    before today, 2026-08-05) despite its issue tracker still receiving
+    triage into July 2026 — a stalled-code/still-triaged pattern, not a
+    clean abandonment signal. However, a community continuity fork,
+    https://github.com/MylarComics/mylar3, explicitly describes itself as
+    "the community continuity fork of mylar" and has taken over active
+    development: v0.9.0 (2026-04-06) and v0.10.0 (2026-06-13, ~2 months
+    before today), a roughly bimonthly cadence. The official
+    linuxserver/mylar3 Docker image (the only maintained container image
+    for this app) explicitly switched its build source to the
+    MylarComics/mylar3 fork per its own README changelog. This analysis
+    treats MylarComics/mylar3 as the real upstream and rules out
+    mylar3/mylar3 (original) as effectively dormant/superseded.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers comic-book acquisition/library management.
+    Immich (photos/video) and paperless-ngx (scanned documents) are the
+    closest "personal library" recipes but serve different media types and
+    workflows. Mylar3 is a Sonarr/Radarr-style automated downloader
+    specifically for comics (cbr/cbz), watching series for new issues via
+    NZB/torrent indexers or direct-download sites, then sorting and
+    renaming into a library — a distinct niche unduplicated by the current
+    24-app catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Real gap, but a narrow hobbyist niche (comic-book collectors) with a
+    smaller addressable audience than the general media/PVR space, and
+    the app is useless without the customer already having NZB/torrent
+    download infrastructure (SABnzbd, NZBGet, or a torrent client) wired
+    up separately — Mylar3 only orchestrates search/grab/sort, it doesn't
+    fetch content on its own. That external dependency, combined with the
+    small target audience, keeps usefulness low rather than medium.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_gate  # Mylar3 ships with authentication OFF by default; HTTP username/password is only settable post-boot from inside the already-open web UI (Settings > Web Interface), with no env var or first-boot config hook to project a customer credential into
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mylar3 (via its actively-maintained MylarComics/mylar3 fork and the
+  linuxserver/mylar3 image) is mechanically installable today: single
+  container, single HTTP port (8090), no database dependency, and its only
+  first-boot secret concern — the app ships wide open with no login by
+  default — is solvable with a Traefik basic_auth gate exactly like n8n or
+  Immich. The catalogue gap (comic-book acquisition/library automation) is
+  real and unduplicated. But the app's utility is capped by a hard external
+  dependency on customer-supplied download infrastructure (NZB indexer +
+  SABnzbd/NZBGet, or a torrent client) that AF cannot provision, and the
+  audience is a narrow hobbyist niche — together this makes it a
+  build-with-caveats candidate rather than a priority pick. Any recipe
+  build should target the MylarComics/mylar3 fork, not the dormant
+  mylar3/mylar3 original.
