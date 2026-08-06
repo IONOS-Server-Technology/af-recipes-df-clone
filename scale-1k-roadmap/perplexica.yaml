@@ -1,0 +1,87 @@
+slug: perplexica
+name: Perplexica
+source_description: "Perplexica is a privacy-focused AI answering engine"
+
+upstream:
+  url: https://github.com/ItzCrazyKns/Vane
+  repo_url: https://github.com/ItzCrazyKns/Vane
+  license: MIT
+  docker_image: itzcrazykns1337/vane
+
+version_health:
+  latest_version: "v1.12.2"
+  latest_release_date: "2026-04-10"
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    Project renamed from "Perplexica" to "Vane" during 2026; the upstream
+    repo moved to github.com/ItzCrazyKns/Vane (the old
+    ItzCrazyKns/Perplexica URL redirects there), and the Docker Hub image
+    moved from itzcrazykns1337/perplexica to itzcrazykns1337/vane, with the
+    old image name still working for backward compatibility. Latest tagged
+    release is v1.12.2, published 2026-04-10 — 4 months before today
+    (2026-08-05). The repo's commit history shows the exact same cutoff: the
+    most recent commit is also 2026-04-11, meaning there has been zero
+    commit activity of any kind for 4 months, not just zero releases. Prior
+    cadence was tighter (v1.11.1 2025-10-23, v1.11.2 2025-10-25, v1.12.0
+    2025-12-27, v1.12.1 2025-12-31, v1.12.2 2026-04-10 — gaps of roughly
+    2-3 months), so this 4-month total silence right after a full project
+    rebrand is worth watching but isn't (yet) long enough or explicit enough
+    to call maintenance-only/archived/eol; repo is not archived and carries
+    no EOL statement.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Not a chat-with-a-model frontend like open-webui, and lighter-weight
+    than the agentic multi-step research assistants covered in other gap
+    analyses (local-deep-research, gpt-researcher): Vane/Perplexica is a
+    single-turn "ask a question, get a cited answer" engine styled directly
+    on Perplexity.ai — it runs a bundled SearXNG meta-search instance,
+    retrieves and re-ranks live web results, then has an LLM (local via
+    Ollama, or a cloud provider) synthesize a sourced answer, plus small
+    utility widgets (weather, stocks, calculator). None of the 24 current
+    recipes combine live web search with LLM synthesis and citations in one
+    box; open-webui and ollama give a customer a chat box and local
+    inference but no built-in web-search retrieval step.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, recognizable use case (a self-hosted Perplexity alternative) with
+    genuine differentiation from the chat-first tools already in the
+    catalogue, but it's adjacent to two other AI-answering-engine gap
+    candidates already flagged (local-deep-research, gpt-researcher) and a
+    customer who wants this workflow can run it alongside the existing
+    open-webui/ollama pairing rather than needing it as a first-class
+    recipe. Capped at medium rather than high given the 4-month upstream
+    silence noted above.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Perplexica (now upstream "Vane") is installable today with no customer
+  input needed at container boot: the official full-* image tags (e.g.
+  full-v1.12.2) bundle the app and SearXNG together behind a single HTTP
+  port (3000), and any LLM provider API key (or Ollama endpoint) is entered
+  by the operator directly in the app's own first-run setup wizard after
+  deployment, not injected by af-api, the same accepted pattern as
+  local-deep-research and AnythingLLM. The one thing that must be expressed
+  is a Traefik basic_auth gate: the app has no login/auth of its own at all
+  — confirmed via upstream discussion of the missing multi-user/auth
+  feature — so its settings panel (which shows configured API keys in
+  plaintext) and search/inference compute would otherwise sit open to
+  anyone who reaches the domain. With that gate in place this is
+  mechanically buildable, but the 4-month lull in upstream activity right
+  after the Perplexica→Vane rebrand, plus real proximity to two other
+  AI-answering-engine gap candidates, makes it a build-with-caveats rather
+  than a priority pick.
