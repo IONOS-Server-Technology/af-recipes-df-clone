@@ -70,9 +70,29 @@ installability:
   secrets_expressible_today:
     - secret: "Traefik basic-auth gate credential"
       mechanism: traefik_basic_auth
-  blocking_issues: []
+  blocking_issues:
+    - >
+      The only auth mechanism expressible today cannot express the
+      configuration this app actually needs. Traefik `basic_auth: true` is a
+      boolean gate on the recipe's public HTTP port, not a path-scoped rule
+      (see apps-gaps/SCHEMA.md), and SkySend serves both the upload UI and
+      the recipient-facing share/download URLs (`BASE_URL/<share path>`) on
+      that one port (3000). Gating the port therefore prompts every share
+      recipient for the customer's basic-auth credential — which is derived
+      from their own server root password and so cannot responsibly be
+      handed to an outside party — before they can fetch a file or read a
+      note. That defeats the app's stated purpose (sharing a secret with
+      someone outside the org). Leaving the gate off keeps share links usable
+      but exposes an unauthenticated upload endpoint to the internet, i.e.
+      anyone who finds the URL can write arbitrary files to the customer's
+      disk. Upstream's own answer to exactly this is OIDC with
+      `OIDC_PROTECT_FILES` / `OIDC_PROTECT_NOTES`, which gates upload/note
+      creation only while "downloads always public" — the split our
+      whole-app boolean cannot express. Enabling it needs registering the
+      instance with an external identity provider (client ID/secret/issuer
+      URL), for which /compose has no input channel today.
   installable_today: true
-  recommendation: build_now
+  recommendation: build_with_caveats
 
 summary: >
   SkySend ships as a single official container (skyfay/skysend, pin to
@@ -82,14 +102,21 @@ summary: >
   account system or admin login by design (that's the whole "zero
   accounts, zero knowledge" pitch); its only auth option is OIDC/SSO, which
   requires registering the instance with an external identity provider and
-  has no input channel in our current /compose flow. Left unauthenticated,
-  the instance would let anyone who reaches the URL create shares, which is
-  exactly the "no login of its own, needs a gate" case IF-1312's Traefik
-  basic_auth solves — gating the whole app is expressible today with no
-  blockers. The project itself is new (~4 months) and its release
+  has no input channel in our current /compose flow. That leaves an
+  unavoidable trade-off, because IF-1312's Traefik `basic_auth` is a
+  whole-port boolean and SkySend serves uploads and recipient download links
+  on the same port: gate it and outside recipients are locked out of the
+  share links the app exists to produce; leave it open and anyone who finds
+  the URL can upload to the customer's disk. A recipe author should ship it
+  gated — an open write endpoint on a public VM is not a defensible default —
+  and document that this reduces the instance to single-operator use until
+  path-scoped basic_auth or an OIDC input channel exists, which is the
+  platform work that would unlock the app's headline external-sharing use
+  case. The project itself is new (~4 months) and its release
   cadence has slowed from near-daily during the April/May launch burst to
   roughly monthly since late May 2026, with the most recent release 6 days
   ago — still actively maintained, just no longer sprinting. Recommend
-  building now, with a note to the recipe author to track upstream releases
-  for security-relevant fixes given the sensitive-data use case, and to
-  treat a gap beyond ~2 months as the signal to re-check project health.
+  building with the caveat above, plus a note to the recipe author to track
+  upstream releases for security-relevant fixes given the sensitive-data use
+  case, and to treat a gap beyond ~2 months as the signal to re-check project
+  health.
