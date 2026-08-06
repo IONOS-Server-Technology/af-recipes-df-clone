@@ -1,0 +1,89 @@
+slug: inngest
+name: Inngest
+source_description: "Orchestration platform for reliable background jobs and AI workflows"
+
+upstream:
+  url: https://www.inngest.com/
+  repo_url: https://github.com/inngest/inngest
+  license: >
+    Server Side Public License (SSPL) 1.0, with a delayed relicense to
+    Apache 2.0 (the "Apache 2.0 Future License" clause in LICENSE.md); SDKs
+    are separately Apache 2.0. SSPL is not OSI-approved.
+  docker_image: inngest/inngest
+
+version_health:
+  latest_version: "v1.41.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.41.1 published 2026-08-05 (today, per GitHub API). Release history
+    shows near-weekly cadence through July-August 2026 (v1.34.0 on 06-29
+    through v1.41.1 today), each shipping incremental REST/queue/tracing
+    features. Repo is not archived, actively developed. Clear active
+    signal, no dormancy or EOL concern.
+
+catalogue_fit:
+  categories: [developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Inngest is a code-first durable-execution/event-orchestration engine:
+    a customer writes functions in their own application using Inngest's
+    TypeScript/Python/Go SDKs, and the self-hosted server (this
+    Docker image) is the event bus + step-function runtime + dashboard
+    that receives events, schedules retries/sleeps/waits, and shows run
+    history for those externally-defined functions. n8n and activepieces
+    (see apps-gaps/activepieces.yaml) are visual no-code/low-code builders
+    where the workflow itself lives inside the app; Inngest has no visual
+    workflow editor at all — its dashboard is purely an observability
+    surface for code the customer deploys elsewhere. That is a real
+    conceptual difference in audience (developers shipping their own app
+    code vs. end users assembling no-code automations), but it also means
+    the self-hosted Inngest instance alone does nothing useful until the
+    customer separately builds and deploys an app with Inngest SDK calls —
+    something this recipe mechanism does not provision.
+  usefulness: low
+  usefulness_rationale: >
+    Legitimate, actively maintained developer infrastructure, but its
+    entire value surface requires the customer to already be developing
+    and hosting a separate application instrumented with Inngest SDKs.
+    Installed on its own, the dashboard shows zero functions and zero
+    events — there is nothing for a customer to do with it standalone,
+    the same "pure backend API consumed by other software" profile that
+    capped imgproxy (apps-gaps/imgproxy.yaml) and Apache Tika. Narrower
+    than most of the catalogue's direct end-user apps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, INNGEST_SIGNING_KEY, INNGEST_EVENT_KEY]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: INNGEST_SIGNING_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: INNGEST_EVENT_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Mechanically installable: single container (`inngest/inngest`, `inngest
+  start`), defaults to embedded SQLite and in-memory queueing so no
+  mandatory Postgres/Redis dependency, single primary HTTP port (8288,
+  dashboard + event/GraphQL/REST APIs — a secondary websocket port 8289 is
+  only needed for the optional outbound "Connect" gateway mode and can be
+  omitted). The dashboard has no login of its own, so a Traefik
+  basic_auth:true gate (root-password projection) covers that, and the two
+  mandatory boot env vars (INNGEST_SIGNING_KEY, INNGEST_EVENT_KEY) are
+  patternless secrets the server can generate itself — same shape as
+  n8n's N8N_ENCRYPTION_KEY. Upstream is healthy and fast-moving (v1.41.1,
+  released today). The blocker here is fit, not mechanism: Inngest is
+  infrastructure for a customer's own separately-hosted, SDK-instrumented
+  application, not a standalone tool a customer visits and uses — the
+  self-hosted instance alone has nothing to show until code the AF
+  platform doesn't host starts sending it events. Recommend
+  not_recommended on usefulness grounds, mirroring imgproxy, despite being
+  technically installable today.
