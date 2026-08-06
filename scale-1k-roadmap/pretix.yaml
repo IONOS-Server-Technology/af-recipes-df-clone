@@ -1,0 +1,68 @@
+slug: pretix
+name: pretix
+source_description: "Open-source self-hosted ticket sales platform for conferences and events"
+
+upstream:
+  url: https://pretix.eu/
+  repo_url: https://github.com/pretix/pretix
+  license: "AGPL-3.0 with additional terms (restricts offering pretix, or a service whose value primarily derives from it, as SaaS to third parties without also open-sourcing the operator's modifications/plugins)"
+  docker_image: pretix/standalone
+
+version_health:
+  latest_version: "2026.7.0"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows a steady monthly cadence of numbered releases
+    (2026.4, 2026.5, 2026.6, 2026.7 all pushed within the last ~5 weeks
+    as of 2026-08-05, most recent 7 days ago). Upstream does not use
+    GitHub's Releases feature (no entries there) but ships versioned
+    Docker tags and a public blog post per release
+    (pretix.eu/about/en/blog/), so activity is real, just tracked
+    off-GitHub. No indication of maintenance-only mode or EOL.
+
+catalogue_fit:
+  categories: [events, ticketing, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers event/ticket sales. pretix would be a net-new
+    category (conference/festival/event ticketing with payment processing,
+    check-in, and box-office tooling) rather than competing with anything
+    in the current 24-recipe catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (small orgs/conferences running their own ticket
+    shop instead of paying Eventbrite-style fees), but it's a narrower
+    audience than general-purpose tools already in the catalogue (password
+    managers, note-taking, monitoring) and the AGPL "no SaaS resale"
+    exception raises a real question about whether IONOS offering it as a
+    one-click AF recipe fits the letter of the license (see summary).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  pretix is mechanically installable today: it's a single reverse-proxy-friendly
+  web container (pretix/standalone, port 80) plus Postgres and Redis, actively
+  released roughly monthly, with no EOL signals. Its official Docker deployment
+  bakes in a fixed admin@localhost/admin superuser with no environment variable
+  to set a different password at boot, so per SCHEMA.md the correct mechanism
+  is putting the whole app behind a Traefik basic_auth gate (the same pattern
+  used for n8n/WUD) rather than trying to project a customer password into the
+  app's own login. The one real caveat is licensing, not mechanics: pretix's
+  AGPL-based license carries additional terms barring services whose value
+  "primarily derives from" pretix from being resold as SaaS without also
+  publishing the operator's modifications — worth a legal read before shipping
+  a one-click recipe, since that's closer to what AF does than a typical
+  self-hosted tool install.
