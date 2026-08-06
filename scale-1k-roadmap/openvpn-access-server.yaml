@@ -1,0 +1,82 @@
+slug: openvpn-access-server
+name: OpenVPN Access Server
+source_description: "Full-featured VPN server with web-based administration and client management"
+
+upstream:
+  url: https://openvpn.net/access-server/
+  repo_url: https://github.com/OpenVPN/as-docker
+  license: Proprietary (free for up to 2 concurrent connections; paid subscription/fixed license beyond that)
+  docker_image: openvpn/openvpn-as
+
+version_health:
+  latest_version: "3.2.2 (image tag 3.2.2-413ca39f-Ubuntu24)"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows a 3.2.2 tag pushed ~5 days before today (2026-08-05),
+    with a prior 3.1.0 tag from ~5 months earlier — consistent with the
+    documented 3.0/3.1/3.2 release-notes cadence (multiple point releases in
+    2025-2026, including CVE-2025-2704, CVE-2025-50055, and CVE-2025-13086
+    fixes). Vendor (OpenVPN Inc.) is actively shipping security and feature
+    updates; no EOL or archival signal anywhere.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy]
+  differentiation: >
+    Both are self-hosted VPN servers with a web UI for managing peers/clients,
+    the same niche wg-easy already fills. OpenVPN AS adds the OpenVPN
+    protocol (broader legacy client/firewall compatibility than WireGuard)
+    and enterprise-ish admin features (LDAP/AD, 2FA, per-user access
+    policies), but its free tier is hard-capped at 2 concurrent VPN
+    connections — beyond that a customer must buy an OpenVPN subscription
+    license key, which itself has no input channel through our mechanism
+    (see blocking_issues).
+  usefulness: low
+  usefulness_rationale: >
+    Overlaps directly with the VPN niche already covered by wg-easy, and its
+    practical free-tier ceiling of 2 simultaneous connections makes it a weak
+    general-purpose VPN offering compared to WireGuard Easy, which has no
+    such cap. Only differentiator (broader legacy client support) is a niche
+    need, not enough on its own to justify a second VPN recipe today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No env var or compose-time config exists to set the initial admin
+      password. The image creates a built-in 'openvpn' admin user with a
+      password that is randomly auto-generated at first boot and printed
+      only to `docker logs` — a channel af-api's /compose flow has no access
+      to and cannot surface to the customer."
+    - "Even if that channel existed, the only documented way to set/change
+      the admin password non-interactively (`sacli --user openvpn --new_pass
+      <PLAINTEXT> SetLocalPassword`) takes a plaintext password, not a hash.
+      generated_from only ever produces a hash (argon2/bcrypt), so this is a
+      genuine plaintext-password requirement — a structural blocker per
+      apps-gaps/SCHEMA.md, not a missing-algorithm gap."
+    - "A Traefik basic_auth gate does not substitute here: the app already
+      has its own admin login with a real (if unknown-to-the-customer)
+      password, so gating the port doesn't solve provisioning a credential
+      the customer can actually use to log in."
+    - "The VPN listener (1194/udp) and admin GUI (943/tcp) are raw ports, not
+      a single HTTP surface — not reverse-proxy-friendly, though this alone
+      is not blocking (wg-easy ships the same shape)."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  OpenVPN Access Server is an actively maintained, well-documented product,
+  but it fails our installability bar on the same structural point every
+  time: the built-in admin account's password is auto-generated at first
+  boot and only recoverable from container logs, with no env-var override
+  and no hash-accepting API to set it via generated_from. That is a genuine
+  plaintext-password requirement, which apps-gaps/SCHEMA.md treats as a hard
+  blocker rather than a missing-algorithm gap to file against IF-1420. On top
+  of that it overlaps with wg-easy's already-covered self-hosted-VPN niche
+  and its free tier caps out at 2 concurrent connections. Recommend
+  not_recommended rather than build_with_caveats or blocked_on_platform.
