@@ -1,0 +1,92 @@
+slug: pgweb
+name: Pgweb
+source_description: "Cross-platform web-based PostgreSQL database browser with zero dependencies"
+
+upstream:
+  url: https://sosedoff.github.io/pgweb/
+  repo_url: https://github.com/sosedoff/pgweb
+  license: MIT
+  docker_image: sosedoff/pgweb
+
+version_health:
+  latest_version: "0.17.0"
+  latest_release_date: "2025-11-22"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    0.17.0 published 2025-11-22 — about 8.5 months before today
+    (2026-08-05) — and is still the newest tagged release/Docker Hub
+    image; no follow-up release has shipped since. The tag history
+    shows the same pattern repeatedly: roughly quarterly point releases
+    through 2023-2024 (0.14.1 2023-06-17, 0.14.2 2023-10-30, 0.14.3
+    2024-01-29, 0.15.0 2024-03-15, 0.16.0 2024-06-05, 0.16.1 2024-09-07,
+    0.16.2 2024-11-02), then a 12.5-month gap before 0.17.0. Despite the
+    sparse tagging, the repo itself is clearly not dormant: `pushed_at`
+    is 2026-07-26 and commits landed as recently as 2026-07-03 (read-only
+    mode hardening, PostgreSQL 18 support in the dev docker-compose).
+    So this reads as an actively-developed project that batches
+    infrequent, irregular releases rather than one going stale —
+    "sporadic" cadence, not "slowing" or "dormant".
+
+catalogue_fit:
+  categories: [databases, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    A separate gap analysis already covers pgAdmin
+    (apps-gaps/pgadmin.yaml) for the same "Postgres admin UI" niche;
+    that file should be read alongside this one since both target the
+    same slot. Pgweb is architecturally the lighter-weight alternative:
+    a single ~50MB zero-dependency Go binary with no admin-account
+    bootstrap flow at all, versus pgAdmin's full email/password
+    account system and heavier Flask-based stack. Functionally it's
+    narrower (browse/query/export, no server-wide user/permission
+    management), but for a customer who just wants to point a browser
+    at their own Postgres and run queries, pgweb is simpler to deploy
+    and — critically, see installability below — is not blocked by the
+    same plaintext-password requirement that blocks pgAdmin today.
+  usefulness: medium
+  usefulness_rationale: >
+    Same audience as pgAdmin (customers running Postgres-backed apps,
+    their own or via other recipes, who want an ad hoc query/browse
+    UI) — technically inclined, not a mass-market need, but real and
+    recurring. Within that audience pgweb is arguably the better first
+    recipe to ship of the two: it is mechanically installable today
+    with zero blocking issues, whereas pgAdmin is blocked_on_platform.
+    Shipping both would be redundant unless there's a specific reason
+    to want pgAdmin's fuller admin/permissions surface.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Pgweb is a single-container, zero-dependency Go binary (official
+  image sosedoff/pgweb, pin e.g. 0.17.0) serving one HTTP port (default
+  8081) with no database of its own and no built-in admin-account
+  bootstrap — it has no login at all unless one is explicitly
+  configured, and it connects to whatever Postgres instance/URL the
+  end user supplies through its own UI or PGWEB_DATABASE_URL at
+  runtime, not at image-boot time. It does ship its own optional
+  --auth-user/--auth-pass (or PGWEB_AUTH_USER/PGWEB_AUTH_PASS) HTTP
+  basic-auth flags, but since those only ever accept plaintext,
+  generated_from can't feed them directly either — same as any other
+  no-login app. The clean path is to leave pgweb's own auth off and put
+  a Traefik basic_auth:true gate in front of it instead (identical
+  pattern to Adminer/n8n/WUD), which is fully expressible today via
+  generated_from projection of the customer's root password into the
+  gate credential. That leaves zero blocking issues: no external API
+  key, no OAuth, no plaintext-password requirement. Combined with an
+  active-if-irregular upstream (recent July 2026 commits, if a thin
+  8.5-month gap since the last tagged release) and a real, currently
+  unmet "Postgres browser" niche in the catalogue, this is a build_now
+  candidate — plausibly a better first pick than the related but
+  currently blocked pgAdmin candidate (apps-gaps/pgadmin.yaml) for the
+  same use case.
