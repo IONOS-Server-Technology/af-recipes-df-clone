@@ -1,0 +1,94 @@
+slug: norish
+name: Norish
+source_description: "Self-hosted recipe manager with social media import and household sync"
+
+upstream:
+  url: https://norish.dev
+  repo_url: https://github.com/norish-recipes/norish
+  license: AGPL-3.0
+  docker_image: norishapp/norish
+
+version_health:
+  latest_version: v0.19.1-beta
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Repo created 2025-12-03, last push 2026-08-05 (today). Releases every
+    1-4 weeks throughout its life (v0.16.0-beta through v0.19.1-beta from
+    2026-02-11 to 2026-07-17), latest release only 19 days before today
+    (2026-08-05). Clearly under active development. Caveat: every tagged
+    release to date carries a "-beta" suffix and the project is only ~8
+    months old — there is no 1.0/stable release yet, so upstream itself
+    signals the app is not yet considered production-hardened.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers recipe/meal management. Paperless-ngx (document
+    management) and n8n/Home Assistant (automation) are the closest
+    productivity-category neighbors but serve unrelated use cases. Norish's
+    household/family angle (shared groceries, meal planning, CalDAV sync) and
+    social-media recipe import (YouTube Shorts/Reels/TikTok via AI) are novel
+    to the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely new category for the catalogue with clear consumer appeal, but
+    the single most-marketed feature per Hostinger's own description — social
+    media import — depends on an optional AI provider that has no
+    customer-input channel today (see blocking_issues), so a shipped recipe
+    would only offer the app's baseline manual/URL recipe management, not the
+    headline feature.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MASTER_KEY, DATABASE_URL, REDIS_URL]
+  secrets_expressible_today:
+    - secret: MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DATABASE_URL
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_URL
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      AI-powered social media import (the Hostinger-highlighted feature) is
+      gated behind AI_ENABLED/AI_PROVIDER/AI_API_KEY env vars pointing at an
+      external OpenAI-compatible endpoint. This is an external API key the
+      customer would have to supply — no input channel exists today,
+      so this feature cannot be part of an installable recipe as shipped.
+      The app is still fully usable for manual/URL-based recipe entry
+      without it.
+    - >
+      Admin bootstrap is a self-service signup form, not a
+      generated_from-projectable field: whoever first reaches the app's
+      web UI after boot claims the "server owner and admin" role by
+      choosing their own email+password there (PASSWORD_AUTH_ENABLED
+      defaults to "Auto"), after which registration closes automatically.
+      There is no ADMIN_PASSWORD-style parameter to project a root-password
+      hash into. This matches the existing accepted pattern in
+      recipes/uptime-kuma (also a bare first-visitor signup, no metadata
+      admin parameter) rather than blocking installability, but it does mean
+      the app sits open to a first-visitor race between boot and the
+      customer's first login — worth a Traefik basic_auth gate as a belt-
+      and-suspenders measure even though it's not strictly required by
+      precedent.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Norish is a real-time, household-first recipe manager (Postgres + Redis +
+  headless-Chrome stack) with no equivalent in the current 24-recipe
+  catalogue, and its core secrets (MASTER_KEY, DB password, Redis URL) are all
+  server-generatable with no customer input needed, so it is mechanically
+  installable today using the same first-visitor-signup pattern already
+  shipped for uptime-kuma. However the feature Hostinger's own description
+  leads with — social media import — requires an external AI provider API key
+  that has no customer-supplied-secret channel today, so a recipe would ship
+  without that headline capability. Combined with the project's still-beta
+  (no 1.0) release status at ~8 months old, this is a build_with_caveats: real
+  differentiation and an active upstream, but the marketed feature won't work
+  out of the box and the app hasn't reached a stable release yet.
