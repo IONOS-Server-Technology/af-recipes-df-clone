@@ -1,0 +1,80 @@
+slug: ldap-account-manager
+name: LDAP Account Manager
+source_description: "Web frontend for managing users and groups in an OpenLDAP directory"
+
+upstream:
+  url: https://www.ldap-account-manager.org
+  repo_url: https://github.com/LDAPAccountManager/lam
+  license: GPL-2.0 (LAM community edition; "LAM Pro" adds paid features, not required for core function)
+  docker_image: ghcr.io/ldapaccountmanager/lam
+
+version_health:
+  latest_version: "9.6.1"
+  latest_release_date: "2026-06-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    49 days since latest release (9.6.1, 2026-06-17) as of 2026-08-05.
+    Verified via github.com/LDAPAccountManager/lam/releases.atom: 9.3
+    (2025-09-16) -> 9.4 (2025-12-13) -> 9.5 (2026-03-17) -> 9.6 (2026-06-12)
+    -> 9.6.1 (2026-06-17), a steady ~3-month major cadence with bugfix
+    point releases in between. Not archived, actively triaged. Old
+    Docker Hub repo (ldapaccountmanager/lam) is deprecated in favor of
+    GHCR (ghcr.io/ldapaccountmanager/lam) as of the current docker README —
+    use the GHCR image, not the stale Docker Hub one.
+
+catalogue_fit:
+  categories: [infrastructure, identity, admin-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes manages an LDAP/directory-services
+    layer. LAM is a pure management UI for an existing OpenLDAP directory
+    (create/edit users, groups, DHCP entries, etc.) — a genuinely different
+    slice of infrastructure than anything we ship today. Closest cousin is
+    Guacamole, which can *authenticate against* LDAP but has no directory
+    management UI of its own.
+  usefulness: low
+  usefulness_rationale: >
+    Niche/technical: only useful to a customer who already runs (or is
+    about to run) their own OpenLDAP directory, which is a small slice of
+    our self-hoster audience compared to broadly-appealing tools like
+    Vaultwarden or n8n. Same "needs a pre-existing external system" caveat
+    as Adminer, but for a narrower dependency (LDAP vs. any SQL database).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  LAM is a single-container PHP app (ghcr.io/ldapaccountmanager/lam,
+  latest 9.6.1) exposing one HTTP port (80), reverse-proxy-compatible, no
+  database dependency by default. Its architecture splits auth into two
+  layers, and both fit our current mechanism without needing a customer
+  to supply arbitrary values at /compose time: (1) the LDAP directory
+  connection ("server profile") is edited through LAM's own config screen,
+  gated by a master config password whose documented default is the fixed,
+  well-known string "lam" — a hardcoded credential the app itself doesn't
+  force you to change, which per our schema is fine to leave as-is behind a
+  Traefik basic_auth:true gate rather than something we must project; (2)
+  day-to-day login to browse/manage the LDAP tree is a per-session LDAP
+  bind DN + password typed into LAM's login form at each visit — same
+  runtime-entry pattern as Adminer's per-connection DB login, not a
+  persisted secret we need to provision. So installable_today: true with a
+  required basic_auth gate (password from `generated_from` on the
+  customer's root password, same pattern as n8n/WUD/Adminer). The catch is
+  usefulness, not installability: LAM only manages a directory that must
+  already exist — we don't ship OpenLDAP itself in this recipe, and pairing
+  one in isn't a drop-in fix since the LDAP admin bind password would then
+  become the actual working login and OpenLDAP's default hash schemes
+  (SSHA/CRYPT) aren't in the generated_from-supported algo list
+  (argon2, bcrypt) today. Recommend build_with_caveats: mechanically
+  installable and low engineering cost, but a narrow, technical audience
+  that must bring its own LDAP server to get any value from it.
