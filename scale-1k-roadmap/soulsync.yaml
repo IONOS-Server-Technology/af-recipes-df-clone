@@ -1,0 +1,112 @@
+slug: soulsync
+name: SoulSync
+source_description: "Music platform syncing Spotify and Tidal playlists to your self-hosted library"
+
+upstream:
+  url: https://github.com/Nezreka/SoulSync
+  repo_url: https://github.com/Nezreka/SoulSync
+  license: MIT
+  docker_image: boulderbadgedad/soulsync:3.1.9
+
+version_health:
+  latest_version: "3.1.9"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active — 3.1.9 shipped 2026-07-26 (10 days before today,
+    2026-08-05), and the preceding ~10 releases (3.0.3 through 3.1.8) all
+    landed between 2026-07-15 and 2026-07-26, i.e. roughly one release
+    every 1-2 days over the prior three weeks. Not archived, no EOL
+    signals. This is a young, fast-moving hobby project rather than a
+    mature stable release train — worth noting for pin-maintenance burden
+    if ever built, but not a version-health concern in itself.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does streaming-service
+    playlist sync into a self-hosted music library; the closest
+    conceptual neighbor is Immich (photo/video library), a different media
+    type. A customer already running a self-hosted music server (e.g. a
+    Subsonic/Navidrome-style stack, none of which is in the catalogue
+    either — see apps-gaps/airsonic-advanced.yaml) would find SoulSync a
+    natural add-on to auto-populate that library from Spotify/Tidal
+    playlists. The pitch is real, but see installability below: the app's
+    actual download mechanism is not what the Hostinger description
+    implies.
+  usefulness: low
+  usefulness_rationale: >
+    The Hostinger description ("syncing Spotify and Tidal playlists to
+    your self-hosted library") undersells what SoulSync actually is: an
+    automation front-end over Soulseek (via a required slskd instance) and
+    several other Hi-Res sources (Deezer, Qobuz, Amazon Music), with
+    Spotify/Tidal used only for discovery/metadata/playlist definitions,
+    not as licensed download sources. The primary download path is a
+    public P2P network whose main real-world use is unauthorized
+    copyrighted-media sharing — the same reputational/legal concern
+    already raised in apps-gaps/slskd.yaml, which SoulSync makes worse by
+    packaging that P2P client behind a friendlier "playlist sync" pitch
+    aimed at a broader, less P2P-savvy audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "slskd API key (SOULSYNC_SLSKD_API_KEY) — connects SoulSync to a co-deployed slskd instance"
+    - "Spotify API Client ID/Secret — required for playlist discovery/sync, the app's headline feature"
+    - "SoulSync web UI login (no built-in strong auth — only per-profile PINs; needs a basic-auth gate)"
+  secrets_expressible_today:
+    - secret: "SoulSync web UI login (no built-in strong auth — only per-profile PINs; needs a basic-auth gate)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      SoulSync's primary download source is Soulseek via a separately
+      deployed slskd instance (see apps-gaps/slskd.yaml, also
+      `blocked_on_platform`/flagged for legal review) — an external
+      dependency this recipe would have to co-provision, with slskd's own
+      API key then fed into SoulSync. Neither today's `/compose` mechanism
+      nor a single-recipe scope has a channel to stand up and wire two
+      cooperating apps' cross-service credentials automatically, and the
+      underlying P2P-network exposure concern from apps-gaps/slskd.yaml
+      applies here unchanged.
+    - >
+      Spotify playlist sync — the feature the Hostinger description
+      actually advertises — requires a customer-supplied Spotify API
+      Client ID and Secret registered on developer.spotify.com. This is an
+      external API key with no projection mechanism today (not a password
+      hash, not a Traefik gate); `/compose` has no field for it. Tidal
+      works via a device-flow OAuth login performed inside the app after
+      deploy (self-service through the UI, not a boot-time blocker by
+      itself), but without Spotify credentials the core "sync Spotify
+      playlists" pitch does not function at all.
+    - >
+      SoulSync's own web UI has no traditional single admin login —
+      upstream describes "per-profile login passwords / quick-switch
+      PINs" rather than a proper admin account, so there is nothing to
+      hash a root-password into via `generated_from`. A Traefik
+      `basic_auth` gate could cover the perimeter (same pattern as
+      n8n/WUD), but that alone does not resolve the Spotify API key or
+      slskd dependency blockers above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  SoulSync is an actively-developed (releases every 1-2 days recently),
+  MIT-licensed music automation platform with a real single-container web
+  UI (port 8008) that would be reverse-proxy-compatible in isolation. But
+  its architecture does not match Hostinger's "syncs Spotify/Tidal
+  playlists" framing: Spotify/Tidal are discovery/metadata sources, while
+  the actual downloading happens through a required, separately-deployed
+  slskd (Soulseek P2P client) instance — already flagged in
+  apps-gaps/slskd.yaml as blocked_on_platform and as a reputational/legal
+  concern given Soulseek's primary real-world use for unauthorized media
+  sharing. On top of that dependency problem, the app's headline feature
+  needs a customer-supplied Spotify API Client ID/Secret with no
+  projection channel in `/compose` today. Recommend not_recommended: this
+  is blocked on multiple fronts (a P2P legal/reputational question, a
+  missing external-API-key input channel, and a multi-service
+  cross-credential wiring problem), not a simple `blocked_on_platform`
+  wait-for-one-feature case.
