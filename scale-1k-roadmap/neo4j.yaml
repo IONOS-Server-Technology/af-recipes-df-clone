@@ -1,0 +1,111 @@
+slug: neo4j
+name: Neo4j
+source_description: "The world's leading open-source graph database for connected data"
+
+upstream:
+  url: https://neo4j.com/
+  repo_url: https://github.com/neo4j/neo4j
+  license: GPL-3.0 (Community Edition); Neo4j Enterprise Edition is source-available/commercial, not OSS
+  docker_image: neo4j
+
+version_health:
+  latest_version: "2026.06.0 (Community/Enterprise, calendar-versioned); LTS line 5.26"
+  latest_release_date: "2026-07-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2026.06.0 released 2026-07-02, about 5 weeks before today (2026-08-05).
+    Neo4j moved from semantic to calendar versioning (YYYY.MM) in January
+    2025 and has shipped a new minor roughly every month since (2026.02.3,
+    2026.03.1, 2026.04.0, 2026.05.0, 2026.06.0) — a genuinely active
+    cadence. Only the latest minor is supported on the rolling line; a
+    separate 5.26 LTS line is supported until 2028-06-06 for customers who
+    want a slower-moving base. The official `neo4j` Docker Hub image is
+    updated in step with each release (Debian trixie and UBI10 variants,
+    community/enterprise tag suffixes).
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the 24 existing recipes are a graph database — n8n, immich,
+    paperless-ngx, etc. all run Postgres purely as private internal
+    storage, not as a customer-facing engine. A graph database serving
+    connected-data use cases (recommendation engines, fraud/anomaly
+    detection, knowledge graphs, dependency analysis) is a genuinely
+    distinct niche the catalogue doesn't cover. See `installability`,
+    though, for why that niche can't actually be served by our current
+    mechanism.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct value in principle for technical customers building
+    graph-backed apps, and it does ship a web UI (Neo4j Browser) rather
+    than being purely headless like a raw RDBMS — but that UI cannot
+    function through our reverse-proxy model (see below), which caps its
+    practical usefulness at "yet another database a power user could
+    reach only partially."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [neo4j_admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Neo4j Browser — the only web UI Neo4j ships — is a static page served
+      on the HTTP port (7474) that then opens a live Bolt protocol
+      connection to run any query. Since Neo4j 3.2, the browser hardcodes
+      that Bolt connection to port 7687 regardless of the page's own URL
+      path, so the HTTP port alone is not enough for the UI to do anything
+      beyond loading its shell. Our Traefik renderer only routes a
+      recipe's first `http: true` port (`single-http-port`,
+      rfc/002-recipe-rules.md:267-272); a second Traefik-routed endpoint for
+      7687 has no rendering path today. Exposing 7687 as a second raw host
+      port instead would put an unauthenticated-by-default binary graph
+      protocol directly on the internet — the same risk class
+      `no-public-db-port` guards against for MySQL/Postgres/Mongo/Redis
+      etc. (rfc/002-recipe-rules.md:220-226), even though 7687 isn't
+      literally on that forbidden list. Net effect: the app's one web UI
+      cannot be made to work end-to-end through our reverse-proxy model
+      without either renderer changes (multi-port/TCP routing) or accepting
+      a raw public database-protocol port — the same structural mismatch
+      already documented for MySQL (apps-gaps/mysql.yaml) and MariaDB.
+    - >
+      Independent of the port problem, the initial admin credential
+      (`NEO4J_AUTH=neo4j/<password>`, set once at first boot) only accepts
+      a **plaintext** password — Neo4j hashes it itself internally with
+      its own algorithm, and the Docker entrypoint gives no way to seed a
+      pre-computed bcrypt/argon2 hash instead. `generated_from` only ever
+      projects a hash, never plaintext, so it cannot populate this field.
+      This is a genuine plaintext requirement per `apps-gaps/SCHEMA.md`'s
+      own test table, not merely an unsupported hash algorithm — so it is
+      a structural blocker, not something IF-1420 adding a new algo would
+      fix.
+    - >
+      Gating the app behind Traefik `basic_auth` instead (à la Adminer)
+      would not actually close the gap either: `basic_auth` only covers
+      HTTP-routed traffic. It would protect the 7474 page but not a
+      separately exposed raw 7687, so the one credential that matters for
+      an unauthenticated graph database — the thing actually able to read
+      and write all the data over Bolt — would stay unprotected. Neo4j's
+      own (plaintext-only) auth is the only mechanism that actually covers
+      Bolt, which is exactly the field we have no channel for.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Neo4j is a healthy, actively released project (monthly calendar-versioned
+  releases, latest 2026.06.0 from 2026-07-02) and would fill a real gap —
+  no existing recipe covers graph databases. But it fails our mechanism on
+  two independent fronts: its only web UI (Neo4j Browser) needs both the
+  HTTP port and a hardcoded raw Bolt port (7687) to function, which our
+  single-Traefik-router renderer can't route and which would otherwise mean
+  a raw, unauthenticated-by-default database port facing the internet; and
+  its initial admin credential only accepts a plaintext password with no
+  hash-projection channel, so `generated_from` can't reach it and Traefik
+  `basic_auth` can't cover Bolt anyway. Neither issue is a near-term
+  platform gap (unlike a missing hash algorithm); both are structural
+  mismatches with the current single-HTTP-port, hash-only-secret model.
+  Recommend not_recommended, in the same structural class as
+  `apps-gaps/mysql.yaml` and MariaDB.
