@@ -1,0 +1,105 @@
+slug: sharkey
+name: Sharkey
+source_description: "Federated Misskey-fork microblogging server with Mastodon API compatibility"
+
+upstream:
+  url: https://joinsharkey.org
+  repo_url: https://activitypub.software/TransFem-org/Sharkey
+  license: AGPL-3.0-only
+  docker_image: registry.activitypub.software/transfem-org/sharkey
+
+version_health:
+  latest_version: "2025.4.7"
+  latest_release_date: "2026-05-20"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest release 2025.4.7 ("Security fixes 3: electric boogalee") landed
+    2026-05-20, 77 days before today (2026-08-05). The whole 2026 release
+    train is security-only: 2025.4.5 (2026-01-13, titled "we'll catch up,
+    we promise"), 2025.4.6 (2026-03-08, "Security fixes 2"), 2025.4.7
+    (2026-05-20). The last feature release is 2025.4.4 on 2025-07-31 —
+    just over 12 months ago — and the version string itself has not moved
+    off the 2025.4.x line in a year, while upstream Misskey has shipped
+    monthly stables through 2026.7.0. Repo is not archived and no EOL
+    announcement exists; `develop` still gets commits (most recent
+    2026-08-04, two days before this analysis), but at a sparse few-per-month
+    rate with multi-week gaps (nothing between 2026-05-24 and 2026-06-24,
+    nothing between 2026-07-08 and 2026-08-03). Modest project weight: 73
+    stars / 105 forks on the self-hosted GitLab. Read as a small-team soft
+    fork in de-facto maintenance mode on the release channel, not a dead
+    project — but also not keeping pace with the Misskey upstream it tracks.
+
+catalogue_fit:
+  categories: [social, federation, microblogging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers federated
+    social/microblogging, so this would open a new category. Its real
+    overlap is with other *candidates* in this same niche, above all the
+    already-analyzed `misskey` (recommendation build_now) — Sharkey is an
+    explicit soft fork of Misskey, tracking upstream and adding its own
+    features, so structurally and functionally it is near-identical to that
+    candidate (same single web process on port 3000, same Postgres + Redis
+    backing, same file-based `.config/default.yml`). Its distinguishing
+    features over plain Misskey are a built-in Mastodon API implementation
+    (so Mastodon client apps work against it) and signup-approval workflow.
+    Per CLAUDE.md, that overlap is not itself a reason to reject it.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted fediverse presence is a genuine recurring self-hosting ask,
+    and Mastodon-API compatibility widens the usable client ecosystem
+    relative to vanilla Misskey — a real customer-visible advantage. But it
+    is the second-best pick in a niche where the catalogue can only justify
+    a couple of entries: the community and release velocity are far smaller
+    than Misskey's or Mastodon's, and a fork that has not shipped a feature
+    release in 12 months while its upstream ships monthly carries a
+    maintenance risk a recipe would inherit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, GATE_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: GATE_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Sharkey is mechanically installable under today's mechanism, on the same
+  reasoning as the `misskey` analysis: the official image
+  (registry.activitypub.software/transfem-org/sharkey, pinned tag 2025.4.7,
+  multi-arch, anonymous pull confirmed working) runs as a single web
+  container on one HTTP port (3000) behind a reverse proxy — exactly the
+  Traefik shape our recipes already use — plus Redis and a Postgres with
+  PGroonga (upstream's compose_example.yml uses groonga/pgroonga:4.0.1-alpine-17
+  for full-text search). All configuration is written into a
+  server-generated `.config/default.yml` and `.config/docker.env`, so the
+  only boot secret the stack itself needs is an ordinary internal
+  POSTGRES_PASSWORD. There is no env var for the admin account: the first
+  account created through the web setup form becomes root, and the
+  `setupPassword` config option that exists for exactly this
+  "provider sets up on behalf of the customer" case is confirmed in source
+  (packages/backend/src/server/api/endpoints/admin/accounts/create.ts) to be
+  a plaintext string-equality check, so `generated_from` — which only ever
+  carries a hash — cannot project into it. Left unset, that gate is absent
+  and the standard Traefik `basic_auth: true` gate (projected from the
+  customer's root-password hash) is what guarantees the customer reaches the
+  signup form first, the same pattern already accepted for Immich, Open WebUI,
+  n8n and WUD. Caveats, hence `build_with_caveats` rather than `build_now`:
+  (1) a basic_auth gate left permanently in place blocks inbound ActivityPub
+  delivery and public profile fetches, so the instance cannot actually
+  federate until the gate comes off, and `/compose`+`/bootstrap` have no
+  lifecycle hook to lift it after the customer claims root — the honest
+  framing is "private instance out of the box, federation needs a manual
+  post-setup step"; (2) upstream is a small-team fork in security-fix-only
+  mode for the last 12 months while the Misskey upstream it soft-forks ships
+  monthly, so `misskey` is the stronger build in this niche if only one
+  fediverse recipe gets bandwidth; (3) the image lives only in the project's
+  self-hosted GitLab registry (no Docker Hub or GHCR mirror), a single point
+  of failure for pulls that the rest of the catalogue does not have.
