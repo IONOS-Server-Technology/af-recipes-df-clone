@@ -1,0 +1,83 @@
+slug: strapi
+name: Strapi
+source_description: "Open-source headless CMS for building customizable APIs and content management"
+
+upstream:
+  url: https://strapi.io
+  repo_url: https://github.com/strapi/strapi
+  license: "MIT (Community edition; code under any `ee/` directory is Strapi Enterprise-licensed and not included in the default self-hosted build)"
+  docker_image: strapi/strapi
+
+version_health:
+  latest_version: "v5.51.2"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.51.2 shipped today (2026-08-05); the run-up shows a release every
+    6-8 days going back months (v5.51.1 on 2026-07-29, v5.51.0 on
+    2026-07-23, v5.50.2 on 2026-07-15, v5.50.1 on 2026-07-08, v5.50.0 on
+    2026-07-02, v5.49.0 on 2026-06-24, v5.48.1 on 2026-06-17, v5.48.0 on
+    2026-06-10). This is one of the more actively maintained projects
+    considered in this gap-analysis pass — no dormancy signal at all.
+
+catalogue_fit:
+  categories: [developer-tools, content-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue is a headless CMS / custom
+    API backend. Strapi lets a developer define content types and consume
+    them over a generated REST or GraphQL API from an external frontend
+    (static site, mobile app, JAMstack build) — distinct from anything
+    already shipped (Gitea is source control, OpenGist is snippets, n8n is
+    workflow automation, Paperless-ngx is document archiving). This is the
+    same niche already flagged by two other candidates in this gap-analysis
+    pass — see apps-gaps/directus.yaml and apps-gaps/cockpit-cms.yaml, both
+    of which reached the same "no headless-CMS recipe exists" conclusion.
+    Strapi, Directus, and Cockpit CMS compete for the same catalogue slot;
+    a reviewer picking among them should treat these as alternatives, not
+    additive coverage.
+  usefulness: high
+  usefulness_rationale: >
+    Strapi is the most widely recognized and most actively developed of the
+    three headless-CMS candidates surfaced in this pass (weekly releases vs.
+    Directus's monthly cadence and Cockpit CMS's recent slowdown — see
+    apps-gaps/cockpit-cms.yaml), has the largest community/plugin ecosystem,
+    and ships under a clean permissive MIT license with no Directus-style
+    "Competing Use" restriction to clear with legal (see
+    apps-gaps/directus.yaml). Same narrow-audience caveat as the other two
+    candidates applies: a customer needs their own frontend project to get
+    value out of it, it isn't useful standalone — but among the three
+    competing candidates this is the strongest pick.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential (protects the unauthenticated /admin first-run registration screen, which is where the customer creates their own Strapi admin account — the strapi/strapi image has no env var to pre-set or inject an initial admin username/password)"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Strapi is a single-container, MIT-licensed headless CMS (official
+  strapi/strapi image, SQLite supported out of the box so no mandatory
+  external database), one HTTP port (1337, admin panel and API share it),
+  and full Traefik reverse-proxy compatibility. Like Cockpit CMS, it has no
+  env var to pre-set an admin credential — first boot lands on an open
+  /admin registration form where the customer creates their own admin
+  account, so that surface needs a Traefik basic_auth gate projected from
+  the customer's root password, the same pattern already used for Cockpit
+  CMS. That clears installable_today with zero hard blockers. Strapi fills
+  a real, currently-uncovered catalogue gap (headless CMS / custom API
+  backend) and is the strongest of three competing candidates surfaced in
+  this pass (Directus is legally encumbered by a "Competing Use" license
+  clause; Cockpit CMS's release cadence has recently slowed) thanks to its
+  active weekly release cadence, permissive MIT license, and market
+  recognition. Recommend build_now, with a note for whoever picks the
+  catalogue slot that Directus and Cockpit CMS were evaluated for the same
+  niche and Strapi is the recommended pick among the three.
