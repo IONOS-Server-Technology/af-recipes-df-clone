@@ -1,0 +1,70 @@
+slug: jotty
+name: Jotty
+source_description: "Lightweight note-taking and checklist app with Markdown and Kanban boards"
+
+upstream:
+  url: https://jotty.page/
+  repo_url: https://github.com/fccview/jotty
+  license: AGPL-3.0-or-later
+  docker_image: ghcr.io/fccview/jotty
+
+version_health:
+  latest_version: "1.25.1"
+  latest_release_date: "2026-06-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.25.1 tagged 2026-06-16, ~7 weeks before today (2026-08-05); the ten
+    most recent tags (1.19.0 through 1.25.1) span 2026-01-26 to 2026-06-16,
+    roughly one release every 2-4 weeks. The most recent commit to `main`
+    (merge of PR #559) landed 2026-07-08, less than a month ago, so
+    development continues even though a new version tag hasn't cut yet.
+    944 commits, 69 open issues, 113 forks, ~2.0k stars — small but genuinely
+    active single/small-maintainer project, not archived, no EOL signal.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers personal notes/checklists. The
+    closest conceptual sibling is anytype-server, but that is a sync-only
+    backend for Anytype's native desktop/mobile clients — three non-HTTP
+    any-sync ports plus MinIO, no web UI at all, not reverse-proxy-friendly.
+    Jotty is the opposite shape: a single-port HTTP web app (Markdown notes
+    editor plus a Kanban/checklist board, file-based storage, no database
+    service to run) usable entirely from a browser behind Traefik on
+    jotty.<base_domain>. It would be the catalogue's first lightweight,
+    browsable notes/checklist tool.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad, easily-understood use case (personal notes and to-do/checklist
+    management) and genuinely new ground for the catalogue, but it is a
+    small, low-profile project (~2.0k stars) competing with much
+    better-known alternatives (e.g. AFFiNE, Trilium, Joplin server) — solid
+    but not a marquee addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_password]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Jotty is a single-container, single-HTTP-port (3000) app with no database
+  dependency, an active release cadence, and no overlap with the current
+  catalogue. It has no env var to pre-seed an admin account: the first
+  visitor to /auth/setup becomes the admin by creating their own
+  username/password directly through the web wizard, and all subsequent
+  users are created from that admin's panel (no open self-signup), so there
+  is no ongoing arbitrary-credential problem — only a first-boot race
+  window before the customer completes setup. That window is fully closed
+  by a mandatory Traefik basic_auth gate (projected from the customer's
+  root password), the same pattern used for n8n/WUD/OpenClaw/Open WebUI.
+  Optional OIDC/SSO support is not required at first boot, so it isn't a
+  blocker. Mechanically installable today with no platform gaps.
