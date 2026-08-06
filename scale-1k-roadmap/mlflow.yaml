@@ -1,0 +1,65 @@
+slug: mlflow
+name: MLflow
+source_description: "Open-source AI platform for ML experiment tracking and model registry"
+
+upstream:
+  url: https://mlflow.org/
+  repo_url: https://github.com/mlflow/mlflow
+  license: Apache-2.0
+  docker_image: ghcr.io/mlflow/mlflow
+
+version_health:
+  latest_version: "3.15.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 1-3 weeks throughout 2026 (3.13.0 on 2026-06-01,
+    3.14.0 on 2026-06-17, 3.15.0 on 2026-07-31, 3.15.1 on 2026-08-03 — two
+    days before this analysis). No indication of maintenance-only mode;
+    active feature development (GenAI tracing, RBAC, MCP registry) as of
+    the latest minor releases.
+
+catalogue_fit:
+  categories: [developer-tools, ai-ml, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover ML experiment tracking or model
+    registry. Ollama and Open WebUI serve/chat with LLMs but don't track
+    experiments, metrics, or model versions. MLflow fills a distinct
+    developer/data-science niche: logging training runs, comparing metrics,
+    and versioning models from notebooks or scripts against a self-hosted
+    server instead of a SaaS tracking backend.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable for the specific audience of data scientists/ML engineers who
+    want a self-hosted tracking server, but that audience is narrower than
+    our general self-hosting customer base, and MLflow needs a client
+    (Python/notebook) driving it — it isn't useful stood up on its own the
+    way a monitoring or password-manager app is.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  MLflow is a single-container web app (`ghcr.io/mlflow/mlflow`, tracking
+  server on port 5000, SQLite/file backend store for a simple self-hosted
+  deploy) with no built-in authentication of its own, so it fits the
+  Traefik `basic_auth` gate pattern used for n8n/WUD/Open WebUI — installable
+  today with no platform blockers. Upstream is Apache-2.0, actively
+  released (weekly-ish cadence into August 2026), and genuinely fills a gap
+  in the catalogue (no existing recipe does experiment tracking / model
+  registry). Recommend build_with_caveats: it's a narrower-audience,
+  client-driven tool (useless without a data scientist pointing a training
+  script at it) rather than a stand-up-and-use app, so value depends on how
+  many customers are running ML workloads elsewhere and want a tracking
+  backend.
