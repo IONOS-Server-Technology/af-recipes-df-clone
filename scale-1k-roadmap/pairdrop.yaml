@@ -1,0 +1,71 @@
+slug: pairdrop
+name: PairDrop
+source_description: "PairDrop is a web-based file sharing tool for instant transfers between devices"
+
+upstream:
+  url: https://pairdrop.net
+  repo_url: https://github.com/schlagmichdoch/PairDrop
+  license: GPL-3.0
+  docker_image: ghcr.io/schlagmichdoch/pairdrop
+
+version_health:
+  latest_version: "v1.11.2"
+  latest_release_date: "2025-02-24"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Tagged releases were roughly monthly through 2024 into Feb 2025 (v1.10.5
+    2024-01-06 through v1.11.2 2025-02-24), then stopped — no tagged release
+    in the ~17.4 months since, against today's date (2026-08-05). The repo
+    is not archived and shows non-trivial commit activity as recently as
+    2026-04-22 (a docs link fix) plus open issues/PRs, so this reads as a
+    stalled-release, still-triaged project rather than abandoned — closer to
+    "maintenance-only in practice" than "active" despite no formal EOL
+    announcement. Docker images (ghcr.io/schlagmichdoch/pairdrop,
+    lscr.io/linuxserver/pairdrop) are still published against the last
+    tagged release.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Instant, no-signup peer-to-peer file transfer between devices on the
+    same network or via a shared room code — closer to AirDrop than to any
+    existing recipe. Syncthing (continuous, persistent folder sync across
+    paired devices) is the closest existing recipe but solves a different
+    problem: PairDrop is a one-off drag-and-drop transfer tool with no
+    persistent storage or folder concept, IndexedDB-only client state, and
+    no database or backend storage service at all.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful, low-resource, single-container utility with a real
+    niche (ad-hoc device-to-device transfer) not covered by any of the 24
+    current recipes. Usefulness capped at medium because it's a nice-to-have
+    utility rather than a business-critical service, and the stalled release
+    cadence (see version_health) is a soft caveat on long-term support.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PairDrop is a single-container, database-free Node.js app exposing one
+  HTTP/WebSocket port (3000) behind a pinned official image
+  (ghcr.io/schlagmichdoch/pairdrop) — a straightforward fit for our
+  Traefik-fronted docker-compose recipe pattern; Traefik's automatic
+  X-Forwarded-For and WebSocket-upgrade passthrough satisfy the app's only
+  documented reverse-proxy requirements. It has no built-in login, so per
+  our current mechanism it needs a Traefik basic_auth gate (same pattern as
+  n8n/Open WebUI) to avoid sitting open on the internet — that's fully
+  expressible today, so nothing blocks shipping it. Fills a real gap (no
+  existing recipe does ad-hoc AirDrop-style device transfer), though the
+  ~17-month gap since the last tagged release is worth flagging as a soft
+  risk rather than a blocker.
