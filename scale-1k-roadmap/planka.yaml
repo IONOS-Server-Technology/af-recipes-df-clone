@@ -1,0 +1,102 @@
+slug: planka
+name: Planka
+source_description: "Open-source real-time kanban board for project management and team collaboration"
+
+upstream:
+  url: https://planka.app
+  repo_url: https://github.com/plankanban/planka
+  license: >
+    PLANKA Community License v1.1 ("Fair Use License"), source-available
+    fair-code. Permitted Use is limited to personal/hobby/educational use,
+    internal use within your own org, private hosting "for a typical number
+    of friends, family, or personal projects," free access for non-profits,
+    and academic use. Restricted Use explicitly states: "Sharing
+    accounts/credentials with third parties for business purposes or
+    operating PLANKA as a hosted service for third parties for any
+    commercial gain whatsoever is prohibited" and requires a paid commercial
+    PLANKA license for any other hosting use. "PLANKA Pro/Enterprise" files
+    are under a separate commercial license entirely.
+  docker_image: "ghcr.io/plankanban/planka"
+
+version_health:
+  latest_version: "2.1.1"
+  latest_release_date: "2026-04-18"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Confirmed via the GitHub releases atom feed (not training-data recall):
+    v2.0.0 (2026-02-11) → v2.0.1 (2026-02-17) → v2.0.2 (2026-02-23) → v2.0.3
+    (2026-03-01) → v2.1.0 (2026-03-19) → v2.1.1 (2026-04-18) — a tight,
+    roughly weekly-to-biweekly cadence through Feb-Apr 2026. Since v2.1.1
+    (2026-04-18), as of today 2026-08-05, there has been no new release for
+    just over 3.5 months (~15 weeks), a clear slowdown from the prior
+    cadence but not (yet) indicative of abandonment — repo has 12k+ stars,
+    1.1k+ commits, and an active commercial Pro/Cloud offering (planka.app)
+    that depends on the project staying maintained. Calling this "slowing"
+    rather than "dormant"; worth re-checking if the gap passes 6 months.
+
+catalogue_fit:
+  categories: [productivity, project-management, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover kanban-style project/task
+    management. Anytype Server is the closest thing in spirit (personal
+    knowledge/notes sync) but is not a task board and serves a different
+    workflow. Planka would be a genuinely new category for the catalogue —
+    team task boards (Trello-style) for project management and
+    collaboration — with clear customer demand independent of any existing
+    recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, common self-hosted-alternative demand (Trello/Jira-lite category)
+    and mechanically it slots in cleanly next to n8n/Vaultwarden-style
+    single-web-app-plus-Postgres recipes. Held to "medium" rather than
+    "high" purely because of the licensing blocker below — the technical fit
+    is strong, but the license is the actual gating factor for this app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DEFAULT_ADMIN_PASSWORD, SECRET_KEY, DATABASE_URL/postgres password]
+  secrets_expressible_today:
+    - secret: DEFAULT_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DATABASE_URL/postgres password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Licensing, not mechanism: the PLANKA Community License's Restricted
+      Use clause prohibits "operating PLANKA as a hosted service for third
+      parties for any commercial gain whatsoever" without a separate
+      commercial PLANKA license. IONOS Application Factory offering Planka
+      as a one-click hosted recipe to paying customers is exactly the use
+      case this clause targets. Needs explicit legal sign-off or a
+      commercial license from PLANKA Software GmbH before this can ship,
+      independent of the technical mechanism question below.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Planka is mechanically installable under the current recipe mechanism:
+  official ghcr.io/plankanban/planka image plus postgres:16-alpine, a single
+  public HTTP port (3000→1337) that works fine behind Traefik, and an admin
+  account created via DEFAULT_ADMIN_EMAIL/DEFAULT_ADMIN_PASSWORD env vars at
+  first boot (confirmed via docs.planka.cloud: "an administrator user is not
+  created automatically" as of v1.13+, so these vars are the intended setup
+  path) — DEFAULT_ADMIN_PASSWORD fits the generated_from root-password
+  projection exactly like Vaultwarden/n8n, and SECRET_KEY plus the Postgres
+  password are ordinary server-generated secrets. It would also be a
+  genuinely new category for the catalogue (kanban/task boards), with no
+  overlap among the current 24 recipes. The blocker is legal, not technical,
+  same shape as the Directus finding: PLANKA's Fair Use License explicitly
+  prohibits "operating PLANKA as a hosted service for third parties for any
+  commercial gain whatsoever" without buying a commercial PLANKA license —
+  which is precisely what an Application Factory recipe would do. Recommend
+  not_recommended pending legal review or a commercial licensing
+  arrangement with PLANKA Software GmbH; this is a real gap worth revisiting
+  if that clears, not a dead end. Release cadence has slowed markedly since
+  v2.1.1 (2026-04-18, no release since — ~3.5 months as of 2026-08-05) but
+  is not yet a separate concern on its own.
