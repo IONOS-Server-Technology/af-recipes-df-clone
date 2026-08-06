@@ -1,0 +1,90 @@
+slug: restreamer
+name: Restreamer
+source_description: "Easy-to-use live video streaming server supporting RTMP, HLS, SRT, and WebRTC"
+
+upstream:
+  url: https://datarhei.com/restreamer
+  repo_url: https://github.com/datarhei/restreamer
+  license: Apache-2.0
+  docker_image: datarhei/restreamer:2.12.0
+
+version_health:
+  latest_version: "2.12.0"
+  latest_release_date: "2024-09-13"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v2.12.0 (2024-09-13) — almost 2 years (~23
+    months) before today (2026-08-05). Prior cadence (v2.11.0 2024-06-07,
+    v2.10.0 2024-04-23, v2.9.0 2024-04-05, v2.8.0 2024-02-02) was roughly
+    monthly through 2024, then stopped entirely. Not a clean abandonment,
+    though: Docker Hub's untagged "dev" image was pushed ~9 days ago, and
+    the GitHub issue tracker is still active, so upstream is doing
+    unreleased work rather than being archived — but customers today only
+    get the frozen 2.12.0 image, so treat it as maintenance-only in
+    practice.
+
+catalogue_fit:
+  categories: [media, streaming]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does live video ingest or
+    restreaming (RTMP/SRT/HLS/WebRTC) — this would open a new category.
+    Two other streaming-server candidates (Ant Media Server CE, MistServer)
+    were separately gap-analyzed and hit the same structural blockers
+    (raw non-HTTP ingest ports, no expressible first-boot credential
+    mechanism), so this isn't a unique opportunity so much as a third data
+    point in a niche the platform can't yet serve.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists (creators/small broadcasters wanting a self-hosted
+    RTMP restreaming hub for OBS → YouTube/Twitch/Facebook), but the
+    audience is narrower and more technical than the catalogue's typical
+    productivity/monitoring/media-library apps, and the frozen ~2-year-old
+    image adds risk on top of that.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [RESTREAMER_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: RESTREAMER_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Restreamer's own admin login (RS_USERNAME/RS_PASSWORD env vars, or
+      the newer CORE_API_AUTH_USERNAME/CORE_API_AUTH_PASSWORD naming
+      documented for the in-development next version) only accepts a
+      plaintext username/password pair — there is no hash-based field for
+      generated_from to project into. The workable path is to hardcode a
+      fixed, non-customer-facing value for RS_USERNAME/RS_PASSWORD and put
+      the actual customer-facing gate in front of the whole app via
+      Traefik basic_auth (root-password hash), the same pattern used for
+      n8n/Immich/Open WebUI. That mechanism (IF-1312) is still unmerged,
+      so this is blocked on the same platform work as MistServer, not on
+      anything specific to Restreamer.
+    - >
+      Core function needs RTMP (1935/1936) and SRT (6000/udp) ingest ports
+      exposed raw to the internet — Traefik can front the HTTP dashboard
+      (8080) and HTTPS API (8181) but does nothing for these. Restreamer
+      does support a per-stream publish token (set from inside the UI
+      after login, not read from an env var at boot), which mitigates
+      anonymous-publish risk once an admin configures it, but it isn't a
+      first-boot secret our mechanism needs to supply — it's a caveat for
+      whoever builds this, not a blocker on its own (same shape as
+      MistServer's RTMP/RTSP/UDP ports).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Restreamer would fill a genuine catalogue gap (no live-streaming/RTMP
+  restreaming recipe exists today), but it's blocked on the same unmerged
+  Traefik basic_auth mechanism (IF-1312) needed for MistServer and other
+  no-hash-login apps, since its own admin login only takes a plaintext
+  password with no field for a projected hash. Even once that lands, its
+  RTMP/SRT ingest ports stay raw by design (mitigated only by an
+  in-app-configured publish token, not a first-boot secret), and the
+  upstream image has been frozen at v2.12.0 for ~23 months despite ongoing
+  unreleased dev-branch activity — worth revisiting after IF-1312 merges,
+  but not a near-term build.
