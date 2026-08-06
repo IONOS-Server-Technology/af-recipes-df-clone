@@ -21,10 +21,19 @@ version_health:
     (v0.26.3 on 2026-07-02). No archival, EOL notice, or maintenance-only
     signal found.
 
+    Upstream's own reference compose file (docker/docker-compose.yml,
+    pinned tag v0.26.4) publishes several raw ports beyond the web UI by
+    default: 9380 (main API), 9381 (Admin Server), 9382 (MCP entry point),
+    and 9383/9384 (Go admin/http). The 9381 Admin Service ships with a
+    hardcoded, non-configurable default credential
+    admin@ragflow.io / admin (ragflow.io/docs/admin_cli) — no env var
+    exposes a way to set it at first boot, and it has carried this default
+    since v0.21.0, still present in v0.26.4.
+
 catalogue_fit:
   categories: [ai, productivity]
   has_web_ui: true
-  reverse_proxy_compatible: true
+  reverse_proxy_compatible: true  # caveat: upstream's default compose publishes 5+ raw ports (9380-9384); a recipe must only expose the web UI (80/443, or 9380 for API) via Traefik and never publish 9381/9383
   overlaps_with: []
   differentiation: >
     None of the 24 current recipes are a document-grounded RAG engine.
@@ -46,7 +55,18 @@ installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot: []
   secrets_expressible_today: []
-  blocking_issues: []
+  blocking_issues:
+    - >
+      Not blocking for install itself, but constrains recipe design: the
+      Admin Service (port 9381, plus Go admin on 9383) ships with a fixed,
+      non-configurable admin@ragflow.io / admin credential that no env var
+      can change at first boot. Per SCHEMA.md's decision table, a fixed
+      default credential behind a Traefik basic_auth gate would be
+      acceptable — but the simpler and correct fix here is that a future
+      recipe must never publish 9381 or 9383 on the host/Traefik at all,
+      exposing only the web UI (80/443) and, if needed, the main API
+      (9380) behind Traefik. If 9381 is ever intentionally exposed, it must
+      be basic_auth-gated, not left open with its hardcoded default.
   installable_today: true
   recommendation: build_with_caveats
 
