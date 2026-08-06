@@ -1,0 +1,92 @@
+slug: litellm
+name: LiteLLM
+source_description: "LiteLLM is an AI gateway to call 100+ LLMs using OpenAI format"
+
+upstream:
+  url: https://www.litellm.ai/
+  repo_url: https://github.com/BerriAI/litellm
+  license: MIT (core); enterprise/ subdirectory under a separate commercial license
+  docker_image: ghcr.io/berriai/litellm-database
+
+version_health:
+  latest_version: v1.95.0
+  latest_release_date: 2026-08-01
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-cadence stable releases (v1.91.0 on 2026-07-04 through v1.95.0 on
+    2026-08-01, roughly one every 7-10 days), with day-0 support for new
+    frontier models (Claude Opus 5, Gemini 3.6) shipping the same week they
+    launch. Latest release is 4 days before today (2026-08-05). No signs of
+    slowdown, archival, or EOL.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes provide a unified LLM gateway. Ollama runs
+    local models and Open WebUI is a chat frontend (optionally backed by
+    Ollama) — neither lets a customer point many different apps at one
+    OpenAI-compatible endpoint while load-balancing, cost-tracking, and
+    swapping between OpenAI/Anthropic/Bedrock/Vertex/local Ollama models
+    without changing client code. LiteLLM sits a layer below Open WebUI /
+    n8n / any custom app and is a natural companion recipe for developer and
+    AI-automation customers running multiple LLM-backed services.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real gap for customers running several AI-integrated apps who
+    want centralized API-key management, spend tracking, and provider
+    failover instead of hardcoding provider keys into each app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - LITELLM_MASTER_KEY (admin/API bearer credential, compared as plaintext by the app)
+    - UI_USERNAME / UI_PASSWORD (Admin UI login, plaintext env vars, default to well-known doc example values if unset)
+    - traefik_basic_auth_gate (recommended outer gate, since UI/API login above cannot be tied to the customer's own root password)
+  secrets_expressible_today:
+    - secret: LITELLM_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      LITELLM_MASTER_KEY and UI_USERNAME/UI_PASSWORD are all plain strings
+      that LiteLLM compares directly (bearer-token match / UI login) — none
+      of them accept a pre-computed argon2/bcrypt hash the way Vaultwarden's
+      ADMIN_TOKEN does. `generated_from` only ever projects a hash, so it
+      cannot produce a value that equals the customer's own root password in
+      LiteLLM's eyes. This is the "genuine requirement for the plaintext
+      password" case the schema calls a structural blocker, not a
+      missing-algorithm gap.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (root-password
+      derived) solves the "don't sit open on the internet" problem, but
+      LiteLLM's own UI login screen is still behind that gate and still
+      needs a credential — the customer would hit a second login they have
+      no way to know unless UI_USERNAME/UI_PASSWORD are fixed to
+      recipe-documented static values. That works functionally (weak
+      credential behind a real auth boundary, same shape as the Adminer
+      pattern) but means every LiteLLM instance from this recipe would ship
+      identical default in-app credentials, which is a product decision
+      the recipe author should confirm, not an autonomous call for this
+      analysis.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  LiteLLM is an actively developed (weekly releases), genuinely
+  differentiated addition — no current recipe covers unified multi-provider
+  LLM gateway/routing. It needs Postgres (structurally similar to the
+  n8n/paperless-ngx template pair) and has a real web UI, so it fits the
+  catalogue's reverse-proxy pattern mechanically. The blocker is auth: its
+  master key and UI login are plaintext-compared credentials with no
+  hash-projection support, so `generated_from` cannot tie them to the
+  customer's root password, and a Traefik `basic_auth` gate alone doesn't
+  clear LiteLLM's own login screen. Shipping it today would mean baking in
+  a fixed, recipe-documented UI login behind the Traefik gate — workable but
+  a deliberate product call, not something to default into silently.
+  Recommend flagging as blocked_on_platform pending that decision (or a
+  future secret-delivery mechanism beyond root-password hash projection).
