@@ -1,0 +1,69 @@
+slug: metube
+name: MeTube
+source_description: "MeTube is a web-based video downloader for YouTube and other platforms"
+
+upstream:
+  url: https://github.com/alexta69/metube
+  repo_url: https://github.com/alexta69/metube
+  license: AGPL-3.0
+  docker_image: ghcr.io/alexta69/metube
+
+version_health:
+  latest_version: "2026.08.04"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1 day since the latest release as of 2026-08-05. Tags are date-stamped
+    and shipped on a near-weekly cadence tied to yt-dlp's own release
+    schedule (2026.08.04, 2026.07.27, 2026.07.24, 2026.07.21, 2026.07.18,
+    2026.07.16, 2026.07.13, 2026.07.12, 2026.07.10, 2026.07.09 — 10 tags in
+    the ~4 weeks prior to today). Repo is not archived, pushed_at is
+    2026-08-04, 14.3k GitHub stars, 28 open issues — an actively maintained
+    project whose release cadence is deliberately fast because yt-dlp
+    extractors break routinely as video sites change their frontends.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers "download a video/audio file
+    from a URL" as a function — the closest adjacent recipe, Immich, is
+    photo/video library management, not fetching. MeTube is a single
+    container (Python/Vue), single HTTP port (8081, configurable via PORT),
+    no database, and is the actively-maintained alternative already
+    identified in apps-gaps/alltube.yaml as the app to build instead of the
+    archived AllTube project.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular (14.3k stars) and genuinely lightweight to run, filling a real
+    "self-hosted yt-dlp front end" niche the catalogue currently lacks.
+    Rated medium rather than high because the core function — bulk
+    downloading of third-party platforms' video content — sits close to
+    those platforms' terms of service, which is a reputational/legal
+    consideration for a hosted-recipe catalogue independent of technical
+    fit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MeTube is a simple, single-container, single-HTTP-port web app with no
+  built-in authentication of its own (confirmed against upstream docs — no
+  login, no env-var-driven credential), so it slots cleanly behind a
+  Traefik basic_auth gate exactly like Adminer/WUD/n8n do today, with no
+  structural blocker. It is actively maintained (near-weekly date-stamped
+  releases, 14.3k stars, not archived) and is the maintained alternative
+  already named in apps-gaps/alltube.yaml as the app to build instead of
+  the dead AllTube project. Recommend building now; the only open
+  consideration is a policy one (bulk video downloading from third-party
+  platforms), not a technical one.
