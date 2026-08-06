@@ -1,0 +1,110 @@
+slug: qdrant
+name: Qdrant
+source_description: "Vector similarity search engine for AI and machine learning applications"
+
+upstream:
+  url: https://qdrant.tech
+  repo_url: https://github.com/qdrant/qdrant
+  license: Apache-2.0
+  docker_image: qdrant/qdrant:v1.19.0
+
+version_health:
+  latest_version: "v1.19.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active as of today (2026-08-05): v1.19.0 shipped today,
+    preceded by v1.18.3 (2026-07-17), v1.18.2 (2026-06-04), v1.18.1
+    (2026-05-22), v1.18.0 (2026-05-11), v1.17.1 (2026-03-27), v1.17.0
+    (2026-02-20) — a steady ~monthly minor/patch cadence going back years.
+    Repo is not archived (last push today), 33.8k GitHub stars, official
+    Docker Hub image tracks releases same-day. No EOL signals of any kind;
+    this is a well-funded, fast-moving project (Qdrant also sells a
+    managed cloud offering, which funds continued OSS development).
+
+catalogue_fit:
+  categories: [ai, database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a vector/embedding database.
+    Qdrant is backend infrastructure for customers already running
+    Ollama, Open WebUI, n8n, or Hermes Agent from this same catalogue —
+    a place to store embeddings for RAG/semantic-search pipelines instead
+    of standing up Postgres+pgvector or a hosted vector DB elsewhere. Same
+    role as apps-gaps/chroma.yaml and apps-gaps/milvus.yaml (both also
+    previously researched, neither shipped), but Qdrant differs from both
+    in one material way: it ships a genuine browser-based dashboard
+    (collections browser, point/vector inspector, query console at
+    /dashboard on its REST port) rather than being purely SDK/API-driven
+    like Chroma (no UI at all) or Milvus (only a read-only health page).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, growing demand from the self-hosted-AI/RAG audience, and Qdrant
+    is widely regarded as the most polished/performant open-source vector
+    DB in that space — it pairs naturally with Ollama/Open WebUI/n8n
+    already in the catalogue. Still a developer-facing infrastructure
+    piece: most customers deploying it are wiring it into a pipeline via
+    SDK rather than using it as a stand-alone consumer app, so the
+    addressable audience is narrower than a general-purpose UI-first app,
+    same caveat noted for Chroma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Qdrant ships with authentication fully disabled by default — the
+      server (and its /dashboard UI) boots open to anyone who can reach
+      the port. Optional auth is a single static env var,
+      QDRANT__SERVICE__API_KEY, checked with a literal string/JWT
+      comparison, not a hash-verify login screen — there is no "admin
+      login parameter" to target with `generated_from:
+      "<algo>:ROOT_PASSWORD"`. Confirmed via the dashboard's own UX: when
+      an API key is configured, the web UI prompts the user to type the
+      exact key into a text box and stores it client-side; feeding it an
+      opaque hash string (what `generated_from` produces) would mean the
+      customer has to type that unreadable hash as their credential,
+      defeating the point — same failure mode already documented for
+      Ackee's plaintext-comparison password field
+      (apps-gaps/ackee.yaml).
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole service
+      (same pattern used for Adminer/WUD/Chroma) sidesteps this cleanly:
+      leave QDRANT__SERVICE__API_KEY unset (Qdrant has no login of its
+      own to conflict with) and let Traefik own the auth boundary. This
+      is mechanically expressible today and closes the "open to the
+      internet" gap without touching Qdrant's own credential handling.
+    - >
+      Qdrant also exposes an optional gRPC port (6334) alongside the REST
+      port (6333) that serves both the HTTP API and the dashboard. Unlike
+      Milvus (apps-gaps/milvus.yaml), gRPC is not required — the REST API
+      is fully functional standalone — so the recipe should only publish
+      6333 through Traefik and keep 6334 non-public (`public: false`,
+      internal-network only), avoiding the "gRPC clients can't do an
+      interactive basic-auth handshake" problem entirely rather than
+      needing to solve it.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Qdrant is a single official image (qdrant/qdrant, pin v1.19.0), actively
+  maintained (same-day release as this research), Apache-2.0 licensed, and
+  fills a genuine gap — no vector database exists in the current 24-recipe
+  catalogue. It differs favorably from the two prior vector-DB candidates:
+  unlike Chroma it has a real web dashboard, and unlike Milvus its primary
+  protocol is plain HTTP/REST on one port, so it stays reverse-proxy
+  compatible without touching gRPC. It has no built-in login, so a
+  mandatory Traefik `basic_auth: true` gate on the REST/dashboard port
+  (6333 only; keep gRPC's 6334 non-public) is the correct and available
+  mechanism to avoid shipping it open to the internet — mechanically
+  installable today via the same pattern already used for Chroma/Adminer.
+  The caveat is audience fit, not mechanism: it's primarily consumed by
+  SDKs and other apps (Ollama/Open WebUI/n8n pipelines), so it should ship
+  positioned as an AI-stack building block rather than a stand-alone
+  destination app.
