@@ -1,0 +1,65 @@
+slug: homarr
+name: Homarr
+source_description: "Modern self-hosted dashboard to organize and monitor all your services"
+
+upstream:
+  url: https://homarr.dev
+  repo_url: https://github.com/homarr-labs/homarr
+  license: Apache-2.0
+  docker_image: ghcr.io/homarr-labs/homarr
+
+version_health:
+  latest_version: "v1.73.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly release cadence (v1.69.2 through v1.73.0 over roughly five weeks
+    ending 2026-07-31, i.e. 5 days before this analysis on 2026-08-05).
+    Actively developed under the homarr-labs org (project moved from the
+    original ajnart/homarr repo); high commit volume on the dev branch.
+
+catalogue_fit:
+  categories: [dashboard, monitoring, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Homarr is a start-page/dashboard for organizing links, widgets, and
+    live status tiles for a user's other self-hosted services (drag-and-drop
+    boards, 40+ service integrations, Docker container widgets). No existing
+    recipe in the catalogue covers this "single pane of glass" use case —
+    Uptime Kuma monitors uptime specifically, Portainer manages Docker
+    specifically, but neither is a general-purpose dashboard/launcher.
+  usefulness: high
+  usefulness_rationale: >
+    Nearly every customer running several of our other recipes (Immich,
+    n8n, Gitea, Pi-hole, etc.) would want a single landing page linking and
+    showing live status for all of them, which is exactly Homarr's pitch.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SECRET_ENCRYPTION_KEY
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: SECRET_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Homarr is an actively maintained (weekly releases), Apache-2.0-licensed,
+  single-container dashboard app with a single HTTP port (7575), no
+  database dependency, and a required SECRET_ENCRYPTION_KEY that can be
+  generated server-side with no customer input. Its admin account is
+  created through an in-browser onboarding wizard on first visit rather
+  than an env-var-settable credential, so it has no channel for
+  generated_from root-password projection — but like n8n/Open WebUI it can
+  be safely gated behind a Traefik basic_auth wall using the projected root
+  password, making it installable under the current mechanism today. It
+  fills a genuine gap versus the existing 24 recipes (no general dashboard/
+  launcher app) and is a strong build_now candidate.
