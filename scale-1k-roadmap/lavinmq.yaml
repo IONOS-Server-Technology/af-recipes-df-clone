@@ -1,0 +1,116 @@
+slug: lavinmq
+name: LavinMQ
+source_description: "High-performance AMQP message broker with built-in web management UI"
+
+upstream:
+  url: https://lavinmq.com/
+  repo_url: https://github.com/cloudamqp/lavinmq
+  license: Apache-2.0
+  docker_image: "cloudamqp/lavinmq:2.9.1"
+
+version_health:
+  latest_version: "v2.9.1"
+  latest_release_date: "2026-07-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.9.1 shipped 2026-07-01, about 5 weeks before today (2026-08-05).
+    It followed v2.9.0 (2026-06-25, a major release adding disk-flushed
+    publish confirms, durable clustered confirms, and OAuth2/OIDC SSO
+    login), which itself followed v2.8.2 (2026-06-24), v2.8.1
+    (2026-05-18), and v2.8.0 (2026-05-06/07) — a steady roughly-monthly
+    minor/patch cadence, with two release candidates (v2.9.0-rc.1/rc.2)
+    preceding the 2.9.0 GA the way a maintained project typically stages
+    releases. Built and maintained by CloudAMQP (a commercial RabbitMQ/
+    LavinMQ hosting company), actively developing new features
+    (OAuth2/OIDC, Prometheus metrics, RabbitMQ-definitions compatibility)
+    rather than just patching. Clearly active, not slowing, maintenance-
+    only, or archived.
+
+catalogue_fit:
+  categories: [messaging, infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker of any kind — this would
+    be the first, alongside the also-analyzed Eclipse Mosquitto (MQTT,
+    no UI) and EMQX (MQTT, has a UI, BSL-licensed). LavinMQ is an
+    AMQP 0-9-1 broker (RabbitMQ-protocol-compatible, drop-in client
+    library reuse) with clustering/replication, stream queues, and a
+    built-in web Management UI, released under a permissive Apache-2.0
+    license — no licensing wrinkle like EMQX's BSL. It targets developers
+    wiring up their own applications' async messaging/task-queue needs
+    (comparable audience to Centrifugo's pub/sub use case) rather than
+    end-users, but is technically the cleanest-licensed, most actively
+    developed broker candidate evaluated so far.
+  usefulness: medium
+  usefulness_rationale: >
+    Message queues are foundational infrastructure many self-hosted
+    stacks (and custom customer apps) depend on, and having a
+    Management UI plus a permissive license makes LavinMQ meaningfully
+    better-fitted to this catalogue's Traefik-fronted, browser-managed
+    pattern than Mosquitto and cleaner licensing-wise than EMQX. Capped
+    at medium, not high, because — like Centrifugo — it's backend
+    infrastructure a technical customer integrates into their own
+    application rather than a stand-alone tool with immediate end-user
+    value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "default guest admin account password (LavinMQ boots with a
+      hardcoded guest/guest user, and the official Docker image starts
+      with --default-user-only-loopback=false, i.e. that default account
+      is reachable from any network interface, not just localhost, unless
+      changed at deploy time)"
+  secrets_expressible_today:
+    - secret: "default guest admin account password"
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      There is no environment variable or config-file setting to inject
+      a first-boot password the way RABBITMQ_DEFAULT_PASS works for
+      RabbitMQ — the guest/guest credential is fixed at container start.
+      Changing it requires an install.sh step that calls LavinMQ's HTTP
+      Management API (PUT /api/users/guest) after boot, authenticating
+      as guest/guest and immediately overwriting the password — the same
+      bootstrap-then-overwrite shape already used for the Elasticsearch/
+      Kibana analyses, not a novel blocker on its own.
+    - >
+      That overwrite call does support hash-based credential
+      projection: PUT /api/users/:name accepts a password_hash field
+      plus a hashing_algorithm parameter, and the server source
+      (src/lavinmq/auth/user.cr) confirms bcrypt is one of the four
+      supported algorithms (bcrypt, SHA256, SHA512, MD5) — so
+      generated_from: "bcrypt:ROOT_PASSWORD" is structurally deliverable
+      via that install.sh call, unlike EMQX's plaintext-only Dashboard
+      field or Centrifugo's plaintext admin_password.
+    - >
+      LavinMQ's actual purpose — accepting AMQP client connections — is
+      a raw TCP protocol (5672 plaintext / 5671 TLS), not HTTP. Only the
+      Management UI (15672, HTTP) can sit behind Traefik; the AMQP
+      port(s) need direct raw TCP exposure the same way wg-easy exposes
+      its VPN port, which is a workable but non-default pattern for this
+      catalogue. A recipe would need to expose both: Traefik-fronted
+      15672 for the UI/API and a raw 5672 (+ optionally 5671) port for
+      actual broker use — without the raw port, the broker is
+      installable but functionally useless to any client.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  LavinMQ is an actively developed (v2.9.1, 2026-07-01, ~monthly cadence),
+  Apache-2.0-licensed AMQP message broker with a built-in web Management
+  UI and no catalogue overlap — it would be the first message-broker
+  recipe, and the cleanest-licensed of the three brokers evaluated
+  (versus Mosquitto's no-UI and EMQX's BSL license). Mechanically it is
+  installable today: the fixed guest/guest credential can be overwritten
+  post-boot via the Management HTTP API using a bcrypt password hash,
+  matching generated_from's supported algorithm list, the same
+  bootstrap-then-overwrite install.sh pattern used for Elasticsearch/
+  Kibana. The remaining caveat is architectural rather than a hard
+  blocker: LavinMQ's core function is a raw AMQP TCP port (5672/5671),
+  not HTTP, so the recipe needs both a Traefik-fronted management UI and
+  a directly-exposed raw broker port for the broker to actually be
+  useful to a connecting client. Recommend build_with_caveats.
