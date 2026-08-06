@@ -1,0 +1,112 @@
+slug: matrix-synapse
+name: Matrix Synapse
+source_description: "Open-source Matrix homeserver for decentralized, encrypted communication"
+
+upstream:
+  url: https://element-hq.github.io/synapse/latest/
+  repo_url: https://github.com/element-hq/synapse
+  license: AGPL-3.0 (dual-licensed; Element also offers a commercial license)
+  docker_image: matrixdotorg/synapse
+
+version_health:
+  latest_version: "v1.158.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.158.0 shipped 2026-08-04, one day before this analysis (2026-08-05).
+    Synapse ships roughly monthly stable releases (v1.155.0 on 2026-06-16,
+    v1.156.0 on 2026-07-07, v1.157.0 on 2026-07-21, v1.157.1 and v1.157.2
+    as same-week security patches, v1.158.0rc1 on 2026-07-30 then
+    v1.158.0 on 2026-08-04), each preceded by a signed release candidate.
+    v1.157.2 alone patched ten security vulnerabilities. Synapse is
+    Element's flagship homeserver, backed by a funded company with a
+    commercial-license offering alongside the AGPL release — clearly
+    active, not maintenance-only, archived, or EOL.
+
+catalogue_fit:
+  categories: [communication, messaging, federation]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers chat/messaging or Matrix at all. Synapse
+    would be the first Matrix homeserver in the catalogue, and would also
+    materially raise the value of the existing apps-gaps/element.yaml
+    candidate (Element Web), which today is capped at "low" usefulness
+    specifically because there is no self-hostable homeserver for it to
+    point at — Synapse fills that gap. Structurally closest to
+    recipes/n8n and recipes/paperless-ngx (single app container +
+    dedicated Postgres container behind one Traefik hostname); no
+    functional overlap with anything shipping today.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosting a Matrix homeserver (own domain, own federation identity,
+    own data retention) is a common, recurring self-hosting request and
+    the natural anchor for a "communication" category the catalogue
+    currently lacks entirely. Pairing it with Element Web would give
+    customers a complete self-hosted chat stack.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_ACCOUNT_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Synapse has no web UI or first-run wizard of its own — it is a bare
+      JSON API server. The only way a customer gets a usable account is
+      (a) an admin-provisioned seed account via the `register_new_matrix_user`
+      CLI script (gated by a `registration_shared_secret` in
+      homeserver.yaml) or the `PUT /_synapse/admin/v2/users/<id>` admin
+      API, both of which take the account password as **plaintext** and
+      hash it internally — there is no config field or API parameter that
+      accepts a pre-computed password hash — or (b) open self-registration
+      through an external Matrix client (e.g. Element), which needs
+      `enable_registration: true` and leaves the homeserver open to public
+      sign-up by anyone who finds the domain until the customer manually
+      disables it post-setup. Per SCHEMA.md's decision table, a genuine
+      requirement for the plaintext password (not a hash) is a structural
+      blocker — `generated_from: "<algo>:ROOT_PASSWORD"` only ever
+      produces a hash, so it has nowhere to project into either
+      provisioning path.
+    - >
+      A Traefik `basic_auth` gate does not substitute here the way it does
+      for Adminer-style apps: Synapse's single HTTP port carries both the
+      Matrix client-server API (used by every Matrix client to log in and
+      sync) and, when federation is enabled, server-server traffic. Layering
+      HTTP basic auth in front of it would break normal client login and
+      federation delegation, not just protect an otherwise-open admin
+      panel — so it is not a viable stand-in credential gate for this app.
+    - >
+      Directly writing a `generated_from`-produced bcrypt hash into
+      Synapse's internal Postgres `users` table (bypassing its supported
+      API entirely) is theoretically hash-format-compatible when the
+      password pepper is left at its empty default, but this is not a
+      documented or supported provisioning path — it depends on Synapse's
+      internal schema staying stable across the version pin and is a
+      materially different (and fragile) mechanism than the config/env-var
+      style projection SCHEMA.md describes for other recipes. Flagging it
+      here for completeness, not treating it as a shipped-quality
+      workaround.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Matrix Synapse is an actively developed (monthly release cadence, latest
+  tag one day before this analysis), well-funded, AGPL-3.0-licensed Matrix
+  homeserver with no equivalent anywhere in the current 24-recipe
+  catalogue — it would open up a new communication category and make the
+  existing Element Web gap candidate meaningfully more useful. Mechanically
+  it is a straightforward single-container-plus-Postgres stack that works
+  fine behind a single Traefik hostname via well-known federation
+  delegation, so `reverse_proxy_compatible: true`. It fails installability
+  today for a different reason than the usual API-key gap: Synapse has no
+  web UI of its own, and every supported way to give a customer a working
+  login (the `register_new_matrix_user` CLI script or the admin REST API)
+  requires the plaintext account password rather than a hash, so
+  `generated_from` has nothing to project into, and a Traefik `basic_auth`
+  gate can't substitute without breaking normal client and federation
+  traffic on the same port. Recommend `blocked_on_platform` — revisit once
+  the platform has either a way to seed a customer-usable account from a
+  plaintext value it derives itself, or a supported plaintext credential
+  channel distinct from the hash-only `generated_from` mechanism.
