@@ -1,0 +1,80 @@
+slug: huginn
+name: Huginn
+source_description: "Self-hosted automation platform for building monitoring agents"
+
+upstream:
+  url: https://github.com/huginn/huginn
+  repo_url: https://github.com/huginn/huginn
+  license: MIT
+  docker_image: huginn/huginn (single-process image; also published as ghcr.io/huginn/huginn)
+
+version_health:
+  latest_version: "no tagged semver release since v2022.08.18; project ships rolling commit-SHA-tagged images (e.g. '8aafdc58d3...', pushed ~5 days before this analysis) instead of versioned releases"
+  latest_release_date: "2022-08-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The last formal GitHub Release is v2022.08.18 — about 4 years before
+    today (2026-08-05) — but the repo itself is not stale: commits land
+    every few days (most recent seen: 2026-08-01, "Lock file maintenance";
+    2026-07-29, 2026-07-28, 2026-07-27...), mostly dependency bumps and
+    small feature work (agent search, agent picker UI), and the Docker Hub
+    image is rebuilt and re-tagged with a fresh commit SHA every few days.
+    So this is an actively maintained project that simply stopped cutting
+    tagged releases in 2022 in favor of a rolling/trunk-based release model.
+    That has a real consequence for us: there is no stable version string to
+    pin `image-tag-pinned` against — only a commit-SHA tag, which will go
+    stale (and eventually be pruned from the registry) much faster than a
+    semver tag would, requiring more frequent recipe upkeep than our other
+    entries.
+
+catalogue_fit:
+  categories: [automation, workflow, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Huginn's "Agent" model (scenarios of agents that watch RSS feeds,
+    websites, webhooks, or APIs and chain events into actions) is the same
+    "hackable Zapier/IFTTT" niche n8n already covers in our catalogue, and
+    n8n does it with a much larger, actively-growing integrations library, a
+    modern node-based UI, and a healthier upstream release cadence
+    (versioned releases vs. Huginn's rolling commit-tag images). Anything a
+    customer would build in Huginn today (watch a feed, poll an API, post to
+    a webhook) is already buildable in the n8n recipe we ship.
+  usefulness: low
+  usefulness_rationale: >
+    Structurally sound (single web+worker process, Postgres-backed, one HTTP
+    port) but adds little beyond n8n for a customer evaluating our
+    catalogue, while carrying weaker upstream release hygiene (see
+    version_health).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "APP_SECRET_TOKEN (Rails session/CSRF secret)"
+    - "Postgres DATABASE_PASSWORD"
+    - "Traefik basic-auth gate credential (Huginn's own admin login is seeded via SEED_USERNAME/SEED_PASSWORD, but SEED_PASSWORD only accepts a plaintext password at seed time — Huginn hashes it itself — and our platform never has a plaintext ROOT_PASSWORD to hand it, only a hash via generated_from; so the app's login stays at its fixed default admin/password and Traefik basic_auth becomes the real auth boundary, same pattern already used for n8n/WUD/Open WebUI)"
+  secrets_expressible_today:
+    - secret: "APP_SECRET_TOKEN"
+      mechanism: server_generated_no_customer_input
+    - secret: "Postgres DATABASE_PASSWORD"
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Huginn is mechanically installable today: a single Postgres-backed
+  web+worker Docker stack, one HTTP port, and a Traefik basic_auth gate that
+  covers its unconfigurable-by-us default admin login the same way we
+  already gate n8n and WUD. The blocker isn't the platform mechanism, it's
+  fit and upkeep cost: it directly overlaps our existing n8n recipe in the
+  "hackable Zapier/IFTTT" niche while being materially behind it on active
+  integrations and UI, and upstream hasn't cut a tagged release since 2022
+  — despite otherwise-active commits — forcing us to pin and periodically
+  re-pin a rolling commit-SHA image tag instead of a stable version. Build
+  only if a customer specifically asks for Huginn's agent/scenario model;
+  otherwise n8n already covers this space better.
