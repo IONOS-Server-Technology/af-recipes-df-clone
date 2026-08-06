@@ -1,0 +1,84 @@
+slug: maxkb
+name: MaxKB
+source_description: "MaxKB is an open-source platform for building enterprise-grade AI knowledge base agents"
+
+upstream:
+  url: https://maxkb.cn
+  repo_url: https://github.com/1Panel-dev/MaxKB
+  license: GPL-3.0
+  docker_image: 1panel/maxkb
+
+version_health:
+  latest_version: "v2.10.5-lts"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.10.5-lts was pushed to Docker Hub within hours of the analysis date
+    (2026-08-05/06), and GitHub tags show a steady stream of releases
+    through 2026 (v2.9.0 on 2026-05-07, v2.9.1 on 2026-05-14, v2.9.2 on
+    2026-05-19, v2.10.0-lts on 2026-06-04, then patch releases roughly
+    every 1-3 weeks through v2.10.4-lts on 2026-07-03). Maintained by
+    1Panel-dev (the team behind the 1Panel server-management platform),
+    which actively develops and cross-promotes MaxKB. No signs of
+    slowdown, abandonment, or EOL.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Structurally closest to recipes/open-webui (single AI web-app
+    container, Postgres-backed like recipes/n8n and recipes/paperless-ngx)
+    but functionally distinct: open-webui is a chat frontend for talking to
+    local/remote LLMs, whereas MaxKB is a platform for building
+    retrieval-augmented-generation (RAG) knowledge-base agents — document
+    ingestion/chunking/embedding into a vector store (pgvector), agentic
+    workflows, and MCP tool-use, aimed at internal knowledge bases and
+    customer-service bots rather than ad-hoc chat. No existing recipe
+    covers RAG/knowledge-base agent building specifically.
+  usefulness: high
+  usefulness_rationale: >
+    "Build a chatbot over our own documents" is a common SMB/enterprise
+    self-hosting ask distinct from generic LLM chat (open-webui) or
+    generic workflow automation (n8n); MaxKB packages the RAG pipeline
+    end-to-end with a web UI, which is otherwise a substantial DIY effort.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MAXKB_ADMIN_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: MAXKB_ADMIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      MaxKB ships with a fixed, hardcoded default admin login (admin /
+      MaxKB@123..) baked into the image. No documented environment
+      variable, CLI flag, or config file lets a deployer set a custom
+      admin username/password at container start — the official
+      quick-start only shows `docker run ... 1panel/maxkb` with no
+      credential-related env vars, and no reset/seed command is
+      documented for headless provisioning. Per SCHEMA.md this is not a
+      hard blocker on its own: a Traefik `basic_auth` gate in front of the
+      whole app (root-password-derived credential) closes the exposure,
+      the same pattern used for other fixed-default-credential cases.
+    - >
+      Also needs PostgreSQL with the pgvector extension as a backing
+      store; that DB password is a server-generated secret with no
+      customer-facing input needed (same pattern as recipes/n8n), not a
+      blocker.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  MaxKB is an actively maintained (weekly-ish releases as of 2026-08-06),
+  genuinely new category for the catalogue — a RAG/knowledge-base agent
+  builder distinct from open-webui's chat frontend or n8n's generic
+  automation — with a single HTTP port that fits our Traefik model
+  cleanly. Its one real gap is a hardcoded default admin credential with
+  no supported first-boot override; this is expressible today by gating
+  the app behind Traefik `basic_auth` rather than relying on MaxKB's own
+  login, the same pattern already used for other fixed-credential apps.
+  Recommend build_with_caveats: proceed with a recipe, but require the
+  basic_auth gate rather than exposing MaxKB's own admin login directly.
