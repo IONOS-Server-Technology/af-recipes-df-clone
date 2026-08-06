@@ -1,0 +1,97 @@
+slug: koel
+name: Koel
+source_description: "Personal music streaming server with a modern browser-based web player"
+
+upstream:
+  url: https://koel.dev/
+  repo_url: https://github.com/koel/koel
+  license: MIT
+  docker_image: phanan/koel
+
+version_health:
+  latest_version: "v9.11.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v9.11.0 tagged 2026-07-13, about 3 weeks before today (2026-08-05).
+    Preceding tags show a steady weekly-to-biweekly cadence: v9.10.1
+    (2026-07-01), v9.10.0 (2026-06-27), v9.9.1 (2026-06-20), v9.9.0
+    (2026-06-16), v9.8.0 (2026-06-07). The official docker image
+    (phanan/koel, maintained under the koel/docker repo) tracks releases
+    within days. Unambiguously active, single-maintainer-led (Phan An /
+    "phanan") but with regular outside contributions merged.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 shipped recipes cover personal music streaming — Immich
+    is the closest existing media recipe but is photo/video-focused, not
+    audio-library/streaming. Koel scans a music library and serves a
+    Spotify-style web player (playlists, smart playlists, podcasts, radio,
+    Last.fm/Spotify/MusicBrainz integrations), giving customers a
+    self-hosted alternative to Spotify/Plex-for-music that this catalogue
+    otherwise has no equivalent for.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-scoped niche (self-hosted music streaming) with an
+    actively-maintained, polished official Docker image and a genuine
+    browser web UI — a good fit for this catalogue's profile. Capped at
+    medium rather than high because it's only useful once a customer has
+    their own music library to upload/mount, similar to the "needs data
+    fed into it" caveat noted for Kibana/Grafana, and it is a narrower
+    audience (personal audio hoarders) than broadly-applicable tools like
+    password managers or uptime monitors.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Koel's own login is not a customer-configurable credential at first
+      boot: the official docker image runs `koel:init` on first start,
+      which creates one fixed default admin account (admin@koel.dev /
+      KoelIsCool per github.com/koel/docker's README) — there is no
+      ADMIN_EMAIL / ADMIN_PASSWORD env var on the official image to set a
+      different login during container startup. Changing it afterward
+      requires an interactive `php artisan koel:admin:change-password`
+      command (or the web UI once logged in), which needs the plaintext
+      new password — something install.sh never has access to, since
+      af-api only ever projects a hash via generated_from. That rules out
+      generated_from for Koel's own login.
+    - >
+      Given a fixed, publicly-documented default admin credential and no
+      supported channel to rotate it at install time, this falls into the
+      "fixed/default/hardcoded admin credential the app itself gives no
+      way to [programmatically] change" case from SCHEMA.md — gate the
+      whole app behind a mandatory Traefik basic_auth:true using the
+      root-password-derived hash, same pattern as n8n/WUD/Adminer. That
+      makes the Koel-native admin@koel.dev/KoelIsCool login a
+      behind-the-gate concern rather than an internet-facing one.
+    - >
+      Storage layout needs a persistent `/music` volume for the library
+      plus `storage/app/public/images` and `storage/search-indexes` — all
+      server-side bind mounts, not customer secrets, but worth noting for
+      the eventual recipe's volume plan.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Koel is an actively-maintained (v9.11.0, 2026-07-13), single-container,
+  single-HTTP-port music streaming server with no existing catalogue
+  overlap and a genuine web UI — a good structural fit. It is installable
+  today, but only via the Traefik basic_auth workaround rather than
+  Koel's own login: the official docker image has no environment variable
+  to set a custom admin email/password at first boot, only a fixed
+  documented default (admin@koel.dev/KoelIsCool), and rotating it
+  afterward needs a plaintext password our install flow cannot supply.
+  Recommend build_with_caveats: gate the app behind a mandatory Traefik
+  basic_auth using the root-password hash (same pattern as n8n/Adminer/WUD),
+  leaving Koel's own default admin account as a behind-the-gate detail
+  rather than a customer-facing credential.
