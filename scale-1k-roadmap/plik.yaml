@@ -1,0 +1,77 @@
+slug: plik
+name: Plik
+source_description: "Scalable self-hosted temporary file sharing service like WeTransfer"
+
+upstream:
+  url: https://plik.root.gg
+  repo_url: https://github.com/root-gg/plik
+  license: MIT
+  docker_image: rootgg/plik
+
+version_health:
+  latest_version: "1.4.2"
+  latest_release_date: "2026-03-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), 1.4.2 (2026-03-31) is ~4 months old, but it
+    caps a genuinely active recent cycle, not a stale single tag: 1.4-RC4
+    (2026-02-22), 1.4-RC5 (2026-02-25), 1.4.0 (2026-03-03, "complete
+    rewrite using Vue 3 + Vite + Tailwind CSS"), 1.4.1 (2026-03-08, inline
+    media playback + runtime webapp customization), 1.4.2 (2026-03-31,
+    i18n). That is five releases in ~5 weeks around a major frontend
+    rewrite. The `dev` image tag on Docker Hub was pushed ~1 month ago
+    (within the last month of "today"), so upstream is still committing
+    past the last tagged release; the ~4-month release gap reads as a
+    quiet stretch after a big release push, not abandonment. Repo is not
+    archived, MIT-licensed, 1,450+ commits on master.
+
+catalogue_fit:
+  categories: [productivity, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes covers ephemeral, TTL-bounded
+    file transfer (the WeTransfer use case: drop a large file, get a
+    shareable link, it expires). Syncthing is continuous folder
+    synchronization between the customer's own devices, not one-off
+    sharing with outsiders; Opengist and Paperless-ngx are "capture and
+    organize text/documents you keep", not "hand a large binary file to
+    someone else and let it expire." Plik adds a genuinely new workflow:
+    single Go binary, single container, SQLite metadata backend and local
+    filesystem storage by default (no external DB service required),
+    single HTTP port (8080), Vue 3 web UI as of 1.4.0. Also ships a CLI
+    client and an MCP server for AI-tool integration, useful secondary
+    differentiators.
+  usefulness: high
+  usefulness_rationale: >
+    Real, common self-hosting demand (WeTransfer-alternative is one of the
+    most frequently requested self-hosted categories) with zero catalogue
+    overlap today, a maintained upstream, and a mechanically simple deploy
+    shape (single container, no external DB, one HTTP port).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Plik is mechanically simple to install and fills a real gap: it is a
+  single Go binary/container, SQLite metadata + local filesystem storage
+  by default (no external DB service), one HTTP port (8080), and no
+  overlap with any of the current 24 recipes — nothing else covers
+  ephemeral WeTransfer-style file transfer. Its own config ships
+  `FeatureAuthentication = "disabled"` by default (server/plikd.cfg), so a
+  freshly deployed instance has no login at all and anyone with the URL
+  can upload/download/administer uploads; that maps cleanly onto the same
+  Traefik `basic_auth` gate pattern already used for WUD and n8n, so there
+  is no platform blocker. Upstream is active (five releases across
+  Feb-Mar 2026 around a Vue 3 rewrite, `dev` image tag updated within the
+  last month) even though the latest tagged release is ~4 months old.
+  Recommend build_now.
