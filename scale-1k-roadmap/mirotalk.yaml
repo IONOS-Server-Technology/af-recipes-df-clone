@@ -85,13 +85,19 @@ installability:
       workable, but changes the app's intended sharing model. A human
       should decide if that trade-off is acceptable for a shipped recipe.
     - >
-      No TURN server is configured by default (only public Google STUN).
-      This is not an install blocker — calls between peers on unrestricted
-      networks work fine — but customers on stricter corporate/mobile NATs
-      may see failed connections without a TURN relay, which the recipe
-      cannot provision without an external customer-supplied TURN
-      credential (out of scope for this analysis but worth noting as a
-      real-world usability caveat).
+      The upstream `.env.template` ships with `TURN_SERVER_ENABLED=true`
+      pointing at a shared public TURN relay
+      (`turn:a.relay.metered.ca:443`) with a hardcoded username/credential
+      baked into the template alongside the public Google STUN server —
+      not "no TURN server by default" as initially assumed. This is not an
+      install blocker (it's a shared demo-tier credential, not a
+      customer-specific secret our mechanism would need to provision), but
+      a recipe should not ship that hardcoded third-party credential
+      as-is: it's rate-limited/shared across every deployment of the
+      template and could be revoked or abused. A human should decide
+      whether to disable TURN by default, document it as
+      customer-configurable via install-time env override, or find another
+      resolution.
   installable_today: true
   recommendation: build_with_caveats
 
