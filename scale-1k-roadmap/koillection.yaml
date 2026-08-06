@@ -1,0 +1,74 @@
+slug: koillection
+name: Koillection
+source_description: "Self-hosted collection manager for cataloging books, games, vinyl, and more"
+
+upstream:
+  url: https://github.com/koillection/koillection
+  repo_url: https://github.com/koillection/koillection
+  license: MIT
+  docker_image: koillection/koillection
+
+version_health:
+  latest_version: "1.8.3"
+  latest_release_date: "2026-06-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~6 weeks since the 1.8.3 release as of 2026-08-05, and the upstream repo
+    shows a push as recent as 2026-08-05 itself, so this is actively
+    developed, not stale. Release history shows a burst of 1.8.x patches
+    (Jun 1, 15, 25 2026) following a ~4-month gap since 1.8.0 (Jan 25 2026),
+    consistent with a single-maintainer project shipping in bursts rather
+    than on a fixed cadence — still counts as active, not sporadic, given
+    115 open issues being triaged and continued commits.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal collection/inventory
+    cataloging (physical books, games, vinyl, stamps, etc. with custom
+    fields, tags, templates, and HTML scraping for metadata). Paperless-ngx
+    (disabled) and Immich are adjacent but solve document archiving and
+    photo management respectively, not general collection tracking. This
+    is a genuinely new use case for the catalogue's self-hoster/homelab
+    audience.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but well-defined hobbyist demand (r/selfhosted regularly surfaces
+    it); MIT-licensed, single official Docker image, straightforward
+    Postgres/MySQL/MariaDB backend. Not broad enough appeal to call it
+    high-value, but a clean, low-maintenance addition with no overlap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD, APP_SECRET, JWT_PASSPHRASE]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_PASSPHRASE
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Koillection is a clean fit for the current /compose mechanism: the app
+  needs no customer-supplied secret at deploy time at all — DB_PASSWORD,
+  APP_SECRET, and JWT_PASSPHRASE are all opaque values the app itself
+  auto-generates (or that AF can generate server-side) with nothing
+  customer-facing reading them. The admin account is created by the
+  customer directly through an in-app first-run setup wizard after the
+  container boots, not through any /compose parameter, so there's no
+  ROOT_PASSWORD-hash projection or basic_auth gate needed either — same
+  pattern already shipped for Uptime Kuma. One operational caveat worth
+  flagging to the recipe author (not a platform blocker): the first-run
+  wizard is unauthenticated, so whoever hits the domain first claims the
+  admin account — the same race condition already accepted for Uptime Kuma
+  and Gitea. Upstream is active (push as recent as today) and MIT-licensed
+  with a properly maintained official image (koillection/koillection,
+  matching the 1.8.3 release). Recommend build_now.
