@@ -1,0 +1,64 @@
+slug: navidrome
+name: Navidrome
+source_description: "Navidrome is a self-hosted music server with web and mobile streaming"
+
+upstream:
+  url: https://www.navidrome.org
+  repo_url: https://github.com/navidrome/navidrome
+  license: "GPL-3.0"
+  docker_image: "deluan/navidrome"
+
+version_health:
+  latest_version: "v0.63.2"
+  latest_release_date: "2026-07-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly 3.5 weeks since the last release as of today (2026-08-05), and
+    that release itself was a patch on a steady monthly-ish cadence
+    (v0.61.0 on 2026-03-31, v0.61.1/0.61.2 in April, v0.62.0 on 2026-06-08,
+    v0.63.0/0.63.1/0.63.2 in July). Active upstream development with
+    feature releases and prompt patch follow-ups, not dormant.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue has no personal music-streaming server today. Immich
+    covers photos/videos, not audio, so there is no functional overlap —
+    Navidrome fills a distinct media-library niche (Subsonic-API-compatible
+    music server with web UI and mobile app support via the many existing
+    Subsonic clients).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely new category and lightweight to run (single Go binary,
+    embedded SQLite, no separate database service), which keeps the recipe
+    simple to author and cheap to host. Rated medium rather than high
+    because it depends entirely on the customer already owning a music
+    library to upload/mount — it has no content-acquisition value of its
+    own (unlike e.g. Immich, where phone auto-backup drives adoption), so
+    its addressable audience within the catalogue's customer base is
+    narrower.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Navidrome is a small, single-container, actively maintained music server
+  with no database dependency and a single HTTP port (4533), making it
+  straightforward to front with Traefik like every other recipe in the
+  catalogue. Its admin account is created via an open signup screen on
+  first visit — the same first-user-becomes-admin pattern already shipped
+  in the Immich recipe (APP_DOMAIN only, no admin-credential parameter) —
+  so it needs no customer-supplied secret and no external API key,
+  clearing the current /compose input-channel constraint cleanly. The one
+  caveat worth flagging to whoever builds the recipe is UX, not
+  installability: the customer needs a way to get their own music files
+  onto the server's /music volume, which the recipe itself doesn't solve.
