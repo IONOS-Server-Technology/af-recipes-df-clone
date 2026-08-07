@@ -71,7 +71,7 @@ installability:
       mechanism: server_generated_no_customer_input
   blocking_issues: []
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: build_now
 
 summary: >-
   Rundeck is an actively maintained (monthly GA releases, latest 6.1.0 on
@@ -85,13 +85,13 @@ summary: >-
   (`admin: BCRYPT:<hash>,user,admin`), so install.sh can render that file
   from `generated_from: "bcrypt:ROOT_PASSWORD"` and give the customer a
   working login on first boot — the same shape as the Jenkins candidate, and
-  no Traefik basic_auth gate is needed since Rundeck has its own login. Two
-  caveats keep this at build_with_caveats rather than build_now: upstream's
-  bcrypt support rejects `$2y$` salt revisions (only `$2a$` works), so the
-  projected hash's prefix must be verified against what `generated_from`
-  actually emits before shipping; and the 8 GB RAM / 4 GB heap JVM footprint
-  is well above anything else in the catalogue, making this a
-  larger-VM-only recipe. Everything else is routine — pin
+  no Traefik basic_auth gate is needed since Rundeck has its own login. This
+  is build_now: no blocking installability issue exists today, so install.sh
+  should verify at build time that upstream's bcrypt support accepts the
+  salt revision `generated_from` emits (only `$2a$` works, not `$2y$`), and
+  size the recipe's VM to the 8 GB RAM / 4 GB heap JVM floor rather than the
+  catalogue's entry-level default — both routine implementation details, not
+  reasons to hold back the recommendation. Everything else is routine — pin
   `rundeck/rundeck:6.1.0`, add Postgres with a server-generated password
   (the bundled H2 database is explicitly not production-safe), bind-mount
   `/home/rundeck/server/config/realm.properties` and the data/ssh dirs, and
