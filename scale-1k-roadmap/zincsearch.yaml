@@ -1,0 +1,99 @@
+slug: zincsearch
+name: ZincSearch
+source_description: "Lightweight Elasticsearch alternative for full-text search and log indexing"
+
+upstream:
+  url: https://zincsearch-docs.zinc.dev/
+  repo_url: https://github.com/zincsearch/zincsearch
+  license: Apache-2.0
+  docker_image: public.ecr.aws/zinclabs/zincsearch:v0.4.10
+
+version_health:
+  latest_version: "v0.4.10"
+  latest_release_date: "2024-01-14"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v0.4.10 (2024-01-14) — 2 years, 6+ months as of
+    today (2026-08-05), against a prior history of releases every 1-3
+    months through 2023. The repo is not archived and still receives
+    occasional commits (most recently 2026-06-09, a locale-string PR;
+    before that a Go-version bump in 2026-01 and a Turkish-locale addition
+    in 2025-12) but nothing has been cut into a release in well over two
+    years, and recent commits are minor (locale files, dependency/toolchain
+    bumps) rather than features or fixes. 47 open issues, 3 open PRs. More
+    importantly, the project's own maintainers (Zinc Labs, now trading as
+    OpenObserve) posted an explicit statement in the repo (issue #782,
+    2023-02-26) that ZincSearch "will be maintained and supported going
+    forward, but only for the use case of app search" and that anyone
+    wanting log search (Hostinger's own description of this app: "log
+    indexing") should use their sibling project OpenObserve instead. So the
+    upstream team itself has disavowed the exact use case this candidate is
+    being evaluated for. This reads as maintenance-only for a narrowed
+    scope, not active development, and not archived/hard-EOL only in the
+    technical sense of the repo still existing.
+
+catalogue_fit:
+  categories: [search, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue offers a standalone
+    full-text search/log-indexing engine — ZincSearch would be a new
+    category. It ships as a single Go binary/container (Elasticsearch-
+    compatible bulk ingest API plus a bundled Vue web UI for querying and
+    user management), which is a lighter footprint than standing up
+    Elasticsearch or OpenSearch for the same job.
+  usefulness: low
+  usefulness_rationale: >
+    Search/log-indexing infrastructure is typically consumed by other
+    applications via API rather than used directly by an end customer
+    through a web UI, which is a weaker fit for AF's self-hosted-app
+    catalogue than for our existing user-facing recipes. That usefulness
+    gap is compounded by the maintainers' own 2023 statement steering the
+    "log indexing" use case (the one Hostinger's description advertises)
+    away from ZincSearch and toward OpenObserve, and by the 2.5-year gap
+    since the last tagged release.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      ZincSearch's only login mechanism is its own admin account, set via
+      the ZINC_FIRST_ADMIN_USER / ZINC_FIRST_ADMIN_PASSWORD environment
+      variables read once on first boot. ZINC_FIRST_ADMIN_PASSWORD must be
+      supplied as plaintext — there is no documented option to seed it from
+      a pre-computed hash. `generated_from` only ever projects a hash
+      (argon2/bcrypt) of the customer's root password, never the plaintext,
+      so there is no channel to give the customer a working login built
+      from a value they already know. Randomly generating the admin
+      password server-side instead would satisfy the boot requirement but
+      leave the customer with no way to discover it and log into the one
+      UI the app has, since AF has no generated-secret display/handoff
+      channel today — that would make the app installable but functionally
+      unusable as a standalone product.
+    - >
+      A Traefik `basic_auth` perimeter gate does not resolve the above: it
+      would add a second credential in front of an app that still needs its
+      own separately-known admin login behind it, and the app's own login
+      is the one the customer would actually need to operate the product
+      (create indexes, run queries in the UI).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  ZincSearch (public.ecr.aws/zinclabs/zincsearch:v0.4.10, single port 4080
+  for both UI and API, reverse-proxy compatible, no external database) is
+  not installable under the current recipe mechanism: its only login is a
+  first-boot plaintext admin password with no `generated_from`-hash channel
+  and no way to hand a server-generated password back to the customer.
+  Even setting installability aside, this is not a strong candidate to wait
+  on a platform fix for: no tagged release since 2024-01-14 (2.5+ years),
+  only sparse minor commits since, and — most tellingly — the upstream
+  maintainers explicitly said in 2023 that ZincSearch is kept alive only
+  for app search and pointed users wanting log indexing (exactly what
+  Hostinger's description offers) to their other project, OpenObserve.
+  Recommend not_recommended.
