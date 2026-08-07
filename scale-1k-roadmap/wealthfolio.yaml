@@ -1,0 +1,83 @@
+slug: wealthfolio
+name: Wealthfolio
+source_description: "Personal finance tracker for investments, net worth, and portfolio analytics"
+
+upstream:
+  url: https://wealthfolio.app
+  repo_url: https://github.com/wealthfolio/wealthfolio
+  license: AGPL-3.0
+  docker_image: wealthfolio/wealthfolio
+
+version_health:
+  latest_version: "3.6.2"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.6.2 (2026-07-13) is preceded by v3.6.1 (2026-07-07) and v3.6.0
+    (2026-07-05), a major release adding OIDC SSO and other features, with
+    earlier releases roughly every 2-4 weeks back through v3.2.1
+    (2026-04-03). As of today (2026-08-05) the latest release is just over
+    3 weeks old — well within the project's normal cadence. No archival,
+    maintenance-only, or EOL signal. Note: the project moved from the
+    original single-maintainer repo `afadil/wealthfolio` to the
+    `wealthfolio/wealthfolio` org; the Docker Hub image and GHCR mirror
+    both publish under `wealthfolio/wealthfolio` today, with `afadil/*`
+    kept only as a legacy alias — `wealthfolio/wealthfolio` is the correct
+    current upstream, not a naming ambiguity to flag.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal finance
+    or investment tracking. Within the apps-gaps candidate pool, Wealthfolio
+    overlaps most closely with Ghostfolio (apps-gaps/ghostfolio.yaml,
+    recommended build_now): both are self-hosted investment/net-worth
+    portfolio trackers rather than envelope-budgeting tools (the
+    actual-budget/maybe niche). Wealthfolio's differentiator is footprint
+    and auth: it ships as a single container with bundled SQLite (no
+    Postgres/Redis) and, unlike Ghostfolio, has a real built-in
+    username/password login with a first-boot-injectable Argon2id hash —
+    so it can be gated with the app's own admin login via
+    generated_from rather than needing a blanket Traefik basic_auth wrapper
+    around an open signup flow.
+  usefulness: high
+  usefulness_rationale: >
+    Investment/portfolio tracking is a mainstream, privacy-sensitive
+    self-hosting use case with no existing catalogue coverage. Wealthfolio
+    is actively developed, lighter-weight than Ghostfolio (single
+    container, no external DB service), and its first-boot credential
+    maps cleanly onto our existing root-password projection mechanism,
+    making it an easy, low-resource addition to a still-empty finance
+    category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WF_AUTH_PASSWORD_HASH, WF_SECRET_KEY]
+  secrets_expressible_today:
+    - secret: WF_AUTH_PASSWORD_HASH
+      mechanism: generated_from_root_password
+    - secret: WF_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Wealthfolio's self-hosted web edition is a single container (bundled
+  SQLite under /data, one HTTP port at 8088) with an official, actively
+  maintained, multi-arch image (wealthfolio/wealthfolio, AGPL-3.0) — a
+  simpler footprint than Ghostfolio's 3-container Postgres+Redis stack for
+  a comparable use case. It has genuine built-in password auth: the app
+  takes login credentials only as WF_AUTH_PASSWORD_HASH, an Argon2id PHC
+  hash, set once at container start via env var, with no signup flow and
+  no default admin — a direct match for our existing `generated_from:
+  "argon2:ROOT_PASSWORD"` projection. The only other required secret,
+  WF_SECRET_KEY, is a patternless 32-byte random value the customer never
+  needs to see. With zero blocking issues, an active upstream, and a
+  differentiated (lighter, real-login) angle versus the Ghostfolio
+  candidate, this is a strong build_now pick for the still-uncovered
+  finance category.
