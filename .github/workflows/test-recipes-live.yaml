@@ -805,6 +805,10 @@ jobs:
           # base_domain for /compose above, so the server must come up bound
           # to this exact address.
           RESERVED_SERVER_IP: ${{ steps.reserve_ip.outputs.ip }}
+          # Same base_domain that went into /compose above -- lets the test suite
+          # curl the app through Traefik at https://$RECIPE_NAME.$BASE_DOMAIN and
+          # assert which cert (staging vs. production) it's actually serving (IF-1386).
+          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
           testsuite_exclude_flag=""
           if [ "$FINALIZE_BREAK_GLASS" != "false" ]; then
