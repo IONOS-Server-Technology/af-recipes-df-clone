@@ -1,0 +1,73 @@
+slug: wordpress
+name: WordPress
+source_description: "WordPress is the world's most popular website builder and CMS"
+
+upstream:
+  url: https://wordpress.org/
+  repo_url: https://github.com/WordPress/WordPress
+  license: GPL-2.0-or-later
+  docker_image: wordpress
+
+version_health:
+  latest_version: "7.0.2 (php8.3-apache)"
+  latest_release_date: "2026-05-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    WordPress 7.0 "Armstrong" shipped 2026-05-20 (slipped from an original
+    2026-04-09 target), with 7.0.2 as the current patch on the official
+    Docker image as of 2026-08-05 — under 3 months since the last release.
+    7.1 Beta 1 was already out for testing by 2026-07-15, so the project
+    remains on an active cadence. Since 2025 the project moved from
+    3 major releases/year to a single major release per year, but that's a
+    deliberate cadence change, not a slowdown signal — patch/security
+    releases and plugin/theme ecosystem activity remain continuous. No
+    ambiguity on identity: "WordPress" here is the wordpress.org/self-hosted
+    CMS (core project, official Docker image), not WordPress.com (hosted
+    SaaS, no self-hosted image) or WooCommerce (a WordPress plugin, separate
+    upstream).
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website/blog CMS —
+    the closest analogs (Gitea, n8n, Ghost-shaped tools) are developer or
+    automation tools, not content-authoring platforms. WordPress covers a
+    completely different customer intent (build a public website/blog with
+    a WYSIWYG editor, themes, and a huge plugin ecosystem) and is, by a wide
+    margin, the most widely-recognized self-hosted app name a hosting
+    customer could ask for by name.
+  usefulness: high
+  usefulness_rationale: >
+    WordPress alone powers a large share of the public web; brand
+    recognition and existing customer familiarity make this one of the
+    highest-demand candidates in the gap list, independent of how
+    technically simple the stack is.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Structurally this is a two-container stack (official `wordpress`
+  php-apache image + a MySQL/MariaDB backend), single public HTTP port 80,
+  directly reverse-proxy-compatible behind Traefik — the same DB-backed
+  shape as recipes/n8n and recipes/paperless-ngx. The official image takes
+  no admin-account env vars at all (WORDPRESS_DB_HOST/USER/PASSWORD/NAME and
+  the AUTH/SECURE/LOGGED_IN/NONCE key+salt pairs are the only settings, and
+  every one of those is either a server-generated opaque secret the
+  customer never sees, e.g. the DB password, or fixed non-secret config).
+  The WordPress admin account itself is created interactively by whoever
+  first opens the site and completes wp-admin/install.php — the exact
+  first-visitor-claims-admin pattern already accepted for Gitea, Uptime
+  Kuma, and Kutt in this catalogue, so it needs no `generated_from`
+  projection or Traefik basic_auth gate to be installable today. Recommend
+  build_now: mechanically simple, zero platform blockers, and very high
+  customer-recognition value.
