@@ -1,0 +1,84 @@
+slug: yaade
+name: Yaade
+source_description: "Self-hosted collaborative API development environment and Postman alternative"
+
+upstream:
+  url: https://docs.yaade.io/
+  repo_url: https://github.com/EsperoTech/yaade
+  license: MIT
+  docker_image: esperotech/yaade:latest
+
+version_health:
+  latest_version: null
+  latest_release_date: null
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No GitHub Releases have ever been published — the project has never cut
+    a semantic version, and the Docker Hub image only ships floating tags
+    (latest, main, nightly), all last updated 2025-05-23. The last commit to
+    the main branch was 2025-05-19 ("fix duplicate collections bug"), and
+    the last commit to any branch (including feature branches like
+    jr/ai-agents, jr/command-palette) landed 2025-09-08 per the repo's
+    pushed_at timestamp. As of today (2026-08-05) that is just under 11
+    months since any commit activity and about 14.5 months since the last
+    change to main. 58 open issues with no visible recent triage. Not
+    archived, so this reads as maintenance-only/dormant rather than
+    formally EOL, but there is no pinnable version tag to build a recipe
+    against — only "latest", which the recipe process explicitly disallows.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers API client / request-
+    collection tooling (a self-hosted Postman/Insomnia alternative). Closest
+    neighbors by shape are single-container dev tools like Opengist and
+    Uptime Kuma, but none address building and running HTTP requests,
+    scripting them, or sharing collections across a team. Would be a
+    genuinely new niche for developer/QA users who want their API
+    collections to live on their own infrastructure instead of a SaaS
+    account.
+  usefulness: medium
+  usefulness_rationale: >
+    Real appeal to development teams who want Postman-style collaborative
+    API testing without sending request data to a third-party cloud, but it
+    is a narrow technical audience, requires installing a companion browser
+    extension for CORS proxying to get full functionality, and the project's
+    near-year-long silence undercuts confidence in ongoing support.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No official versioned Docker tag exists (only floating latest/main/
+      nightly), so there is nothing to pin per the standard "never :latest"
+      recipe rule. This is a release-hygiene/packaging problem rather than a
+      customer-input-channel problem, but it still means the app cannot be
+      built into a recipe the way the process normally requires (pin to an
+      image digest instead, or wait for upstream to cut a real release).
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Yaade is a single-container app (esperotech/yaade, official image) on one
+  HTTP port (9339), MIT-licensed, with a web UI and no extra raw ports —
+  structurally reverse-proxy-compatible like Uptime Kuma or Vaultwarden. Its
+  secret need is expressible today: it ships with a single hardcoded default
+  login (admin/password, only the username is configurable via
+  YAADE_ADMIN_USERNAME at boot) so a mandatory Traefik basic_auth gate in
+  front, same pattern as Adminer/WUD, covers it. It would also fill a
+  genuinely open niche (self-hosted collaborative API client) in the
+  catalogue. Despite that, this is not recommended right now: the project
+  has never published a single GitHub release or version tag in its history,
+  the Docker image only offers floating latest/main/nightly tags with no
+  pinnable stable, and there has been no commit activity at all in the ~11
+  months up to today (2026-08-05), with the last change to main dating back
+  to 2025-05-19 — a project that never had a formal release cadence and has
+  now gone quiet reads as effectively abandoned rather than merely slow.
