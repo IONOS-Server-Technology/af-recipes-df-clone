@@ -1,0 +1,99 @@
+slug: traccar
+name: Traccar
+source_description: "Open-source GPS tracking platform supporting 200+ protocols and devices"
+
+upstream:
+  url: https://www.traccar.org/
+  repo_url: https://github.com/traccar/traccar
+  license: Apache-2.0
+  docker_image: traccar/traccar:6.14.5
+
+version_health:
+  latest_version: "v6.14.5"
+  latest_release_date: "2026-06-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.14.5 shipped 2026-06-18, 48 days before today (2026-08-05). Release
+    history shows a consistent multi-year cadence of roughly one
+    minor/patch release every 2-8 weeks: v6.11.0/6.11.1 on 2025-12-07,
+    v6.12.0-6.12.2 spanning 2026-02-22 to 2026-02-27, v6.13.0-6.13.3
+    spanning 2026-05-02 to 2026-05-06, and v6.14.0-6.14.5 spanning
+    2026-05-30 to 2026-06-18. The current ~48-day gap since 6.14.5 sits
+    inside the normal range seen between prior minor-version clusters (the
+    6.12→6.13 gap was ~9 weeks), so this reads as a normal lull rather than
+    a slowdown. Project is clearly still actively developed, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [iot, fleet-management, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Traccar is a GPS tracking/fleet-management server: it ingests live
+    location reports from 200+ GPS tracker protocols and 2000+ device
+    models, and presents a web UI for real-time map tracking, geofencing,
+    trip history, and reporting. Nothing in the current 24-recipe catalogue
+    touches IoT device connectivity or fleet/asset tracking; the closest
+    neighbor by shape is Home Assistant (self-hosted device dashboard) but
+    it serves a completely different device class and use case. Genuinely
+    new ground for the catalogue. Note on "reverse_proxy_compatible:
+    false": this applies to the app as a whole, not the web UI in
+    isolation — the Web UI itself (port 8082, HTTP/WebSocket) fronts fine
+    behind Traefik like any other recipe. But Traccar's actual value
+    proposition is device connectivity: physical GPS trackers dial in over
+    ~200 distinct plain TCP/UDP protocol listeners (commonly ports
+    5000-5150+, one port per protocol family, configured per-protocol in
+    traccar.xml) that are not HTTP and cannot be fronted by Traefik. A
+    deployment that only exposes the web UI is a tracking platform with no
+    way for any tracker to report a location — it would ship a shell of
+    the product. Making this useful means publishing a meaningful subset
+    of those raw ports directly (the wg-easy recipe's `public: true,
+    http: false` port pattern shows the mechanism exists), but Traccar
+    needs dozens of them rather than the one or two seen in existing
+    raw-port recipes, and the customer's actual device fleet determines
+    which protocols/ports matter — a fixed built-in subset may not match
+    what a given customer owns.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, recognizable use case (self-hosted fleet/asset tracking as an
+    alternative to commercial GPS-tracking SaaS) for a real audience
+    (delivery/logistics operators, vehicle fleets, personal device
+    trackers). Capped at medium rather than high because the raw-port
+    surface area needed for the core feature (device ingestion) is large
+    and customer-fleet-dependent, which is an awkward fit for a
+    fixed-port-list recipe model, and the target audience is narrower than
+    general productivity/infra tools already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik gate credential (Traccar has no admin credential of its own to project — see notes)"]
+  secrets_expressible_today:
+    - secret: "Traefik gate credential (Traccar has no admin credential of its own to project — see notes)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Traccar has no built-in default admin account and no config/env mechanism to pre-seed one: settings in traccar.xml for username/password are ignored, and there is no INITIAL_PASSWORD/INITIAL_PASSWORD_HASH-style env var. Instead, the very first user to register through the web UI (or POST to /api/users) automatically becomes admin — a self-registration race, not a login generated_from can project into. The only safe path is putting the real auth boundary at a Traefik basic_auth gate (keyed off the customer's root-password hash) so nobody but the customer can reach the registration endpoint at all; the customer then self-registers their own admin account from inside the gate. This is expressible today but is a different shape from our other recipes and should be called out in review."
+    - "Full device-tracking functionality needs dozens of raw TCP/UDP ports (one per GPS protocol family, commonly in the 5000-5150+ range) published directly, not proxied through Traefik. Mechanically expressible per-port (same pattern as wg-easy's UDP port), but the number of ports needed is large and depends on which tracker protocols the customer's own devices use — no fixed subset is guaranteed to cover a given customer's fleet without either publishing a large port block or asking the customer which protocols they need (an input we have no channel for today)."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Traccar is a mature (Apache-2.0), actively maintained GPS-tracking/fleet
+  server with no existing overlap in the current 24-recipe catalogue —
+  genuinely new ground. It clears the installability bar in the narrow
+  mechanical sense: it has no fixed admin credential to project, so the
+  workable pattern is a Traefik basic_auth gate (keyed off the customer's
+  root-password hash) as the real auth boundary, behind which the customer
+  self-registers their own first-and-only admin account — no plaintext or
+  hash-incompatible field to fight, unlike apps with a stuck
+  INITIAL_PASSWORD env var. The bigger caveat is architectural rather than
+  auth-related: Traccar's actual product value is ingesting live GPS
+  reports over ~200 raw TCP/UDP device protocols, which Traefik cannot
+  front, so a recipe that only exposes the web UI would ship a tracking
+  platform no tracker can report into. Shipping this well means publishing
+  a meaningful, customer-fleet-dependent block of raw ports — mechanically
+  possible (wg-easy already proves the pattern) but a bigger and blunter
+  raw-port footprint than anything currently in the catalogue.
+  Recommend build_with_caveats: both the auth gate and the raw-port
+  strategy need explicit sign-off before this becomes a recipe.
