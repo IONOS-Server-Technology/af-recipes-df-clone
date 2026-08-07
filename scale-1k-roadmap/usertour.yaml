@@ -1,0 +1,68 @@
+slug: usertour
+name: Usertour
+source_description: "Self-hosted platform for in-app product tours, checklists, and user surveys"
+
+upstream:
+  url: https://www.usertour.io/
+  repo_url: https://github.com/usertour/usertour
+  license: "MIT (community edition); separate LICENSE.enterprise governs enterprise-only features"
+  docker_image: usertour/usertour
+
+version_health:
+  latest_version: "0.9.0"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly release cadence over the last several months (0.8.1
+    through 0.9.0 between 2026-05-24 and 2026-07-25). Latest release is only
+    ~11 days old as of 2026-08-05. Docker Hub tags confirm the same cadence
+    with matching version tags published for each release. No signs of
+    slowdown, archival, or EOL.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers in-app product tours, onboarding checklists,
+    or in-product user surveys — this is a distinct category from anything
+    in the current 24-recipe catalogue. It targets SaaS builders/product
+    teams who want to self-host user-onboarding tooling instead of paying
+    for Userflow/Appcues/Usertour's own SaaS.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but real audience (product/growth teams embedding onboarding
+    flows into their own apps), distinguishing it from broadly-applicable
+    infra tools already in the catalogue. Value depends on customers running
+    their own web/SaaS product to embed tours into, narrower than e.g.
+    n8n or Vaultwarden's audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, POSTGRES_PASSWORD, REDIS_PASSWORD]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Usertour is an active, weekly-shipping open-source project (MIT-licensed
+  core) with an official Docker Hub image, a standard Postgres+Redis
+  compose stack, and a single reverse-proxy-friendly HTTP port (8011). Its
+  first-boot admin account is created by the customer directly through the
+  app's own web UI (same pattern as n8n's owner setup), so no root-password
+  projection or basic-auth gate is required — every secret the app needs
+  internally (JWT signing key, DB/Redis passwords) can be server-generated
+  with no customer input channel needed. It fills a genuinely uncovered
+  niche (in-app product tours/onboarding/surveys) with no overlap in the
+  current catalogue, making it installable today and a reasonable build
+  candidate, tempered only by a narrower target audience than our
+  general-purpose recipes.
