@@ -59,11 +59,9 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: [TINYAUTH_SECRET, TINYAUTH_USERS]
+  secrets_required_at_first_boot: [TINYAUTH_AUTH_USERS]
   secrets_expressible_today:
-    - secret: TINYAUTH_SECRET
-      mechanism: server_generated_no_customer_input
-    - secret: TINYAUTH_USERS
+    - secret: TINYAUTH_AUTH_USERS
       mechanism: generated_from_root_password
   blocking_issues: []
   installable_today: true
@@ -71,14 +69,21 @@ installability:
 
 summary: >
   TinyAuth is a small, actively maintained (v5.1.3, 2026-07-30) Traefik
-  forward-auth gateway. Mechanically it is installable today: its session
-  secret is server-generated, and its one login credential
-  (`TINYAUTH_USERS`, a `username:bcrypt-hash` pair) maps cleanly onto
-  `generated_from: "bcrypt:ROOT_PASSWORD"`, with no blocking secrets. The
-  reason not to build it isn't installability but fit: its entire reason
-  for existing — one shared login wired via Traefik middleware across
-  several independently-hosted apps — has no equivalent in AF's
-  one-recipe-one-stack provisioning model, where the same self-protection
-  it could offer is already covered by the existing Traefik `basic_auth`
-  toggle at zero extra cost. Recommend `not_recommended` for now; worth
-  revisiting only if AF gains cross-recipe shared-middleware support.
+  forward-auth gateway. Mechanically it is installable today: verified
+  against the pinned v5.1.3 `.env.example` and getting-started docs, its
+  only required-at-first-boot credential is `TINYAUTH_AUTH_USERS`, a
+  comma-separated `username:bcrypt-hash[:totp]` list generated via
+  `tinyauth user create --interactive`, which for a single pair maps
+  cleanly onto `generated_from: "bcrypt:ROOT_PASSWORD"`, with no blocking
+  secrets — v5.1.3 has no general session/cookie-signing secret variable
+  (unlike older v2/v3 releases). `TINYAUTH_AUTH_TRUSTEDPROXIES`
+  (recommended for reverse-proxy setups, e.g. `172.17.0.0/16` for Docker)
+  is a non-secret config value to set in the compose file, not a customer
+  secret. The reason not to build it isn't installability but fit: its
+  entire reason for existing — one shared login wired via Traefik
+  middleware across several independently-hosted apps — has no equivalent
+  in AF's one-recipe-one-stack provisioning model, where the same
+  self-protection it could offer is already covered by the existing
+  Traefik `basic_auth` toggle at zero extra cost. Recommend
+  `not_recommended` for now; worth revisiting only if AF gains
+  cross-recipe shared-middleware support.
