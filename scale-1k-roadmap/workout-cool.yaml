@@ -1,0 +1,95 @@
+slug: workout-cool
+name: Workout Cool
+source_description: "Self-hosted fitness platform with workout plans and exercise tracking"
+
+upstream:
+  url: https://workout.cool
+  repo_url: https://github.com/Snouzy/workout-cool
+  license: MIT
+  docker_image: null
+
+version_health:
+  latest_version: "v1.3.2"
+  latest_release_date: "2025-12-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    No tagged release since v1.3.2 (2025-12-07), ~8 months before today
+    (2026-08-05), despite the repo's early history (June-Dec 2025) shipping
+    releases roughly weekly. Commit activity continues after that (default
+    branch pushed as recently as 2026-07-31) but has become bursty rather
+    than steady — a ~3.5 month gap between 2026-04-11 and 2026-07-30 with no
+    commits at all, then a small cluster of ad-placement and calculator
+    features. Repo is not archived and issues/PRs are still open, so this
+    reads as a single-maintainer side project cooling off rather than
+    abandonment — worth re-checking cadence before a build_now call rather
+    than treating "active" as a solid green light.
+
+catalogue_fit:
+  categories: [fitness, health, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers fitness/workout
+    tracking; this would be a net-new category. It offers workout plan
+    creation, an exercise database with video demos, and progress tracking,
+    positioned as a privacy-focused alternative to commercial fitness apps.
+  usefulness: medium
+  usefulness_rationale: >
+    Fitness tracking is a plausible self-hosting niche (see also the
+    long-established wger project), but Workout Cool is a young,
+    single-maintainer app with a consumer-SaaS-shaped auth/billing model
+    bolted on rather than a purpose-built self-hosted tool, which raises
+    long-term maintenance risk for a recipe built on top of it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DATABASE_URL
+    - BETTER_AUTH_SECRET
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+  secrets_expressible_today:
+    - secret: DATABASE_URL
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are validated as required,
+      non-optional server env vars in src/env.ts (z.string().min(1)), even
+      though the .env.example comments and README present Google OAuth as
+      optional. Without a real Google Cloud OAuth app registration the
+      Next.js app fails env validation and will not boot at all. There is no
+      channel today for a customer to supply an external OAuth client
+      ID/secret via /compose.
+    - >
+      The app has no single fixed admin account to project a root-password
+      hash into — auth is open self-service signup/login (Better Auth
+      email+password, admin() plugin grants the first/any registered user
+      no special install-time credential). The generated_from mechanism
+      needs one specific admin-login parameter to target, which doesn't
+      exist here; a Traefik basic_auth gate would be the fallback, but see
+      the blocker above — the app can't even start without OAuth
+      credentials, so this is moot until that's resolved.
+    - >
+      No official published Docker image (Docker Hub or GHCR) — upstream
+      only ships a Dockerfile and expects users to `docker build` it
+      themselves. Recipe would need to build and self-publish a pinned image
+      first, on top of the OAuth blocker.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Workout Cool would add a genuinely new category (fitness/workout tracking)
+  to the catalogue with no overlap against the current 24 recipes, and is
+  reverse-proxy-friendly (single Next.js web UI, Postgres backend). It is
+  not installable today, though: the app hard-requires a Google OAuth client
+  ID/secret to boot at all (env.ts marks both as required, not optional),
+  and af-api's /compose has no channel for a customer-supplied external
+  OAuth credential. There is also no single admin-login field to project a
+  root-password hash into (open self-signup instead), and no official
+  pre-built Docker image to pin. Revisit if upstream makes Google OAuth
+  truly optional and publishes an official image; until then this is
+  blocked on the platform, not just deprioritized.
