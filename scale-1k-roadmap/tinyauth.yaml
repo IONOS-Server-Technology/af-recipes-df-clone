@@ -1,0 +1,84 @@
+slug: tinyauth
+name: TinyAuth
+source_description: "Lightweight Traefik forward-auth middleware for protecting self-hosted apps"
+
+upstream:
+  url: https://tinyauth.app/
+  repo_url: https://github.com/steveiliop56/tinyauth
+  license: AGPL-3.0
+  docker_image: ghcr.io/tinyauthapp/tinyauth
+
+version_health:
+  latest_version: "v5.1.3"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable v5.1.3 shipped 2026-07-30, less than a week before today
+    (2026-08-05), fixing a security advisory (GHSA-r27r-rr9v-vv37). Release
+    history shows a rapid cadence — multiple point releases and release
+    candidates per month (v5.1.1 on 2026-07-17, v5.1.2 with five betas
+    2026-07-18/20, v5.1.3 2026-07-30, nightly builds continuing through
+    2026-08-06). Repo is not archived, 8k+ stars, last push 2026-08-06 —
+    this is a young but very actively developed project, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [security, networking, identity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a forward-auth/SSO gateway.
+    TinyAuth is architecturally a much lighter alternative to Authentik or
+    Authelia (single small Go binary, one container, no database
+    dependency in its simple username/password mode) that adds a login
+    page plus OAuth/LDAP/TOTP options in front of whatever it's paired
+    with via Traefik's `forwardAuth` middleware. However, TinyAuth's whole
+    value proposition is centralizing login for *multiple* self-hosted
+    apps sitting behind one Traefik instance — a customer wires TinyAuth's
+    forwardAuth middleware onto several other containers' routers. AF's
+    recipe model provisions each recipe as its own independently networked
+    stack with its own Traefik router; there is no mechanism today for one
+    recipe's middleware to be attached to a different recipe's router. So
+    inside AF, a standalone TinyAuth recipe could only gate itself (or a
+    demo service shipped alongside it) — a capability the platform already
+    provides for any app via a Traefik `basic_auth: true` toggle, with no
+    extra container, RAM, or moving parts.
+  usefulness: low
+  usefulness_rationale: >
+    Mechanically sound and popular upstream, but under AF's current
+    per-recipe, independently-networked deployment model its core use case
+    (one shared login gate wired across several other apps) isn't
+    reachable. Shipping it as a single-app recipe would only reproduce, at
+    the cost of a whole extra container, what the existing Traefik
+    `basic_auth` gate already does for any recipe today. Revisit if AF ever
+    supports cross-recipe/shared-network middleware wiring — that's the
+    scenario where TinyAuth's actual differentiation (one login for many
+    apps, OAuth/LDAP/2FA options) becomes real value to a customer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TINYAUTH_SECRET, TINYAUTH_USERS]
+  secrets_expressible_today:
+    - secret: TINYAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: TINYAUTH_USERS
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  TinyAuth is a small, actively maintained (v5.1.3, 2026-07-30) Traefik
+  forward-auth gateway. Mechanically it is installable today: its session
+  secret is server-generated, and its one login credential
+  (`TINYAUTH_USERS`, a `username:bcrypt-hash` pair) maps cleanly onto
+  `generated_from: "bcrypt:ROOT_PASSWORD"`, with no blocking secrets. The
+  reason not to build it isn't installability but fit: its entire reason
+  for existing — one shared login wired via Traefik middleware across
+  several independently-hosted apps — has no equivalent in AF's
+  one-recipe-one-stack provisioning model, where the same self-protection
+  it could offer is already covered by the existing Traefik `basic_auth`
+  toggle at zero extra cost. Recommend `not_recommended` for now; worth
+  revisiting only if AF gains cross-recipe shared-middleware support.
