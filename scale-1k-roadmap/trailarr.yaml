@@ -66,13 +66,14 @@ summary: >
   separate database service — SQLite lives under /config) that is
   mechanically simple to deploy behind Traefik, structurally close to
   Bazarr/uptime-kuma in the catalogue. It does ship its own login (default
-  admin/trailarr) and an env var, WEBUI_PASSWORD, to override it — but that
-  var takes the customer's password in plaintext (the app hashes it
-  internally on read) rather than a pre-computed hash, so it cannot be fed
-  from generated_from (which only ever emits a hash, e.g. argon2/bcrypt,
-  and would need an env var that accepts that hash directly). Left alone,
-  every install would ship the same well-known default admin/trailarr
-  credential. Per the platform's own precedent (IF-1312), the correct fix
+  admin/trailarr), but there is no env var of any kind — plaintext or
+  pre-hashed — to set or override that credential at boot; the only
+  supported way to change it is manually, post-login, via Settings > About
+  > Update Login. That leaves no channel for generated_from (which only
+  ever emits a hash, e.g. argon2/bcrypt, into an env var the app would need
+  to accept) to reach the admin password. Left alone, every install would
+  ship the same well-known default admin/trailarr credential. Per the
+  platform's own precedent (IF-1312), the correct fix
   is a mandatory Traefik basic_auth gate in front of the app, with that
   gate's password projected from the customer's root password — the same
   pattern already used for Bazarr and Adminer — leaving Trailarr's own
