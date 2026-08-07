@@ -1,0 +1,86 @@
+slug: teable
+name: Teable
+source_description: "Open-source Airtable alternative with a visual interface built on PostgreSQL"
+
+upstream:
+  url: https://teable.io
+  repo_url: https://github.com/teableio/teable
+  license: "AGPL-3.0 (core apps/nestjs-backend + apps/nextjs-app); SDK/utility packages under MIT — see repo LICENSE"
+  docker_image: ghcr.io/teableio/teable
+
+version_health:
+  latest_version: "release.2026-08-06T11-43-30Z.2519"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release published 2026-08-06, the same day as this analysis
+    (2026-08-05/06) — the project ships continuous-deployment-style
+    release tags multiple times per day (5+ releases logged on 2026-08-05
+    and 2026-08-06 alone, another on 2026-07-30, 2026-07-27, etc.). 21.6k
+    GitHub stars, 1.3k forks, 2,810+ commits, repo not archived, pushed to
+    within the last day. Unambiguously active, no maintenance-only or EOL
+    signals.
+
+catalogue_fit:
+  categories: [productivity, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers a visual
+    database/spreadsheet-hybrid tool (Airtable-style). Closest neighbors
+    are workflow/automation (n8n) and document management (paperless-ngx,
+    paperless-ai), which serve a different job — Teable is for customers
+    building structured data apps (grid/kanban/gallery/calendar views,
+    forms, automations) on top of real Postgres tables, not for archiving
+    documents or wiring up integrations.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a genuinely open gap in the catalogue (no-code/low-code visual
+    database), backed by a large, fast-moving open-source project (21.6k
+    stars) with a real self-hostable "standalone" mode that doesn't
+    require the paid/enterprise AI tier. Broad general appeal: teams
+    wanting an Airtable-like tool without a SaaS subscription.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_password, POSTGRES_PASSWORD, REDIS_PASSWORD]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_password
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Teable ships an official "standalone" self-host stack
+  (dockers/examples/standalone in the upstream repo): one Teable app
+  container (ghcr.io/teableio/teable, port 3000, single HTTP surface),
+  a required Postgres 15.4 backend, and a required Redis 7.2.4 cache —
+  structurally close to recipes/n8n's Postgres-backed template, with
+  Redis added on top. Nothing beyond the app port needs to be public;
+  Postgres and Redis stay internal to the compose network, so it's fully
+  reverse-proxy-compatible behind Traefik on teable.<base_domain>. Teable
+  has no admin env var and no default credentials: like
+  apps-gaps/tandoor-recipes.yaml and apps-gaps/kitchenowl.yaml, the first
+  person to register through the web signup form becomes the instance
+  administrator, so the same workable pattern applies — gate the whole
+  app behind a mandatory Traefik basic_auth credential projected from the
+  customer's root password, so only the customer can reach the signup
+  form and claim the admin account. Postgres and Redis passwords are
+  generated server-side with no customer input needed. The upstream
+  project is unambiguously active (release cadence of multiple tags per
+  day, 21.6k stars, pushed within the last day), so there's no EOL risk.
+  This is a clean build_now candidate: mechanically installable today
+  and fills a real gap (visual database/Airtable-alternative) not
+  covered by any of the current 24 recipes. Note the AI-powered features
+  (chat, App Builder, sandboxes) require the separate
+  teableio/teable-deployment "full-featured" stack and a license key —
+  out of scope here; this recipe would ship the free/AGPL standalone core
+  only (tables, collaboration, API, automation), which is the relevant
+  self-hosted product anyway.
