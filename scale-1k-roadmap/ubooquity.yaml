@@ -10,12 +10,13 @@ upstream:
 
 version_health:
   latest_version: "3.1.0"
-  latest_release_date: 2025-08-10
+  latest_release_date: 2025-08-18
   release_cadence: sporadic
   eol_status: maintenance-only
   notes: >
-    3.1.0 shipped 2025-08-10, exactly 12 months before today (2026-08-05) —
-    no release in a full year. The project's own archive shows a very uneven
+    3.1.0 shipped 2025-08-18, just under 12 months before today (2026-08-05,
+    ~11.6 months) — no release in nearly a year. The project's own archive
+    shows a very uneven
     cadence even in its active periods: 2 releases in 2025, 2 in 2024, 1 in
     2023, 1 in 2021, 1 in 2018, then bursts of 3-7 in 2013-2017. A 3-year gap
     (2018 to 2021) has happened before, so a 12-month silence isn't yet
@@ -68,19 +69,21 @@ installability:
       customer authenticates to reach either port before anyone else can,
       then sets Ubooquity's own admin password themselves through the
       wizard. This is the same "no login of its own reachable pre-setup"
-      pattern basic_auth already covers for n8n/WUD/Open WebUI, so it is not
-      a hard blocker, just contingent on IF-1312 (Traefik basic_auth toggle)
-      shipping.
+      pattern basic_auth already covers for adminer/n8n/WUD/Open WebUI, and
+      per SCHEMA.md's practical-test table that mechanism is installable
+      now, not contingent on anything unshipped — not a blocker.
     - >
       Two separate HTTP services need exposing (library/reader + OPDS feed
       on 2202, admin panel on 2203) rather than the single public port most
-      current recipes assume. Both are plain HTTP and reverse-proxy
-      friendly individually (e.g. reader.slug.<base_domain> and
-      admin.slug.<base_domain>, or admin kept un-published and reached via
-      an internal route), but this is a two-subdomain/two-route shape our
-      simpler recipes don't need — worth confirming af-core's Traefik label
-      renderer supports multiple public ports with independent basic_auth
-      gates per port before treating this as a template.
+      current recipes assume, each needing its own independent basic_auth
+      gate. Both are plain HTTP and reverse-proxy friendly individually
+      (e.g. reader.slug.<base_domain> and admin.slug.<base_domain>, or admin
+      kept un-published and reached via an internal route), but whether
+      af-core's Traefik label renderer supports two independently-gated
+      public ports for a single recipe is unconfirmed — every existing
+      basic_auth recipe (adminer, n8n, WUD, Open WebUI) gates exactly one
+      port. This multi-port-with-per-port-basic_auth shape, not the
+      basic_auth mechanism itself, is the real open question.
   installable_today: false
   recommendation: blocked_on_platform
 
@@ -89,11 +92,13 @@ summary: >
   web reader + OPDS feed, no overlap in the current catalogue), packaged via
   the well-maintained linuxserver/ubooquity community image even though the
   upstream Ubooquity server itself is closed-source freeware in
-  maintenance-only mode (no release in the 12 months to 2026-08-05).
-  Mechanically it is close to installable: the admin password can only be
-  set through a first-visit web wizard with no preset channel, but a Traefik
-  basic_auth gate on both its public ports (library 2202, admin 2203) closes
-  the setup race the same way it does for n8n/WUD/Open WebUI. It is blocked
-  today only on IF-1312 (the basic_auth toggle) shipping, plus confirming
-  af-core can render two independently-gated public ports for one recipe;
-  revisit once basic_auth lands.
+  maintenance-only mode (no release in the ~11.6 months to 2026-08-05).
+  Mechanically the single-port case is already solved: the admin password
+  can only be set through a first-visit web wizard with no preset channel,
+  but a Traefik basic_auth gate (already usable today, same as
+  adminer/n8n/WUD/Open WebUI) closes that setup race. What actually blocks
+  this is that Ubooquity needs the gate applied independently to two
+  separate public ports (library/reader 2202, admin 2203), and it's
+  unconfirmed whether af-core's Traefik label renderer supports more than
+  one independently-gated public port per recipe today. Revisit once that
+  multi-port capability is confirmed or built.
