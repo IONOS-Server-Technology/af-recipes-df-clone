@@ -1,0 +1,93 @@
+slug: weaviate
+name: Weaviate
+source_description: "Open-source vector database for AI applications and semantic search"
+
+upstream:
+  url: https://weaviate.io/
+  repo_url: https://github.com/weaviate/weaviate
+  license: BSD-3-Clause
+  docker_image: cr.weaviate.io/semitechnologies/weaviate (mirrored on Docker Hub as semitechnologies/weaviate)
+
+version_health:
+  latest_version: "1.37.0 GA (1.39.0-rc.0 in pre-release as of research date)"
+  latest_release_date: "2026-04-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly monthly-to-bimonthly minor releases through 2026: 1.36.0
+    (2026-03-03), 1.37.0 (2026-04-16), with 1.39.0 already at rc.0 as of
+    today (2026-08-05) — under 4 months since the last GA tag, well inside
+    "active". Repo is not archived, has heavy commit/PR activity, and
+    ships a built-in MCP server as of 1.37, signalling ongoing investment
+    rather than maintenance-only mode.
+
+catalogue_fit:
+  categories: [ai, database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a vector database. Ollama and
+    Open WebUI run/serve LLMs, and paperless-ai/hermes-agent/agent-adjacent
+    tools may embed a vector store internally, but nothing today exposes a
+    standalone vector DB a customer could point multiple AI apps at for
+    semantic search/RAG. Weaviate would fill that specific gap.
+  usefulness: medium
+  usefulness_rationale: >
+    Vector databases are foundational infrastructure for RAG and semantic
+    search, a real and growing AI use case, but Weaviate has no UI of its
+    own — it's a backend a developer wires other apps (or code) up to. That
+    caps its appeal to the more technical slice of the customer base
+    compared with a ready-to-use end-user product.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Weaviate is REST (8080) + gRPC (50051) dual-port by design; official
+      clients default to using both for full functionality (gRPC carries
+      the fast batch/insert path), and gRPC is a raw protocol, not an HTTP
+      route Traefik can front the same way as the REST API on a single
+      `<slug>.<base_domain>` host. A recipe could expose gRPC only via a
+      second raw TCP entrypoint (if the platform's Traefik config supports
+      that) or accept REST-only operation with reduced write throughput —
+      either way this is a real compatibility gap versus our single-HTTP-
+      port recipes, not a hard blocker on its own.
+    - >
+      Weaviate's own auth (`AUTHENTICATION_APIKEY_ALLOWED_KEYS`) requires
+      the literal plaintext key value at every client call — it is not a
+      password-verified-via-hash login form, so the `generated_from` hash-
+      projection mechanism cannot supply it: a hash of the root password
+      is not a value the customer's own client code could ever be expected
+      to know or type in. The only expressible mechanism is running
+      Weaviate with `AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true` (no
+      internal auth) and gating the whole REST port behind Traefik
+      `basic_auth` instead, same pattern as Adminer/n8n/WUD — installable,
+      but it means every one of the customer's own applications that talks
+      to this Weaviate instance has to embed the basic-auth credential on
+      every REST call, which is a materially worse developer experience
+      than Weaviate's native API-key model.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Weaviate is an actively maintained (monthly releases, BSD-3-Clause,
+  official pinned Docker image), API-only vector database with no bundled
+  web UI — it fills a genuine gap versus the current 24 recipes, none of
+  which is a standalone vector store. It is not cleanly installable under
+  today's mechanism, though: it needs both an HTTP (8080) and a raw gRPC
+  (50051) port for full functionality, which doesn't fit our single-HTTP-
+  port-behind-Traefik pattern, and its own API-key auth wants a literal
+  plaintext secret rather than a hash-verified login, so `generated_from`
+  can't project a customer credential into it the way it does for
+  Vaultwarden-style admin logins. The only expressible path is disabling
+  Weaviate's own auth and gating the REST port with Traefik `basic_auth`
+  (à la Adminer), which is installable but forces every client application
+  to carry that gate credential on each call, and still leaves gRPC
+  unaddressed. Recommend `blocked_on_platform`: revisit once the platform
+  supports either a raw TCP entrypoint alongside HTTP, or a literal
+  customer-chosen secret channel beyond root-password-hash projection.
