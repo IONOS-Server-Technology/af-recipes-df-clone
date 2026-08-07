@@ -8,9 +8,12 @@ from ImageBuilder.Util.EphemeralIpBlock import EphemeralIpBlock
 
 def main():
     test_recipe_name = os.environ['RECIPE_NAME']
+    run_id = os.environ.get('GITHUB_RUN_ID', 'local')
+    run_attempt = os.environ.get('GITHUB_RUN_ATTEMPT', '1')
+    ip_block_name = f'{test_recipe_name}_{run_id}_{run_attempt}_ip'
 
     try:
-        with EphemeralIpBlock(test_recipe_name + '_ip') as ip_block:
+        with EphemeralIpBlock(ip_block_name) as ip_block:
             tester = ImageTester()
             tester.server_ip = ip_block.ips[0]
             tester.run()
