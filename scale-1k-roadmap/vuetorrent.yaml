@@ -1,0 +1,82 @@
+slug: vuetorrent
+name: VueTorrent
+source_description: "Modern Vue.js Web UI replacement for qBittorrent with mobile and PWA support"
+
+upstream:
+  url: https://vuetorrent.github.io/
+  repo_url: https://github.com/VueTorrent/VueTorrent
+  license: GPL-3.0
+  docker_image: null
+
+version_health:
+  latest_version: "v2.34.1"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the latest tag (v2.34.1, 2026-07-14) shipped
+    about 3 weeks ago. Recent cadence has been steady: v2.34.0 (2026-05-19),
+    v2.33.0 (2026-05-04), v2.32.1 (2026-03-06), v2.32.0 (2026-03-02),
+    v2.31.3 (2026-01-19) — roughly monthly minor releases. No archival,
+    maintenance-only, or EOL signal; the project is actively developed.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    VueTorrent is not a standalone application — it is a frontend skin
+    that must be pointed at an already-running, already-configured
+    qBittorrent instance and its WebAPI. There is no official VueTorrent
+    Docker image; upstream ships only a dev-oriented docker-compose.yml
+    for local testing. Deployment in practice happens one of three ways,
+    none of which are "install VueTorrent on its own": (1) drop the built
+    static assets into qBittorrent's own container as an alternate WebUI
+    folder (the LinuxServer.io `qbittorrent` image supports this via a
+    docker-mod env var, no separate container); (2) run qBittorrent
+    normally and let its WebUI serve the VueTorrent theme directly, since
+    LinuxServer's qbittorrent image has shipped VueTorrent bundled as the
+    default WebUI for some time; or (3) run a third-party "standalone"
+    image (e.g. `nukecat/vuetorrent-standalone`, unofficial, not maintained
+    by the VueTorrent project) that is purely a reverse-proxying frontend
+    requiring `QB_HOST`/`QB_PORT` pointing at a pre-existing qBittorrent
+    backend it does not manage or provision. In every case a qBittorrent
+    recipe (`apps-gaps/qbittorrent.yaml`, not yet in the 24-recipe
+    catalogue, recommended build_now) is the actual dependency doing all
+    the work; VueTorrent adds no capability a qBittorrent recipe couldn't
+    ship on its own by simply enabling the bundled VueTorrent WebUI that
+    modern linuxserver/qbittorrent images already default to.
+  usefulness: low
+  usefulness_rationale: >
+    As a UI skin with a mandatory, unconfigurable qBittorrent dependency
+    and no official container of its own, VueTorrent isn't a coherent unit
+    of "install this app" the way every other catalogue entry is. The
+    functionality customers actually want (a nice torrent-client web UI)
+    is better delivered by building the qBittorrent recipe itself and
+    simply enabling its already-bundled VueTorrent theme, rather than
+    modeling VueTorrent as a second, separate recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [QB_HOST, QB_PORT]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No official Docker image; the only 'standalone' path is an unofficial third-party image (nukecat/vuetorrent-standalone) not endorsed by upstream."
+    - "Every deployment path requires a separate, already-running qBittorrent instance reachable at a customer- or operator-supplied host/port (QB_HOST/QB_PORT) — this is external infrastructure the /compose mechanism has no channel to provision or point at, since it isn't a password/hash and isn't server-generatable."
+    - "Bundling qBittorrent alongside VueTorrent in one recipe just reproduces the qbittorrent recipe (apps-gaps/qbittorrent.yaml) with an extra unnecessary container, since linuxserver/qbittorrent already offers the same VueTorrent skin as a built-in theme option."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  VueTorrent is a WebUI theme for qBittorrent, not an independent
+  application: it has no official Docker image and every known deployment
+  method (drop-in WebUI folder, LinuxServer.io docker-mod, or the
+  unofficial nukecat/vuetorrent-standalone reverse-proxy image) requires a
+  pre-existing, separately-provisioned qBittorrent backend. Modeling it as
+  its own recipe would either require bundling qBittorrent anyway
+  (duplicating the not-yet-built `qbittorrent` gap candidate) or pointing
+  at external infrastructure the platform has no input channel for.
+  Recommend `not_recommended` as a standalone recipe; if a nicer torrent
+  UI is wanted, the fix is enabling VueTorrent as the bundled WebUI theme
+  when/if the qBittorrent recipe itself is built, not a separate recipe.
