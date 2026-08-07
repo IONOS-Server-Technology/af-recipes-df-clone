@@ -94,19 +94,21 @@ af-recipes/
 ### 4.4 Parameter Object
 
 > **Deprecated at runtime (IF-944).** Parameters are no longer consumed by the AF API
-> or af-core — not exposed via `/catalogue`, not accepted by `/compose`, not substituted
-> into `.env`. The block is retained only as recipe-author documentation and is
-> shape-validated by `af-validate`; the `{{PARAM}}` placeholder mechanism has been
-> removed. The fields below describe the original (pre-IF-944) design.
+> or af-core — not exposed via `/catalogue`, not accepted by `/compose`. The block is
+> retained only as recipe-author documentation and is shape-validated by `af-validate`;
+> the `{{PARAM}}` placeholder mechanism has been removed for customer-supplied values.
+> The fields below describe the original (pre-IF-944) design. **Exception:** `generated_from`
+> (IF-1420) is API-computed rather than customer-supplied, so it is exempt from the
+> removal — its hash is substituted into `.env`, reusing the `{{PARAM}}` placeholder
+> where the template declares one.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Machine-readable parameter name (UPPER_SNAKE_CASE). |
 | `display_name` | string | yes | Human-readable label for UI. |
 | `type` | enum | yes | `string`, `email`, `domain`, `password`, `boolean`, `integer`. |
-| `required` | boolean | yes | Whether the customer must provide this value. |
 | `default` | any | no | Default value if not provided. |
-| `auto_generate` | boolean | no | If true, AF API generates a cryptographically secure value. Used for passwords/secrets. |
+| `generated_from` | string | no | Derive this value from an existing secret, as `<algo>:<source>` (IF-1420). `<algo>` is `argon2` (always emits an argon2id PHC string) or `bcrypt`; `<source>` is `ROOT_PASSWORD`, the customer's server password. The hash is computed at compose time, so the plaintext never enters the bootstrap token. Only valid on `type: password`. |
 | `description` | string | no | Help text for the customer. |
 | `validation` | string | no | Regex pattern for validation. |
 

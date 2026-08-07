@@ -162,12 +162,12 @@ These rules enforce RFC-001 §4.6 — every customer-visible recipe has a logo, 
 - **How to check:** For each param name, grep the recipe directory; if no hit, warn.
 - **Why:** Unreferenced parameters are usually typos or dead code; they confuse the customer-facing UI.
 
-#### `auto-generate-password-only`
+#### `generated-from-password-only`
 
 - **Level:** ERROR
-- **What:** `auto_generate: true` is only allowed where `type: password`.
-- **How to check:** For each parameter, if `auto_generate` is true and `type != password`, fail.
-- **Why:** The AF API generates a 32-char `[a-zA-Z0-9]` value; only meaningful for secret-type fields.
+- **What:** `generated_from` is only allowed where `type: password`.
+- **How to check:** For each parameter, if `generated_from` is present and `type != password`, fail.
+- **Why:** The projected value is a password hash; it is only meaningful for secret-type fields. The `<algo>:<source>` grammar itself is enforced by the schema pattern, so an unsupported algorithm surfaces as `metadata-schema-valid`.
 
 #### `param-value-charset`
 

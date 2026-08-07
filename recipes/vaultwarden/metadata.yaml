@@ -31,18 +31,30 @@ parameters:
   - name: APP_DOMAIN
     display_name: Domain
     type: domain
-    required: true
     description: Domain for accessing Vaultwarden (e.g., vault.example.com).
+  # generated_from (IF-1420): ADMIN_TOKEN is derived from the customer's server
+  # (root) password at /compose time, so they reach /admin with the password they
+  # already have instead of a second generated token they would have to look up.
+  #
+  # Two constraints for the af-api side of this:
+  # - Vaultwarden only treats ADMIN_TOKEN as a hash when it is an argon2id PHC
+  #   string ($argon2id$v=19$…); a bare value is compared as plaintext. So the
+  #   hash has to be argon2id, and the plaintext never leaves af-api. The
+  #   `argon2` algorithm token below always emits this format (af-api's
+  #   credentials.py uses argon2-cffi's PasswordHasher, which defaults to
+  #   argon2id) — there is no separate "argon2id" token to declare.
+  # - A PHC string is dollar-heavy and this value reaches the container via
+  #   ${ADMIN_TOKEN} in docker-compose.yaml, so its dollars need doubling on the
+  #   way into .env — the same escaping IF-1312 added for the bcrypt basic-auth
+  #   hash (basic_auth_env_line in af-api).
   - name: ADMIN_TOKEN
     display_name: Admin Token
     type: password
-    required: false
-    auto_generate: true
-    description: Secret token for the /admin panel (auto-generated if not provided).
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Secret token for the /admin panel. Derived from your server password — log in at /admin with that password.
   - name: SIGNUPS_ALLOWED
     display_name: Allow Signups
     type: boolean
-    required: false
     default: true
     description: Whether to allow new user registrations.
 
