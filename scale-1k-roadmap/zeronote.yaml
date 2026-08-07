@@ -1,0 +1,84 @@
+slug: zeronote
+name: ZeroNote
+source_description: "Unified encrypted app for notes, passwords, bookmarks, and 2FA"
+
+upstream:
+  url: https://zeronote.js.org
+  repo_url: https://github.com/besoeasy/zeronote
+  license: MIT
+  docker_image: ghcr.io/besoeasy/zeronote
+
+version_health:
+  latest_version: null
+  latest_release_date: null
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    The repository has zero GitHub releases and zero tags in its entire
+    history — the `ghcr.io/besoeasy/zeronote` image is only ever published
+    as an untagged/`:latest`-style build, so there is no pinnable version
+    string at all. More importantly, GitHub reports `archived: true`: the
+    repo was created 2025-03-02 and last pushed 2026-07-16, and its README
+    now opens with an explicit deprecation notice: "ZeroNote is no longer
+    maintained. It is not completely replaced by Gupt, but development and
+    support for ZeroNote have stopped," pointing users at a successor
+    project (github.com/besoeasy/gupt). As of today (2026-08-05) that is
+    just under 3 weeks after the archive date — this is a fresh, confirmed
+    EOL, not a stale or ambiguous one.
+
+catalogue_fit:
+  categories: [security, productivity, notes]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [vaultwarden]
+  differentiation: >
+    ZeroNote's pitch (one app for notes, passwords, bookmarks, and 2FA
+    codes via smart tags like `#@password=`) is broader than any single
+    existing recipe, but it is an entirely client-side, offline-first Vue
+    app with no server-side database or account system at all — encryption
+    and storage happen in the browser's IndexedDB, and the container only
+    serves static assets on port 8000. That architecture is fundamentally
+    different from Vaultwarden (our existing dedicated password-manager
+    recipe, which is a real multi-user server with an admin panel and
+    Bitwarden-client sync). ZeroNote would add a "unified vault" niche
+    Vaultwarden doesn't cover, but the project is now archived (see
+    version_health) with an upstream-recommended successor, which
+    overrides any differentiation argument.
+  usefulness: low
+  usefulness_rationale: >
+    The unified notes/passwords/bookmarks/2FA concept is appealing, but
+    shipping a recipe for an archived project with no tagged releases, no
+    ongoing maintenance, and an upstream-endorsed replacement (Gupt) would
+    hand customers a dead end within weeks of launch. The maintainer's own
+    guidance points elsewhere.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No image tag exists to pin — the project has never cut a GitHub
+      release or tag, and the Docker image is only published as a moving
+      build. RFC-002's pinned-tag requirement has no target to pin to.
+    - >
+      Project is archived upstream (confirmed via GitHub API
+      `archived: true`) with an explicit "no longer maintained" notice and
+      a named successor project; building on it now would mean shipping a
+      dead-end recipe.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  ZeroNote is a client-side, offline-first Vue app (image
+  `ghcr.io/besoeasy/zeronote`, port 8000, no server-side database, no
+  built-in login — master password lives only in the browser's IndexedDB)
+  that would need a Traefik `basic_auth` gate to avoid sitting open, and
+  that part is mechanically expressible today. That's moot, though: the
+  upstream repository is archived (as of 2026-07-16, about 3 weeks before
+  this analysis) with an explicit "no longer maintained" notice pointing
+  users to a successor project (Gupt), and it has never published a single
+  tagged release, so there is nothing to pin a recipe version to anyway.
+  Recommend not_recommended — this is a dead project, not a live candidate.
