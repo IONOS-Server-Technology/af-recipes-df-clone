@@ -1,0 +1,90 @@
+slug: synclounge
+name: SyncLounge
+source_description: "Self-hosted Plex watch party server with synchronized playback and group chat"
+
+upstream:
+  url: https://docs.synclounge.tv/
+  repo_url: https://github.com/synclounge/synclounge
+  license: MIT
+  docker_image: lscr.io/linuxserver/synclounge
+
+version_health:
+  latest_version: "v5.2.35 (webapp/server monorepo tag)"
+  latest_release_date: "2024-12-26"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Upstream's own org ships two split images (synclounge/syncloungeweb,
+    synclounge/syncloungeserver) that need a manual nginx/reverse-proxy
+    fronting two internal ports (8088 webapp + 8089 "/slserver" API/
+    websocket) to present as one app — not directly Traefik-host-routable
+    under our one-public-HTTP-port-per-recipe mechanism. The LinuxServer.io
+    community image (lscr.io/linuxserver/synclounge) bundles both pieces
+    behind a single internal port (8088) and is what the upstream
+    self-hosted docs themselves point to as the easy path, so that is the
+    image a recipe would actually use, not the org's own split images.
+
+    Latest tagged GitHub release is v5.2.35, published 2024-12-26 — about
+    19 months before this analysis (2026-08-05). The synclounge/
+    syncloungeserver Docker Hub image is frozen even further back, at
+    8.0.88 built 2024-06-18 (no new server image in over 2 years). Commit
+    history on `master` since then is 100% dependabot dependency-bump
+    merges (last one 2026-01-21, e.g. "bump lodash from 4.17.21 to
+    4.17.23") — no human-authored feature or bug-fix commit in the same
+    window. Repo is not archived (1.1k stars, pushed_at churns from CI/
+    dependabot), has 42 open issues, and closed PRs in the last several
+    months are almost entirely superseded/stale dependabot PRs rather than
+    merged fixes. This reads as a project on autopilot: dependency bots
+    still run, but no maintainer is actively shipping features or triaging
+    the app itself.
+
+catalogue_fit:
+  categories: [media, social]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does synchronized watch-
+    party coordination. It doesn't compete with anything we have (Immich
+    is photo/video management, not Plex playback sync) — this is a
+    genuinely distinct niche: a small coordination server that lets
+    several independent Plex households watch the same content in sync
+    with shared chat, each streaming from their own Plex server.
+  usefulness: low
+  usefulness_rationale: >
+    The value proposition is narrow and conditional: it's only useful to a
+    customer who (a) already runs Plex Media Server themselves, and (b)
+    has friends who each also already run their own Plex Media Server —
+    SyncLounge just aligns playback clocks between existing Plex setups,
+    it doesn't stream or host media itself. Unlike every other recipe in
+    the catalogue, deploying it alone gives the customer nothing to use
+    until multiple other people separately stand up unrelated Plex
+    infrastructure of their own. Combined with the dormant upstream, this
+    is a fun but thin niche add, not a broadly appealing app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SyncLounge (lscr.io/linuxserver/synclounge, single port 8088) has no
+  admin login of its own — the only per-user gate it supports is an
+  optional AUTH_LIST allowlist of Plex usernames/emails/server IDs, not a
+  provisionable credential — so it fits the same "no login, gate with
+  Traefik basic_auth" pattern already used for Adminer/n8n/WUD, and is
+  mechanically installable today. The recommended reverse-proxy setup
+  (terminate TLS at the proxy, talk plain HTTP to the container) matches
+  exactly how our Traefik fronting already works, so there's no protocol
+  blocker either. The caveats are on fit, not mechanism: upstream has been
+  dormant for ~19 months (dependabot-only commits, no maintainer feature/
+  fix activity, one Docker image frozen for 2+ years), and the app only
+  delivers value once the customer and each of their friends already run
+  independent Plex servers elsewhere — a narrower dependency chain than
+  any current recipe. Recommend build_with_caveats: buildable now, but
+  low priority given the dormant upstream and thin, conditional audience.
