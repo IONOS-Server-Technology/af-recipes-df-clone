@@ -1,0 +1,74 @@
+slug: topola-genealogy-viewer
+name: Topola Genealogy Viewer
+source_description: "Interactive GEDCOM family tree viewer rendering ancestry hourglass charts"
+
+upstream:
+  url: https://pewu.github.io/topola-viewer/
+  repo_url: https://github.com/PeWu/topola-viewer
+  license: Apache-2.0
+  docker_image: ghcr.io/pewu/topola-viewer:latest
+
+version_health:
+  latest_version: "latest (rolling; no tagged releases)"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Not archived; most recent commit to master is 2026-07-29 and the repo
+    was pushed to as recently as 2026-08-05 (today), so upstream is being
+    actively worked on daily/weekly. However, the project has never cut a
+    single GitHub Release or version tag in 564+ commits — GHCR only
+    publishes a floating `latest` tag plus per-commit `sha-<short>` tags
+    (e.g. `sha-bdf1ab9`). There is no semver stream to pin against; "pinned,
+    current stable tag" per our own recipe standard would have to mean
+    pinning to a specific `sha-<hash>` build and manually bumping it, since
+    there is no concept of a stable release line upstream.
+
+catalogue_fit:
+  categories: [genealogy, viewer, utility]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches genealogy/family-tree
+    visualization — this would be a genuinely new category. It's a
+    narrow, single-purpose viewer: it renders GEDCOM (.ged/.gdz) files a
+    customer already has, either uploaded ad hoc in the browser or
+    pre-baked into the image via a mounted file + STATIC_URL.
+  usefulness: low
+  usefulness_rationale: >
+    Real but small and infrequent audience (hobbyist genealogists), and the
+    "no code on the server" design means most of the value (loading/viewing
+    a GEDCOM file) can already be had by opening the free hosted instance
+    at pewu.github.io/topola-viewer with zero self-hosting. Self-hosting
+    only pays off for the STATIC_URL "pre-loaded family site to share with
+    relatives" use case, which is a small niche even within genealogy
+    enthusiasts.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Topola Genealogy Viewer is a purely client-side, single-container static
+  site (one HTTP port, 8080) with zero server-side logic, zero database, and
+  no login of its own — it just serves the app shell and, in the default
+  mode, lets the visitor upload their own GEDCOM file locally in-browser.
+  Because it has no auth, a public deployment would let anyone on the
+  internet load it and view/upload GEDCOM data (a mild privacy concern if
+  the customer uses STATIC_URL to pre-bake a real family tree into the
+  image), so a Traefik `basic_auth` gate is the right and installable-today
+  mechanism, same pattern as WUD/n8n/Open WebUI. Mechanically it is
+  build_with_caveats: no blocking secrets issue, but the app has no tagged
+  releases at all (only a floating `latest` GHCR tag and per-commit sha
+  tags), so "pin a current stable tag" means pinning an arbitrary commit
+  sha with no upstream stability guarantee. Combined with a narrow,
+  low-frequency use case that's already served for free by upstream's own
+  hosted instance for the common case (ad hoc GEDCOM viewing), this is a
+  low-priority build even though nothing structurally blocks it.
