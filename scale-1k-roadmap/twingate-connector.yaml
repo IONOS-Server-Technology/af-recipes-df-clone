@@ -1,0 +1,98 @@
+slug: twingate-connector
+name: Twingate Connector
+source_description: "Zero trust network access connector for secure remote resource access"
+
+upstream:
+  url: https://www.twingate.com
+  repo_url: null
+  license: proprietary (connector binary/image; Twingate's own OSS projects — Terraform provider, Helm charts, k8s operator — are separate and not this component)
+  docker_image: twingate/connector
+
+version_health:
+  latest_version: "1.90.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows 1.90.0/1.90/1/latest all pointing at the same digest,
+    published "23 days ago" relative to today (2026-08-05), i.e. roughly
+    2026-07-13. Prior tags 1.89.0 (~2 months earlier, ~2026-06-05) and
+    1.88.0 (~4 months earlier, ~2026-04-05) show a steady monthly-ish
+    cadence. No deprecation/EOL signals; this is a commercially maintained
+    SaaS product's client-side agent, actively shipped.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy, netbird-client]
+  differentiation: >
+    Twingate Connector is the outbound-only agent half of Twingate's
+    commercial Zero Trust Network Access (ZTNA) SaaS: it runs inside a
+    private network/VM and dials out to Twingate's cloud control plane to
+    expose that network's resources to remote users, but it has no
+    standalone server role, no exposed inbound port, and no local
+    admin/login of its own — all policy, user, and device management
+    happens in Twingate's hosted Admin Console (a third-party SaaS UI, not
+    anything we would host). This is architecturally the closest match to
+    the already-analyzed netbird-client (a headless agent that joins an
+    externally-managed mesh/control-plane), not to wg-easy, which is a
+    full self-hosted WireGuard server *with* its own web UI that customers
+    administer directly on our infrastructure. Twingate's pitch — ZTNA
+    with per-resource access policies rather than flat VPN mesh access —
+    is a real product differentiator versus both existing recipes, but the
+    Connector alone (with no self-hosted control plane, since Twingate has
+    none to self-host) is a thin, tokens-only shim into a vendor SaaS
+    rather than a product a customer "runs" on the domain we provision.
+  usefulness: low
+  usefulness_rationale: >
+    Same shape as netbird-client: legitimate only for a customer who
+    already has a Twingate account/network and wants a permanent cloud
+    peer/gateway to expose a remote network's resources through it. There
+    is no self-hosted control plane to stand up (unlike Headscale for
+    Tailscale) — this is purely a client for a third-party paid SaaS —
+    so it's a narrow accessory to an external product rather than a
+    general-purpose self-hosted app in its own right.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: [TWINGATE_NETWORK, TWINGATE_ACCESS_TOKEN, TWINGATE_REFRESH_TOKEN]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      All three required values (TWINGATE_NETWORK tenant name,
+      TWINGATE_ACCESS_TOKEN, TWINGATE_REFRESH_TOKEN) are generated
+      per-connector in the customer's own Twingate Admin Console (a
+      third-party SaaS the customer must already have an account on) —
+      there is no local login, no root-password-derived credential, and
+      nothing our root-password projection or Traefik basic_auth mechanism
+      can populate. This is the same "external API key/token the app can't
+      function without" shape the schema calls out as a hard `no`, not a
+      `blocked_on_platform` gap — no plausible extension of
+      `generated_from` produces a Twingate-issued access/refresh token
+      pair, since those tokens are minted by Twingate's own backend, not
+      derivable from any secret we hold.
+    - >
+      Has no web UI or exposed HTTP port at all (outbound-only agent), so
+      there's also no page for a customer to complete setup on even if a
+      token could reach the container — the whole administration surface
+      is Twingate's own hosted console, entirely outside our platform.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Twingate Connector is an actively maintained, actively released
+  (~monthly cadence, latest 1.90.0 from 2026-07-13) client agent for
+  Twingate's commercial Zero Trust Network Access SaaS, but it is not a
+  self-hosted application in the sense our catalogue targets: it has no
+  web UI, no local login, and requires three tokens/identifiers minted in
+  a third-party Admin Console the customer must already have an account
+  on. That's a textbook "external credential with no input channel"
+  blocker per SCHEMA.md, structurally identical to netbird-client's
+  NB_SETUP_KEY problem but with no expressible mechanism even as
+  documentation-only parameters carrying real product value, since the
+  whole point of the connector is to join an existing paid Twingate
+  network the customer must set up themselves. not_recommended: this is a
+  thin accessory to a third-party SaaS product, not something worth a
+  recipe slot given the required external dependency and lack of any
+  operable surface on our side.
