@@ -1,0 +1,70 @@
+slug: whoogle-search
+name: Whoogle Search
+source_description: "Whoogle is a self-hosted, ad-free, privacy-respecting metasearch engine"
+
+upstream:
+  url: https://github.com/benbusby/whoogle-search
+  repo_url: https://github.com/benbusby/whoogle-search
+  license: MIT
+  docker_image: benbusby/whoogle-search
+
+version_health:
+  latest_version: "v1.2.4"
+  latest_release_date: "2025-04-15"
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    v1.2.4 (2025-04-15, "End of an Era: The Final Release of Whoogle") was
+    announced by the maintainer as the last official release. On
+    2026-07-24 the project's README was updated to declare Whoogle
+    functionally defunct: Google closed the last remaining User-Agent
+    string that allowed JavaScript-free search requests, which was the
+    entire mechanism Whoogle depended on to fetch results. The
+    maintainer states "Whoogle no longer returns search results, and
+    that isn't something this project can fix" and is not accepting
+    further commits, PRs, or fixes. As of today (2026-08-05) this is
+    ~12 days after that shutdown announcement and ~16 months since the
+    last release. This is not a slow-maintenance project — it is an
+    app whose core function (returning search results) is confirmed
+    broken with no path to repair, since the breakage is on Google's
+    side, not a bug in Whoogle's code.
+
+catalogue_fit:
+  categories: [privacy, search]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the catalogue provides a search engine or
+    metasearch function; this would have been a novel category.
+    However, since the app's core feature (returning Google search
+    results) no longer works upstream, there is nothing left to
+    differentiate — shipping it would mean shipping a search engine
+    that returns no results.
+  usefulness: low
+  usefulness_rationale: >
+    Would have been a reasonable single-container, privacy-angle
+    addition (no other recipe covers search), but the app is now
+    confirmed non-functional for its one purpose. Deploying it today
+    would give customers a broken product on day one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WHOOGLE_PASS]
+  secrets_expressible_today:
+    - secret: WHOOGLE_PASS
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "Core functionality is broken upstream and unfixable: Google has blocked the last JavaScript-free search method Whoogle relied on (confirmed by the maintainer's 2026-07-24 shutdown notice). This is a functional blocker independent of the platform's secret-projection mechanism."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Whoogle Search is mechanically simple to package (single container,
+  one web port, one optional basic-auth credential projectable via
+  `generated_from`), and search was a genuine gap in the current
+  24-recipe catalogue. However, the upstream project was declared
+  defunct on 2026-07-24: Google closed off the last non-JavaScript
+  search path Whoogle depended on, and the maintainer confirms this
+  cannot be fixed. Building a recipe now would ship an app that
+  cannot perform its core function. Not recommended.
