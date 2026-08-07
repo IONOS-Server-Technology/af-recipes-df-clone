@@ -1,0 +1,103 @@
+slug: yarn
+name: Yarn
+source_description: "Self-hosted decentralized micro-blogging pod built on the open twtxt feed format"
+
+upstream:
+  url: https://yarn.social/
+  repo_url: https://git.mills.io/yarnsocial/yarn
+  license: AGPL-3.0
+  docker_image: prologic/yarnd:0.16.0
+
+version_health:
+  latest_version: "v0.16.0"
+  latest_release_date: "2026-07-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.16.0 shipped 2026-07-12 (Docker Hub confirms the `0.16.0` tag pushed
+    26 days before this analysis, 2026-08-05), with a further commit to
+    master on 2026-07-26 (text-encoding fix) — under a month old. 36 total
+    tagged releases on the upstream Gitea instance (git.mills.io), a steady
+    cadence for a single-maintainer-led project (James Mills / prologic).
+    No archive notice, no EOL announcement; clearly active. Note: primary
+    development happens on a self-hosted Gitea (git.mills.io/yarnsocial/yarn)
+    with only a partial/lagging mirror on GitHub — some GitHub org/repo
+    paths for "yarnsocial" 404'd during this research, so treat git.mills.io
+    as canonical, not github.com.
+
+catalogue_fit:
+  categories: [social, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes touch social/micro-blogging.
+    Yarn is a niche pick even within that empty category: it implements
+    twtxt, a deliberately minimal decentralized feed format (a plain-text
+    file per user, pulled by other pods/clients over HTTP) rather than the
+    ActivityPub federation model of Mastodon/Pleroma/Misskey that most
+    self-hosters mean by "decentralized social." It would be a genuinely
+    new capability, not a duplicate, but the underlying protocol has a
+    much smaller install base and ecosystem (clients, other pods to
+    federate with) than ActivityPub alternatives.
+  usefulness: low
+  usefulness_rationale: >
+    Fills an empty category on paper, but twtxt is a minority protocol
+    even among self-hosted social software, so real-world demand from a
+    small-business/solo-developer hosting audience is likely thin. A
+    customer wanting a self-hosted "Twitter alternative" is far more
+    likely to search for and recognize Mastodon than Yarn/twtxt.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - API_SIGNING_KEY
+    - COOKIE_SECRET
+    - MAGICLINK_SECRET
+    # yarnd ships no ADMIN_PASSWORD-style env var; the admin account is
+    # created by registering through the web UI (registrations are closed
+    # by default, so -R must be enabled at least transiently), then
+    # pointing ADMIN_USER/ADMIN_EMAIL at that account. Whoever completes
+    # that registration first becomes admin, so the registration page must
+    # be gated until the customer claims it.
+    - "Traefik basic-auth gate credential (protects the open-registration window during which anyone could claim the first/admin account)"
+  secrets_expressible_today:
+    - secret: API_SIGNING_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: COOKIE_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: MAGICLINK_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Yarn's core purpose is a "pod" that other twtxt clients/pods pull
+      user feeds from over plain HTTP (no auth) — putting a permanent
+      Traefik basic_auth gate on the whole domain (the only way today to
+      stop a stranger from grabbing the admin account during the
+      open-registration window) would also block that pull-based
+      federation once setup is done, defeating the app's actual purpose.
+      The gate would need to be lifted after the customer claims the admin
+      account and registrations are closed again — a config-and-restart
+      step our current mechanism has no channel to trigger post-boot
+      (install.sh runs once at provisioning, before the customer has had a
+      chance to register).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Yarn (yarn.social/yarnd) is an actively maintained (v0.16.0, 2026-07-12;
+  36 releases, commits within the last two weeks), AGPLv3-licensed,
+  single-container Go app with an official Docker image and a single HTTP
+  port (8000), reverse-proxy friendly. It fills an otherwise-empty
+  social/micro-blogging category, but implements the niche twtxt protocol
+  rather than the more recognizable ActivityPub model, which caps
+  realistic customer demand. Mechanically it does not clear the current
+  /compose constraint cleanly: there is no admin-password env var, so the
+  admin account must be claimed through a temporarily-open self-registration
+  page, and gating that page with Traefik basic_auth — the only tool we
+  have — would need to be lifted afterward to let the pod serve its actual
+  pull-based federation purpose, a post-boot step our install-once
+  mechanism can't perform today. Not recommended: low expected usefulness
+  and a genuine (not just cosmetic) installability blocker.
