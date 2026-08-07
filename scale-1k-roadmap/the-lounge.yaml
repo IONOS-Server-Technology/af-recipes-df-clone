@@ -1,0 +1,69 @@
+slug: the-lounge
+name: The Lounge
+source_description: "The Lounge is a web-based IRC client for always-on chat connectivity"
+
+upstream:
+  url: https://thelounge.chat/
+  repo_url: https://github.com/thelounge/thelounge
+  license: MIT
+  docker_image: thelounge/thelounge:4.5.2
+
+version_health:
+  latest_version: "v4.5.2"
+  latest_release_date: "2026-07-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.5.2 shipped 2026-07-12, less than a month before today (2026-08-05).
+    Prior releases: v4.5.1 (2026-06-24), v4.5.0 (2026-05-20, a "maintenance
+    focused release" dropping Node.js 18/20 support and switching to
+    built-in SQLite), v4.4.3 (~3 months before 4.5.0). A v4.6.0-pre.1
+    pre-release is already out (2026-07-22), confirming ongoing development.
+    Repo is not archived, issues/PRs are actively triaged — this is a
+    steady, actively maintained project.
+
+catalogue_fit:
+  categories: [communication, chat]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers IRC/persistent chat client
+    hosting. The closest neighbors by shape are single-container web apps
+    like Uptime Kuma or Vaultwarden, but none overlap in purpose. The Lounge
+    fills a genuinely new category: an always-on web IRC client (bouncer-
+    style) for customers who want a persistent presence on IRC networks
+    without running their own client 24/7.
+  usefulness: medium
+  usefulness_rationale: >
+    IRC has a smaller but durable audience (open-source project channels,
+    niche communities, some ops/on-call use), and a self-hosted always-on
+    client is exactly the kind of "why would I run this on my own VPS"
+    utility that fits our self-hosting audience. It's capped at medium
+    rather than high because IRC usage skews toward a narrower, more
+    technical demographic than e.g. password managers or automation tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_login_password]
+  secrets_expressible_today:
+    - secret: admin_login_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  The Lounge is an active, single-container (Node.js, SQLite by default as
+  of v4.5.0), reverse-proxy-friendly web IRC client with no overlap in the
+  current catalogue — persistent/always-on IRC chat is a genuinely new
+  category for us. Unlike most admin-credential apps we've evaluated, The
+  Lounge stores each user's login as a directly-editable JSON file under
+  `${THELOUNGE_HOME}/users/<name>.json` containing a bcrypt password hash
+  (confirmed via upstream docs — the `thelounge add`/`thelounge reset` CLI
+  commands are just interactive wrappers around writing that same file).
+  install.sh can write that user file directly with a bcrypt hash derived
+  from the customer's root password via `generated_from: "bcrypt:
+  ROOT_PASSWORD"`, without needing the interactive CLI at all — the same
+  pattern Vaultwarden already uses for its `ADMIN_TOKEN`. No blocking
+  issues found; recommend building a recipe now.
