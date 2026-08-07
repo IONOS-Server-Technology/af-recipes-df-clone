@@ -1,0 +1,99 @@
+slug: xwiki
+name: XWiki
+source_description: "Enterprise wiki platform for knowledge management and team documentation"
+
+upstream:
+  url: https://www.xwiki.org/
+  repo_url: https://github.com/xwiki/xwiki-platform
+  license: LGPL-2.1
+  docker_image: xwiki/xwiki-postgres-tomcat
+
+version_health:
+  latest_version: "18.6.0"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    18.6.0 released 2026-07-27 — 9 days before today (2026-08-05). XWiki
+    runs a strict monthly minor-release train through the year (18.0.0
+    Jan 2026, 18.1.0 Feb, 18.2.0 Mar, ... 18.6.0 Jul, 18.7.0 due Aug 2026),
+    plus a parallel LTS branch (17.10.x) that gets its own patch releases.
+    Repo is not archived, forum/chat/JIRA are active, roadmap page lists
+    concrete plans through the rest of 2026. Clearly active, well-funded
+    (XWiki SAS backs the open-source project commercially).
+
+catalogue_fit:
+  categories: [productivity, knowledge-management, documentation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a wiki/knowledge-base tool, so on
+    paper this fills the same gap already identified for An Otter Wiki,
+    DokuWiki, Wiki.js, Apache JSPWiki, and TiddlyWiki — all separately
+    under gap-analysis in this same batch. XWiki is the heaviest of that
+    group: Java/Tomcat application server plus a mandatory external
+    database (PostgreSQL/MySQL/MariaDB — no supported embedded-DB path for
+    production), versus e.g. An Otter Wiki's single Python process with
+    git-backed storage and no DB at all. In exchange it offers materially
+    more: structured "XClass" data objects and small in-wiki applications,
+    fine-grained per-page/per-space permissions and groups, a WYSIWYG
+    editor, built-in versioning/diff/comments, and multi-wiki farms — the
+    feature set a mid-size organization ("enterprise wiki" per Hostinger's
+    own description) would actually evaluate against Confluence, not
+    against a lightweight personal wiki.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, currently-unfilled category gap and a well-maintained, credible
+    upstream — but this batch is already proposing several wiki
+    candidates, and XWiki is by far the most resource-heavy of them (JVM +
+    Tomcat + a separate database container, where the lighter candidates
+    need one small container and no DB). If the catalogue only has budget
+    for one wiki recipe, a lighter single-container option is the safer
+    first pick; XWiki is the right choice only if the goal is specifically
+    an enterprise-grade wiki with granular permissions and structured data,
+    not "a wiki" in general.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["PostgreSQL database password", "Web UI setup-wizard access gate credential"]
+  secrets_expressible_today:
+    - secret: "PostgreSQL database password"
+      mechanism: server_generated_no_customer_input
+    - secret: "Web UI setup-wizard access gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      XWiki has no environment variable to pre-provision the admin
+      account. Instead, the first HTTP visit to a fresh install launches
+      an interactive "Distribution Wizard" in the browser where whoever
+      gets there first configures the database connection and creates the
+      initial admin user — there is no `generated_from`-style hook into
+      this flow. Left open, this is the same "first visitor wins the admin
+      account" exposure already flagged for An Otter Wiki. It is coverable
+      today by a mandatory Traefik `basic_auth` gate (root-password
+      projected) placed in front of the app for the setup window, but that
+      is a workaround for a gap in the app's own first-run flow, not a
+      clean fit — the customer would need to complete the wizard behind
+      the gate before anything is safe to expose, and, unlike a normal app
+      login, there's no way to have the app itself enforce that ordering.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  XWiki (xwiki/xwiki-postgres-tomcat, e.g. 18.6.0) is a Java/Tomcat wiki
+  platform that requires an external PostgreSQL/MySQL/MariaDB database and
+  serves its UI on a single HTTP port (8080), so it is Traefik-compatible
+  from a networking standpoint. It is actively maintained on a strict
+  monthly release cadence with no EOL signal. The catalogue gap it fills —
+  no wiki/knowledge-base recipe exists today — is real, but this same batch
+  already proposes several lighter, DB-free wiki alternatives, and XWiki's
+  own first-run flow (an interactive setup wizard with no env-var admin
+  pre-provisioning) needs the same Traefik basic_auth workaround already
+  used for An Otter Wiki, just to prevent an anonymous visitor from
+  claiming the admin account before the customer does. Mechanically
+  installable today with that gate, but recommended as build_with_caveats:
+  a reasonable second wiki option for a customer who specifically wants
+  enterprise-grade permissions and structured content over a heavier
+  Java/DB footprint, not the default pick if the catalogue only needs one
+  wiki recipe.
