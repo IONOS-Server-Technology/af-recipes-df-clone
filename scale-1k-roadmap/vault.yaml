@@ -1,0 +1,106 @@
+slug: vault
+name: Vault
+source_description: "Secrets management platform for storing and rotating sensitive credentials"
+
+upstream:
+  url: https://www.vaultproject.io/
+  repo_url: https://github.com/hashicorp/vault
+  license: "Business Source License 1.1 (BSL) — not OSI-approved open source; HashiCorp switched Vault from MPL-2.0 to BSL in August 2023"
+  docker_image: hashicorp/vault
+
+version_health:
+  latest_version: "2.0.4"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released the day before this analysis (2026-08-04); the 2.0.x line has
+    shipped roughly every 4-8 weeks since 2.0.0 (2026-04-14). Actively
+    maintained by HashiCorp, an IBM company. Not archived, not EOL. Note the
+    name "Vault" is ambiguous: HashiCorp Vault (chosen here, matches the
+    "storing and rotating sensitive credentials" description exactly) vs.
+    OpenBao (a Linux Foundation fork of the last MPL-licensed Vault release,
+    created specifically because of the 2023 BSL relicensing, fully
+    open-source) vs. Vaultwarden (already in our catalogue as recipe
+    `vaultwarden`, an end-user Bitwarden-compatible password manager, not an
+    infra secrets-management platform). OpenBao was considered and ruled out
+    only because the Hostinger catalogue entry names "Vault" specifically;
+    it would be worth a separate gap-analysis pass on its own merits given
+    the licensing caveat below.
+
+catalogue_fit:
+  categories: [security, secrets-management, devops]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Functionally distinct from `vaultwarden`: Vaultwarden is an end-user
+    password manager (personal logins synced across devices), while Vault
+    is an infrastructure secrets-management platform — API tokens, dynamic
+    database credentials, PKI issuance, encryption-as-a-service, secret
+    leasing/rotation for applications and pipelines rather than for a
+    person's browser. No other recipe in the current catalogue covers this
+    ground, so it would be a genuine new category for developer/DevOps
+    customers running their own apps or CI on the same infrastructure.
+  usefulness: medium
+  usefulness_rationale: >
+    High name recognition and real demand from developer/DevOps customers,
+    but it's a specialist tool: most Application Factory customers running
+    a handful of self-hosted apps don't need a dedicated secrets broker, and
+    the BSL license (see below) adds a commercial-use caveat that a purely
+    open-source alternative (OpenBao) would not carry.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - VAULT_ROOT_TOKEN
+    - VAULT_UNSEAL_KEY
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Vault has no concept of a pre-supplied admin credential. Production
+      mode requires running `vault operator init`, which the app itself
+      generates: a root token and a set of Shamir unseal key shares. These
+      are produced fresh at init time by Vault, not supplied by us or the
+      customer, and there is no field to project a `generated_from` hash
+      into — Vault's own auth methods (root token, userpass) require either
+      a token minted by Vault itself or a plaintext password that Vault
+      hashes internally, and there is no way to seed either from a
+      pre-computed hash of the customer's root password. This is the
+      table's explicit "app will only accept the plaintext password"
+      case — a genuine structural blocker, not a missing-algorithm gap.
+    - >
+      Even if the root token could be delivered to the customer some other
+      way, Vault's default Shamir seal requires manually supplying a
+      quorum of unseal keys after every restart (crash, host reboot, image
+      update) before the API/UI becomes usable again. There is no
+      auto-unseal available without an external KMS/HSM integration, which
+      this recipe mechanism has no channel to configure. A Vault instance
+      that silently stays sealed after an unattended restart is a broken
+      recipe, not a degraded one.
+    - >
+      Running in Vault's built-in "dev mode" sidesteps both problems (fixed
+      root token, auto-unseal) but is explicitly in-memory, non-persistent,
+      and unencrypted-at-rest per HashiCorp's own docs — shipping that as a
+      "secrets management" recipe would misrepresent what it protects.
+    - >
+      Licensing: Vault Community Edition ships under HashiCorp's BSL 1.1,
+      which prohibits using the software to build a "competing product or
+      service." Offering hosted Vault as an Application Factory recipe may
+      qualify as competing with HashiCorp Cloud Platform (HCP Vault) —
+      needs legal review independent of the technical blockers above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  HashiCorp Vault is an actively maintained, well-known secrets-management
+  platform with no functional overlap in our current 24-recipe catalogue,
+  but it does not fit the current recipe mechanism: it has no admin login
+  that accepts a projected password hash (root token and unseal keys are
+  generated by the app itself at init time, and its userpass method needs
+  a plaintext password we cannot supply), and its default seal requires
+  manual unsealing after every restart with no auto-unseal path available
+  today. Combined with a BSL license that raises its own commercial-hosting
+  question, this is a hard no rather than a caveat — revisit only if a
+  future platform change adds a way to capture and hand back app-generated
+  secrets to the customer, plus a supported auto-unseal mechanism.
