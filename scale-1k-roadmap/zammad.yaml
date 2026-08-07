@@ -1,0 +1,87 @@
+slug: zammad
+name: Zammad
+source_description: "Open-source helpdesk and customer support system with multi-channel ticketing"
+
+upstream:
+  url: https://zammad.com
+  repo_url: https://github.com/zammad/zammad-docker-compose
+  license: AGPL-3.0-only
+  docker_image: ghcr.io/zammad/zammad (app image; official compose stack pins e.g. ghcr.io/zammad/zammad:7.1.2-0000)
+
+version_health:
+  latest_version: "7.1.1 (2026-06-25); 7.1.2 image tags observed on ghcr since"
+  latest_release_date: "2026-06-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2026 releases so far: 6.5.3 security patch (2026-03-11), 7.0 major
+    release with AI features (2026-03-04), 7.0.1 security release
+    (2026-04-08), 7.1.1 (2026-06-25). That's ~41 days since the last
+    named release as of today (2026-08-05), with roughly monthly-to-bimonthly
+    cadence over the year and a security-patch track kept current on the
+    prior 6.5 line as well. Zammad GmbH / Zammad Foundation actively
+    ships features (7.0's AI-assisted ticket actions) and security
+    fixes; no dormancy or EOL signal.
+
+catalogue_fit:
+  categories: [productivity, customer-support, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers helpdesk/ticketing
+    or multi-channel customer support (email, chat, phone, social
+    ticket intake into one queue). n8n could theoretically be wired up
+    to build ad-hoc support automation, but it is not a support-desk
+    product. Zammad fills a genuinely distinct, business-facing gap:
+    a team inbox/ticketing system for customer-facing support teams.
+  usefulness: high
+  usefulness_rationale: >
+    Helpdesk/ticketing is one of the most commonly self-hosted business
+    tools (alternative to Zendesk/Freshdesk), and IONOS customers running
+    a small business or support team would have clear use for a
+    self-hosted alternative. Actively maintained with recent AI-feature
+    investment (7.0), which keeps it competitive rather than legacy.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Zammad is a multi-service stack (rails app server, scheduler,
+  websocket, nginx frontend, Postgres, Elasticsearch, Redis, Memcached —
+  a heavier tier of the same app+DB+cache shape already used for
+  n8n/paperless-ngx/docmost) shipped as an official docker-compose
+  bundle, exposing a single HTTP port (nginx, default 8080) that is
+  cleanly Traefik-compatible; all inter-service ports (Postgres,
+  Elasticsearch, Redis, Memcached, the internal websocket service) stay
+  container-internal. The official compose file's only fixed default
+  credential is the Postgres user/password (zammad/zammad), which is a
+  patternless secret nothing customer-facing reads and can be
+  server-generated with no customer input needed. Zammad itself has no
+  env var to set the initial admin account: like Docmost and An Otter
+  Wiki, the first visitor to a fresh instance is walked through a public
+  "Getting Started" wizard in the browser that creates the very first
+  admin account directly (customer-chosen email + password), meaning an
+  anonymous visitor could claim that admin account before the customer
+  does if the instance is left open. Per the pattern already applied to
+  Docmost/An Otter Wiki/n8n/WUD in this catalogue, that is resolved with
+  a mandatory Traefik basic_auth:true gate (projected from the
+  customer's root password via generated_from) in front of the app until
+  the customer completes their own setup wizard. That clears the
+  /compose constraint today with zero hard blocking issues —
+  installable_today — and upstream is unambiguously active (7.1.1,
+  2026-06-25, plus an ongoing security-patch track). Still a workaround
+  for the app's own missing boot-time admin-provisioning mechanism
+  rather than a clean built-in one, hence build_with_caveats rather than
+  a plain build_now.
