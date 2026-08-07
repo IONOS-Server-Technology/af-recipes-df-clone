@@ -1,0 +1,89 @@
+slug: tooljet
+name: ToolJet
+source_description: "Open-source low-code platform for building internal tools and admin panels"
+
+upstream:
+  url: https://www.tooljet.com/
+  repo_url: https://github.com/ToolJet/ToolJet
+  license: AGPL-3.0
+  docker_image: tooljet/tooljet-ce
+
+version_health:
+  latest_version: "v3.20.208-lts"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed against the GitHub Releases API (not scraped HTML) as of today
+    (2026-08-05). The project ships two parallel tracks: an LTS line
+    (v3.20.x-lts, latest v3.20.208-lts published 2026-08-05, same day) and a
+    beta/mainline track (v3.21.x-beta, latest v3.21.58-beta published
+    2026-08-06). Both tracks have released multiple times per week
+    throughout July/August 2026 — this is a very actively developed
+    project, not remotely dormant. 38k+ GitHub stars, repo not archived.
+
+catalogue_fit:
+  categories: [productivity, developer-tools, low-code]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a low-code/internal-tools builder.
+    n8n (workflow automation) and Anytype/Gitea are the closest
+    conceptually-adjacent recipes but solve different problems: ToolJet is
+    for building CRUD admin panels and dashboards over existing databases
+    and APIs via a drag-and-drop UI, not for chaining automations or
+    project management. A customer running their own Postgres/MySQL/REST
+    API would use ToolJet to build an internal tool on top of it —  a
+    distinct, Retool-like use case not covered by anything we ship today.
+  usefulness: high
+  usefulness_rationale: >
+    Popular open-source Retool alternative with a clear differentiated use
+    case (internal tool / admin panel builder) and no catalogue overlap.
+    Single reverse-proxy-friendly web UI on one HTTP port, backed by a
+    bundled Postgres — matches our existing single-domain Traefik model
+    well (comparable in shape to n8n or paperless-ngx).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TOOLJET_ADMIN_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: TOOLJET_ADMIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      ToolJet CE has no environment-variable-driven admin seeding. The
+      instance's Super Admin is simply whoever first completes the
+      web-based sign-up form after the container boots — there is no
+      `ADMIN_EMAIL`/`ADMIN_PASSWORD` env var, no `generated_from`-
+      compatible login field, and (per the shipped `.env.internal.example`)
+      `DISABLE_SIGNUPS` defaults to unset/false. Left un-gated, this is a
+      first-visitor-wins race for control of the instance. A Traefik
+      `basic_auth: true` gate (root-password hash) closes that race by
+      requiring the customer's root password before anyone can reach the
+      sign-up page at all — but this is a workaround for a missing app-side
+      admin-seeding mechanism, not a native login the app itself owns, so
+      note it as caveated rather than a clean fit for `generated_from`.
+    - >
+      Verified against the app's own `.env.internal.example`
+      (`LOCKBOX_MASTER_KEY`, `SECRET_KEY_BASE`, `PGRST_JWT_SECRET`, the
+      bundled Postgres password) — all of these are patternless
+      server-generated secrets nothing customer-facing ever reads, so they
+      pose no additional blocker beyond the admin-seeding gap above.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ToolJet is a high-usefulness, actively maintained (near-daily releases
+  across an LTS and a beta track, both as recent as 2026-08-05/06) addition
+  with no overlap in the current 24-recipe catalogue — nothing today covers
+  the low-code internal-tool/admin-panel use case. Mechanically it is a
+  single reverse-proxy-friendly web UI backed by a bundled Postgres, same
+  shape as several existing recipes. The one caveat: ToolJet CE has no
+  env-var admin seeding, so the instance's Super Admin is whoever wins the
+  race to the sign-up form first. That's expressible today via a Traefik
+  `basic_auth: true` gate on the customer's root-password hash (closing the
+  window before any first-run signup is possible), so it is installable now
+  — flagged `build_with_caveats` rather than a clean `build_now` because the
+  gate is compensating for a missing native admin-seeding mechanism rather
+  than expressing one the app actually has.
