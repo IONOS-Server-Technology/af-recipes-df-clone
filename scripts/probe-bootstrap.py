@@ -39,6 +39,13 @@ def main() -> int:
         help="Where to write the raw /bootstrap response body (it's a gzip'd tar, not text)",
     )
     parser.add_argument(
+        "--base-domain",
+        default=None,
+        help="Must match the base_domain passed to the real /compose call for this VM "
+        "(scripts/call-compose.py), or this diagnostic archive won't include the "
+        "Traefik block the real VM gets.",
+    )
+    parser.add_argument(
         "--client-cert",
         default=None,
         help="mTLS client certificate (path to a PEM file) for any leg that hits "
@@ -74,6 +81,8 @@ def main() -> int:
         },
         # "base_os": "ubuntu-26.04",
     }
+    if args.base_domain:
+        compose_body["base_domain"] = args.base_domain
 
     print(f"=== POST {args.api_url}/api/v1/compose ===")
     resp = requests.post(

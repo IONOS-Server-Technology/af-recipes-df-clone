@@ -732,6 +732,10 @@ jobs:
         env:
           CLUSTER: ${{ matrix.cluster }}
           RECIPE: ${{ matrix.recipe }}
+          # Same base_domain passed to the real /compose call above — probe-bootstrap.py
+          # makes its own separate /compose call, so without this its diagnostic
+          # archive silently omits the Traefik block the real VM actually gets (IF-1386).
+          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
           # Both real-cluster legs need the cert: probe-bootstrap.py makes its own
           # /compose call against the mTLS main host. Its /bootstrap redemption
@@ -745,6 +749,7 @@ jobs:
             --api-url "${{ steps.leg.outputs.api_url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
             --bootstrap-output "/tmp/bootstrap-response-${RECIPE}.tar.gz" \
+            --base-domain "$BASE_DOMAIN" \
             $cert_args \
             "$RECIPE"
       - uses: actions/upload-artifact@v7
