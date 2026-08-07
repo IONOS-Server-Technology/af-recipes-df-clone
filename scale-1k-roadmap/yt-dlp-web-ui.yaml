@@ -1,0 +1,103 @@
+slug: yt-dlp-web-ui
+name: yt-dlp Web UI
+source_description: "Self-hosted web frontend and RPC server for the yt-dlp media downloader"
+
+upstream:
+  url: https://github.com/marcopiovanello/yt-dlp-web-ui
+  repo_url: https://github.com/marcopiovanello/yt-dlp-web-ui
+  license: GPL-3.0
+  docker_image: marcobaobao/yt-dlp-webui
+
+version_health:
+  latest_version: "v4.0.0"
+  latest_release_date: "2026-06-29"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    ~37 days since the latest release (v4.0.0, 2026-06-29) as of today
+    (2026-08-05), and there is a follow-up bugfix commit on 2026-07-14
+    ("fixed non completing downloads after v4"), so the project is not
+    dormant. But the release/commit history is bursty rather than steady:
+    v3.2.6 (2025-03-15) to v4.0.0 (2026-06-29) is a ~15.5-month gap between
+    tagged releases, and commit history in between shows long silences
+    (2026-01-21 to 2025-09-01 is a ~5-month gap with a single throwaway
+    commit). Repo is not archived (2,536 stars, 102 open issues,
+    pushed_at 2026-07-14). GitHub username changed from marcopeocchi to
+    marcopiovanello at some point (same repo/history, not a fork) — noting
+    this so a reviewer doesn't mistake it for two different projects.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes covers "download a video/audio
+    file from a URL" as a function. No overlap with existing built recipes,
+    but the same niche is already covered by apps-gaps/metube.yaml (medium
+    usefulness, build_now) and apps-gaps/alltube.yaml (not_recommended,
+    dead project). yt-dlp Web UI adds a job queue, live progress via
+    WebSocket, and livestream-capture support that MeTube's simpler UI
+    lacks, but solves the same core problem MeTube already solves more
+    cleanly.
+  usefulness: medium
+  usefulness_rationale: >
+    Single-container, single-HTTP-port (3033) app, actively maintained
+    (not archived, recent bugfix commits) with more features than MeTube
+    (download queue, livestream capture). Capped at medium rather than high
+    for two reasons shared with MeTube: (1) the same third-party-ToS
+    consideration around bulk-downloading video platforms' content applies
+    here too, and (2) MeTube already fills this niche with a cleaner
+    version-pinning story (date-stamped tags vs. this project's tag-less
+    image, see blocking_issues) — shipping both would be pure overlap with
+    no differentiated customer benefit big enough to justify carrying two
+    yt-dlp front ends.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No pinned version tag on either registry the project publishes to.
+      Docker Hub (marcobaobao/yt-dlp-webui) has exactly one non-signature
+      tag, "latest" (151 total tags, all the rest are cosign .sig
+      attestations) — there is no "v4.0.0" or equivalent to pin to. GHCR
+      (ghcr.io/marcopiovanello/yt-dlp-web-ui) does publish versioned tags,
+      but only up through v2.0.8 — it stopped tracking releases after that
+      and never got v3.x/v4.x tags; "v4"/"v4.0.0" return 404 there. Building
+      a recipe today means either violating RFC-002's `image-tag-pinned`
+      rule by using `:latest`, or pinning to a `latest`-tag digest (sha256)
+      with no semantic version attached to it — workable, but loses the
+      "which release am I on" traceability MeTube's date-stamped tags give
+      for free, and requires the recipe owner to manually re-check and
+      re-pin the digest to pick up yt-dlp extractor fixes (this class of
+      app breaks routinely as video sites change their frontends).
+    - >
+      The app's own optional login (`--auth`/`--user`/`--pass` flags,
+      backed by `JWT_SECRET`) takes a plaintext customer-chosen username
+      and password with no hash-based option — `generated_from` cannot
+      project into it. Not a hard blocker on its own: auth is optional and
+      disabled by default, so the recommended path is to leave the app's
+      own auth off and gate the whole app behind Traefik `basic_auth`
+      instead, same as MeTube/WUD/n8n.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  yt-dlp Web UI is a single-container, single-port app with no auth enabled
+  by default, so it slots behind a Traefik basic_auth gate with no
+  structural secrets blocker — mechanically buildable today. It is
+  actively maintained (not archived, a July 2026 bugfix commit following
+  the June 2026 v4.0.0 release) but has a genuinely bursty release cadence
+  (15.5 months between the last two tagged releases) and, more
+  importantly, no reproducible versioned tag on either registry it
+  publishes to (Docker Hub ships "latest" only; GHCR's versioned tags stop
+  at v2.0.8). It duplicates the niche already covered by
+  apps-gaps/metube.yaml, which has a cleaner tagging story and is already
+  rated build_now for the same use case. Recommend build_with_caveats: not
+  a platform blocker, but pin-to-digest tracking overhead and direct
+  overlap with a better-tagged alternative make this a lower priority than
+  MeTube for the same slot in the catalogue.
