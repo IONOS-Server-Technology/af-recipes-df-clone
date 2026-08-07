@@ -1,0 +1,93 @@
+slug: windmill
+name: Windmill
+source_description: "Open-source developer platform for building internal tools and workflows"
+
+upstream:
+  url: https://www.windmill.dev/
+  repo_url: https://github.com/windmill-labs/windmill
+  license: "AGPLv3 (backend/frontend source), Apache 2.0 (client libraries/OpenAPI specs); enterprise-flagged code paths under a separate proprietary/commercial license, excluded from the open-source build"
+  docker_image: ghcr.io/windmill-labs/windmill
+
+version_health:
+  latest_version: "v1.782.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.782.0 published ~21 hours before today (2026-08-05); v1.781.x
+    (three patch releases) shipped the day before that, and v1.780.0,
+    v1.776.0, v1.771.0, v1.766.0, v1.746.0 show a dense multi-times-per-week
+    cadence going back through July 2026 — effectively near-daily tagged
+    builds. Repo is not archived, actively developed by a funded company
+    (Windmill Labs, Inc.), issues/PRs actively triaged. Unambiguously
+    active.
+
+catalogue_fit:
+  categories: [automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Windmill and n8n both sit in the "self-hosted workflow automation"
+    space and both need Postgres, but they target different audiences:
+    n8n is a visual, largely no-code node editor aimed at connecting SaaS
+    apps; Windmill is pitched as a "developer platform" — write scripts in
+    Python/TypeScript/Go/Bash/SQL and Windmill turns them into webhooks,
+    scheduled jobs, multi-step flows, and auto-generated UIs, positioning
+    itself as an open-source Retool + Temporal alternative rather than a
+    Zapier alternative. That's a real difference in target user (developer
+    writing code vs. non-technical user dragging nodes), but the job being
+    solved for a customer evaluating the catalogue — "automate/orchestrate
+    tasks against my own server" — is the same one n8n already covers.
+  usefulness: medium
+  usefulness_rationale: >
+    Legitimate, fast-moving, well-regarded project (used by companies for
+    internal tooling, backed by a company with active funding), but it
+    duplicates the automation slot n8n already fills rather than opening a
+    new one. Value is "which flavor of workflow automation does the
+    customer prefer" rather than a new capability, same shape as the
+    Activepieces finding (see apps-gaps/activepieces.yaml) — caps
+    usefulness at medium.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Windmill's reference stack (confirmed against the upstream
+  docker-compose.yml) is a genuine multi-service deployment: a Postgres 16
+  database, a windmill_server (API + UI on port 8000), one or more
+  windmill_worker containers that actually execute jobs, an optional
+  windmill_worker_native, an optional full-text indexer, and an optional
+  windmill_extra sidecar (LSP/multiplayer/debugger) — closer to our
+  Anytype/Immich multi-container pattern than n8n's single-container
+  shape, though only db + server + at least one worker are required for a
+  functioning instance. The server's single HTTP port is fully
+  Traefik-compatible. Confirmed via upstream docs: Windmill ships with a
+  fixed, well-known default superadmin login (admin@windmill.dev /
+  changeme) baked into its own Postgres-backed auth — there is no
+  environment variable to preset or override that password at first boot
+  (a SUPERADMIN_SECRET bearer-token env var exists but grants blanket
+  superadmin access via header, it doesn't replace the login credential).
+  The customer is expected to log in with the known default and change it
+  via the in-app Instance Settings after first boot, which is the same
+  "fixed/unchangeable-at-boot default credential" shape the SCHEMA.md
+  playbook resolves with a mandatory Traefik basic_auth gate (password
+  projected from the customer's root password via generated_from) rather
+  than a blocker — same precedent as Adminer/An Otter Wiki. All internal
+  Postgres credentials are patternless and trivially server-generated.
+  That clears the /compose constraint with zero hard blocking issues, but
+  between the heavier multi-container footprint and the residual reliance
+  on the customer manually rotating a publicly-documented default password
+  once inside the gate, this is build_with_caveats rather than a plain
+  build_now — and it should be weighed against the already-shipped n8n
+  recipe, which covers materially the same "workflow automation" slot for
+  most customers, before prioritizing build effort here.
