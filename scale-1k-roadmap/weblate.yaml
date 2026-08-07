@@ -1,0 +1,95 @@
+slug: weblate
+name: Weblate
+source_description: "Web-based translation management with version control integration"
+
+upstream:
+  url: https://weblate.org
+  repo_url: https://github.com/WeblateOrg/weblate
+  license: GPL-3.0
+  docker_image: weblate/weblate:2026.8.0.0
+
+version_health:
+  latest_version: "2026.8"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weblate uses calendar versioning with monthly releases plus point
+    fixes: 2026.6 (2026-06-01), 2026.6.1 (2026-06-01), 2026.7 (2026-07-01),
+    2026.7.1 (2026-07-10), 2026.8 (2026-08-03). As of today (2026-08-05)
+    the latest release is 2 days old — squarely within the project's
+    steady monthly cadence. No sign of maintenance-only mode, archival,
+    or EOL; this is one of the most consistently maintained candidates
+    considered so far.
+
+catalogue_fit:
+  categories: [developer-tools, localization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers localization/translation workflow
+    management. Gitea (recipes/gitea) is the closest thing in spirit —
+    both integrate with git — but Gitea hosts repositories generically
+    while Weblate is a purpose-built continuous-localization tool that
+    pulls/pushes translation strings against an existing git remote
+    (GitHub/GitLab/self-hosted Gitea/etc.), with translation-specific
+    UI (fuzzy matching, glossaries, machine-translation suggestions,
+    QA checks) that a generic git host doesn't provide.
+  usefulness: high
+  usefulness_rationale: >
+    Continuous localization is a common need for teams shipping
+    multi-language software and is entirely uncovered by the current
+    24-recipe catalogue. Weblate is the de facto standard open-source
+    tool in this space (used by KDE, phpMyAdmin, Fedora, etc.), actively
+    maintained on a steady monthly cadence, and pairs naturally with the
+    existing Gitea recipe for a fully self-hosted dev toolchain.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Weblate's official docker-compose stack (weblate/weblate + postgres
+      + valkey/redis + nginx front container) creates its admin account
+      via WEBLATE_ADMIN_PASSWORD, which only accepts a plaintext password
+      set directly as an env var (Weblate's own docs warn against storing
+      it long-term for exactly this reason) — there is no pre-hashed-
+      credential input, so generated_from (which only ever carries a
+      hash) cannot project the customer's root password into it.
+      Workaround, matching the pattern already used for n8n/WUD/OpenClaw/
+      Langflow: generate WEBLATE_ADMIN_PASSWORD server-side as a random
+      value nobody needs to read, and put the real auth boundary at a
+      Traefik basic_auth gate in front of the app. Caveat: unlike those
+      single-purpose apps, Weblate is a genuinely multi-user tool
+      (translators, project maintainers, and admins normally get distinct
+      accounts, some via self-registration); a blanket basic_auth gate
+      collapses that down to one shared credential, so this fits a
+      single-team/private-instance use case rather than Weblate's
+      intended open-collaboration model. Recipe should also set
+      REGISTRATION_OPEN=False to prevent anonymous self-registration
+      behind the shared gate."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Weblate is an actively maintained (monthly release cadence, latest
+  version 2 days old), GPL-3.0, official-image project that fills a
+  genuinely open slot in the catalogue: continuous localization/
+  translation management with git integration, complementary to but
+  distinct from the existing Gitea recipe. It ships as a multi-container
+  stack (app + Postgres + Valkey/Redis + nginx), all reverse-proxy
+  compatible on a single HTTP port. The blocker is that Weblate's admin
+  account is provisioned via a plaintext WEBLATE_ADMIN_PASSWORD env var
+  with no hashed-credential path, so generated_from can't project the
+  customer's root password into it directly; the workaround is to
+  server-generate that password and gate the app with Traefik basic_auth
+  instead, the same pattern used for n8n/WUD/OpenClaw/Langflow. That
+  makes it installable today, but with the caveat that basic_auth
+  collapses Weblate's normal multi-user/self-registration model into a
+  single shared credential — a reasonable fit for a private single-team
+  instance, worth noting to whoever builds the recipe.
