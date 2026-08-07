@@ -1,0 +1,94 @@
+slug: yao
+name: Yao
+source_description: "Open-source app runtime for building web apps and AI agents with JSON"
+
+upstream:
+  url: https://yaoapps.com
+  repo_url: https://github.com/YaoApp/yao
+  license: >
+    "Modified Apache License 2.0" — standard Apache-2.0 plus additional
+    conditions from the vendor (Infinite Wisdom Software): branding/logo and
+    a "certificate verification system" must not be removed or altered, and
+    organizations with 50+ employees or >$1,000,000 annual revenue must
+    obtain a separate commercial license. Source-available, not a clean
+    OSI-style permissive license.
+  docker_image: yaoapp/yao
+
+version_health:
+  latest_version: "1.0.0-rc10"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: 10 release candidates (v1.0.0-rc1 through rc10) shipped
+    between 2026-07-02 and 2026-08-03, roughly every 2-4 days, with rc10
+    just 2 days before today (2026-08-05). Repo is unarchived, 7.6k+ GitHub
+    stars, ongoing feature work (agent/CLI/proxy-auth features landing in
+    each rc). No EOL/maintenance-mode signal — but the project has not yet
+    cut a GA v1.0.0; it is still pre-release by its own versioning.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Closest existing recipes are the AI-agent pair Hermes Agent and
+    OpenClaw, but those ship as finished, usable products (an agent that
+    answers via Telegram/dashboard out of the box). Yao is a lower-level
+    application *engine*/SDK — you write your own JSON/TS "app" (data
+    models, API flows, UI pages) and Yao executes it; the bare image has no
+    product of its own to offer a customer. No functional duplication with
+    the current 24-recipe catalogue, but also no self-contained value
+    without custom development work.
+  usefulness: low
+  usefulness_rationale: >
+    Genuinely different from anything in the catalogue, but it is a
+    developer framework, not an end-user application — a customer who
+    "installs Yao" from a one-click catalogue gets an empty engine with
+    nothing to click into until they author and deploy their own app code,
+    which the AF one-click model has no path for. Every existing recipe is
+    click-and-use; Yao would be click-and-then-go-write-code.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The official image (yaoapp/yao) ships no default application — it
+      requires a project directory bind-mounted to /data/app containing the
+      customer's own hand-authored app definition (JSON/TS models, APIs, UI
+      pages) before it serves anything. /compose has no channel to accept
+      or provision arbitrary customer source code, so a generic recipe
+      would boot to an engine with no usable web UI at all, not to a
+      configurable admin login the way a normal app would.
+    - >
+      Licensing: the modified Apache-2.0 license requires a paid
+      commercial license from Infinite Wisdom Software for organizations
+      with 50+ employees or >$1M annual revenue — a threshold IONOS/AF
+      itself clears, independent of any individual customer. Redistributing
+      this as a one-click hosted recipe likely requires a commercial
+      agreement with the vendor before any recipe work starts; this is a
+      legal/business blocker, not a technical one.
+    - >
+      The documented demo admin panel (accessible only once a project
+      defines the built-in admin/"xiang" module) ships a fixed default
+      login (xiang@iqka.com / demo@5099) with no environment-variable or
+      compose-level override — moot given the app-definition blocker above,
+      but would itself need a Traefik basic_auth gate if ever revisited.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Yao is an actively developed (rc release every few days), Apache-2.0-plus
+  (source-available, commercial-license-required-at-scale) application
+  engine for building custom web apps and AI agents from JSON/TS
+  definitions — not a ready-to-use product. The official Docker image
+  requires a customer-authored project mounted into the container before it
+  serves anything, which the current /compose mechanism has no way to
+  provision, and IONOS's own scale likely triggers the vendor's commercial
+  licensing requirement regardless of any per-customer parameter question.
+  Recommend not_recommended: this is a developer framework outside the
+  "click and use" shape of the catalogue, compounded by a licensing
+  obstacle independent of the platform mechanism gaps tracked elsewhere.
