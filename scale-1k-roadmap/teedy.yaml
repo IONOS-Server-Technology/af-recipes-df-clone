@@ -1,0 +1,68 @@
+slug: teedy
+name: Teedy
+source_description: "Open-source document management system with OCR and full-text search"
+
+upstream:
+  url: https://teedy.io
+  repo_url: https://github.com/sismics/docs
+  license: GPL-2.0
+  docker_image: sismics/docs
+
+version_health:
+  latest_version: "v1.11"
+  latest_release_date: "2023-03-12"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    No tagged version release since v1.11 (2023-03-12) — over 3 years ago as
+    of 2026-08-05. Upstream commit history is not dead (last commit
+    2026-02-09, ~6 months ago; another 2024-09-07), so the project isn't
+    archived or abandoned, but it has stopped cutting numbered releases: the
+    `latest` Docker tag (last built 2024-09-07) sits ahead of `v1.11` with a
+    handful of bug fixes and is the only image carrying those, which is a
+    poor fit for AF's "pin a stable tag, never :latest" rule. 114 open
+    issues, repo not archived. Best read as low-intensity maintenance mode
+    rather than active development.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx, paperless-ai]
+  differentiation: >
+    Teedy is a general-purpose document repository (tags, folders, ACLs,
+    workflows, webhooks, versioning, LDAP) rather than paperless-ngx's
+    scan-consumption-focused pipeline. Feature overlap (OCR, full-text
+    search, "digitize and search your documents") is substantial though,
+    and paperless-ngx is the far more actively maintained and widely adopted
+    project in the same space.
+  usefulness: low
+  usefulness_rationale: >
+    The core value proposition (OCR + searchable document archive) is
+    already covered by paperless-ngx, which is materially more active
+    upstream. Teedy's differentiators (workflows, ACL, LDAP) are more
+    relevant to team/enterprise document handling than a typical
+    single-tenant AF customer's needs, and the stalled release cadence adds
+    long-term maintenance risk without a clear compensating benefit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DOCS_ADMIN_PASSWORD_INIT]
+  secrets_expressible_today:
+    - secret: DOCS_ADMIN_PASSWORD_INIT
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Teedy is mechanically installable today: it accepts its initial admin
+  password as a bcrypt hash via DOCS_ADMIN_PASSWORD_INIT, which maps cleanly
+  onto generated_from root-password projection, and it's a single-port,
+  reverse-proxy-friendly web app. The blocker is fit, not mechanism: it
+  substantially overlaps paperless-ngx (already in the catalogue and far
+  more actively maintained), and upstream has not cut a numbered release
+  since March 2023, forcing any pin onto a stale tag or an unversioned
+  `latest` build. Recommend build_with_caveats only if there's a specific
+  customer ask for Teedy's workflow/ACL/LDAP features beyond what
+  paperless-ngx offers; otherwise not worth the added maintenance surface.
