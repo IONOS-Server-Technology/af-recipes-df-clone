@@ -1,0 +1,79 @@
+slug: webthings-gateway
+name: WebThings Gateway
+source_description: "Open-source Web of Things hub for unifying and controlling smart home devices"
+
+upstream:
+  url: https://webthings.io/gateway/
+  repo_url: https://github.com/WebThingsIO/gateway
+  license: MPL-2.0
+  docker_image: webthingsio/gateway
+
+version_health:
+  latest_version: "2.0.0"
+  latest_release_date: "2025-12-18"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Not archived and not dormant: the master branch has commits as recent
+    as 2026-04-20, and a 2.1.0-beta.2 pre-release shipped 2026-04-01 (about
+    4 months before today, 2026-08-05). But tagged stable releases are
+    infrequent — 1.1.0 (2023-01), 2.0.0-beta.1 (2025-08), 2.0.0
+    (2025-12-18, ~7.5 months ago) — roughly one stable release a year, from
+    a small volunteer team (this was Mozilla's IoT project, spun out to the
+    community as WebThingsIO after Mozilla discontinued IoT work in 2019).
+    Classified active/slowing rather than maintenance-only or dormant.
+
+catalogue_fit:
+  categories: [automation, smart-home]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [home-assistant]
+  differentiation: >
+    Directly overlaps with the existing home-assistant recipe: both are
+    self-hosted smart-home hub web UIs for unifying and automating
+    connected devices. WebThings' distinguishing angle is strict adherence
+    to the W3C Web of Things standard and a lighter, simpler UI, but it has
+    a far smaller integration/add-on ecosystem than Home Assistant's 1,000+
+    integrations, and a much smaller maintainer base. It adds no capability
+    a customer can't already get from the recipe already in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    WebThings Gateway's core value is bridging physical smart-home radios
+    (Zigbee, Z-Wave, Bluetooth via USB dongles) to a web UI; upstream docs
+    recommend running it with --network=host specifically so add-ons can
+    reach that local hardware. A hosted cloud VM has no such dongles and no
+    USB-passthrough path in this platform, so the app's main reason to
+    exist is unusable here — the same physical-hardware gap that already
+    limits home-assistant's usefulness on this platform, except
+    home-assistant at least brings a much larger integration catalogue
+    (cloud-API-based integrations that don't need local radio hardware) to
+    partially compensate. WebThings brings that same hardware gap with a
+    smaller ecosystem and no differentiator to offset it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  WebThings Gateway is a single-container Node.js app (webthingsio/gateway,
+  pin 2.0.0) serving its web UI on 8080/HTTP and 4443/HTTPS, storing state
+  under a single volume (/home/node/.webthings) — structurally similar to
+  home-assistant. Its first-time setup wizard has the customer create their
+  own local admin account (name/email/password) directly through the app
+  UI on first visit, with an optional (skippable) tunnel-subdomain step
+  before it — the same "no customer secret needed through /compose, first
+  visitor sets their own credential" pattern already accepted for
+  home-assistant and actual-budget, so nothing here is mechanically
+  blocked. The real problem is fit: it duplicates the smart-home-hub slot
+  home-assistant already fills, brings a much smaller integration
+  ecosystem, and its headline capability (Zigbee/Z-Wave/Bluetooth device
+  bridging via local USB radios) is unusable on a hosted cloud VM with no
+  hardware passthrough — the same constraint that already caps
+  home-assistant's value here, but without home-assistant's compensating
+  breadth of cloud-API integrations. Recommend not building this recipe:
+  it is installable but adds no value over what's already in the
+  catalogue.
