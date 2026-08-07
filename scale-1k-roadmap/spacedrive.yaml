@@ -61,11 +61,12 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: ["basic_auth gate credential (sd-server has no reachable web UI to log into; its own SD_AUTH does HTTP Basic auth via a plaintext user:pass env var, so a Traefik basic_auth gate could stand in for it, but there is nothing behind the gate for a browser user to use)"]
+  secrets_required_at_first_boot: ["basic_auth gate credential"]
   secrets_expressible_today:
     - secret: "basic_auth gate credential"
       mechanism: traefik_basic_auth
   blocking_issues:
+    - "sd-server has no reachable web UI to log into; its own SD_AUTH does HTTP Basic auth via a plaintext user:pass env var, so a Traefik basic_auth gate could stand in for it, but there is nothing behind the gate for a browser user to use."
     - "sd-server ships no web UI at all. Its own README states it 'Provides only RPC endpoints (no bundled web UI)' with a 'Future web UI (not yet implemented)' note — fronting port 8080 with Traefik exposes only a health-check endpoint and raw JSON-RPC, not an application a customer can use in a browser. This is a product/architecture mismatch, not something the auth-projection or basic_auth mechanisms can fix."
     - "ghcr.io/spacedriveapp/spacedrive/server does have published semver tags (0.4.0, 0.4.1, 0.4.2) plus a 'latest' tag pointing at 0.4.2 — but those are ~2 years stale and belong to the old, paused pre-rewrite 0.4.x line, not the actively developed v2 alpha. The v2 line (the one with any recent release activity, see version_health) has no maintained pinned tag: its only recent tags are per-commit SHAs (e.g. 61c0503) plus a 'staging' tag, and its own docker-compose.yml builds the image from source (`build: context: ../.. dockerfile: apps/server/Dockerfile`) rather than referencing a published tag. Pinning to the stale 0.4.2 tag would ship a different, superseded codebase than what upstream is currently developing/documenting."
     - "The only actively developed line (v2 rewrite) is pre-1.0 alpha; upstream's own v2.0.0-alpha.2 release notes warn 'Many features are NOT working so test with caution', which is not a basis for a production recipe."
