@@ -1,0 +1,87 @@
+slug: woodpecker-ci
+name: Woodpecker CI
+source_description: "Open-source CI/CD automation platform with native GitHub integration"
+
+upstream:
+  url: https://woodpecker-ci.org/
+  repo_url: https://github.com/woodpecker-ci/woodpecker
+  license: Apache-2.0
+  docker_image: woodpeckerci/woodpecker-server:v3 (paired with woodpeckerci/woodpecker-agent:v3)
+
+version_health:
+  latest_version: "3.17.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Consistent ~monthly stable releases through 2026 (3.14.0 on 2026-05-01,
+    3.14.1 on 2026-05-12, 3.15.0 on 2026-05-28, 3.16.0 on 2026-06-27,
+    3.17.0 on 2026-07-31 — 5 days before today, 2026-08-05). One larger gap
+    between 3.13.0 (2026-01-14) and 3.14.0 (2026-05-01), otherwise steady
+    cadence. Repo is not archived, 8,163+ commits, 7.6k stars, actively
+    used as the main CI/CD engine at Codeberg. Clearly an active project.
+
+catalogue_fit:
+  categories: [developer-tools, ci-cd]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea]
+  differentiation: >
+    Gitea is a Git hosting/collaboration platform (repos, issues, PRs) with
+    only a lightweight built-in Actions runner as an afterthought. Woodpecker
+    is a dedicated CI/CD pipeline engine that attaches to an *external* Git
+    forge (GitHub, GitLab, Gitea, Bitbucket, Forgejo) rather than hosting
+    code itself — it targets customers who already host their code elsewhere
+    (most commonly GitHub, per Hostinger's description) and just want a
+    self-hosted build/deploy runner. Genuinely different job to be done than
+    Gitea, not a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand for self-hosted CI/CD as an alternative to GitHub
+    Actions/GitLab CI (data residency, cost, custom runners), but the
+    product is fundamentally a satellite to a third-party forge account —
+    it is useless until the customer registers an OAuth application on
+    that forge and pastes back a client ID/secret, which narrows the
+    audience to technically confident users willing to do that setup step.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WOODPECKER_AGENT_SECRET, forge_oauth_client_id, forge_oauth_client_secret]
+  secrets_expressible_today:
+    - secret: WOODPECKER_AGENT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Woodpecker's server has no login of its own — every user, including the
+      admin, authenticates by OAuth through a connected forge (GitHub, GitLab,
+      Gitea, Bitbucket, or Forgejo). At least one forge must be configured at
+      first boot via WOODPECKER_<FORGE>_CLIENT / WOODPECKER_<FORGE>_SECRET,
+      which are the client ID and client secret of an OAuth application the
+      customer must manually register on that forge's site (e.g. GitHub
+      Settings > Developer settings > OAuth Apps) and paste back in. This is
+      exactly the 'OAuth app registration / third-party account linking' case
+      the schema calls out as having no input channel today — it isn't a
+      password we could hash or generate, and a Traefik basic_auth gate
+      wouldn't provide it either, since the app needs the actual forge
+      credentials to function at all, not just a login gate."
+    - "The agent additionally needs privileged access to the host Docker
+      socket (or an equivalent) to execute pipeline steps — not a blocker
+      under the current secrets model, but worth flagging as an operational
+      caveat for whoever builds this later."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Woodpecker CI is an active, well-maintained (~monthly releases, not
+  archived) two-container app (server + agent, both official images,
+  SQLite-by-default so no separate database service is required) with a
+  single reverse-proxy-friendly web UI. It doesn't duplicate Gitea — Gitea
+  hosts code, Woodpecker builds code hosted elsewhere — so there's real
+  differentiation if it shipped. However, it structurally cannot be
+  installed under the current /compose mechanism: there is no admin
+  password to hash and project via generated_from, and no bare app to gate
+  with Traefik basic_auth, because Woodpecker requires a real GitHub (or
+  other forge) OAuth application client ID/secret to boot into a usable
+  state at all. That's a third-party credential with no customer-supplied
+  input channel today. Recommend blocked_on_platform — revisit only if/when
+  the platform grows a generic "customer-supplied arbitrary secret" input
+  mechanism beyond root-password projection and basic-auth gating.
