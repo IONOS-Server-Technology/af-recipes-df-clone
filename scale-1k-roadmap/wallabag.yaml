@@ -1,0 +1,110 @@
+slug: wallabag
+name: Wallabag
+source_description: "Self-hosted read-it-later service for saving and organizing web articles"
+
+upstream:
+  url: https://www.wallabag.org/
+  repo_url: https://github.com/wallabag/wallabag
+  license: MIT
+  docker_image: wallabag/wallabag
+
+version_health:
+  latest_version: "2.6.14"
+  latest_release_date: "2025-10-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    2.6.14 was published 2025-10-07 (confirmed via the GitHub releases API),
+    about 10 months before today (2026-08-05). Preceding releases: 2.6.13
+    (2024-06-04), 2.6.12 (2024-04-10), 2.6.11 (2024-04-08), 2.6.10
+    (2023-11-03) — historically an uneven cadence (two releases two days
+    apart, then an 8-month gap), now stretched to its longest gap yet at 10
+    months and counting. Commit activity on the repo is not stalled, though:
+    `pushed_at` is 2026-08-04 and the last several commits land within the
+    current week, so development continues between tags. The repo is not
+    archived, carries no unmaintained/EOL notice, has ~12.9k stars and 763
+    open issues still being triaged. Net read: alive and actively coded
+    against, but the tagged-release cadence has slowed well past its own
+    historical norm, so treat future security fixes as landing in `master`
+    before they land in a pinnable image tag.
+
+catalogue_fit:
+  categories: [productivity, bookmarks, archiving]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes cover read-it-later / web-article
+    archiving — Paperless-ngx is scanned personal-document management, not
+    web content. Wallabag is the long-standing, best-known self-hosted
+    Pocket alternative (save an article/page, get a clean readable copy,
+    tag and search it later, browser extensions and mobile apps available).
+    Worth flagging: two other apps-gaps candidates already researched in
+    this same space — readeck.yaml and shiori.yaml — cover materially the
+    same read-it-later/bookmark-archiving use case and are lighter-weight
+    (single Go binary, bundled SQLite, one container) with more active
+    release cadences than Wallabag's PHP/Symfony + MariaDB + Redis stack.
+    Per project guidance, overlap between gap candidates is not itself a
+    reason to reject any of them — each is evaluated on its own merits — but
+    a reviewer picking one read-it-later app to build first should weigh
+    Wallabag's brand recognition against Readeck/Shiori's lighter footprint
+    and fresher upstream tempo.
+  usefulness: medium
+  usefulness_rationale: >
+    Read-it-later is a mainstream, well-understood self-hosting want and
+    Wallabag is arguably the most recognized name in the space (native
+    mobile apps, browser extensions, a documented API), so it would appeal
+    to customers who specifically know the brand. Usefulness is medium
+    rather than high because it needs a heavier stack than its two
+    close substitutes already in the gap-analysis backlog (MariaDB + Redis
+    vs. their single SQLite-backed binary) for the same end-user outcome,
+    and its release cadence has slowed to its weakest point in the project's
+    history.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    # Wallabag's install step creates a hardcoded initial admin account
+    # (username "wallabag", password "wallabag") with no environment
+    # variable to set or override it (confirmed open feature request,
+    # wallabag/docker#208/#131) — the login page ships with these
+    # documented default credentials until the customer changes them in
+    # the UI, so the app must not sit ungated on the internet.
+    - "Traefik basic-auth gate credential"
+    - MYSQL_ROOT_PASSWORD
+    - SYMFONY__ENV__DATABASE_PASSWORD
+    - SYMFONY__ENV__SECRET
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SYMFONY__ENV__DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SYMFONY__ENV__SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Wallabag is a PHP/Symfony read-it-later app with an official Docker Hub
+  image (wallabag/wallabag), MIT licensed, servable behind Traefik on a
+  single HTTP port (80 internally, mapped to 8080 in the dev quick-start)
+  like Uptime Kuma or Vaultwarden. Upstream's documented production compose
+  (wallabag/docker) pairs it with MariaDB and Redis — closer in shape to
+  Paperless-ngx/n8n than to a single-container app — though a SQLite-only
+  variant is possible for a lighter footprint at the cost of losing async
+  task processing. Nothing structurally blocks it under the current
+  /compose constraint: every database/session secret is a patternless
+  server-generated value, and the one customer-facing gap — a hardcoded
+  wallabag/wallabag admin account with no env-var override — is handled the
+  IF-1312 way, gating the app behind a Traefik basic_auth credential
+  projected from the customer's root password, same as Shiori. The real
+  caveat is upstream tempo: no tagged release in 10 months (its longest gap
+  ever) even though commit activity is current, and two lighter, more
+  actively-released alternatives for the same use case (Readeck, Shiori) are
+  already in this gap-analysis backlog. Recommend building with caveats:
+  it's mechanically installable and a recognizable brand, but a reviewer
+  should weigh it against its lighter-weight substitutes before committing
+  build bandwidth to it first.
