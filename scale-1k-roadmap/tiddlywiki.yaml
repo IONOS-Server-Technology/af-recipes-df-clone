@@ -1,0 +1,103 @@
+slug: tiddlywiki
+name: TiddlyWiki
+source_description: "Self-hosted non-linear personal wiki and knowledge management notebook"
+
+upstream:
+  url: https://tiddlywiki.com/
+  repo_url: https://github.com/TiddlyWiki/TiddlyWiki5
+  license: "BSD-3-Clause"
+  docker_image: null
+
+version_health:
+  latest_version: "5.4.1"
+  latest_release_date: "2026-07-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.4.1 published 2026-07-10, about 4 weeks before today (2026-08-05); it
+    was a quick regression/bugfix follow-up to 5.4.0. The repo has 8.6k
+    stars, 930 open issues and 217 open PRs under active triage, an active
+    Google Group / Discord / Reddit community, and a steady multi-release
+    cadence through 2025-2026 (5.3.x line through most of 2025, 5.4.0/5.4.1
+    in mid-2026) — clearly active, not maintenance-only. Copyright of the
+    project is held in trust by the UnaMesa Society non-profit, which adds
+    long-term stewardship continuity beyond any single maintainer.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers personal
+    wiki/note-taking. Paperless-ngx and Paperless-AI are document
+    management/OCR for existing files, Opengist is code-snippet sharing,
+    and Gitea is source control — none of these serve TiddlyWiki's
+    non-linear, tiddler-based personal knowledge base use case. It's a
+    genuinely distinct niche (a "second brain" notebook) that would add
+    real breadth to the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal wikis are a well-known, popular self-hosting use case (see
+    also Wiki.js, Outline, TriliumNext) and TiddlyWiki's zero-database,
+    single-file-or-Node-server model is lightweight and appealing for a
+    small VPS deployment. Usefulness is medium rather than high because
+    TiddlyWiki's own most common deployment mode is a single static HTML
+    file edited locally in-browser with no server at all — the Node.js
+    server mode we'd package is the less typical "always-on shared/synced
+    wiki" path, a smaller slice of TiddlyWiki's actual user base.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The TiddlyWiki/TiddlyWiki5 upstream repo publishes no official Docker
+      image or Dockerfile of its own — it ships as an npm package
+      (`tiddlywiki`) plus a single-file HTML wiki, with Node.js server mode
+      documented as an advanced/secondary usage path. Every recipe
+      currently in this catalogue consumes a pre-built, officially
+      published image (confirmed by scanning all 24 `docker-compose.yaml`
+      files: none build a custom image), so this would be a first-of-its-
+      kind departure from that pattern.
+    - >
+      The two most visible third-party images are both weak substitutes:
+      elasticdog/tiddlywiki rebuilds on a monthly cadence (most recent tag
+      ~4 months before today) but the bundled TiddlyWiki version is pinned
+      at 5.1.23 — three minor versions and roughly 2+ years behind the
+      current 5.4.1 — so the "freshness" of its build dates is cosmetic,
+      not a freshness of the actual app. m0wer/tiddlywiki bundles a newer
+      5.2.7 but the upstream repo commit history shows it was explicitly
+      marked "UNMAINTAINED" in 2021 with no commits since April 2023.
+      Neither is a safe long-term base image; shipping this recipe would
+      mean either accepting a stale/unmaintained third-party image or
+      authoring and maintaining a small custom Dockerfile around the
+      official `tiddlywiki` npm package — extra ongoing maintenance burden
+      this catalogue doesn't currently carry for any other recipe.
+    - >
+      TiddlyWiki's Node.js server has no built-in login by default
+      (anonymous read/write) unless the operator explicitly configures
+      `username`/`password` or `readers`/`writers` ACL parameters at
+      server startup — those are plain CLI arguments, not something
+      `generated_from` (which only ever supplies a password *hash*) can
+      populate. A Traefik `basic_auth` gate sidesteps this cleanly (same
+      pattern as Adminer/ThingsBoard) since the app itself needs no login
+      of its own to function.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  TiddlyWiki is an active, well-established project with no existing
+  overlap in our 24-recipe catalogue, and its lack of built-in
+  authentication is fully solvable today with a Traefik basic_auth gate —
+  the auth mechanism is not the blocker. The real caveat is the Docker
+  image: upstream publishes none, and the two community alternatives are
+  either years out of date on the actual TiddlyWiki version or explicitly
+  abandoned, meaning a recipe here would either ship a stale image or
+  require authoring and maintaining a custom Dockerfile, a pattern this
+  catalogue does not currently use anywhere else. Recommend
+  build_with_caveats: worth doing, but plan for either accepting the
+  version lag or owning a small custom image.
