@@ -1,0 +1,125 @@
+slug: universal-media-server
+name: Universal Media Server
+source_description: "Open-source DLNA media server streaming video and music to any compatible device"
+
+upstream:
+  url: https://www.universalmediaserver.com
+  repo_url: https://github.com/UniversalMediaServer/UniversalMediaServer
+  license: GPL-2.0-only
+  docker_image: universalmediaserver/ums
+
+version_health:
+  latest_version: "15.8.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    universalmediaserver/ums:15.8.0 was pushed to Docker Hub 2026-07-13,
+    about 3.5 weeks before today (2026-08-05). Tag history shows a
+    consistent roughly-monthly cadence through 2025-2026 (15.0.0
+    2025-08-23, 15.1.0 2025-09-27, 15.2.0 2025-10-29, 15.3.0 2025-12-11,
+    15.4.0 2026-01-10, 15.5.0 2026-02-28, 15.6.0 2026-04-26, 15.7.0
+    2026-06-01, 15.8.0 2026-07-13). Repo is not archived; this is a
+    fork of the long-running PS3 Media Server project and is clearly
+    actively maintained.
+
+catalogue_fit:
+  categories: [media, video, dlna]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers general-purpose personal video/TV
+    library streaming. apps-gaps/jellyfin.yaml and apps-gaps/plex.yaml
+    already analyzed the closest neighboring gap ("Plex-style" transcoding
+    media server with a modern web/app-first UI) and both landed
+    blocked_on_platform. Universal Media Server is a different flavor of
+    the same broad category: its core identity and historical strength is
+    DLNA/UPnP protocol compliance for streaming to physical devices
+    (smart TVs, games consoles, DLNA-capable receivers) rather than a
+    polished web/mobile-app streaming experience — the HTML5 web player is
+    a secondary feature. That said, the DLNA discovery mechanism (SSDP on
+    UDP 1900, mDNS on UDP 5353, per the official Dockerfile's EXPOSE list)
+    is inherently LAN-broadcast-based and does not traverse a hosted VM
+    sitting behind Traefik on the public internet — a customer's home
+    smart TV or console cannot discover a cloud-hosted UMS instance the
+    way it would one running on their home network. Deployed on this
+    platform, UMS would only be reachable through its web player
+    (port 9001, plain HTTP, single-port and reverse-proxy-friendly), which
+    undercuts the specific "stream to any DLNA device" pitch in Hostinger's
+    own description.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted home media streaming is a high-demand category, but
+    Universal Media Server's specific value proposition (broad DLNA/UPnP
+    device compatibility) is largely neutralized by cloud hosting, since
+    DLNA discovery cannot cross from a datacenter VM onto a customer's home
+    LAN. What's left — a browser-based web player behind Traefik — covers
+    similar ground to the already-analyzed, more actively marketed
+    Jellyfin/Plex gap without UMS's brand recognition. Real niche appeal
+    for retro/DLNA-device compatibility (older smart TVs, PS3/Xbox-style
+    UPnP clients on the same LAN as the server), but a weaker overall pitch
+    for a hosted-in-the-cloud customer than the category's blocked
+    front-runners.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["UMS admin account (username/password)"]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      UMS has no environment variable, CLI flag, or config-seeding
+      mechanism to create the initial admin account non-interactively.
+      The official universalmediaserver/ums Dockerfile
+      (src/main/external-resources/docker/Dockerfile) starts the app with
+      a bare `java -jar ums.jar` and no admin-related env vars — first
+      boot always serves an interactive setup wizard. Whoever opens the
+      web UI first is prompted to either create the first admin account
+      (POST /v1/api/auth/create in net.pms.network.webguiserver.servlets.
+      AuthApiServlet, confirmed by reading the servlet source) or disable
+      authentication entirely (POST /v1/api/auth/disable) — the latter
+      being available to any anonymous visitor as long as no admin exists
+      yet, which is worse than Jellyfin's equivalent race.
+    - >
+      Unlike Jellyfin, UMS's own password hashing (net.pms.iam.
+      AccountService.hashPassword, confirmed in source) uses bcrypt at
+      cost 12, which IS in the currently supported generated_from
+      algorithm list. That removes one blocker Jellyfin has, but it
+      doesn't help here: generated_from can only project a hash into an
+      app's own admin-parameter at provisioning time if the app exposes
+      some pre-boot channel (env var, config file field, seeded DB row)
+      to receive it, and UMS has none — the admin row is only ever created
+      by the interactive wizard hitting the API above. The compatible
+      hash algorithm is necessary but not sufficient without a seed
+      channel to put it in.
+    - >
+      A Traefik basic_auth gate (root-password-derived) closes the
+      "anonymous visitor disables auth or claims admin first" race the
+      same way it does for Jellyfin, but the customer would still have to
+      manually walk through UMS's own setup wizard and choose credentials
+      by hand after authenticating past the gate — basic_auth secures the
+      perimeter, it doesn't provision the app's own account.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Universal Media Server is an actively maintained (roughly monthly Docker
+  Hub releases, most recently 15.8.0 about 3.5 weeks before today) GPL-2.0
+  DLNA/UPnP media server with an official single-container image
+  (universalmediaserver/ums), structurally similar to the
+  Uptime-Kuma/Vaultwarden class of single-container recipes. It hits the
+  same installability wall as apps-gaps/jellyfin.yaml: first boot is an
+  interactive setup wizard with no env-var or config-seed hook for the
+  admin account, and — worse than Jellyfin — an anonymous first visitor can
+  outright disable authentication rather than just claim the admin
+  account. UMS's own password hashing (bcrypt) is already in the supported
+  generated_from list, but that's moot without any pre-boot channel to
+  write the hash into. Beyond the mechanism blocker, the app's core pitch
+  (DLNA streaming to any compatible device) depends on LAN-broadcast
+  discovery (SSDP/mDNS) that cannot reach a customer's home devices from a
+  cloud-hosted VM, leaving only the secondary HTML5 web player as
+  functional once deployed — a weaker differentiator than the
+  already-analyzed, similarly-blocked Jellyfin/Plex gap. Recommend
+  blocked_on_platform; revisit only alongside Jellyfin/Plex if/when a
+  config-seeding or admin-provisioning hook is validated for this
+  platform, and note the DLNA-discovery caveat even then.
