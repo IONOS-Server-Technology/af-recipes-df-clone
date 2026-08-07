@@ -1,0 +1,112 @@
+slug: xbackbone
+name: XBackBone
+source_description: "Self-hosted lightweight file and screenshot sharing server with ShareX support"
+
+upstream:
+  url: https://xbackbone.app
+  repo_url: https://github.com/sergix44/xbackbone
+  license: Apache-2.0
+  docker_image: null
+
+version_health:
+  latest_version: "3.8.2"
+  latest_release_date: "2024-06-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    3.8.2 (2024-06-27) is the last tagged release and, per its own release
+    notes, was explicitly announced as "the final planned maintenance
+    release of the legacy 3.x line" — roughly 2 years and 1 month before
+    today (2026-08-05) with no further tags since. The upstream repo is
+    not archived and remains genuinely active at the commit level: recent
+    commits run through 2026-08-01 (a filename-sanitization security fix
+    dated 2026-07-23, plus 2FA/activity-log/in-app-upgrade feature work in
+    early July 2026), but all of that activity is on a ground-up rewrite
+    ("the next-generation XBackBone, rebuilt from the ground up on Laravel
+    13 and Livewire 4") that has shipped zero tags, zero releases, and no
+    published Docker image of its own — it is pre-release and not
+    consumable today. There is no official upstream Docker image for
+    either line; the only widely-used image is the third-party
+    lscr.io/linuxserver/xbackbone build, itself frozen at the legacy 3.8.2
+    codebase since June 2024 (its own release stream just repackages base-
+    image bumps around that same unchanged app version). So the only
+    thing an operator can actually deploy today is a >2-year-stale,
+    upstream-declared-final build of the legacy PHP codebase, while the
+    actively developed successor has no release artifact yet.
+
+catalogue_fit:
+  categories: [productivity, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue targets the "self-hosted
+    ShareX/screenshot-tool backend" niche specifically: quick uploads from
+    a desktop capture tool to short, shareable links with rich social
+    embeds and per-user accounts. OpenGist is the closest neighbor but is
+    scoped to Git-backed text/code snippets, not arbitrary
+    image/video/file uploads; Immich is a full photo-library/backup
+    product, not a lightweight link-sharing drop box; Syncthing is P2P
+    folder sync between a user's own devices, not public link sharing.
+    XBackBone would be a genuinely distinct category if the underlying
+    codebase were healthier.
+  usefulness: medium
+  usefulness_rationale: >
+    "Self-hosted ShareX backend" is a real, recognized self-hosting
+    use case with a dedicated audience, and the multi-user/admin-quota
+    model is more capable than a bare anonymous-upload tool. But the only
+    thing actually deployable today is a legacy codebase upstream itself
+    calls end-of-line, over two years stale, with no security-patch path
+    — the same category of concern (public-facing upload/serving surface
+    on frozen code) that made a similar candidate (AnonUpload) a
+    not_recommended in this catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      No official upstream Docker image exists for either the legacy or
+      rewrite codebase; any recipe would have to depend on a third-party
+      image (lscr.io/linuxserver/xbackbone) that upstream does not publish
+      or vouch for.
+    - >
+      The image's documented first-boot path is a browser install wizard
+      that POSTs a plaintext admin password to be hashed in-process — a
+      recipe would have to route around the wizard entirely (pre-seed
+      config.php, run the migration script, then INSERT the admin row
+      directly with a precomputed bcrypt hash) to use
+      generated_from:"bcrypt:ROOT_PASSWORD" instead of the wizard's own
+      plaintext field. Mechanically possible (same shape as Vaultwarden's
+      ADMIN_TOKEN row-seeding) but undocumented by upstream and would need
+      to be re-validated against every future legacy point release.
+    - >
+      The deployable codebase (3.8.2) is upstream-declared end-of-line for
+      its legacy line with no further patches planned; the actively
+      developed successor has no release or image to pin to yet.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  XBackBone is mechanically installable: a single-container PHP app,
+  reverse-proxy-compatible on one HTTP port, whose admin login can be
+  seeded with a generated_from:"bcrypt:ROOT_PASSWORD" hash by writing
+  config.php and the admin DB row directly instead of using the browser
+  install wizard. It would also fill a niche (self-hosted ShareX/
+  screenshot-sharing backend) genuinely absent from the current 24-recipe
+  catalogue. However, the only artifact anyone can actually deploy today
+  — the third-party lscr.io/linuxserver/xbackbone image — is frozen on
+  3.8.2, a release upstream itself titled "the final planned maintenance
+  release of the legacy 3.x line" back in 2024-06-27, over two years
+  before today (2026-08-05), with no official Docker image at all. The
+  project's real current activity (commits through 2026-08-01, including
+  a July 2026 security fix) is all on an unreleased ground-up rewrite with
+  no tag or image yet. Shipping a customer-facing upload/serving surface
+  on a >2-year-stale, upstream-declared end-of-line codebase is the same
+  risk profile that made AnonUpload not_recommended in this catalogue.
+  Recommend not_recommended; revisit once the Laravel/Livewire rewrite
+  ships a tagged release and an official (or at least actively maintained)
+  image.
