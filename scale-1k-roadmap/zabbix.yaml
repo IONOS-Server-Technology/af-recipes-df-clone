@@ -1,0 +1,101 @@
+slug: zabbix
+name: Zabbix
+source_description: "Enterprise open-source monitoring for networks, servers, and applications"
+
+upstream:
+  url: https://www.zabbix.com
+  repo_url: https://github.com/zabbix/zabbix-docker
+  license: GPL-2.0
+  docker_image: zabbix/zabbix-server-mysql (+ zabbix/zabbix-web-nginx-mysql, zabbix/zabbix-agent2)
+
+version_health:
+  latest_version: "7.0.29 (LTS)"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Zabbix ships two live tracks: 7.0 LTS (released June 2024, patch
+    7.0.29 on 2026-07-28, full support through 2027 and limited support
+    through mid-2029) and 7.4 standard (patch 7.4.13 on 2026-07-29,
+    support ends 2026-09-30 since standard releases only get ~1 year of
+    life before the next one supersedes them). Both branches are getting
+    patch releases roughly monthly as of today (2026-08-05), and the
+    official zabbix/zabbix-docker images track both `7.0-*` and `7.4-*`
+    tags with pushes within the last 1-2 weeks. This is an actively
+    maintained, corporately-backed (Zabbix SIA) project with no
+    EOL/dormancy signal — for a recipe, the LTS 7.0.x line is the sane
+    pin given its multi-year support window versus 7.4's ~1-year runway.
+
+catalogue_fit:
+  categories: [monitoring, networking, observability]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma is a lightweight external "is it up" status checker for a
+    handful of HTTP/TCP/ping targets. Zabbix is a full enterprise
+    monitoring platform: SNMP/agent-based polling of networked devices,
+    servers, VMs and applications, historical metric storage and
+    trending, templated item/trigger libraries per device type,
+    distributed proxies, and alerting/escalation workflows. A customer
+    who has outgrown Uptime Kuma's simple up/down checks (e.g. wants to
+    monitor CPU/disk/network across a fleet of servers or network gear)
+    would reach for Zabbix instead, so this is a genuinely different tier
+    of the same broad "monitoring" category rather than a duplicate.
+  usefulness: high
+  usefulness_rationale: >
+    Zabbix is one of the most widely deployed open-source monitoring
+    platforms (used by large enterprises and MSPs) and IONOS customers
+    running any nontrivial server/network footprint would have real use
+    for it. It's a heavier, more IT-admin-oriented tool than most of the
+    current catalogue, but that's exactly the gap: nothing here today
+    does agent/SNMP-based infrastructure monitoring at this depth.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, ZABBIX_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The official zabbix-web-nginx-mysql / zabbix-server-mysql images
+      have no environment variable to set the frontend "Admin" account
+      password at first boot (confirmed via zabbix/zabbix-docker issue
+      #820 — this is a known, unresolved request). Every fresh deployment
+      boots with the well-known default Admin/zabbix credential and
+      expects a human to log in and change it manually.
+    - >
+      Not a hard structural dead-end, though: since Zabbix 5.0 the
+      `users.passwd` column stores a plain bcrypt hash (e.g. `$2y$10$...`)
+      with no app-specific prefix/transform (unlike YOURLS' custom
+      `phpass:` wrapper) — the same shape generated_from produces. Once
+      IF-1420 (generated_from) merges, install.sh could plausibly write
+      `generated_from: "bcrypt:ROOT_PASSWORD"` directly into
+      users.passwd for the Admin row via SQL after the schema import,
+      bypassing the missing env var entirely. Until then there is no
+      channel to project a customer-tied credential onto the Admin
+      account, so it can't ship today without leaving every install on
+      the same public default password.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Zabbix is a three-service stack (zabbix-server, zabbix-web frontend on
+  nginx, MySQL/MariaDB — structurally close to n8n's app+Postgres pattern
+  but with one more tier) exposing a single HTTP port for the web UI that
+  is cleanly reverse-proxy-compatible behind Traefik; the server↔agent
+  port (10051) stays internal-only for a basic single-node deployment.
+  It fills a real gap versus Uptime Kuma's lightweight status checks with
+  full agent/SNMP-based infrastructure monitoring, and upstream is
+  actively maintained with a multi-year-support LTS line (7.0.29,
+  2026-07-28) to pin against. The blocker is the frontend Admin account:
+  the official images have no first-boot env var to set its password, so
+  every install would ship with the public default Admin/zabbix login
+  until a human changes it. A generated_from-based fix is plausible later
+  (writing a bcrypt hash straight into users.passwd, since Zabbix's hash
+  format needs no custom wrapping unlike YOURLS) but depends on IF-1420
+  merging first. Recommend blocked_on_platform: revisit once
+  generated_from ships.
