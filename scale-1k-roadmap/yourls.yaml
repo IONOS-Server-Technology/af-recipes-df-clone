@@ -1,0 +1,95 @@
+slug: yourls
+name: YOURLS
+source_description: "Self-hosted PHP URL shortener with click tracking, plugins, and REST API"
+
+upstream:
+  url: https://yourls.org
+  repo_url: https://github.com/YOURLS/YOURLS
+  license: MIT
+  docker_image: yourls
+
+version_health:
+  latest_version: "1.10.4"
+  latest_release_date: "2024-05-23"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest tagged release is 1.10.4 (2024-05-23) — about 26 months / 2.2
+    years before today (2026-08-05) with no newer tag cut, and the official
+    `yourls` Docker Hub image is still pinned at 1.10.4 for the same
+    stretch. However the master branch itself is not dormant: commit
+    history shows steady weekly-to-biweekly activity right up to
+    2026-08-05 (security hardening, cookie/session fixes, HTTP status code
+    fixes, automated GeoIP/dependency bumps), so this reads as a project
+    that has simply stopped cutting tagged releases rather than one that's
+    unmaintained. Practical effect for a recipe: pinning to the only
+    available stable tag (1.10.4) means shipping code that is over two
+    years stale relative to master, with no newer official image to pin to
+    instead.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers link/URL shortening. YOURLS gives a customer
+    a self-hosted, branded short-link service with click analytics and a
+    plugin ecosystem plus REST API — a genuinely new category versus the
+    current 24 recipes (closest neighbors like Vaultwarden or Uptime Kuma
+    solve unrelated problems).
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for anyone wanting branded/self-hosted short links with click
+    tracking instead of a third-party shortener, but it's a narrow,
+    single-purpose utility rather than a platform customers grow into, and
+    its primary web surface is a fairly small admin UI (bulk-shorten,
+    stats) rather than a rich application.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [YOURLS_DB_PASS, YOURLS_PASS]
+  secrets_expressible_today:
+    - secret: YOURLS_DB_PASS
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      YOURLS_PASS (the admin login password) has no input channel today.
+      The official docker image's entrypoint writes whatever string it's
+      given as a literal password value into config.php; if written as
+      plain text, YOURLS auto-hashes it as its own custom `phpass:`-tagged
+      format on first request, but that means the *plaintext* value
+      written at first boot IS the login credential, not a hash of it —
+      the customer would need to already know that plaintext, which
+      generated_from cannot supply (it only ever emits a hash of
+      ROOT_PASSWORD).
+    - >
+      Notably this is not a hard structural dead-end once IF-1420 merges:
+      YOURLS' own auth check (yourls_check_password_hash) DOES support a
+      bcrypt-style hash checked via PHP password_verify() — but only if the
+      stored value is manually pre-formatted as `phpass:<hash-with-$-
+      replaced-by-!>` before it's written to config.php. A recipe's
+      install.sh could plausibly perform that string transform on the
+      `generated_from: "bcrypt:ROOT_PASSWORD"` value itself before writing
+      config.php directly (bypassing the docker image's plaintext-env-var
+      flow). This still requires IF-1420 to land first, so it is not
+      installable_today, but it is a build_with_caveats path afterward
+      rather than a permanent blocker.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  YOURLS is a single PHP container plus a MySQL sidecar — structurally
+  close to n8n/Paperless-ngx's app-plus-database pattern — exposing one
+  HTTP port and cleanly reverse-proxy-compatible behind Traefik. It fills a
+  category gap (URL shortening) with no overlap in the current catalogue.
+  The blocker is its admin login: the docker image's env-var flow wants a
+  plaintext password rather than any hash, so it cannot be wired up via
+  generated_from today; a workaround exists (pre-format the bcrypt hash as
+  YOURLS' internal `phpass:` token and write config.php directly in
+  install.sh) but depends on IF-1420 merging first. Separately, upstream
+  has not cut a tagged release in over two years despite an actively
+  committing master branch, so any recipe would ship on a stale pinned
+  image with no fresher official tag available. Recommend blocked_on_platform:
+  revisit once generated_from ships, and re-check for a newer tagged
+  release at that time.
