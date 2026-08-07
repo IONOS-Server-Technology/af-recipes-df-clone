@@ -1,0 +1,80 @@
+slug: tracearr
+name: Tracearr
+source_description: "Stream monitoring dashboard for Plex, Jellyfin, and Emby with sharing detection"
+
+upstream:
+  url: https://tracearr.com/
+  repo_url: https://github.com/connorgallopo/Tracearr
+  license: "Dual-licensed: AGPL-3.0 for server/web/shared packages (the deployable app); the companion mobile app is proprietary/source-available only. GitHub's license detector reports NOASSERTION at the repo root because of this split, but the LICENSE file itself states the server code is AGPL-3.0."
+  docker_image: ghcr.io/connorgallopo/tracearr:latest
+
+version_health:
+  latest_version: "v2.0.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.0.0 shipped 2026-08-05, the same day as this check — the repo was
+    only created 2025-11-28 (about 8 months ago) and has already produced
+    v1.4.x through v1.5.0 and now v2.0.0, with beta pre-releases
+    (v2.0.0-beta.1 through beta.4) landing 2026-07-31 through 2026-08-05 and
+    v1.5.0 beta cycle landing throughout 2026-07-11 to 2026-07-14. Releases
+    (including betas/nightlies) are landing multiple times per week. This is
+    a young but very actively developed project, not remotely dormant.
+
+catalogue_fit:
+  categories: [media, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Tracearr is a Tautulli/Jellystat-style watch-history and stream-analytics
+    dashboard for self-hosted media servers (Plex, Jellyfin, Emby), with
+    account-sharing detection (impossible-travel, simultaneous-location,
+    device-velocity heuristics) that neither Tautulli nor Jellystat offer
+    individually, plus cross-server support in one instance. Nothing in the
+    current 24-recipe catalogue monitors a media server at all — Immich is
+    the only "media" entry and is a photo/video library, not a
+    Plex/Jellyfin/Emby companion. Genuinely new ground.
+  usefulness: medium
+  usefulness_rationale: >
+    Directly useful to the (large, active) self-hosted media-server
+    community — anyone running Plex/Jellyfin/Emby and worried about
+    credential sharing or wanting Tautulli-style stats gets a dashboard
+    with more cross-platform reach than existing free tools. Kept at medium
+    rather than high because it's a companion app that requires the
+    customer to already be running a separate Plex/Jellyfin/Emby
+    server (which we do not host) — value is entirely conditional on that
+    prerequisite, and the upstream project is young (8 months old) with a
+    still-evolving API surface (v1→v2 shipped the same day as this check).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["JWT_SECRET (session signing)", "COOKIE_SECRET (cookie signing)", "DB_PASSWORD (internal Postgres/TimescaleDB password)"]
+  secrets_expressible_today:
+    - secret: "JWT_SECRET (session signing)"
+      mechanism: server_generated_no_customer_input
+    - secret: "COOKIE_SECRET (cookie signing)"
+      mechanism: server_generated_no_customer_input
+    - secret: "DB_PASSWORD (internal Postgres/TimescaleDB password)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Tracearr is mechanically installable today with no blocking secrets: the
+  app has no fixed/default admin credential to project a root-password hash
+  into — first run shows a normal signup screen where the visitor (the
+  customer) creates their own local account (or an SSO/Plex login) entirely
+  inside the web UI, the same self-service pattern already shipped for
+  Immich. Everything the container needs at boot (JWT_SECRET, COOKIE_SECRET,
+  the internal DB password) is a patternless secret the app itself never
+  surfaces to the customer, so it can be generated server-side with no
+  channel needed. It's a single reverse-proxy-friendly HTTP port (3000),
+  requires Postgres/TimescaleDB + Redis as backing services (three-container
+  stack, comparable in shape to Paperless-ngx or Immich), and fills a real
+  gap — no media-server monitoring/sharing-detection tool exists in the
+  current catalogue. Recommend build_now, with the caveat that the upstream
+  project is only 8 months old and iterating fast (v1→v2 in one day), so the
+  pinned tag should be revisited soon after the recipe ships.
