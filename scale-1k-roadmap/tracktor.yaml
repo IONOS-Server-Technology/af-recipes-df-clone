@@ -1,0 +1,84 @@
+slug: tracktor
+name: Tracktor
+source_description: "Open-source vehicle tracking and fleet management web application"
+
+upstream:
+  url: https://github.com/javedh-dev/tracktor
+  repo_url: https://github.com/javedh-dev/tracktor
+  license: MIT
+  docker_image: ghcr.io/javedh-dev/tracktor:1.4.1
+
+version_health:
+  latest_version: "1.4.1"
+  latest_release_date: "2026-03-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    128 days since the latest tagged release (1.4.1, published 2026-03-30)
+    as of today, 2026-08-05 — longer than the roughly 3-6 week gaps between
+    every prior tag back through 0.0.1 (first tag 2025-08-03). However,
+    commit activity on `main` is dense through today (commits as recent as
+    2026-08-05T12:35Z, several the same day), the `dev` branch was pushed
+    "1 day ago", and package.json on `main` still reads 1.4.1 — i.e. work
+    is accumulating toward a future tag rather than the project having gone
+    quiet. Repo is not archived, pushed_at is 2026-08-05 (today), 997 GitHub
+    stars, 70 forks. Read this as an actively developed project whose
+    formal release cadence has lagged its commit cadence, not as slowing or
+    dormant.
+
+catalogue_fit:
+  categories: [utilities, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Despite Hostinger's "vehicle tracking and fleet management" framing,
+    Tracktor does not do GPS/location tracking or multi-vehicle fleet
+    operations at all — it is a personal record-keeping app: fuel logs,
+    maintenance history, insurance/pollution document expiry reminders, and
+    per-vehicle dashboards, backed by SQLite via a single SvelteKit
+    container. This is functionally near-identical to LubeLogger
+    (apps-gaps/lubelogger.yaml, source_description "Comprehensive vehicle
+    maintenance and fuel management system") — same feature set (fuel
+    tracking, maintenance log, reminders), same single-container/SQLite
+    shape, same personal/household-utility audience. Neither is a shipped
+    recipe today, so `overlaps_with` (which tracks the current 24 shipped
+    recipes) is empty, but this is a direct head-to-head with an existing,
+    already-analyzed gap-analysis candidate rather than new ground. Traccar
+    (apps-gaps/traccar.yaml) is the actual GPS/fleet-tracking app the
+    Hostinger description evokes; Tracktor is not a substitute for it.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-received (997 stars) and simple to run, but it's a
+    single-user/household utility, not a team or business tool, so the
+    addressable customer segment is narrower than broad-appeal recipes
+    already in the catalogue. Choosing between this and LubeLogger for the
+    same niche is a build-bandwidth question, not a case for adding both.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_gate_password]
+  secrets_expressible_today:
+    - secret: traefik_gate_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Tracktor has no environment variable to preset an admin account — by
+  default it boots with zero users and shows an open self-registration
+  form to whoever visits first, the same race documented for Memos
+  (apps-gaps/memos.yaml) and Traccar (apps-gaps/traccar.yaml). Unlike
+  Memos, Tracktor ships a documented `TRACKTOR_DISABLE_AUTH=true` env var
+  that removes its own login/registration screen entirely, so the
+  Traefik `basic_auth` gate (keyed off the customer's root-password hash)
+  can be the sole auth boundary with no leftover in-app credential to
+  provision — same pattern used for Adminer and n8n's WUD-style gate. That
+  makes it mechanically installable today. The caveat is fit, not
+  mechanism: it functionally duplicates LubeLogger's still-unshipped
+  personal vehicle-maintenance niche, its formal release cadence has
+  lagged noticeably behind its (still very much alive) commit activity,
+  and the target audience is narrower than the catalogue's higher-value
+  gaps — recommend build_with_caveats and a deliberate choice between this
+  and LubeLogger rather than shipping both.
