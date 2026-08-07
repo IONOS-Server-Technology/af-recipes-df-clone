@@ -1,0 +1,75 @@
+slug: verdaccio
+name: Verdaccio
+source_description: "Lightweight private npm proxy registry for JavaScript packages"
+
+upstream:
+  url: https://verdaccio.org
+  repo_url: https://github.com/verdaccio/verdaccio
+  license: MIT
+  docker_image: verdaccio/verdaccio:6.9.2
+
+version_health:
+  latest_version: "6.9.2"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    6.9.2 shipped 2026-08-02 — 3 days before today (2026-08-05). Full patch
+    history over the preceding ~3 months shows a release roughly every 1-3
+    weeks on the stable 6.x line (6.6.0 on 2026-05-10, 6.7.1 on 2026-05-16,
+    6.7.2 on 2026-05-25, 6.7.3/6.7.4 on 2026-06-21, 6.8.0 on 2026-07-13,
+    6.9.0 on 2026-07-26, 6.9.1 and 6.9.2 both on 2026-08-02). A parallel
+    7.0.0-next prerelease track and a 9.0.0-next track are also being
+    published in step with the stable releases, and 6.9.0 added Node 22 +
+    native ESM support, so this is active, forward-moving development, not
+    maintenance-only patching. No archival notice, no EOL announcement.
+
+catalogue_fit:
+  categories: [developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a package-registry proxy.
+    Gitea is the closest neighbor by category (developer-tools, self-hosted
+    git) and does bundle a generic package registry (including an npm
+    endpoint) as one of its many features, but that's a secondary capability
+    riding on a full forge (issues, PRs, CI hooks) — a customer who only
+    wants a private/cached npm registry without standing up a whole Git
+    forge has no lightweight option today. Verdaccio is purpose-built for
+    exactly that: proxy the public npm registry, cache what's pulled, and
+    host private packages, in a single small container.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-understood use case (private npm packages, CI-friendly
+    registry caching) but a narrower audience than end-user apps like
+    Vaultwarden or Immich — it's aimed specifically at teams/developers
+    running their own JS build pipelines, and a customer already using
+    Gitea's built-in package registry or a hosted registry (npm's own
+    private packages, GitHub Packages) may not need a dedicated instance.
+    Lightweight footprint (single container, no external DB) keeps the
+    operational cost low relative to that narrower audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [VERDACCIO_ADMIN_PASSWORD_HASH]
+  secrets_expressible_today:
+    - secret: VERDACCIO_ADMIN_PASSWORD_HASH
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "Verdaccio's built-in htpasswd auth plugin supports bcrypt-hashed entries (algorithm: bcrypt in config.yaml), so an admin user can be pre-seeded into the htpasswd file at first boot using a bcrypt hash of the customer's root password (generated_from: \"bcrypt:ROOT_PASSWORD\") rather than a plaintext value — same shape as the Vaultwarden ADMIN_TOKEN precedent, just projected into a htpasswd-format file line instead of an env var read directly by the app. Confirming that install.sh can render 'admin:<hash>' into the mounted htpasswd file (rather than passing the hash as a raw env var) is a small implementation detail for the actual af-create-recipe pass, not a mechanism gap."
+    - "Verdaccio's htpasswd plugin allows open self-registration by default (max_users defaults to +inf) — anyone who can reach the registry could otherwise create their own account and publish packages. This must be disabled in the shipped config.yaml (max_users: -1) so the pre-seeded admin account is the only way in; this is a static recipe-config decision, not a customer-supplied value, so it doesn't block installability."
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Verdaccio is actively developed (releases roughly every 1-3 weeks on the
+  stable 6.x line, most recently 3 days before today) and fills a gap the
+  current catalogue doesn't cover: a dedicated, lightweight private npm
+  registry, distinct from Gitea's incidental package-registry feature.
+  It's a single container behind one HTTP port (4873), no external
+  database, genuinely reverse-proxy-compatible. Its htpasswd auth plugin
+  supports bcrypt, so the customer's root password can drive the admin
+  login the same way Vaultwarden's does, provided self-registration is
+  disabled in the shipped config so that account stays the only entry
+  point. No structural blockers found — recommend build_now.
