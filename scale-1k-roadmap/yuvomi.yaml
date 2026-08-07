@@ -1,0 +1,81 @@
+slug: yuvomi
+name: Yuvomi
+source_description: "Self-hosted family planner for tasks, calendars, meals, shopping, and budgets"
+
+upstream:
+  url: https://github.com/ulsklyc/yuvomi
+  repo_url: https://github.com/ulsklyc/yuvomi
+  license: MIT
+  docker_image: ghcr.io/ulsklyc/yuvomi
+
+version_health:
+  latest_version: "v1.87.0"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely high release cadence: 767 tagged GitHub releases since the
+    repo's creation on 2026-03-24 (~4.5 months before today, 2026-08-05),
+    averaging roughly 5-6 releases per day, with v1.87.0 cut the day
+    before today. The project was renamed from "Oikos" at some point
+    (README/CHANGELOG reference the old name, and the CI workflow still
+    permanently mirrors images to ghcr.io/ulsklyc/oikos for legacy
+    compose/Unraid/TrueNAS users). 1.3k GitHub stars, 109 forks, 10 open
+    issues, not archived, `main` pushed the same day as the latest
+    release. This cadence is unusually fast even by "active" standards —
+    consistent with a solo/small-team project shipping continuously
+    (repo workflows include `claude.yml` / `claude-code-review.yml`,
+    suggesting AI-assisted development) rather than a mature project with
+    stable release trains. A recipe would need a policy for how often to
+    re-pin the version given how fast tags accumulate.
+
+catalogue_fit:
+  categories: [productivity, household, personal-organization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers household/family organization (tasks,
+    shared calendars, meal planning, shopping lists, budget tracking) —
+    the closest neighbors in the catalogue (Uptime Kuma, Vaultwarden,
+    n8n) solve unrelated problems. This is a genuinely new category for
+    the 24-recipe catalogue and targets a different buyer persona
+    (households, not developers/IT) than most existing recipes.
+  usefulness: medium
+  usefulness_rationale: >
+    A polished, mobile-first PWA covering several real household-planning
+    needs in one app (rather than juggling separate calendar/shopping/
+    budget tools) is a plausible draw for a non-technical self-hoster.
+    Usefulness is capped at medium rather than high because the project is
+    very young (created 2026-03) with no long track record, and much of
+    its differentiation (Google/CalDAV sync, OIDC SSO, WebDAV backup) is
+    optional polish on top of a fairly common feature set that several
+    other family-organizer apps also offer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SESSION_SECRET, DB_ENCRYPTION_KEY]
+  secrets_expressible_today:
+    - secret: SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: DB_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Yuvomi is a single-container Node.js app (image ghcr.io/ulsklyc/yuvomi,
+  numbered version tags like v1.87.0 are published alongside `latest`)
+  that listens on one HTTP port (3000) and is fully reverse-proxy
+  compatible. It needs no customer-supplied secret at first boot: the
+  admin account is created interactively by the customer themselves on
+  first visit to the web UI (username/password entered directly into the
+  app, same self-service pattern as Uptime Kuma), and the two mandatory
+  env vars (SESSION_SECRET, DB_ENCRYPTION_KEY) are patternless
+  server-generated strings nothing customer-facing ever reads. It fills a
+  genuinely new category (household/family planning) with no overlap in
+  the current catalogue. The only real caveat is the project's youth and
+  unusually rapid release cadence (hundreds of releases in under 5
+  months) — worth a version-pin refresh policy, but not a blocker to
+  building a recipe now.
