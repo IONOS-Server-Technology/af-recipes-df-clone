@@ -1,0 +1,111 @@
+slug: typesense
+name: Typesense
+source_description: "Fast in-memory search engine with instant results and typo-tolerance"
+
+upstream:
+  url: https://typesense.org
+  repo_url: https://github.com/typesense/typesense
+  license: "GPL-3.0 (server binary/image); client SDKs are separately licensed (Apache-2.0/MIT depending on language)"
+  docker_image: typesense/typesense:30.2
+
+version_health:
+  latest_version: "v30.2"
+  latest_release_date: "2025-04-19"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest *stable* tag is v30.2 (2025-04-19), ~15.5 months before today
+    (2026-08-05) — preceded by v30.1 (2025-01-29) and v30.0 (2025-01-27),
+    v29.1 (2025-04-19), v29.0 (2024-06-30). Stable-release cadence has
+    clearly slowed: two stable releases in 2025, none at all so far in
+    2026. However the project is not dormant — v31.0 has been in active
+    release-candidate iteration (rc12 pushed ~19 days before today, rc13
+    pushed ~6 days before today per Docker Hub tag timestamps), so
+    development is ongoing, just held in a long pre-release phase rather
+    than shipped as stable. Repo has 26k+ GitHub stars and a commercial
+    company (Typesense Inc., also sells Typesense Cloud) behind it, which
+    argues against abandonment. Net: active development, but a customer
+    installing "latest stable" today would be running a build with no
+    stable release in over a year — worth flagging as a slowing cadence,
+    not treated as EOL.
+
+catalogue_fit:
+  categories: [search, developer-tools, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue provides a standalone
+    search/indexing engine — every current recipe is an end-user
+    application (photo management, password manager, VPN, forms,
+    monitoring, etc.) that at most embeds a database as a private internal
+    dependency. Typesense would be the first "search-infrastructure-as-a-
+    product" recipe, occupying the same slot already scoped out in
+    apps-gaps/meilisearch.yaml and apps-gaps/elasticsearch.yaml — a
+    developer bolts it onto their own site/app/docs for instant, typo-
+    tolerant search rather than using it as a destination app itself.
+  usefulness: low
+  usefulness_rationale: >
+    Typesense has no built-in web UI at all (unlike Meilisearch, which at
+    least ships a search-preview console) — administration and querying
+    are purely via REST API and client SDKs. Its actual consumer is a
+    developer's own application code, so the value only materializes once
+    the customer wires their own app to it; there's nothing for a customer
+    to look at or click on immediately after install. Same audience
+    mismatch already flagged for Meilisearch/Elasticsearch/EdgeDB, but
+    weaker here since there isn't even a token web console to justify a
+    Traefik-fronted "app" experience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TYPESENSE_API_KEY]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      TYPESENSE_API_KEY (set via the mandatory `--api-key` flag/env var) is
+      not an internal-only secret — it IS the product's sole authentication
+      credential. Every API call other than a bare health check requires it
+      as a header value, and the customer's own application must be
+      configured with this exact plaintext string to do anything useful
+      with the service. There is no channel today for surfacing a
+      server-generated secret back to the customer for actual external
+      use — the identical gap already documented in
+      apps-gaps/meilisearch.yaml for MEILI_MASTER_KEY and in
+      apps-gaps/edgedb.yaml for Gel's root credential.
+    - >
+      generated_from only ever projects a hash (argon2/bcrypt) onto a
+      parameter; Typesense's `--api-key` takes the plaintext value
+      directly and compares it verbatim against the header the client
+      sends — there is no hash-verify login screen to target, so even
+      setting aside the "customer needs to read it" problem, a hash-shaped
+      value would not work here regardless of which algorithm
+      generated_from supports. A genuine plaintext requirement, treated as
+      a structural blocker per the schema.
+    - >
+      `--api-key` has no optional/disabled mode — the server refuses to
+      start without one (confirmed against Typesense's own server-
+      configuration docs), so there is no "run it open, gate with Traefik
+      basic_auth instead" fallback the way Qdrant or Adminer allow; the
+      credential is baked into the app's own required boot arguments, not
+      an optional auth layer that can be swapped out.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Typesense is a mechanically simple, single-container, single-official-
+  image (typesense/typesense) search engine, GPL-3.0 licensed, backed by a
+  funded company, with no catalogue overlap — it would be the first
+  standalone search-infrastructure recipe. Stable-release cadence has
+  slowed markedly (last stable tag 15+ months ago) even though pre-release
+  (v31 RC) activity continues, so it's active but not fast-moving.
+  Installability is blocked on the same structural gap already identified
+  for Meilisearch: its mandatory --api-key is a plaintext credential the
+  customer's own application must actually receive and use, not an
+  internal secret we can generate and hide, and not something
+  generated_from's hash-projection mechanism can carry. Unlike Qdrant it
+  offers no basic_auth-behind-Traefik escape hatch either, since the API
+  key is a required boot argument with no disable path. It also has no web
+  UI of any kind, making it the weakest audience fit of the search-engine
+  candidates reviewed so far (Typesense/Meilisearch/Elasticsearch/Qdrant).
+  Not recommended to build until a channel exists for handing a
+  server-generated plaintext credential back to the customer.
