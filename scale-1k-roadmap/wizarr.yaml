@@ -1,0 +1,86 @@
+slug: wizarr
+name: Wizarr
+source_description: "Wizarr is an advanced invitation and user management system for media servers"
+
+upstream:
+  url: https://docs.wizarr.dev/
+  repo_url: https://github.com/wizarrrr/wizarr
+  license: MIT
+  docker_image: ghcr.io/wizarrrr/wizarr
+
+version_health:
+  latest_version: "v2026.7.1"
+  latest_release_date: "2026-07-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v2026.7.1) shipped exactly one month before today
+    (2026-08-05), one day after v2026.7.0. Release history shows a steady
+    roughly-monthly cadence through 2025-2026 (v2025.11.1/.2/.3 in
+    November 2025, v2025.12.0 in December 2025, v2026.2.0/.2.1 in
+    February 2026, v2026.3.0 in March, v2026.4.0 in April, v2026.7.0/.7.1
+    in July). No archival notice, no maintenance-only signal; 3,200+
+    GitHub stars, 195 forks, 3,461+ commits on main — active, healthy
+    project. Note the upstream GitHub org has moved/been renamed a few
+    times (older forks/mirrors exist under other usernames); the
+    canonical current repo is github.com/wizarrrr/wizarr per the official
+    docs at docs.wizarr.dev, which is the source used for this analysis.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media-server
+    invitation/onboarding management. Wizarr sits on top of an existing
+    Plex, Jellyfin, Emby, Audiobookshelf, Romm, Komga, or Kavita instance
+    and generates shareable invite links that auto-provision new users on
+    that server, with expiring invites, per-invite library/permission
+    presets, Discord invite integration, and optional linkage to
+    Jellyseerr/Overseerr-style request systems. Closest catalogue
+    neighbor conceptually is Immich (self-hosted media with its own admin
+    signup), but Immich is a photo library the app itself serves, not an
+    invite/onboarding front end for a separate media server — no
+    functional overlap. Like Jellyseerr (see apps-gaps/jellyseerr.yaml),
+    none of Plex, Jellyfin, or Emby exist as AF recipes today, so Wizarr's
+    entire value proposition depends on a customer already running one of
+    those media servers somewhere else.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, actively-maintained tool in the self-hosted media
+    community with a real, distinct use case (invite/onboarding
+    automation, not media serving itself), but it is only useful to a
+    customer who already has a Plex/Jellyfin/Emby server elsewhere — the
+    catalogue has no such recipe to pair it with today, so on its own it
+    is an invitation manager with nothing local to manage invitations
+    for.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Wizarr is a single-container, actively-maintained web app (MIT,
+  ghcr.io/wizarrrr/wizarr, pinned tag v2026.7.1) listening on one HTTP
+  port (5690, plain HTTP, no websocket/protocol quirks) that works fine
+  behind Traefik. Unlike Jellyseerr, whose setup wizard imports its admin
+  identity from the external media server, Wizarr's admin account is
+  fully local and self-service: "the first user to register will be the
+  admin user," created directly through Wizarr's own web UI with no
+  environment-variable seeding needed — the same first-visitor-claims-root
+  pattern already accepted unmitigated for n8n, Open WebUI, and
+  Audiobookshelf in this catalogue. Connecting a Plex token or
+  Jellyfin/Emby API key happens afterward as an in-app settings step the
+  customer performs themselves once logged in, not a value `/compose`
+  needs to inject at boot — so there is no first-boot secret this recipe
+  mechanism can't express, and installable_today is true. The caveat is
+  usefulness, not installability: Wizarr only does something useful paired
+  with a Plex/Jellyfin/Emby server the customer already runs elsewhere,
+  and no such recipe exists in the catalogue yet — recommend
+  `build_with_caveats`, flagging that its value is capped until a media
+  server recipe exists for it to onboard users into.
