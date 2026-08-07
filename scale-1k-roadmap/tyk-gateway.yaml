@@ -1,0 +1,81 @@
+slug: tyk-gateway
+name: Tyk Gateway
+source_description: "Open-source API gateway for auth, rate limiting, and traffic management"
+
+upstream:
+  url: https://tyk.io/
+  repo_url: https://github.com/TykTechnologies/tyk
+  license: MPL-2.0 (core gateway; the `ee` subtree is commercially licensed and not part of the OSS build)
+  docker_image: tykio/tyk-gateway:v5.14.0
+
+version_health:
+  latest_version: v5.14.0
+  latest_release_date: 2026-07-07
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released about one month before this analysis (2026-08-05). Multiple parallel
+    branches maintained (5.14.x latest, 5.13.x, and a 5.8.x LTS line), with
+    alpha/rc builds for an upcoming 5.15 already on Docker Hub — indicates a
+    healthy, actively-developed project, not maintenance-only.
+
+catalogue_fit:
+  categories: [api-gateway, developer-tools, networking]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing else in the catalogue is an API gateway/traffic-management layer;
+    the closest neighbors (adguard-home, pihole, wg-easy) are network/DNS
+    tools, not HTTP API proxying. Tyk would be a genuinely new category if it
+    fit our install model.
+  usefulness: low
+  usefulness_rationale: >
+    Tyk Gateway is developer infrastructure for teams building and fronting
+    their own APIs, not an end-user self-hosted app in the mold of the rest
+    of the catalogue (note-taking, media, VPN, monitoring). Out of the box it
+    proxies nothing — it only becomes useful once a customer defines upstream
+    API endpoints through its admin REST API, which is a materially different
+    (and more advanced) usage pattern than "log into a web UI at
+    <slug>.<base_domain>".
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [gateway admin secret (X-Tyk-Authorization)]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The gateway has no web UI or login form of its own — the open-source
+      image ships only the proxy engine plus a REST admin API. The
+      OSS Dashboard/Management UI is a separate commercial product (Tyk
+      Self-Managed / Tyk Cloud), not part of this image.
+    - >
+      The admin API is protected by a static shared-secret string set in
+      tyk.conf and checked with a plain equality comparison on the
+      X-Tyk-Authorization header — it is not a hashed password-verify flow,
+      so `generated_from: "<algo>:ROOT_PASSWORD"` does not apply (that
+      mechanism assumes the app itself hashes/verifies a login value; Tyk
+      just string-compares a config literal against the header). There is
+      also no built-in login page to gate with Traefik `basic_auth`, since
+      the "product" a customer interacts with (arbitrary proxied upstream
+      APIs, configured via the admin API) isn't a single browsable surface a
+      basic_auth prompt in front of one port would meaningfully protect.
+    - >
+      Even with a working credential channel, the deployment requires
+      external Redis and post-boot API-definition configuration via the
+      admin REST API before the gateway proxies anything — a materially
+      different first-boot flow than our single-container-plus-domain
+      recipes.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Tyk Gateway is an actively maintained, healthy open-source project (latest
+  v5.14.0, released ~1 month before this analysis), but it is developer
+  infrastructure — an API proxy with no web UI, configured entirely through a
+  REST admin API gated by a static shared secret rather than a hashed login.
+  Neither `generated_from` root-password projection nor a Traefik
+  `basic_auth` gate meaningfully fits its auth model or its "configure
+  arbitrary upstream APIs" usage pattern, so it doesn't map onto the current
+  recipe mechanism. It also doesn't fit the catalogue's end-user-app mold the
+  way our 24 existing recipes do. Not recommended for a build pass today.
