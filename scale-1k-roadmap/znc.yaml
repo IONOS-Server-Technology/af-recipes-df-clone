@@ -1,0 +1,121 @@
+slug: znc
+name: ZNC
+source_description: "Always-on IRC bouncer that maintains persistent network connections with replay"
+
+upstream:
+  url: https://znc.in/
+  repo_url: https://github.com/znc/znc
+  license: Apache-2.0
+  docker_image: znc
+
+version_health:
+  latest_version: "1.10.2"
+  latest_release_date: "2026-05-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Mature, single-purpose C++ project. Tag history: 1.9.0 (2024-02-22),
+    1.9.1 (2024-07-03), 1.10.0 (2025-06-09), 1.10.1 (2025-07-01), 1.10.2-rc1
+    (2026-04-23), 1.10.2 (2026-05-07, ~3 months before this analysis on
+    2026-08-05) — roughly one release every 6-12 months, i.e. slowing
+    relative to a typical actively-developed web app,
+    but not a red flag on its own: this has been ZNC's release cadence for
+    years and is typical for a feature-complete bouncer. GitHub repo
+    (znc/znc) is not archived and shows a commit pushed 2026-08-01, four
+    days before today (2026-08-05) — clear evidence of ongoing maintenance,
+    390 open issues being triaged, 2100+ stars. No EOL or sunset
+    announcement found. Verdict: active, low-velocity, not dormant.
+
+catalogue_fit:
+  categories: [communication, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches IRC or bouncer/relay
+    functionality — this would be a genuinely new category. Closest
+    conceptual neighbor by shape (raw protocol port + companion web UI) is
+    wg-easy, not any messaging/chat app, since we don't have one. Worth
+    noting for prioritization: `apps-gaps/convos.yaml` already analyzed a
+    browser-based IRC bouncer (Convos) that serves the same underlying need
+    — persistent IRC presence — through a single HTTP port with no raw
+    protocol exposure and no separate desktop IRC client required. Convos
+    is architecturally simpler to build (reverse_proxy_compatible: true)
+    but is blocked on having no pinned stable tag today. Neither is built
+    yet, so this isn't a catalogue-overlap issue, just context for whoever
+    weighs the two IRC-bouncer candidates against each other.
+  usefulness: low
+  usefulness_rationale: >
+    IRC bouncers serve a real but shrinking niche: users who want
+    persistent presence on IRC networks (Libera.Chat, OFTC, etc.) with
+    backlog replay while their client is offline. The audience is
+    almost entirely retained from IRC's earlier era (open-source
+    maintainers, sysadmins, old-school communities) rather than a
+    broad self-hosting audience; most newer chat platforms displaced IRC
+    for mainstream use. Real demand exists but it's narrow and technical.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_login]
+  secrets_expressible_today:
+    - secret: admin_login
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      ZNC's own user-password hashing (src/User.cpp, CUser::CheckPass) calls
+      argon2id_verify() against a self-contained PHC-format string
+      ($argon2id$v=19$m=...,t=...,p=...$salt$hash) stored verbatim in the
+      config's Hash field (Method = Argon2id) — argon2id_verify decodes its
+      own params/salt from that string, so it does not need to match ZNC's
+      own default hash parameters. This is structurally the same shape as
+      Vaultwarden's ADMIN_TOKEN: generated_from: "argon2:ROOT_PASSWORD"
+      produces exactly this kind of string, so the customer's root password
+      can become the login for both ZNC's IRC-protocol auth and its
+      webadmin panel. Username is not customer-chosen and can be hardcoded
+      (e.g. "customer") in install.sh, same as other recipes.
+    - >
+      Caveat, not a blocker: the official znc/znc Docker image ships no
+      env-var-driven bootstrap at all — first run normally requires an
+      interactive `znc --makeconf` (TTY) wizard. Our install.sh would need
+      to generate a minimal znc.conf from a template (embedding the
+      generated_from hash directly into the Hash field) and mount it,
+      bypassing the wizard entirely, rather than the usual pattern of
+      passing a generated_from value through a docker-compose environment
+      var. This is more templating work than our typical recipe, but the
+      mechanism itself (a metadata parameter fed by generated_from) is not
+      blocked by it.
+    - >
+      Core function needs a raw TCP port (default 6667 plain / 6697 TLS)
+      exposed directly to the internet for actual IRC client connections —
+      Traefik's HTTP-only routing can't carry this. reverse_proxy_compatible
+      is false for this reason alone. ZNC's optional webadmin module
+      confusingly multiplexes HTTP and IRC-bouncer protocol on the *same*
+      listener port (protocol-sniffed per connection), which is workable
+      (publish that port directly for raw clients, and separately point an
+      internal Traefik HTTP router at the same container port over the
+      docker network for a friendly domain+TLS webadmin URL) but is an
+      unusual, more fragile topology than our single-HTTP-port recipes.
+    - >
+      Once inside webadmin (behind the generated_from-projected login), the
+      customer still has to type their actual IRC network credentials
+      (e.g. their Libera.Chat NickServ password) directly into ZNC's own
+      per-network settings screen. That's normal in-app configuration after
+      boot, not a /compose-time secret, so it does not block installability
+      — flagged here only so a reviewer doesn't mistake it for one.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ZNC is a mature, still-maintained (if slow-cadence) IRC bouncer with no
+  overlap in the current catalogue. Its own admin/user login is
+  mechanically installable today: ZNC's Argon2id password check
+  (argon2id_verify against a self-contained PHC hash string) lines up
+  exactly with our generated_from:argon2 root-password projection, the same
+  shape as Vaultwarden's ADMIN_TOKEN. The real friction is architectural,
+  not credential-shaped: the official Docker image has no env-var bootstrap
+  (needs a hand-templated config file instead of makeconf), and the app's
+  core value requires a raw, non-Traefik-routable TCP port for actual IRC
+  client connections, with an optional webadmin HTTP UI multiplexed onto
+  that same port. Recommend build_with_caveats — it's buildable, but a
+  genuinely different recipe shape (raw-port-first, config-file templating)
+  for what is a narrow, technical, low-broad-appeal audience.
