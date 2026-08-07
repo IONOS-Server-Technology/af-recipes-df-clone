@@ -559,6 +559,20 @@ jobs:
           printf '%s' "$crt" > /tmp/af_client.crt
           printf '%s' "$key" > /tmp/af_client.key
 
+      - name: Reserve test IP
+        # Reserves the VM's public IP before /compose exists to be able to
+        # derive a routable base_domain (IF-1438) -- the sslip.io hostname
+        # needs the IP up front, but IONOS only hands one out once the server
+        # is created. Released in "Release test IP" below with if: always(),
+        # independent of how compose/probe/imagetester turn out.
+        id: reserve_ip
+        env:
+          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
+          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
+        run: |
+          ip_block_name="${{ matrix.recipe }}_${{ matrix.cluster }}_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_ip"
+          python3 scripts/reserve-test-ip.py --name "$ip_block_name"
+
       - name: Generate cloud-init via /compose
         id: compose
         # Dev-cluster leg runs against pre-release af-api/recipes and only
@@ -571,6 +585,7 @@ jobs:
           CLUSTER: ${{ matrix.cluster }}
           RECIPE: ${{ matrix.recipe }}
           FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
+          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
           keep_finalize_flag=""
           if [ "$FINALIZE_BREAK_GLASS" = "false" ]; then
@@ -588,6 +603,7 @@ jobs:
                 --api-url "${{ steps.leg.outputs.api_url }}" \
                 --ssh-public-key "$(cat /tmp/vm_key.pub)" \
                 --bootstrap-verification-key "${{ needs.deploy-af-api.outputs.bootstrap_verification_key }}" \
+                --base-domain "$BASE_DOMAIN" \
                 "$RECIPE" | tee /tmp/cloudinit.yaml
               ;;
             dev)
@@ -600,6 +616,7 @@ jobs:
                 --ssh-public-key "$(cat /tmp/vm_key.pub)" \
                 --client-cert /tmp/af_client.crt \
                 --client-key /tmp/af_client.key \
+                --base-domain "$BASE_DOMAIN" \
                 "$RECIPE" | tee /tmp/cloudinit.yaml
               ;;
             prod)
@@ -614,6 +631,7 @@ jobs:
                 --ssh-public-key "$(cat /tmp/vm_key.pub)" \
                 --client-cert /tmp/af_client.crt \
                 --client-key /tmp/af_client.key \
+                --base-domain "$BASE_DOMAIN" \
                 "$RECIPE" | tee /tmp/cloudinit.yaml
               ;;
           esac
@@ -779,6 +797,11 @@ jobs:
           AF_BOOTSTRAP_URL: ${{ steps.compose.outputs.bootstrap_url }}
           FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
           IMAGE_ID: ${{ inputs.image_uuid || steps.image.outputs.uuid }}
+          # Reuse the IP reserved in "Reserve test IP" instead of having
+          # run-imagetester.py reserve its own -- that IP already went into
+          # base_domain for /compose above, so the server must come up bound
+          # to this exact address.
+          RESERVED_SERVER_IP: ${{ steps.reserve_ip.outputs.ip }}
         run: |
           testsuite_exclude_flag=""
           if [ "$FINALIZE_BREAK_GLASS" != "false" ]; then
@@ -794,6 +817,20 @@ jobs:
             --ssh-keypair-public /tmp/vm_key.pub \
             --test-config tests/recipe-health-check.conf \
             $testsuite_exclude_flag
+
+      - name: Release test IP
+        # Counterpart to "Reserve test IP" -- must run regardless of whether
+        # compose/probe/imagetester succeeded, failed, or never ran, so a
+        # reserved block is never leaked into the (currently 128-IP) quota.
+        if: ${{ always() && steps.reserve_ip.outcome == 'success' }}
+        env:
+          IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
+          IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
+        run: |
+          python3 scripts/release-test-ip.py \
+            --uuid "${{ steps.reserve_ip.outputs.uuid }}" \
+            --name "${{ steps.reserve_ip.outputs.name }}"
+
       - uses: actions/upload-artifact@v7
         name: Upload Test Results as Artifact
         if: always()

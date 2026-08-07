@@ -23,6 +23,12 @@ def main() -> int:
     parser.add_argument("--root-password", default=None)
     parser.add_argument("--base-os", default="ubuntu-26.04")
     parser.add_argument(
+        "--base-domain",
+        default=None,
+        help="Domain for Traefik HTTPS routes (e.g. an IP-derived sslip.io hostname). "
+        "Omit for direct-port access, no Traefik.",
+    )
+    parser.add_argument(
         "--bootstrap-verification-key",
         default=None,
         help="Ed25519 public key PEM for dev-mode archive signature verification",
@@ -68,6 +74,8 @@ def main() -> int:
         },
         # "base_os": args.base_os,
     }
+    if args.base_domain:
+        payload["base_domain"] = args.base_domain
 
     resp = requests.post(
         f"{args.api_url}/api/v1/compose", json=payload, timeout=30, cert=client_cert
