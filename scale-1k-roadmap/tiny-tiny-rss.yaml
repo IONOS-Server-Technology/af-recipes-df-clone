@@ -1,0 +1,127 @@
+slug: tiny-tiny-rss
+name: Tiny Tiny RSS
+source_description: "Self-hosted, multi-user RSS aggregator with mobile client API support"
+
+upstream:
+  url: https://tt-rss.org/
+  repo_url: https://github.com/tt-rss/tt-rss
+  license: GPL-3.0
+  docker_image: ghcr.io/tt-rss/tt-rss (paired with ghcr.io/tt-rss/tt-rss-web-nginx as the front-end container; Postgres for the database)
+
+version_health:
+  latest_version: "rolling release, no semantic versions — most recent image build tag 20260803-212347"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Important context beyond a simple cadence check: the *original* tt-rss
+    project (maintained by Andrew Dolgov, "fox", at git.tt-rss.org since
+    2005) was discontinued by its own maintainer on 2025-10-03, with all
+    original infrastructure (git host, forum, cgit) scheduled for shutdown
+    on 2025-11-01. A long-time contributor forked the project the same day
+    (2025-10-03) as github.com/tt-rss/tt-rss, and ownership of the
+    tt-rss.org domain was transferred to the fork's maintainer, so
+    tt-rss.org now serves the fork's docs — this is why upstream docs read
+    as continuous rather than describing a handoff. The fork has been
+    building official multi-arch images (ghcr.io/tt-rss/tt-rss and
+    ghcr.io/tt-rss/tt-rss-web-nginx) continuously since, with new tags
+    roughly daily (e.g. 20260803-212347, 20260803-215733, 20260804-021224
+    observed within the days immediately before/after this analysis date
+    of 2026-08-05). Given the project uses a rolling main-branch release
+    model (no tagged versions even before the handoff), "release cadence"
+    is best read as "is main still being built and shipped," which it
+    clearly is. That said, the maintainer transition happened only ~10
+    months ago and is worth flagging: the original author explicitly said
+    tt-rss had become unfun to maintain and infrastructure was in decline,
+    so the fork's long-term continuity is less proven than a project with
+    a multi-year post-handoff track record.
+
+catalogue_fit:
+  categories: [productivity, content]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No RSS/feed-reader recipe exists in the current 24-recipe catalogue,
+    but this is not a novel gap: apps-gaps/freshrss.yaml (recommended
+    build_now) and apps-gaps/miniflux.yaml (blocked_on_platform, same
+    plaintext-admin-password issue analyzed below) already cover this
+    niche. Tiny Tiny RSS's distinguishing feature over both is a documented
+    Fever-API-compatible mobile client protocol used by several third-party
+    RSS apps, plus native multi-user support — but FreshRSS already offers
+    a Fever/Google-Reader-compatible API too, so the differentiation from
+    FreshRSS specifically is thin. Architecturally it is a three-container
+    stack (PHP-FPM app + nginx web front-end + Postgres), closest to
+    recipes/n8n and recipes/paperless-ngx (app + dedicated Postgres behind
+    one Traefik hostname), plus one extra nginx container for static/proxy
+    duties.
+  usefulness: low
+  usefulness_rationale: >
+    The feed-reader niche this would fill is already better served in
+    apps-gaps/ by FreshRSS, which is installable today with no blocker and
+    needs only a single lightweight container (SQLite default, no separate
+    DB). Tiny Tiny RSS adds a heavier three-container footprint, the same
+    installability blocker as Miniflux, and a maintainer-transition history
+    less than a year old — there is no scenario where a reviewer would pick
+    it over FreshRSS for this slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_USER_PASS]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The admin account password is set via the `ADMIN_USER_PASS`
+      environment variable, which the official docker entrypoint re-applies
+      on every container startup by calling tt-rss's own user-management
+      routine — this routine takes the plaintext password and hashes it
+      internally (tt-rss stores credentials as a salted hash, e.g.
+      `SHA1:<hash>`, in the `pwd_hash` column of `ttrss_users`). There is no
+      documented way to supply a pre-computed hash directly into that
+      column instead of a plaintext value. `generated_from` can only ever
+      project a hash of the customer's root password, never the plaintext
+      itself, so per SCHEMA.md's decision table this is the "genuine
+      requirement for the plaintext password" case — a structural blocker,
+      not a supported-algorithm gap IF-1420 could close.
+    - >
+      Gating the whole app behind Traefik `basic_auth` (the n8n/WUD
+      pattern) does not resolve this on its own, for the same reason noted
+      in apps-gaps/miniflux.yaml: tt-rss presents its own separate login
+      screen behind any such gate, and without a way to set the admin
+      password to something the customer knows, the customer would be
+      locked out of the app itself even after passing the basic-auth gate.
+      Since tt-rss does not support open self-registration by default (only
+      an admin can create additional users), there is no way for the
+      customer to create their own account either.
+    - >
+      tt-rss ships an `auth_remote` plugin that can trust an externally
+      authenticated identity, but it reads PHP's `REMOTE_USER` server
+      variable — natively populated by e.g. Apache's own Basic Auth module
+      — not an arbitrary forwarded header from a separate reverse proxy.
+      Community reports describe unresolved friction getting nginx
+      `auth_request`/header-forwarding setups to populate it correctly, so
+      unlike Miniflux's documented `AUTH_PROXY_HEADER` +
+      `TRUSTED_REVERSE_PROXY_NETWORKS` path (itself still unvetted for our
+      platform), tt-rss's remote-auth story is less mature and not a
+      reliable bridge from a Traefik `basic_auth` login today.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Tiny Tiny RSS is a three-container stack (PHP-FPM app, nginx front-end,
+  Postgres) whose original maintainer discontinued the project on
+  2025-11-01, immediately succeeded by an active community fork
+  (github.com/tt-rss/tt-rss, tt-rss.org domain transferred) that has shipped
+  near-daily rolling image builds since — so it is not EOL, but its
+  post-handoff track record is under a year old. It would fill a currently
+  empty RSS-reader category, but that category is already better addressed
+  by apps-gaps/freshrss.yaml (build_now, single lightweight container, no
+  blocker) and shares the exact same structural blocker already documented
+  for apps-gaps/miniflux.yaml: the admin account can only be seeded with a
+  plaintext password via `ADMIN_USER_PASS`, which `generated_from` cannot
+  supply, and a Traefik `basic_auth` gate would still leave the customer
+  locked out of tt-rss's own login. Given FreshRSS already covers this
+  niche installably, recommend `not_recommended` rather than
+  `blocked_on_platform` — even if the plaintext-password blocker were
+  lifted, this app would not add anything FreshRSS doesn't already offer
+  more cheaply.
