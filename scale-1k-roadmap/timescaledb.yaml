@@ -1,0 +1,74 @@
+slug: timescaledb
+name: TimescaleDB
+source_description: "Time-series database built on PostgreSQL for fast ingest and analytics at scale"
+
+upstream:
+  url: https://www.tigerdata.com/
+  repo_url: https://github.com/timescale/timescaledb
+  license: Apache-2.0 (core extension); the official Docker image (timescale/timescaledb) additionally bundles Timescale-Licensed features — the Apache-2.0-only build is the "-oss" tagged image
+  docker_image: "timescale/timescaledb:2.26.1-pg17"
+
+version_health:
+  latest_version: "2.26.1 (packaged for PostgreSQL 15/16/17/18)"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    timescale/timescaledb-docker tags are pushed roughly monthly, with the
+    latest-pg18/2.26.1-pg18 build landing within the last week (as of
+    2026-08-05). The upstream company (now branded "Tiger Data") is actively
+    developing and shipping new PostgreSQL major-version support (pg18 added
+    2026). No archival, EOL notice, or slowdown signal — this is a
+    commercially backed, actively released project.
+
+catalogue_fit:
+  categories: [database, developer-tools, analytics]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a standalone,
+    customer-provisioned database product — existing recipes (n8n,
+    paperless-ngx, gitea, immich, etc.) all run Postgres/MySQL as an
+    internal, unexposed implementation detail of the app, not as the
+    product itself. TimescaleDB would be the first "bring your own client
+    and connect over the wire" database recipe, aimed at developers who
+    want managed time-series storage (IoT telemetry, metrics, sensor data)
+    without provisioning Postgres + the extension by hand.
+  usefulness: low
+  usefulness_rationale: >
+    Real technical value for a narrow developer/analytics audience, but it
+    is a raw SQL server with no web surface at all — the customer's only
+    interaction is a Postgres connection string over TCP 5432, which is a
+    fundamentally different (and today unsupported, see below) consumption
+    model than every other recipe in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [postgres_superuser_password]
+  secrets_expressible_today:
+    - secret: postgres_superuser_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "The app's only interface is a raw PostgreSQL wire-protocol port (5432), not HTTP. There is no reverse-proxy story: Traefik in front of a customer-facing recipe assumes HTTP(S) on <slug>.<base_domain>, and basic_auth gating is meaningless for the Postgres protocol. Exposing 5432 publicly requires a different exposure mechanism (raw TCP passthrough / NodePort / LoadBalancer per CLAUDE.md) that none of the current recipes use."
+    - "Even if TCP exposure were solved, the customer still needs a working Postgres password/connection string handed back to them out-of-band to actually use the database — af-api's current bootstrap flow has no channel for surfacing a generated non-web credential to the customer post-install, unlike a web-app admin login."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  TimescaleDB is an actively released, commercially backed project (Tiger
+  Data, monthly image cadence, PostgreSQL 18 support shipped days before
+  this analysis) with no EOL or dormancy concerns. It doesn't overlap any
+  existing recipe since every current Postgres usage in the catalogue is
+  internal to another app, not customer-facing. However it is structurally
+  unlike every recipe we ship: no web UI, no HTTP port, and its sole
+  interface is the raw Postgres wire protocol — something our
+  Traefik-fronted, HTTP-based exposure model and basic_auth gate mechanism
+  were never built to support. The internal Postgres superuser password can
+  be generated server-side with no customer input, but there is still no
+  supported way to expose the port itself or hand the connection secret back
+  to the customer. Recommend blocked_on_platform until raw-TCP service
+  exposure (NodePort/LoadBalancer, per CLAUDE.md guidance against
+  port-forward workarounds) and a non-HTTP credential-delivery flow exist;
+  not a recipe-mechanism gap specific to TimescaleDB, but the first
+  candidate to surface the "database as the product" case at all.
