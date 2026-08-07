@@ -1,0 +1,103 @@
+slug: vane
+name: Vane
+source_description: "Privacy-focused AI answering engine with cited sources and local LLM support"
+
+upstream:
+  url: https://github.com/ItzCrazyKns/Vane
+  repo_url: https://github.com/ItzCrazyKns/Vane
+  license: MIT
+  docker_image: itzcrazykns1337/vane
+
+version_health:
+  latest_version: "v1.12.2"
+  latest_release_date: "2026-04-10"
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    Vane is a March 2026 rebrand of the long-running Perplexica project
+    (same repo, `ItzCrazyKns/Perplexica` -> `ItzCrazyKns/Vane`, Docker image
+    `itzcrazykns1337/perplexica` -> `itzcrazykns1337/vane`) — not a separate
+    fork, so its ~36k GitHub stars and history carry over. Latest tagged
+    release is v1.12.2 (2026-04-10); the last commit to `master` is also
+    2026-04-11. As of today (2026-08-05) that is just under 4 months with
+    zero commits and zero merged PRs, on a repo that previously shipped
+    v1.12.1 -> v1.12.2 about 3.3 months apart — so the gap is longer than
+    the project's own recent cadence, not just "normal quiet period."
+    Meanwhile open issues have kept accumulating through July/August 2026
+    with no maintainer replies or merges in that window, including a
+    still-open, unpatched security report (see installability). Repo is not
+    archived and the maintainer was active as recently as April 2026, so
+    this reads as "slowing / possibly under-resourced" rather than
+    abandoned or EOL — worth re-checking before a build, not a hard pass.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Vane is a Perplexity-style answering engine: it takes a natural-language
+    query, runs it through a bundled, private SearXNG metasearch instance
+    (or Tavily/Exa), and has an LLM (local via Ollama, or a customer-supplied
+    OpenAI/Anthropic/Groq key) synthesize a cited answer with source links,
+    plus image/video search, file-upload Q&A, and a "Discover" feed of
+    trending articles. That's distinct from the existing `ollama` (bare
+    model-serving API, no UI) and `open-webui` (general-purpose chat UI over
+    local/remote models) recipes, neither of which does web search or source
+    citation — Vane fills a "private Perplexity alternative" niche the
+    catalogue doesn't currently cover.
+  usefulness: medium
+  usefulness_rationale: >-
+    A self-hosted, cited-source search assistant is a recognizable, popular
+    category (Perplexica has ~36k stars) and ships as a single container
+    with a real end-user web UI out of the box, unlike infra-only tools. It
+    lands at medium rather than high because it needs an LLM to be useful at
+    all (either the customer brings their own API key entered post-install
+    via the setup screen, or they pair it with a separately-run Ollama
+    instance with enough RAM to host a model — neither is a zero-effort
+    experience for a typical AF customer), and the maintenance-slowdown and
+    open security issue (below) add real risk to recommending it today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      Vane ships with no authentication of any kind — no login screen, no
+      users table, no session/API-key checks on any of its 16+ endpoints
+      (documented in an open, unpatched report, ItzCrazyKns/Vane#1123,
+      opened 2026-04-26 and still open as of 2026-08-05 with no maintainer
+      response). Anyone who can reach the container can read chat history,
+      trigger searches, and use whatever LLM credentials are configured. A
+      recipe can compensate with a mandatory Traefik `basic_auth` gate (same
+      pattern as n8n/WUD/Open WebUI), but that's a workaround for a design
+      gap the app has had open and unaddressed for ~4 months, not a fix.
+    - >-
+      To be useful past the setup screen the app needs an LLM: either the
+      customer pastes a third-party provider API key into Vane's own
+      settings UI post-install (no `/compose` input channel needed — that
+      value never has to reach af-api, so this is not a structural
+      blocker), or the customer separately runs Ollama with a pulled model.
+      Either way, a fresh install is a non-functional shell until the
+      customer does one more manual step — worth flagging as an onboarding
+      caveat even though it doesn't block `installable_today`.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Vane (the March-2026 rebrand of Perplexica) is a single-container,
+  MIT-licensed, reverse-proxy-compatible AI answering engine with a real web
+  UI and no overlap with the catalogue's existing `ollama`/`open-webui`
+  recipes. It is mechanically installable today only by treating the whole
+  app as needing a mandatory Traefik `basic_auth` gate, because it ships
+  with zero built-in authentication — a gap tracked in an open, unpatched
+  security report that has sat unaddressed for about 4 months alongside a
+  broader slowdown in commits and issue triage since the last release
+  (v1.12.2, 2026-04-10). Combined with the extra post-install step of
+  supplying an LLM (own API key or a paired Ollama), that's enough to
+  recommend `build_with_caveats` rather than `build_now`: worth a recipe,
+  but re-verify the auth situation and upstream activity haven't gotten
+  worse before committing build time.
