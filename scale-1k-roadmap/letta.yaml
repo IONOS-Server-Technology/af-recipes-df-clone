@@ -51,7 +51,7 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: ["ADE/API access gate (Letta has no customer-facing login form of its own unless SECURE=true is set; the API is open by default)", "Postgres password (internal, app-to-db only)"]
+  secrets_required_at_first_boot: ["ADE/API access gate", "Postgres password (internal, app-to-db only)"]
   secrets_expressible_today:
     - secret: "ADE/API access gate"
       mechanism: traefik_basic_auth
@@ -59,6 +59,7 @@ installability:
       mechanism: server_generated_no_customer_input
   blocking_issues:
     - "Name/product ambiguity: 'Letta' today spans two divergent products under the same GitHub org — the legacy letta-ai/letta server (Dockerized, Postgres-backed, matches Hostinger's description, analyzed here) and the newer 'Letta Code'/App Server product (active development, CLI/coding-agent oriented, no documented docker-compose). This analysis targets the legacy server since it's the one that matches the catalogue description and ships an official Docker image; a reviewer should confirm that's the intended candidate."
+    - "ADE/API access gate: Letta has no customer-facing login form of its own unless SECURE=true is set; the API is open by default. This is gateable via Traefik basic_auth (see secrets_expressible_today) rather than a native login."
     - "The app needs an LLM provider credential (e.g. OPENAI_API_KEY, or an OLLAMA_BASE_URL pointing at a reachable Ollama instance) to actually create/run agents. This is not required for the container to boot and is configured by the customer inside the ADE web UI after first login (same deferred-config pattern already shipped for hermes-agent's OPENROUTER_API_KEY), so it does not block installable_today, but it does mean the app is non-functional out of the box until the customer does that manual step themselves."
   installable_today: true
   recommendation: not_recommended
