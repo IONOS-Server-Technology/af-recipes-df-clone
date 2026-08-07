@@ -58,41 +58,34 @@ installability:
   recipe_type_guess: native
   secrets_required_at_first_boot: [TWINGATE_NETWORK, TWINGATE_ACCESS_TOKEN, TWINGATE_REFRESH_TOKEN]
   secrets_expressible_today: []
-  blocking_issues:
-    - >
-      All three required values (TWINGATE_NETWORK tenant name,
-      TWINGATE_ACCESS_TOKEN, TWINGATE_REFRESH_TOKEN) are generated
-      per-connector in the customer's own Twingate Admin Console (a
-      third-party SaaS the customer must already have an account on) —
-      there is no local login, no root-password-derived credential, and
-      nothing our root-password projection or Traefik basic_auth mechanism
-      can populate. This is the same "external API key/token the app can't
-      function without" shape the schema calls out as a hard `no`, not a
-      `blocked_on_platform` gap — no plausible extension of
-      `generated_from` produces a Twingate-issued access/refresh token
-      pair, since those tokens are minted by Twingate's own backend, not
-      derivable from any secret we hold.
-    - >
-      Has no web UI or exposed HTTP port at all (outbound-only agent), so
-      there's also no page for a customer to complete setup on even if a
-      token could reach the container — the whole administration surface
-      is Twingate's own hosted console, entirely outside our platform.
-  installable_today: false
-  recommendation: not_recommended
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
 
 summary: >
-  Twingate Connector is an actively maintained, actively released
-  (~monthly cadence, latest 1.90.0 from 2026-07-13) client agent for
-  Twingate's commercial Zero Trust Network Access SaaS, but it is not a
-  self-hosted application in the sense our catalogue targets: it has no
-  web UI, no local login, and requires three tokens/identifiers minted in
-  a third-party Admin Console the customer must already have an account
-  on. That's a textbook "external credential with no input channel"
-  blocker per SCHEMA.md, structurally identical to netbird-client's
-  NB_SETUP_KEY problem but with no expressible mechanism even as
-  documentation-only parameters carrying real product value, since the
-  whole point of the connector is to join an existing paid Twingate
-  network the customer must set up themselves. not_recommended: this is a
-  thin accessory to a third-party SaaS product, not something worth a
-  recipe slot given the required external dependency and lack of any
-  operable surface on our side.
+  Re-evaluated as recipe_type: native, following the same precedent
+  netbird-client's own gap-analysis established: Twingate's own docs
+  (twingate.com/docs/connectors-on-linux) describe a native systemd
+  install path — a single install command plus a config file at
+  /etc/twingate/connector.conf — as an alternative to the Docker image,
+  so there's no forced docker-compose framing here either. TWINGATE_NETWORK,
+  TWINGATE_ACCESS_TOKEN, and TWINGATE_REFRESH_TOKEN have no
+  `generated_from` mechanism (they're minted per-connector in the
+  customer's own Twingate Admin Console, a third-party SaaS account the
+  customer must already have), but per Twingate's Knowledge Base
+  ("Repeating 'Token is expired' Error in Connector Logs") the connector
+  self-refreshes the access token using the refresh token automatically
+  once running — the pair is "time-expiring" only in the JWT-lifetime
+  sense, not something the customer must re-supply on a schedule. That
+  makes this functionally a one-time setup credential, the same shape as
+  NetBird's NB_SETUP_KEY: declare all three as required:false
+  documentation-only parameters, install the connector unconfigured, and
+  let the customer populate connector.conf (or re-run the installer) with
+  their own values over SSH post-provisioning, then start the systemd
+  service. Mechanically installable today under the established
+  native-CLI pattern, consistent with the differentiation section's claim
+  that this is architecturally the closest match to netbird-client — same
+  conclusion, build_with_caveats, for the same reason: a real but narrow
+  accessory to an external paid SaaS control plane rather than a
+  general-purpose self-hosted app, still low usefulness on its own merits
+  even though it clears the installability bar.
