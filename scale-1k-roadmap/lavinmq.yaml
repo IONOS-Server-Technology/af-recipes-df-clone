@@ -59,20 +59,20 @@ catalogue_fit:
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot:
-    - "default guest admin account password (LavinMQ boots with a
-      hardcoded guest/guest user, and the official Docker image starts
-      with --default-user-only-loopback=false, i.e. that default account
-      is reachable from any network interface, not just localhost, unless
-      changed at deploy time)"
+    - "default guest admin account password"
   secrets_expressible_today:
     - secret: "default guest admin account password"
       mechanism: generated_from_root_password
   blocking_issues:
     - >
-      There is no environment variable or config-file setting to inject
-      a first-boot password the way RABBITMQ_DEFAULT_PASS works for
-      RabbitMQ — the guest/guest credential is fixed at container start.
-      Changing it requires an install.sh step that calls LavinMQ's HTTP
+      LavinMQ boots with a hardcoded guest/guest user, and the official
+      Docker image starts with --default-user-only-loopback=false, i.e.
+      that default account is reachable from any network interface, not
+      just localhost, unless changed at deploy time. There is no
+      environment variable or config-file setting to inject a first-boot
+      password the way RABBITMQ_DEFAULT_PASS works for RabbitMQ — the
+      guest/guest credential is fixed at container start. Changing it
+      requires an install.sh step that calls LavinMQ's HTTP
       Management API (PUT /api/users/guest) after boot, authenticating
       as guest/guest and immediately overwriting the password — the same
       bootstrap-then-overwrite shape already used for the Elasticsearch/
