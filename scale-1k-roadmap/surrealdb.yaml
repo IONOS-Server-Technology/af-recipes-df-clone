@@ -1,0 +1,108 @@
+slug: surrealdb
+name: SurrealDB
+source_description: "Multi-model database for documents, graphs, time-series, and vector data"
+
+upstream:
+  url: https://surrealdb.com/
+  repo_url: https://github.com/surrealdb/surrealdb
+  license: >
+    Business Source License 1.1 (converts to Apache-2.0 on the per-release
+    Change Date, 4 years out). The Additional Use Grant forbids using the
+    Licensed Work "as a Database Service" — defined as any product,
+    service, platform, or commercial offering that uses SurrealDB to
+    provide database functionality to third parties who create, manage, or
+    control schemas or tables. Worth a legal read before shipping a
+    self-hosted-database recipe from a hosting catalogue, though the
+    customer (not IONOS) would be the one creating/managing schemas on
+    their own VM, which is the more common self-hosted-database reading of
+    the grant.
+  docker_image: surrealdb/surrealdb
+
+version_health:
+  latest_version: "3.2.4"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.2.4 shipped 2026-08-03, two days before today (2026-08-05). Prior
+    patches/minors: 3.1.5 (2026-06-19), 3.0.5 (2026-03-27), 2.6.5
+    (2026-03-24), 2.5.0 (2026-01-22), 2.4.0 (2025-11-24), 2.3.10
+    (2025-09-19) — a steady roughly-monthly-to-bimonthly cadence across
+    both patch and minor lines, with several lines (2.x, 3.0.x, 3.1.x,
+    3.2.x) receiving patches in parallel. Clearly active development, not
+    slowing or dormant.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes is a standalone, customer-facing
+    database — n8n, paperless-ngx, immich, etc. all run Postgres/SQLite
+    purely as private internal storage. SurrealDB would be a first for
+    that category (shared structurally with the other database candidates
+    already analyzed: apps-gaps/apache-couchdb.yaml, apps-gaps/mongodb-4.yaml,
+    apps-gaps/neo4j.yaml, apps-gaps/edgedb.yaml). Within that group it is
+    the most differentiated on paper — a single engine covering document,
+    graph, time-series, and vector workloads with one query language
+    (SurrealQL) and one HTTP/WS API, rather than a single-model store —
+    aimed at developers building an app that needs several of those data
+    shapes without running separate databases. Like CouchDB it speaks
+    HTTP/JSON natively (port 8000) rather than a raw binary wire protocol,
+    so it doesn't have MySQL/MongoDB's structural raw-port problem.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiated value for developers who want one datastore for
+    mixed document/graph/vector/time-series workloads, and an actively
+    developed, healthy upstream. Same ceiling as the other database
+    candidates, though: it's infrastructure a customer's own app talks to,
+    not an end-user product with day-to-day human use, and unlike CouchDB
+    it ships no bundled admin UI at all (Surrealist, the only UI, is a
+    separate desktop/web client, not part of the self-hosted server image)
+    — reachable only via CLI/SDK/raw HTTP once deployed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Verified against the surrealdb/surrealdb source (server/src/cli/start.rs,
+      server/src/dbs/mod.rs, core/src/kvs/ds.rs::initialise_credentials):
+      the official image's startup root credential (`--user`/`--pass`, or
+      the `SURREAL_USER`/`SURREAL_PASS` env vars) is typed as a plain
+      `String` and passed straight into
+      `DefineUserStatement::new_with_password`, i.e. SurrealDB itself
+      hashes it internally with Argon2id at first boot. There is no
+      startup-time passhash/env-var equivalent of SurrealQL's `DEFINE USER
+      ... PASSHASH` clause — that clause only exists for a user manually
+      running SurrealQL after the server is already up, not for seeding
+      the initial root user from the container entrypoint. `generated_from`
+      only ever produces a hash, never a plaintext value, so per
+      apps-gaps/SCHEMA.md's own test table this is a genuine plaintext
+      requirement — a structural blocker, not a missing-algorithm gap
+      IF-1420 could close (even though Argon2id is exactly the algorithm
+      `generated_from` already supports for other apps; the mismatch here
+      is the entrypoint's input type, not the hash format).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  SurrealDB is an actively maintained, well-differentiated multi-model
+  database (documents, graphs, time-series, vector) with a real gap-filling
+  case: no current recipe offers a customer-facing database, and among the
+  database candidates analyzed so far it's the healthiest upstream and
+  least redundant feature set. It also avoids the raw-binary-port problem
+  that blocks MySQL/MongoDB/Neo4j, since it speaks HTTP/WS on a single port
+  (8000). It still fails the credential channel, though, in the same way
+  MongoDB and Neo4j do: the initial root user can only be seeded as a
+  plaintext password via `--user`/`--pass` (`SURREAL_USER`/`SURREAL_PASS`),
+  confirmed directly against the CLI arg types and the
+  `initialise_credentials` code path in the SurrealDB source — SurrealQL's
+  `PASSHASH` clause isn't reachable from container startup. `generated_from`
+  only ever supplies a hash, so there is no way to project the customer's
+  root password into it today. Recommend `not_recommended`, in the same
+  structural class as `apps-gaps/mongodb-4.yaml` and `apps-gaps/neo4j.yaml`,
+  rather than `blocked_on_platform` — this isn't an unsupported-algorithm
+  gap, the entrypoint doesn't accept a hash at all.
