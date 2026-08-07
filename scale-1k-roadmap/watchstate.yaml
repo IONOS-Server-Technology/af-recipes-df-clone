@@ -1,0 +1,94 @@
+slug: watchstate
+name: WatchState
+source_description: "Sync watch state across Plex, Jellyfin, and Emby media servers via webhooks"
+
+upstream:
+  url: https://github.com/arabcoders/watchstate
+  repo_url: https://github.com/arabcoders/watchstate
+  license: MIT
+  docker_image: ghcr.io/arabcoders/watchstate
+
+version_health:
+  latest_version: v1.10.1
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.10.1 was published 2026-08-01, four days before today
+    (2026-08-05). Preceding releases are dense: v1.10.0 (2026-07-20),
+    v1.9.2 (2026-07-11), v1.9.1 (2026-06-25), v1.9.0 (2026-06-19),
+    v1.8.7 (2026-06-13) — a release roughly every 1-2 weeks over the
+    prior two months. No archive banner, no EOL notice; this is an
+    actively and rapidly maintained single-maintainer project.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes syncs watch/play state (watched
+    markers, resume position) between separate media-server backends
+    (Plex, Jellyfin, Emby). Immich is photo/video backup and library
+    management, not a play-state sync bridge — different purpose and
+    data model. WatchState would be new ground for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Users who run more than one media server (e.g. migrating Plex to
+    Jellyfin, or running both for different household members) commonly
+    hit exactly this gap — watched status doesn't carry over. WatchState
+    is a well-known, purpose-built self-hosted answer to that with no
+    catalogue equivalent today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE, PLEX_TOKEN, JELLYFIN_EMBY_CREDENTIALS]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      WatchState ships no admin credential settable via environment
+      variable or config at container boot (confirmed against the
+      documented docker-compose setup, which only mounts a `/config`
+      data volume and exposes port 8080 — no auth-related env vars).
+      Per upstream docs, the first visitor is "prompted to create a
+      system user" via an in-app wizard; there is no pre-provisioned
+      login to project a `generated_from` hash into, and no documented
+      password-hashing algorithm to target even if there were. A
+      Traefik `basic_auth` gate covers this pre-registration window the
+      same way it does for Watcharr/n8n/Open WebUI, so this piece alone
+      would not block the recipe.
+    - >
+      Structural blocker independent of the above: WatchState is
+      useless without at least one configured backend, and every
+      backend requires a customer-supplied external credential with no
+      projection path in `/compose` today — a Plex API token (obtained
+      via Plex's own OAuth/PIN flow) for Plex, or a
+      `username:password` pair validated directly against the
+      customer's own Jellyfin/Emby server for those backends. These are
+      exactly the "external API key / third-party account credential"
+      case the schema calls a hard no, not a hash-of-root-password or
+      basic-auth case. There is no way for the customer to get any of
+      these values into the app at first boot through the current
+      mechanism, and without one backend the app has literally nothing
+      to sync.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  WatchState (ghcr.io/arabcoders/watchstate) is a single-container PHP
+  app with its own web UI on port 8080, reverse-proxy-compatible, and
+  structurally similar to other no-built-in-login single-container
+  recipes (Watcharr, n8n) for the admin-account piece — a Traefik
+  basic_auth gate would cover the first-user registration race. It
+  fails installability for a deeper reason, though: its entire function
+  is bridging Plex/Jellyfin/Emby watch state, and every backend it
+  supports requires a customer-owned external credential (Plex OAuth
+  token, or Jellyfin/Emby username+password validated against the
+  customer's own server) that today's `/compose` mechanism has no
+  channel to carry. Upstream is active and fills a real catalogue gap
+  (no play-state sync tool exists today), so this is a build_with_caveats
+  candidate the moment a genuine arbitrary-credential input channel
+  ships, not a reason to write the app off — hence blocked_on_platform
+  rather than not_recommended.
