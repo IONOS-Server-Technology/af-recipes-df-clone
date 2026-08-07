@@ -1,0 +1,111 @@
+slug: wekan
+name: Wekan
+source_description: "Open-source Kanban board for visual project management and task tracking"
+
+upstream:
+  url: https://wekan.fi
+  repo_url: https://github.com/wekan/wekan
+  license: MIT
+  docker_image: "ghcr.io/wekan/wekan"
+
+version_health:
+  latest_version: "v10.71"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via the GitHub releases API (not training-data recall): 100
+    tagged releases between v9.69 (2026-06-23) and v10.71 (2026-08-06) — an
+    average of 2-3 tagged releases per day over the last ~6.5 weeks, i.e.
+    effectively continuous delivery, not a normal versioned-release cadence.
+    Repo is not archived, `pushed_at` is 2026-08-06 (same day as the latest
+    tag), 21k+ stars, 356 open issues actively triaged. As of today
+    (2026-08-05/06) this is unambiguously an actively maintained project —
+    if anything, the release cadence is unusually fast for a self-hosted
+    recipe to track (see blocking_issues).
+
+catalogue_fit:
+  categories: [productivity, project-management, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 built recipes cover kanban-style project/task
+    management (Anytype Server is personal notes/knowledge sync, not a task
+    board). Wekan would be a genuinely new category for the catalogue. Note
+    for the reviewer: three other gap-analysis candidates already cover this
+    same kanban/Trello-alternative niche — kan.yaml (build_now), planka.yaml
+    (not_recommended, licensing), kanboard.yaml (build_now) — none of which
+    are built recipes yet either, so this is not duplicate coverage today,
+    but a prioritization call once one of these ships. Wekan is the oldest
+    and most established of the four (21k+ stars vs. Kan's 5.3k, MIT license
+    vs. Planka's restrictive Fair Use License) and is Meteor/MongoDB-based
+    rather than a lighter PHP (Kanboard) or Next.js (Kan) stack.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand for a self-hosted Trello alternative, and Wekan is the most
+    mature/widely-adopted option among the kanban candidates already in this
+    gap-analysis set. Held to medium rather than high because Kanboard and
+    Kan already cover the same customer need with a simpler installation
+    footprint (single container / no bundled DB migration complexity), and
+    Wekan's own default docker-compose.yml has shifted to a non-trivial
+    FerretDB-binary-download-at-runtime setup (see blocking_issues) that
+    adds operational fragility a hosted recipe would rather avoid.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No admin-login parameter to project a root-password hash into: Wekan
+      has no ADMIN_USERNAME/ADMIN_PASSWORD-style env var. Per
+      docs/Login/Adding-users.md, "First registered user will be admin, and
+      next ones normal users" via the open /sign-up form — there is no way
+      to disable self-registration before that first admin account exists
+      (Admin Panel > Settings > Registration > Disable self-registration
+      only becomes available after login). This is the same shape as the
+      Kan finding: mitigated by gating the whole app behind a mandatory
+      Traefik basic_auth wall (projected from the customer's root password
+      via generated_from) so a stranger racing to /sign-up first can't claim
+      the admin account — not a hard blocker, just a required mitigation.
+    - >
+      Not a secrets-channel blocker but a real operational risk worth
+      flagging: the project's current upstream docker-compose.yml (the one
+      linked from the README) defaults to FerretDB v1 with an embedded
+      SQLite backend, where the ferretdb container downloads a FerretDB
+      binary from GitHub releases at first container start
+      (`curl ... github.com/wekan/FerretDB/releases/...`). A recipe would
+      need to pin FERRETDB_RELEASE explicitly or switch to the classic
+      docker-compose-mongodb-v7.yml (plain `mongo:7`, no runtime binary
+      fetch) to avoid a first-boot dependency on GitHub release
+      availability/network egress from the customer's container.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Wekan is mechanically installable: an official multi-registry image
+  (ghcr.io/wekan/wekan, pin to a version tag like v10.71 rather than
+  :latest per upstream's own recommendation), a single public HTTP port
+  (8080, proxied to 80 in the sample compose) that works fine behind
+  Traefik, and a MongoDB-compatible backend with no customer-facing
+  database credential. It has no admin-login env var to seed via
+  generated_from — the first person to hit /sign-up becomes admin — so,
+  same as the Kan finding, it needs a mandatory Traefik basic_auth gate
+  (projected from the customer's root password) to keep a stranger from
+  claiming the admin account before the real customer logs in; with that
+  gate in place there is no missing secrets channel. Two things temper the
+  recommendation from a clean build_now: (1) the project's release cadence
+  is unusually fast right now (2-3 tagged releases/day over the last ~6.5
+  weeks) which is a maintenance-burden signal for whoever tracks version
+  bumps, not a version-health concern — the project is clearly active, just
+  noisy to pin against; and (2) upstream's current default docker-compose.yml
+  fetches a FerretDB binary from GitHub releases at first container start,
+  which a recipe should avoid by using the classic MongoDB-7-based compose
+  file instead. Net: build_with_caveats — genuinely differentiated (new
+  kanban category, none of the 24 built recipes overlap) but lower priority
+  than Kan or Kanboard, which cover the same customer need with a simpler
+  install path, and worth a deliberate choice among the three kanban
+  candidates rather than building all of them.
