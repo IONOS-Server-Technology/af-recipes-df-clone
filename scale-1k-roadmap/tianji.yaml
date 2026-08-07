@@ -1,0 +1,92 @@
+slug: tianji
+name: Tianji
+source_description: "All-in-one hub for website analytics, uptime, and server status monitoring"
+
+upstream:
+  url: https://tianji.dev
+  repo_url: https://github.com/msgbyte/tianji
+  license: Apache-2.0
+  docker_image: moonrailgun/tianji
+
+version_health:
+  latest_version: "1.32.21"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag (1.32.21) was published the same day as this analysis
+    (2026-08-05). GitHub releases show several tags per week in the run-up
+    (1.32.17 on 2026-07-26, 1.32.19/1.32.20 on 2026-08-02, 1.32.21 on
+    2026-08-05) — rapid, ongoing development, not a stale or wind-down
+    pattern.
+
+catalogue_fit:
+  categories: [monitoring, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma only does uptime/status-page monitoring. Tianji bundles that
+    with self-hosted website analytics (page views/visitors, UTM tracking,
+    a privacy-friendly alternative to Umami/Plausible, neither of which is
+    in the catalogue) and server-status reporting in one deployable app. A
+    customer wanting analytics + uptime today would need two separate
+    recipes; Tianji covers both with one install.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted web analytics is a common ask with no existing catalogue
+    entry, and folding uptime/server-status monitoring into the same app
+    reduces the number of services a customer has to run. Active upstream
+    development lowers abandonment risk.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JWT_SECRET
+    - POSTGRES_PASSWORD
+    - Traefik basic-auth gate credential (mitigation for open self-registration, see below)
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: Traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Tianji has its own login, but the account is created via a public
+      self-registration page, not a fixed admin parameter — there is no env
+      var that sets an initial admin username/password. Upstream's own
+      docker-compose.yml ships with ALLOW_REGISTER: false, which means
+      nobody (including the customer) can create an account on a stock
+      deploy. To make the recipe usable at all, ALLOW_REGISTER must be set
+      to true — but unlike n8n's one-shot "first visitor becomes owner"
+      setup wizard, Tianji's registration page stays open indefinitely,
+      so ALLOW_REGISTER: true left in place permanently would let ANY
+      visitor to the domain self-register an account for the life of the
+      deployment, not just before the customer's first visit. Our current
+      mechanism has no channel to flip that env var back to false after
+      the customer's first login (no customer-facing settings write-back,
+      no post-deploy config channel). The only mitigation expressible
+      today is fronting the whole app with a Traefik basic_auth gate
+      (root-password projection) so only the customer can reach the
+      registration page at all — this is a workaround for a persistent
+      open-registration risk, not a clean fit for the
+      generated_from/basic_auth decision table, which assumes the app has
+      no login of its own or a single fixed admin credential to project
+      into.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Tianji is an actively developed, Apache-2.0, single-web-UI app (Postgres
+  backend, reverse-proxy-friendly) that would add self-hosted analytics to
+  the catalogue and partially overlaps Uptime Kuma on the monitoring side.
+  It clears the mechanical bar for installable_today, but only via a
+  double-gate workaround: a Traefik basic_auth wrapper (projected from the
+  customer's root password) to keep the domain private, combined with
+  ALLOW_REGISTER left permanently on so the customer can self-register
+  their own Tianji admin account behind that gate. That's a heavier,
+  less-precedented setup than our other single-login recipes and should be
+  called out explicitly if this moves to af-create-recipe, rather than
+  assumed to work the way n8n's one-time owner wizard does.
