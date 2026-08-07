@@ -1,0 +1,118 @@
+slug: vince-analytics
+name: Vince Analytics
+source_description: "Self-hosted privacy-friendly web analytics alternative to Google Analytics"
+
+upstream:
+  url: https://www.vinceanalytics.com
+  repo_url: https://github.com/vinceanalytics/vince
+  license: AGPL-3.0
+  docker_image: ghcr.io/vinceanalytics/vince:v1.11.8
+
+version_health:
+  latest_version: "v1.11.8"
+  latest_release_date: "2025-09-01"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v1.11.8 (2025-09-01) is the latest tagged release, ~11 months before
+    today (2026-08-05). Preceding tags show a burst of activity right
+    before that point: v1.11.5 (2025-01-24) -> v1.11.6 (2025-01-25, next
+    day) -> a ~7-month gap -> v1.11.7 (2025-08-31) -> v1.11.8 (2025-09-01,
+    next day) — then nothing since. Confirmed against the repo's own
+    commit history: the last commit on `main` is `fc06f7a` (2025-09-01,
+    the v1.11.8 release commit itself); `pushed_at` on the repo API also
+    reads 2025-09-01, so there has been zero commit activity in 11 months,
+    not just zero tagged releases. Meanwhile the issue tracker shows
+    continued user interest with no maintainer follow-through: issues #91
+    (2026-01-26), #95 (2026-06-16), #96 (2026-06-26), #97/#98 (2026-07-17)
+    are all open with zero comments, and community PRs #76 (2025-11-10),
+    #91, #95, #96 remain open/unmerged with no maintainer review. The one
+    exception is issue/PR #92 (dark mode + project labels), where
+    maintainer `gernest` commented once on 2025-11-10 before it was closed
+    unmerged the next day — the last recorded maintainer activity of any
+    kind. Repo is not archived and has no formal EOL/deprecation notice,
+    but 11 months with no commits, no releases, and no maintainer response
+    to a growing backlog of open issues/PRs is a real dormancy signal, not
+    just a quiet period between releases.
+
+catalogue_fit:
+  categories: [analytics, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers web/product
+    analytics. Vince pitches itself explicitly as a Plausible-compatible,
+    zero-dependency alternative (single static binary, no Postgres/
+    ClickHouse/Elixir runtime, drop-in replacement for Plausible's
+    tracking script) — a genuinely lighter-weight footprint than either
+    Umami or Plausible. Two other privacy-analytics candidates,
+    `umami-analytics` and `plausible-analytics`, are already analyzed in
+    this apps-gaps set and cover the same product niche; `matomo` is a
+    fourth. All four would compete for the same customer intent if more
+    than one is built.
+  usefulness: medium
+  usefulness_rationale: >
+    The product niche (privacy-first, cookie-free web analytics) is
+    evergreen demand and the single-binary/zero-dependency design is a
+    genuine differentiator versus Umami/Plausible/Matomo's multi-container
+    stacks. Rated medium rather than high because of the version-health
+    findings above (11 months dark, unaddressed community PRs and bug
+    reports) and the small-project risk that implies (2,014 GitHub stars,
+    effectively a single-maintainer project that has gone quiet) — a
+    recipe built on top of it today could be shipping on an abandoned
+    dependency.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [VINCE_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Vince's admin account is provisioned by passing `VINCE_ADMIN_NAME`
+      and `VINCE_ADMIN_PASSWORD` env vars to the `serve` command at boot
+      (confirmed in `internal/cmd/run.go`), which calls
+      `ops.CreateAdmin(name, password)`. That function (confirmed in
+      `internal/ops/system_operations.go`) calls
+      `bcrypt.GenerateFromPassword([]byte(password), ...)` itself — i.e.
+      it expects the **plaintext** password as input and does its own
+      hashing internally. `generated_from: "<algo>:ROOT_PASSWORD"` only
+      ever projects a hash of the customer's root password, never the
+      plaintext, so there is no way to hand Vince a value that both (a)
+      satisfies its bcrypt-of-plaintext expectation and (b) lets the
+      customer log in with the root password they actually know. This is
+      exactly the "genuine requirement for the plaintext password, not any
+      hash" row in SCHEMA.md's decision table — a structural blocker, not
+      an unsupported-algorithm gap.
+    - >
+      Vince is not a "no login of its own" app the way Adminer/WUD are —
+      it has a real admin session (dashboard, site management, API-key
+      creation under `/settings`) gated by `RequireAccount`. A Traefik
+      `basic_auth` perimeter gate does not substitute for that: even with
+      a basic_auth wall in front, `VINCE_ADMIN_PASSWORD` still has to be
+      set to *something* at container boot, and whatever value we choose
+      (random, server-generated) can't be the customer's actual root
+      password, so the customer would have no way to authenticate into
+      Vince's own admin UI to add sites or view non-public dashboards —
+      not a zero-touch boot the way our other recipes deliver.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Vince is a genuinely differentiated single-binary alternative to
+  Umami/Plausible/Matomo (no external database, built-in autocert TLS,
+  drop-in Plausible-script compatibility) and would occupy a currently-empty
+  analytics category in the catalogue. But it fails installability today for
+  a structural reason: its admin account is created from a plaintext
+  `VINCE_ADMIN_PASSWORD` that the app itself bcrypts internally, and
+  `generated_from` can only ever supply a hash of the customer's root
+  password — never the plaintext — so there is no way to give the customer
+  working login credentials to Vince's own admin UI, and a Traefik
+  basic_auth gate only adds a perimeter without solving that access
+  problem. On top of the platform blocker, upstream health is a separate
+  concern: 11 months with zero commits or releases despite a growing
+  backlog of unaddressed community issues and PRs is a real dormancy signal
+  for what looks like a single-maintainer project. Recommend
+  `not_recommended` — revisit only if upstream ships a
+  hash-acceptable/headless admin-provisioning path (unlikely given current
+  inactivity) and shows renewed maintenance activity.
