@@ -1,0 +1,99 @@
+slug: ubooquity
+name: Ubooquity
+source_description: "Self-hosted home server for ebooks and comics with web reader and OPDS feed"
+
+upstream:
+  url: https://vaemendis.net/ubooquity/
+  repo_url: null
+  license: "Freeware, free for non-commercial use — proprietary, source not published (no SPDX id; not open source)"
+  docker_image: lscr.io/linuxserver/ubooquity
+
+version_health:
+  latest_version: "3.1.0"
+  latest_release_date: 2025-08-10
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    3.1.0 shipped 2025-08-10, exactly 12 months before today (2026-08-05) —
+    no release in a full year. The project's own archive shows a very uneven
+    cadence even in its active periods: 2 releases in 2025, 2 in 2024, 1 in
+    2023, 1 in 2021, 1 in 2018, then bursts of 3-7 in 2013-2017. A 3-year gap
+    (2018 to 2021) has happened before, so a 12-month silence isn't yet
+    conclusive EOL, but it is a solo-developer freeware project with no
+    public roadmap or repo to check commit activity against, and support
+    threads (userecho forum) show long-standing unresolved bugs (e.g. admin
+    password reset issues open for years). Treating as maintenance-only
+    rather than active.
+
+catalogue_fit:
+  categories:
+    - media
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers ebook/comic library serving. Immich is photo/
+    video management, Syncthing is generic file sync, Paperless-ngx is
+    scanned-document archiving — none render EPUB/CBZ/CBR/PDF as a browsable
+    library with a web reader or expose an OPDS feed for e-reader apps.
+    Ubooquity would be a genuinely new use case in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-understood self-hosting use case (home ebook/comic library,
+    similar niche to Calibre-Web/Kavita) with no catalogue overlap, but it's
+    a narrow hobbyist tool, built on a proprietary/closed-source freeware
+    core rather than an actively-developed OSS project, which is a weaker
+    long-term bet than most of the current 24 recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "basic-auth gate credential (root-password-derived) for both public ports"
+  secrets_expressible_today:
+    - secret: "basic-auth gate credential (root-password-derived) for both public ports"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Ubooquity's own admin password (and any per-library user accounts) can
+      only be set through a first-visit web wizard at the admin port
+      (/ubooquity/admin) — the linuxserver/ubooquity image has no
+      environment variable, config-file seed, or API for presetting it
+      before boot (confirmed via linuxserver/docker-ubooquity issues #17 and
+      #19, "unable to set admin password"). Left open on the internet, this
+      is a race: whoever loads the admin URL first claims the account.
+      generated_from can't reach this field (there's no password-type
+      parameter to project into), but gating both the admin port (2203) and
+      the library/reader port (2202) behind Traefik basic_auth with the
+      customer's root-password-derived credential closes the race — the
+      customer authenticates to reach either port before anyone else can,
+      then sets Ubooquity's own admin password themselves through the
+      wizard. This is the same "no login of its own reachable pre-setup"
+      pattern basic_auth already covers for n8n/WUD/Open WebUI, so it is not
+      a hard blocker, just contingent on IF-1312 (Traefik basic_auth toggle)
+      shipping.
+    - >
+      Two separate HTTP services need exposing (library/reader + OPDS feed
+      on 2202, admin panel on 2203) rather than the single public port most
+      current recipes assume. Both are plain HTTP and reverse-proxy
+      friendly individually (e.g. reader.slug.<base_domain> and
+      admin.slug.<base_domain>, or admin kept un-published and reached via
+      an internal route), but this is a two-subdomain/two-route shape our
+      simpler recipes don't need — worth confirming af-core's Traefik label
+      renderer supports multiple public ports with independent basic_auth
+      gates per port before treating this as a template.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Ubooquity is a niche but functionally distinct fit (ebook/comic library +
+  web reader + OPDS feed, no overlap in the current catalogue), packaged via
+  the well-maintained linuxserver/ubooquity community image even though the
+  upstream Ubooquity server itself is closed-source freeware in
+  maintenance-only mode (no release in the 12 months to 2026-08-05).
+  Mechanically it is close to installable: the admin password can only be
+  set through a first-visit web wizard with no preset channel, but a Traefik
+  basic_auth gate on both its public ports (library 2202, admin 2203) closes
+  the setup race the same way it does for n8n/WUD/Open WebUI. It is blocked
+  today only on IF-1312 (the basic_auth toggle) shipping, plus confirming
+  af-core can render two independently-gated public ports for one recipe;
+  revisit once basic_auth lands.
