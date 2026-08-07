@@ -1,0 +1,97 @@
+slug: writefreely
+name: WriteFreely
+source_description: "Minimalist Markdown publishing platform with ActivityPub federation and a distraction-free editor"
+
+upstream:
+  url: https://writefreely.org
+  repo_url: https://github.com/writefreely/writefreely
+  license: AGPL-3.0
+  docker_image: ghcr.io/writefreely/writefreely
+
+version_health:
+  latest_version: v0.17.1
+  latest_release_date: 2026-07-20
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Source repo pushed to as recently as 2026-08-03 (2 days before this
+    analysis), so the project itself is alive. Release cadence is uneven:
+    v0.14.0 (2023-09-22) -> v0.15.0 (2024-02-03) -> v0.15.1 (2024-10-05) ->
+    v0.16.0 (2025-08-29) -> v0.17.0 (2026-07-17) -> v0.17.1 (2026-07-20),
+    i.e. roughly one release every 6-12 months historically, with two
+    releases three days apart in the most recent burst (v0.17.1 fixed
+    issues from v0.17.0). Not dormant, but not a fast-moving project either.
+    IMPORTANT PACKAGING NOTE: the official Docker Hub image
+    (docker.io/writeas/writefreely) is stale — last pushed ~5 years ago,
+    frozen at 0.12.0, and the project's own docker-compose.yml in the repo
+    still references "writeas/writefreely:latest" (that reference is itself
+    stale/misleading). The actually-maintained image is published by the
+    repo's own CI (.github/workflows/docker-publish.yml) to
+    ghcr.io/writefreely/writefreely, tagged per release (e.g. v0.17.1) as
+    recently as 4 days before this analysis. Any future recipe work must
+    use the ghcr.io image, not the Docker Hub one the official
+    docker-compose.yml still points to.
+
+catalogue_fit:
+  categories: [publishing, cms]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers blogging/publishing or ActivityPub
+    federation; the closest category-adjacent recipes (opengist for
+    code snippets, gitea for git hosting) serve a different content type
+    entirely. WriteFreely would be the catalogue's first "public content
+    platform" recipe, distinct from the largely private/internal-tool
+    nature of the current 24.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated (Markdown blog + ActivityPub/fediverse
+    publishing is a real customer want, and single-container SQLite mode
+    keeps ops simple), but a niche audience compared to security/dev-tool
+    recipes already in the catalogue, and the admin-auth mechanics below
+    are awkward under current platform constraints.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      WriteFreely has no env-var or config.ini field for bootstrapping an
+      admin account, and no browser-based first-run setup wizard (unlike
+      the "first visitor claims admin" pattern accepted for Gitea,
+      Uptime Kuma, and WordPress in this catalogue). The only supported
+      path is running "writefreely --create-admin <user>:<password>" as a
+      one-off exec against the running container, and that command takes
+      the admin password as PLAINTEXT (it hashes it internally).
+      generated_from only ever projects a hash of the customer's root
+      password, never the plaintext, so there is no way to get the
+      customer's own credential into this flow, and install.sh itself
+      never sees the plaintext root password either. Per
+      apps-gaps/SCHEMA.md, a genuine plaintext requirement (not "a hash in
+      an unsupported algorithm") is a structural blocker, not a soft one.
+    - >
+      Traefik basic_auth is a whole-service gate in this repo's current
+      recipes (no example of scoping it to a single path). Gating the
+      entire app to work around the above would block public, unauth'd
+      access to the blog itself and to its ActivityPub endpoints
+      (webfinger/inbox), which is the actual point of the app — federation
+      requires other fediverse servers to reach it without a login prompt.
+      Only gating /admin (or /login) would preserve the product's purpose,
+      and that path-scoped capability doesn't exist in the platform today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  WriteFreely is an actively-developed, differentiated candidate (the
+  catalogue's only fediverse-native publishing app) but is blocked on two
+  platform gaps rather than app quality: no channel exists today for a
+  customer-supplied plaintext admin password (generated_from only carries
+  hashes), and whole-service Traefik basic_auth would defeat the app's
+  public-blog/ActivityPub purpose where a path-scoped /admin-only gate is
+  needed instead. Revisit once either a plaintext-capable credential
+  channel or path-scoped basic_auth ships; also note for any future recipe
+  work that the correct image is ghcr.io/writefreely/writefreely, not the
+  long-abandoned docker.io/writeas/writefreely the upstream repo's own
+  docker-compose.yml still references.
