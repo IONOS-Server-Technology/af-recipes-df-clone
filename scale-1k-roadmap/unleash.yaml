@@ -1,0 +1,84 @@
+slug: unleash
+name: Unleash
+source_description: "Open-source feature flag management with 15+ SDKs and gradual rollout strategies"
+
+upstream:
+  url: https://www.getunleash.io
+  repo_url: https://github.com/Unleash/unleash
+  license: "Apache-2.0 (pre-built unleashorg/unleash-server image and SDKs); source repo relicensed to AGPLv3 as of v8.0.0 (2026-06-09) — only binds if you modify the source and offer it over a network, not for running the unmodified official image"
+  docker_image: unleashorg/unleash-server:8.1.0
+
+version_health:
+  latest_version: "v8.1.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v8.1.0 shipped on 2026-08-05 — today's date, i.e. zero days old. Prior
+    releases in the same window: v8.0.3 (2026-07-10), v8.0.2 (2026-06-29),
+    v8.0.1 (2026-06-16), v8.0.0 (2026-06-09, the AGPLv3 relicense of the
+    main repo — pre-built images stay Apache-2.0). That's five releases in
+    under two months, a clearly active, fast-moving cadence. Backed by a
+    funded company (getunleash.io, Series B raised in 2026) with continued
+    feature investment (remote MCP server GA'd May 2026, ServiceNow
+    integration beta in v8.1.0). No indication of maintenance-only,
+    archival, or EOL for the core server. Note: the separate
+    Unleash/unleash-edge OSS project is a different component (a caching
+    proxy in front of Unleash, not the server itself) that is in
+    long-term-maintenance with an announced 2026-12-31 EOL — irrelevant to
+    a plain unleash-server recipe unless a future recipe adds Edge.
+
+catalogue_fit:
+  categories: [developer-tools, feature-flags, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes touch feature-flag/experimentation
+    infrastructure — the closest neighbors are developer-tooling recipes
+    like Gitea and Portainer, but those serve source control / container
+    management, not runtime flag rollout. Unleash would be the first
+    recipe letting a customer run gradual rollouts, kill switches, and
+    A/B-style toggles for their own applications, with a real admin
+    console (unlike headless infra like Typesense/Meilisearch) to manage
+    projects, environments, and strategies.
+  usefulness: medium
+  usefulness_rationale: >
+    Unlike the headless search-engine candidates (Typesense, Meilisearch),
+    Unleash ships a genuine web admin UI that is the actual point of daily
+    interaction — a customer logs in, creates flags, and toggles rollout
+    strategies directly, no separate app required to get value. That said
+    the audience is still narrow: it's exclusively useful to a customer
+    who is actively developing their own application and has wired one of
+    Unleash's 15+ SDKs into it: there's nothing to look at otherwise. That
+    keeps usefulness at medium rather than high — real, self-contained
+    value once adopted, but a smaller addressable slice of the customer
+    base than end-user apps like Vaultwarden or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_CREDENTIAL, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Unleash is a single official image (unleashorg/unleash-server) plus a
+  Postgres dependency, structurally similar to our n8n/paperless-ngx
+  template (single HTTP port 4242, reverse-proxy friendly), backed by an
+  actively releasing, funded vendor with no EOL concerns. It fills a gap
+  no current recipe covers. Its own login is not customer-configurable
+  through any input channel we have today — UNLEASH_DEFAULT_ADMIN_USERNAME
+  /_PASSWORD only accept plaintext, which generated_from cannot produce
+  since it only ever carries a hash — but Unleash ships a well-known,
+  static default (admin / unleash4all) rather than requiring a plaintext
+  credential to function, so per the existing IF-1312 precedent for fixed
+  default credentials, gating the whole app behind Traefik basic_auth
+  (projected from the customer's root password) closes the real exposure
+  and leaves the app's own documented default login as an internal detail
+  behind that gate. Recommended to build now.
