@@ -39,9 +39,12 @@ catalogue_fit:
   usefulness_rationale: >
     Real technical value for a narrow developer/analytics audience, but it
     is a raw SQL server with no web surface at all — the customer's only
-    interaction is a Postgres connection string over TCP 5432, which is a
-    fundamentally different (and today unsupported, see below) consumption
-    model than every other recipe in the catalogue.
+    interaction is a Postgres connection string over TCP 5432, and
+    publishing that port is exactly what our own recipe rules forbid (see
+    `blocking_issues`). Same structural class as PostgreSQL, MySQL, and
+    MariaDB (apps-gaps/postgresql.yaml, apps-gaps/mysql.yaml,
+    apps-gaps/mariadb.yaml) — raw-protocol RDBMS engines with no
+    application-layer presence to gate behind Traefik.
 
 installability:
   recipe_type_guess: docker-compose
@@ -50,25 +53,46 @@ installability:
     - secret: postgres_superuser_password
       mechanism: server_generated_no_customer_input
   blocking_issues:
-    - "The app's only interface is a raw PostgreSQL wire-protocol port (5432), not HTTP. There is no reverse-proxy story: Traefik in front of a customer-facing recipe assumes HTTP(S) on <slug>.<base_domain>, and basic_auth gating is meaningless for the Postgres protocol. Exposing 5432 publicly requires a different exposure mechanism (raw TCP passthrough / NodePort / LoadBalancer per CLAUDE.md) that none of the current recipes use."
-    - "Even if TCP exposure were solved, the customer still needs a working Postgres password/connection string handed back to them out-of-band to actually use the database — af-api's current bootstrap flow has no channel for surfacing a generated non-web credential to the customer post-install, unlike a web-app admin login."
+    - >
+      The only useful shape for a standalone TimescaleDB recipe is a
+      publicly reachable Postgres-protocol port so an external customer
+      app can connect to it (timescale/timescaledb extends the official
+      postgres image and speaks the identical wire protocol on 5432).
+      Publishing host port 5432 is exactly what RFC-002's
+      `no-public-db-port` rule forbids (rfc/002-recipe-rules.md:220-226) —
+      5432 is explicitly on the forbidden-host-port list. There is no
+      alternate exposure path today: Traefik only routes HTTP, and
+      Postgres speaks a raw binary wire protocol, so it cannot be fronted
+      the way our web-UI recipes are (no `basic_auth`, no subdomain
+      routing).
+    - >
+      Even setting the port rule aside, the superuser password is only
+      projectable via `POSTGRES_PASSWORD` (a plaintext env var, which
+      `generated_from` does not produce) — same as upstream Postgres, the
+      image has no pre-hashed-password input at all (unlike MySQL/
+      MariaDB's `*_ROOT_PASSWORD_HASH` variants). This is not a
+      `blocked_on_platform`-shaped gap waiting on a new supported hash
+      algorithm; Postgres/TimescaleDB structurally requires the plaintext
+      password at container start, which `generated_from` can never
+      supply. Moot anyway given the public-port blocker above.
   installable_today: false
-  recommendation: blocked_on_platform
+  recommendation: not_recommended
 
 summary: >
   TimescaleDB is an actively released, commercially backed project (Tiger
   Data, monthly image cadence, PostgreSQL 18 support shipped days before
   this analysis) with no EOL or dormancy concerns. It doesn't overlap any
   existing recipe since every current Postgres usage in the catalogue is
-  internal to another app, not customer-facing. However it is structurally
-  unlike every recipe we ship: no web UI, no HTTP port, and its sole
-  interface is the raw Postgres wire protocol — something our
-  Traefik-fronted, HTTP-based exposure model and basic_auth gate mechanism
-  were never built to support. The internal Postgres superuser password can
-  be generated server-side with no customer input, but there is still no
-  supported way to expose the port itself or hand the connection secret back
-  to the customer. Recommend blocked_on_platform until raw-TCP service
-  exposure (NodePort/LoadBalancer, per CLAUDE.md guidance against
-  port-forward workarounds) and a non-HTTP credential-delivery flow exist;
-  not a recipe-mechanism gap specific to TimescaleDB, but the first
-  candidate to surface the "database as the product" case at all.
+  internal to another app, not customer-facing. But a standalone
+  TimescaleDB recipe has no viable shape in the current catalogue: its
+  only useful exposure — a public, customer-reachable 5432 — is explicitly
+  forbidden by our own `no-public-db-port` rule, and it has no web UI to
+  gate behind Traefik/basic_auth the way our other no-login apps do. This
+  is the identical structural mismatch documented for PostgreSQL, MySQL,
+  and MariaDB (timescale/timescaledb is literally the postgres image with
+  an extension bundled on top) — a raw internet-facing DB port that our
+  security rules and Traefik-only routing model don't support, and a
+  plaintext-only password variable with no hashed-credential channel.
+  Recommend not_recommended rather than blocked_on_platform, since no
+  plausible mechanism change fixes this without relaxing a deliberate
+  security rule.
