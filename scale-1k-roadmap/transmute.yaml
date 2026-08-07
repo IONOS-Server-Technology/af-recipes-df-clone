@@ -1,0 +1,99 @@
+slug: transmute
+name: Transmute
+source_description: "Privacy-first file converter for documents, images, audio, and video"
+
+upstream:
+  url: https://transmute.sh/
+  repo_url: https://github.com/transmute-app/transmute
+  license: MIT
+  docker_image: ghcr.io/transmute-app/transmute (pin to a version tag, e.g. 2.0.0 — upstream's own docker-compose.yml uses :latest, do not copy that)
+
+version_health:
+  latest_version: "2.0.0"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.0.0 shipped 2026-06-30, ~5 weeks before today (2026-08-05), adding
+    file compression alongside conversion. The releases before it show a
+    sustained cadence: v1.3.1 (2026-06-12), v1.3.0 (2026-06-02), v1.2.0
+    (2026-05-24), v1.1.0 (2026-05-13), v1.0.0 (2026-05-01) — roughly one
+    release every 1-3 weeks since the project's first tagged release
+    (v0.11.0, 2026-04-15). Commit activity on `main` continues past the
+    last release (most recent commit 2026-08-03, two days before today),
+    confirming development hasn't stalled between tags. ~1,253 GitHub
+    stars, 79 forks, 850+ commits, 12 open issues, no archival notice.
+    Maintainer describes it as "human-led and maintainer-reviewed" (AI
+    tools assist but a human reviews all code). Clearly active.
+
+catalogue_fit:
+  categories: [productivity, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue does general-purpose file
+    conversion. Closest neighbors by shape are single-container web-UI
+    utilities like Uptime Kuma or Vaultwarden, but none overlap on
+    function — Paperless-ngx/Paperless-AI are document *archival*, not
+    format conversion; nothing else touches images/audio/video/office
+    formats. Transmute converts and compresses across ~3,000 format pairs
+    (images, video, audio, documents, spreadsheets, subtitles, fonts) and
+    processes everything locally on the customer's own server — no files
+    ever leave the box, which lines up well with a privacy-first hosting
+    pitch. It also added Traefik-friendly sub-path routing (v1.3.1) and
+    an OpenAPI-documented REST API for automation.
+  usefulness: high
+  usefulness_rationale: >
+    A file-converter is a broadly useful, easy-to-explain utility with no
+    equivalent already in the catalogue, backed by an actively developed
+    upstream with real community traction. Single container, single port,
+    no external dependencies (SQLite embedded, no separate DB service) —
+    low operational overhead for a first recipe in this category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Transmute has its own built-in login (username/password, role-based
+      access), but there is no env var or config file for injecting an
+      admin credential at boot — the app instead exposes a first-run
+      "/users/bootstrap-status" flow where whoever submits the *first*
+      signup through the web UI is auto-promoted to admin
+      (`role = "admin" if not db.has_non_guest_users()`). There is no
+      accept-a-pre-hashed-password channel here for `generated_from` to
+      target: the app only ever takes a plaintext password typed directly
+      into its own signup form, and unlike Vaultwarden's ADMIN_TOKEN or
+      Open WebUI's WEBUI_SECRET_KEY there's no admin-facing env var to
+      project a hash into. Left ungated, the app sits open between
+      container start and the customer's first visit — whoever reaches
+      the domain first (not necessarily the customer) claims the admin
+      account, the same structural gap flagged for Uptime Kuma and
+      Trailarr. The platform's own precedent (IF-1312) is to put a
+      mandatory Traefik basic_auth gate in front of the app, with that
+      gate's password projected from the customer's root password,
+      leaving Transmute's own signup/login as a secondary, gated-behind
+      layer. OIDC/SSO login is also supported upstream (OIDC_CLIENT_ID/
+      OIDC_CLIENT_SECRET env vars) but requires the customer to register
+      an OAuth app with an external identity provider first — no input
+      channel for that today, so it's out of scope for a first recipe;
+      plain username/password behind basic_auth is the only viable path.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Transmute is a single-container, actively maintained file converter/
+  compressor (ghcr.io/transmute-app/transmute, port 3313, embedded SQLite,
+  no separate DB service) that fills a real gap in the catalogue — nothing
+  else does general format conversion. It's mechanically simple to deploy
+  behind Traefik and supports sub-path routing out of the box. The one
+  caveat is that its admin account is created via a first-visit web wizard
+  rather than an env var, so — mirroring the Uptime Kuma/Trailarr
+  precedent — it needs a mandatory Traefik basic_auth gate (password
+  projected from the customer's root password) to stop a stranger from
+  racing the customer to claim the admin account. With that gate in
+  place, build_with_caveats.
