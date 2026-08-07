@@ -1,0 +1,81 @@
+slug: umami-analytics
+name: Umami Analytics
+source_description: "Umami is a simple, fast, privacy-focused alternative to Google Analytics"
+
+upstream:
+  url: https://umami.is
+  repo_url: https://github.com/umami-software/umami
+  license: MIT
+  docker_image: docker.umami.is/umami-software/umami:postgresql-v3.2.0
+
+version_health:
+  latest_version: "v3.2.0"
+  latest_release_date: "2026-06-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.2.0 (2026-06-24) is the latest tagged release, ~6 weeks before today
+    (2026-08-05). Preceding tags: v3.0.0 (2025-11-07) -> v3.0.1 (2025-11-18)
+    -> v3.0.2 (2025-12-04) -> v3.0.3 (2025-12-12) -> v3.1.0 (2026-04-16,
+    ~4 months, Boards/Session Replay/Web Vitals) -> v3.2.0 (2026-06-24,
+    ~2 months, Heatmaps). The matching Docker Hub tag (`3.2.0` /
+    `postgresql-latest`, same digest) was pushed the same day as the GitHub
+    release, and `cloud-*` build tags continue landing multiple times a
+    week through 2026-08-06 (the day of/after this analysis) — active,
+    well-staffed development, no archival or maintenance-only signal.
+
+catalogue_fit:
+  categories: [analytics, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers web/product
+    analytics. Uptime-Kuma is the nearest "small dashboard + light backing
+    store" shape but monitors uptime/latency, not visitor traffic — a
+    different use case. Umami is one of the best-known lightweight,
+    privacy-first Google Analytics alternatives (no cookies, GDPR-friendly
+    by design) and a common, recurring self-hosting ask. Note for the
+    reviewer: two other privacy-analytics candidates, `plausible-analytics`
+    and `matomo`, have also been analyzed in this apps-gaps set — all three
+    cover the same niche and would compete for the same customer intent if
+    more than one is ever built.
+  usefulness: high
+  usefulness_rationale: >
+    Strong name recognition, evergreen demand (every site owner eventually
+    wants basic traffic analytics without Google), healthy/active version
+    health, and a minimal single-service-plus-Postgres footprint that is
+    cheap to run and cheap to support.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Umami's official docker-compose distribution is two containers — the app
+  itself (`docker.umami.is/umami-software/umami:postgresql-v3.2.0`) and
+  `postgres:15-alpine` — fronted by a single HTTP port (3000), which sits
+  behind Traefik exactly like Uptime-Kuma or Vaultwarden's single-container
+  shape. `DATABASE_URL` and `APP_SECRET` (a random session-signing secret)
+  are both server-side values AF already generates with no customer input;
+  Postgres's own password is likewise internal-only. The one real
+  credential concern: Umami provisions its admin account from a hardcoded
+  DB seed (`admin` / `umami`) with no env var, CLI flag, or config field to
+  set a different password at first boot — confirmed against the
+  documented environment-variables list, which has no admin-password or
+  HASH_SALT-equivalent entry. That is the "fixed/default admin credential
+  the app itself gives no way to change" row in SCHEMA.md's decision table,
+  not an open-registration race (unlike Plausible/n8n/WUD) — the fix is the
+  same either way: a mandatory Traefik `basic_auth: true` gate keyed off
+  the customer's root-password hash closes the exposure without needing
+  any Umami-side change, and `installable_today` is true with that gate in
+  place. Version health is strong and the product niche (privacy-first web
+  analytics) has zero overlap with the existing 24 recipes, though two
+  other analytics candidates (Plausible, Matomo) are already sitting in
+  this same apps-gaps set covering similar ground. Recommend `build_now`.
