@@ -1,0 +1,95 @@
+slug: trek
+name: Trek
+source_description: "Self-hosted collaborative travel planner with maps, budgets, and packing lists"
+
+upstream:
+  url: https://github.com/liketrek/TREK
+  repo_url: https://github.com/liketrek/TREK
+  license: AGPL-3.0
+  docker_image: mauriceboe/trek:3.4.1
+
+version_health:
+  latest_version: "v3.4.1"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Ten-plus tagged releases since project creation on 2026-03-19, at a
+    sub-weekly to weekly cadence (v3.1.0 on 2026-06-16 through v3.4.1 on
+    2026-07-19, with a v3.5.0-pre.1 prerelease already pushed 2026-07-22).
+    Latest stable release is about 17 days old as of today, 2026-08-05.
+    Repo is not archived, `pushed_at` is today, and the project is under 5
+    months old with 11.6k GitHub stars — a young but clearly very actively
+    developed project, not slowing or dormant.
+
+catalogue_fit:
+  categories: [productivity, collaboration, travel]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers trip/travel planning. Trek
+    combines real-time collaborative itinerary building, interactive maps,
+    budget/expense splitting, packing lists, a travel journal, and document
+    storage for reservations — a distinct household/group-travel use case
+    with no functional neighbor in the catalogue (Immich is photo
+    management, not itinerary/trip planning; n8n/paperless-ngx are
+    unrelated productivity tools).
+  usefulness: medium
+  usefulness_rationale: >
+    Broad consumer appeal (group trip planning is a common household use
+    case) and it is architecturally simple to run — single container,
+    SQLite by default, no external database dependency, real websocket
+    collaboration works fine behind a reverse proxy. Capped at medium
+    rather than high because it is a young project (under 5 months old)
+    without a long track record, and the catalogue's install mechanism
+    cannot express its first-run admin credential today (see below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Trek's first-run admin account is provisioned from the plaintext
+      `ADMIN_PASSWORD` env var (confirmed against
+      `server/src/db/seeds.ts`): the value is read as the literal password
+      the customer will type at login, then bcrypt-hashed by the app
+      itself at seed time (`bcrypt.hashSync(password, BCRYPT_COST)`).
+      `generated_from: "<algo>:ROOT_PASSWORD"` can only ever project a hash
+      of the root password onto the target parameter, never the plaintext
+      — so setting `ADMIN_PASSWORD` to `argon2:ROOT_PASSWORD` or similar
+      would have Trek re-hash an already-hashed string and store that as
+      the password, which the customer could never type in to match. This
+      is the "genuine requirement for the plaintext password" structural
+      blocker case, not an unsupported-hash-algorithm case.
+    - >
+      If both `ADMIN_EMAIL`/`ADMIN_PASSWORD` are left unset, Trek boots
+      with account email `admin@trek.local` and a random password that is
+      only ever printed to the container's stdout log — not a channel the
+      platform exposes to the customer today, so that path does not hand
+      the customer a working credential either.
+    - >
+      A Traefik `basic_auth: true` gate in front (keyed off the root
+      password hash) would close the network exposure, but Trek still
+      presents its own login screen behind that gate; the customer would
+      have no way to learn the credential needed to actually sign in, so
+      the gate alone doesn't solve first-run access the way it does for a
+      no-login app like Adminer.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Trek is an active, well-regarded, single-container trip-planning app
+  (SQLite, no external DB) that would be a genuinely new category for the
+  catalogue — nothing today covers collaborative travel planning. It fails
+  the installability test purely on the platform mechanism: its
+  `ADMIN_PASSWORD` env var requires the literal plaintext value the
+  customer will log in with (the app hashes it itself at seed time), and
+  `generated_from` can only ever hand over a hash of the root password, not
+  the plaintext. A Traefik `basic_auth` gate doesn't substitute either,
+  since Trek's own login screen still sits behind it with no way to tell
+  the customer what to type. Revisit once the platform can project the
+  customer's plaintext root password (not just a hash) into an app's own
+  admin-credential field, or once Trek adds a way to accept a pre-hashed
+  admin credential.
