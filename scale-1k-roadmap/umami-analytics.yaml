@@ -6,7 +6,7 @@ upstream:
   url: https://umami.is
   repo_url: https://github.com/umami-software/umami
   license: MIT
-  docker_image: docker.umami.is/umami-software/umami:postgresql-v3.2.0
+  docker_image: docker.umami.is/umami-software/umami:postgresql-latest
 
 version_health:
   latest_version: "v3.2.0"
@@ -18,9 +18,14 @@ version_health:
     (2026-08-05). Preceding tags: v3.0.0 (2025-11-07) -> v3.0.1 (2025-11-18)
     -> v3.0.2 (2025-12-04) -> v3.0.3 (2025-12-12) -> v3.1.0 (2026-04-16,
     ~4 months, Boards/Session Replay/Web Vitals) -> v3.2.0 (2026-06-24,
-    ~2 months, Heatmaps). The matching Docker Hub tag (`3.2.0` /
-    `postgresql-latest`, same digest) was pushed the same day as the GitHub
-    release, and `cloud-*` build tags continue landing multiple times a
+    ~2 months, Heatmaps). Caveat verified against the registry's own
+    tag-list API (docker.umami.is/v2/umami-software/umami/tags/list,
+    mirrored on ghcr.io/umami-software/umami): Umami stopped publishing
+    per-app-version Docker tags after `postgresql-v2.16` — there is no
+    `postgresql-v3.x` tag, so v3.2.0 is not pinnable by semver tag; it is
+    only reachable via the floating `postgresql-latest` tag. A recipe
+    author will need to pin by digest against `postgresql-latest` instead
+    of a version tag. `cloud-*` build tags continue landing multiple times a
     week through 2026-08-06 (the day of/after this analysis) — active,
     well-staffed development, no archival or maintenance-only signal.
 
@@ -59,7 +64,10 @@ installability:
 
 summary: >
   Umami's official docker-compose distribution is two containers — the app
-  itself (`docker.umami.is/umami-software/umami:postgresql-v3.2.0`) and
+  itself (`docker.umami.is/umami-software/umami:postgresql-latest`, the
+  floating tag currently serving v3.2.0 — Umami stopped publishing
+  per-app-version Docker tags after `postgresql-v2.16`, so a future recipe
+  will need to pin by digest rather than semver tag) and
   `postgres:15-alpine` — fronted by a single HTTP port (3000), which sits
   behind Traefik exactly like Uptime-Kuma or Vaultwarden's single-container
   shape. `DATABASE_URL` and `APP_SECRET` (a random session-signing secret)
