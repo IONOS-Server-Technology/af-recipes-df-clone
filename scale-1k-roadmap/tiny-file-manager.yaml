@@ -1,0 +1,100 @@
+slug: tiny-file-manager
+name: Tiny File Manager
+source_description: "Single-file PHP web file manager for browsing and managing server files"
+
+upstream:
+  url: https://tinyfilemanager.github.io/
+  repo_url: https://github.com/prasathmani/tinyfilemanager
+  license: "GPL-3.0"
+  docker_image: tinyfilemanager/tinyfilemanager
+
+version_health:
+  latest_version: "2.6"
+  latest_release_date: "2024-11-05"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest tagged release 2.6 published 2024-11-05, about 21 months before
+    today (2026-08-05) — no tagged release since. Release history is
+    irregular: multiple releases in 2018-2019 and again 2019-2020, then a
+    ~21-month gap to 2.4.7 (2022-02-12), a ~9-month gap to 2.5.0
+    (2022-11-19), a ~3-month gap to 2.5.3 (2023-02-22), and a ~21-month gap
+    to 2.6. The repo itself is not dormant — GitHub API shows a push as
+    recently as 2026-07-20 (about 2.5 weeks before today) and 5,959 stars —
+    so classifying `eol_status: active` rather than `maintenance-only`, but
+    `release_cadence: sporadic` because tagged cuts are far apart and
+    unpredictable despite ongoing commit activity.
+
+catalogue_fit:
+  categories: [productivity, file-management, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a general-purpose web
+    file browser/manager for the server's own filesystem. Syncthing
+    synchronizes files between devices rather than browsing a single
+    server's disk through a UI; Portainer manages Docker containers, not
+    arbitrary files; Paperless-ngx/Paperless-AI manage ingested documents
+    with OCR, not raw file trees. Tiny File Manager fills a distinct,
+    common self-hosting niche: browse/upload/edit/rename/delete files in a
+    mounted directory (e.g. shared storage, backups, static-site assets)
+    through a plain browser UI, no SSH/SFTP client needed.
+  usefulness: medium
+  usefulness_rationale: >
+    A lightweight web file manager is a genuinely useful utility recipe —
+    it's one of the most commonly requested self-hosted tools precisely
+    because it needs no client software. Usefulness is medium rather than
+    high because it only manages whatever directory is mounted into the
+    container (not the customer's full server filesystem, which would be a
+    serious security exposure to run behind a web login), narrowing it to
+    a "manage this one data volume" tool rather than the full sysadmin
+    file-manager pitch its name implies, and because more actively
+    maintained/more capable alternatives exist in the same space (e.g.
+    FileBrowser, Filestash).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today:
+    - secret: admin_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The app has no environment-variable-based credential input. Its
+      shipped default admin/admin@123 and user/12345 logins are hardcoded
+      in the PHP source and can only be overridden by mounting a
+      `config.php` file containing a PHP `$auth_users` array whose values
+      are `password_hash()` outputs (bcrypt by default — a supported
+      `generated_from` algorithm). This is expressible today by having
+      install.sh render that config.php from a template before `compose
+      up` (the same file-templating pattern recipes/guacamole/install.sh
+      already uses for its DB init script), not a hard blocker — but it's
+      a file-mount workaround rather than a plain env var, more moving
+      parts than most `generated_from` recipes to date.
+    - >
+      The official `tinyfilemanager/tinyfilemanager` Docker Hub repo has no
+      tag matching the latest 2.6 source release: the only pinned,
+      versioned tags published are `2.5.3` (2023-02-22) and `2.4.7`
+      (2022-02-12), both older than 2.6, which shipped a documented path
+      traversal fix among its changes. The only tag that tracks current
+      source is `master`, rebuilt on every upstream commit (most recently
+      2026-07-20) — a moving target, not a stable pin, and against this
+      catalogue's never-`:latest`-equivalent pinning discipline. Building
+      this recipe today means either pinning to the outdated 2.5.3 image
+      (missing the 2.6 path-traversal fix) or tracking the unversioned
+      `master` tag.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Tiny File Manager is a genuinely distinct utility (no existing recipe
+  browses/manages a mounted directory through a web UI) and its auth can
+  be projected via generated_from, though only by templating a mounted
+  config.php rather than a plain env var. The real caveat is image
+  freshness: the official Docker Hub image is stuck two releases behind
+  the latest 2.6 source tag, which includes a real security fix (path
+  traversal), leaving a choice between an outdated pinned tag or an
+  unversioned `master` tag. Combined with a sporadic, unpredictable
+  release cadence, recommend build_with_caveats — worth doing, but flag
+  the image-pin tradeoff explicitly before building.
