@@ -1,0 +1,91 @@
+slug: weknora
+name: WeKnora
+source_description: "Open-source LLM knowledge platform for RAG, agents, and self-maintaining wikis"
+
+upstream:
+  url: https://weknora.online/
+  repo_url: https://github.com/Tencent/WeKnora
+  license: MIT
+  docker_image: wechatopenai/weknora-app
+
+version_health:
+  latest_version: "v0.7.2"
+  latest_release_date: "2026-08-07"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Release cadence is dense and current: v0.7.2 (2026-08-07), v0.7.1
+    (2026-07-24), v0.7.0 (2026-07-17), v0.6.3 (2026-06-26) — roughly one
+    tagged release every 1-3 weeks going back through v0.3.x in March 2026.
+    Repo created 2025-07-22 (Tencent-owned, "WeChat OpenAI" org publishes the
+    images), last push 2026-08-07, not archived, 19.5k stars, 583 open
+    issues. No archival, deprecation, or slowdown signal — this is a young,
+    fast-moving, actively maintained project. (Its latest tag lands
+    essentially on the analysis date itself, underscoring how fast it
+    ships.)
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anythingllm, open-webui, ollama, paperless-ai]
+  differentiation: >-
+    Same "RAG over your own documents" core already covered by the
+    anythingllm gap candidate, but WeKnora goes further with a ReAct agent
+    that can orchestrate retrieval + MCP tools + web search, and a distinct
+    "Wiki Mode" that distills a document set into a self-maintaining,
+    interlinked markdown wiki with a knowledge graph (optional Neo4j) —
+    neither open-webui/ollama (plain chat UI) nor paperless-ai (tagging
+    assistant bolted onto document archiving) attempt that. It also natively
+    answers questions over IM channels (WeCom, Feishu, Slack, Telegram),
+    which nothing in the catalogue does today.
+  usefulness: medium
+  usefulness_rationale: >-
+    The Wiki Mode / knowledge-graph angle is a genuinely new capability, but
+    it lands in the same crowded "local RAG / AI knowledge base" niche as
+    the not-yet-built anythingllm candidate, and a customer who just wants
+    to chat with their own LLM already has open-webui + ollama. WeKnora's
+    value case rests on a smaller slice of that niche (teams wanting a
+    living wiki/knowledge-graph output, not just Q&A), and it comes at a
+    much heavier operational cost than either alternative (see below), so
+    the net uplift per unit of complexity is moderate rather than clearly
+    high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET, SYSTEM_AES_KEY]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SYSTEM_AES_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  WeKnora ships its own signup/login system (JWT + optional API keys, RBAC
+  roles, orphaned-space auto-promotion of the first real user to Owner), so
+  — like uptime-kuma, immich, and the anythingllm candidate — the admin
+  account is created through the app's own first-visit UI, not projected
+  from the server root password. Everything the container stack needs to
+  boot (Postgres/Redis credentials, JWT_SECRET, the SYSTEM_AES_KEY used to
+  encrypt stored API keys) is a patternless value the platform can generate
+  server-side; no LLM provider key is required at first boot since Ollama
+  support is optional (OLLAMA_OPTIONAL=true) and other providers are added
+  later through the UI, exactly the pattern already used for
+  ANTHROPIC_API_KEY on claude-code. It is mechanically installable today
+  with no blocking secret. The real caveat is operational weight: the
+  default compose stack alone is frontend (nginx) + app (Go backend) +
+  docreader (Python gRPC document/OCR parser) + Postgres (paradedb/pgvector)
+  + Redis — five containers before any of the optional `full` profile
+  add-ons (Neo4j, MinIO, SearXNG, Langfuse, a Docker-based agent-skills
+  sandbox), noticeably heavier than open-webui+ollama or the anythingllm
+  candidate for a comparable "chat with your docs" outcome. It is also a
+  young project (repo created mid-2025) shipping fast — active is a good
+  sign for support, but also means the ~150-environment-variable surface is
+  still shifting release to release.
