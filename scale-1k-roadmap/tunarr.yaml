@@ -1,0 +1,80 @@
+slug: tunarr
+name: Tunarr
+source_description: "Build custom live TV channels from Plex, Jellyfin, and Emby libraries"
+
+upstream:
+  url: https://tunarr.com
+  repo_url: https://github.com/chrisbenincasa/tunarr
+  license: Zlib
+  docker_image: chrisbenincasa/tunarr
+
+version_health:
+  latest_version: "1.3.10"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (1.3.10) is 7 days old as of today (2026-08-05).
+    Recent release history (1.3.6 2026-06-10, 1.3.7 2026-06-16, 1.3.8
+    2026-06-27, 1.3.9 2026-07-17, 1.3.10 2026-07-29) shows releases every
+    6-20 days over the last two months — a healthy, ongoing cadence with
+    no signs of slowdown. Repo has ~2.5k stars, ~3,000 commits on main, and
+    open issues/PRs are actively triaged. No indication of maintenance-only
+    status, archival, or announced EOL.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes builds a live/scheduled TV
+    channel experience out of a customer's existing media libraries.
+    Immich (photo/video backup) and the media-archiving gap candidates
+    (apps-gaps/tubearchivist.yaml, apps-gaps/pinchflat.yaml) all deal with
+    acquiring or storing media; Tunarr instead assumes the customer already
+    runs Plex, Jellyfin, or Emby and layers a "channel scheduler" on top,
+    producing an HDHomeRun-emulated tuner and M3U/IPTV output consumable by
+    any client that can watch live TV (Plex Live TV, Jellyfin Live TV,
+    Emby, or any IPTV player). This is a genuinely different use case —
+    turning an on-demand library into a linear-TV-style experience — not a
+    restatement of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche with an actively growing community (~2.5k GitHub
+    stars) and no direct competitor in our catalogue. Held to medium
+    rather than high because it is a companion app, not a standalone
+    destination: it delivers no value unless the customer already runs (or
+    separately stands up) Plex, Jellyfin, or Emby, none of which are
+    currently in the catalogue either, so a customer would need to bring
+    or build that dependency themselves before Tunarr does anything useful
+    (it does support "local files" as a source without an external media
+    server, which is a fallback path but a much less compelling one than
+    its headline Plex/Jellyfin/Emby integration).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Tunarr is an actively maintained (release every 1-3 weeks, no EOL/dormancy
+  signal), well-differentiated addition: it turns a customer's existing
+  Plex/Jellyfin/Emby library into scheduled live-TV channels, a use case
+  nothing in the current 24-recipe catalogue covers. It is single-port
+  (8000), reverse-proxy-compatible, and ships with no built-in
+  authentication of its own, so it fits the platform's supported pattern
+  cleanly: gate the whole app behind a Traefik `basic_auth: true` using the
+  customer's root-password hash, same as n8n/WUD/Open WebUI. No external
+  API key or OAuth registration is required just to run Tunarr itself —
+  Plex/Jellyfin/Emby connections are configured post-boot through its own
+  web UI using whatever credentials the customer already has for those
+  services, which is out of scope for our install-time secret projection.
+  Recommend `build_now`, with the caveat that its practical value depends
+  on the customer already operating a Plex/Jellyfin/Emby instance, none of
+  which are themselves in the catalogue today.
