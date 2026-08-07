@@ -1,0 +1,91 @@
+slug: thruk
+name: Thruk
+source_description: "Multi-backend web interface for Naemon, Nagios, Icinga, and Shinken monitoring"
+
+upstream:
+  url: https://www.thruk.org/
+  repo_url: https://github.com/sni/Thruk
+  license: "Artistic-1.0-Perl OR GPL-1.0-or-later"
+  docker_image: null
+
+version_health:
+  latest_version: "3.28"
+  latest_release_date: "2026-04-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.28 published 2026-04-09, about 4 months before today (2026-08-05).
+    Changes history shows a steady quarterly cadence through 2025-2026:
+    3.22 (2025-04-12), 3.22.2 (2025-05-28), 3.24 (2025-10-02), 3.26
+    (2026-02-06), 3.28 (2026-04-09). Repo is not archived, has 14k+ commits,
+    and open issues/PRs are actively triaged — clearly active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    uptime-kuma is our existing monitoring recipe, but it's a self-contained
+    synthetic monitor: it performs its own HTTP/TCP/ping checks against
+    URLs the customer enters in its UI. Thruk is not a monitoring engine at
+    all — it's a Livestatus web frontend that visualizes and lets you
+    acknowledge/schedule-downtime against an existing Naemon/Nagios/Icinga/
+    Shinken core. It has zero built-in checks of its own; all value comes
+    from a backend monitoring core with host/service definitions that the
+    customer (or the recipe) must configure separately. So it's adjacent to
+    uptime-kuma by category, not a duplicate of its actual functionality,
+    but it also can't stand alone the way uptime-kuma does.
+  usefulness: low
+  usefulness_rationale: >
+    Thruk by itself is a UI shell with nothing to display until a
+    Naemon/Nagios/Icinga backend exists with real host/service checks
+    configured — a non-trivial sysadmin task (writing monitoring-object
+    config files) that most self-hosting customers won't do. uptime-kuma
+    already covers the "watch is my site up" use case with zero
+    configuration burden, which is what most customers actually want from
+    a monitoring recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Thruk's own upstream (sni/Thruk) publishes no Docker image at all —
+      it's a Perl/mod_perl application shipped via OS packages or bundled
+      inside ConSol's OMD (Open Monitoring Distribution). The only
+      actively-maintained container path found is consol/omd-labs-debian
+      (or -rocky), which bundles Thruk together with a full Naemon core,
+      rrdcached, npcd and Apache into one heavyweight image — this would
+      ship as an "OMD monitoring stack" recipe, not a "Thruk" recipe, and
+      is a materially different (and much larger) deliverable than what
+      the candidate name implies.
+    - >
+      Even with that bundled image, the omdadmin login gets a random
+      password generated at container startup and printed to container
+      logs — not something af-api's ROOT_PASSWORD-hash projection or any
+      other current mechanism can retrieve and hand back to the customer.
+      A Traefik basic_auth gate in front of the whole app (same pattern as
+      Adminer/ThingsBoard) sidesteps needing that specific credential, but
+      the underlying app is still unusable out of the box: an empty
+      Naemon core has no hosts/services to monitor until the customer
+      authors monitoring-object config by hand, which the recipe mechanism
+      has no channel to pre-populate either.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Thruk is not a standalone deployable app in the way our catalogue expects
+  — it's a Livestatus frontend with no monitoring engine or Docker image of
+  its own, only reachable in practice through ConSol's much heavier OMD
+  bundle. Even setting the missing-official-image problem aside with a
+  Traefik basic_auth gate, the resulting recipe would boot to an empty
+  monitoring UI with nothing configured, since defining hosts/services
+  requires hand-authored config the recipe mechanism can't inject. Combined
+  with uptime-kuma already covering the "self-hosted monitoring" niche with
+  a zero-config synthetic-check experience, this is a low-value, not
+  cleanly installable candidate: not_recommended.
