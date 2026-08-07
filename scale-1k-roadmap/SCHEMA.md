@@ -78,10 +78,15 @@ catalogue_fit:
   categories: [<af category-like tags>]
   has_web_ui: true | false
   reverse_proxy_compatible: true | false  # single HTTP port, no extra raw ports needed, works fine behind Traefik on <slug>.<base_domain>
-  overlaps_with: [<existing recipe slugs covering similar ground, [] if none>]
   differentiation: <1-3 sentences: what does this add beyond the current 24 recipes>
   usefulness: high | medium | low
   usefulness_rationale: <1-3 sentences>
+  # overlaps_with (optional, deprecated): no longer required or produced for
+  # new files. Many existing files still carry it as a plain fact list — that's
+  # fine, leave it if present. Never let it (or general audience-size/niche
+  # judgment) influence `installability.recommendation`, at any level — see
+  # CLAUDE.md's "Overlapping/competing apps in the catalogue are fine" section
+  # for why this field's mere presence turned out to invite exactly that bias.
 
 installability:
   recipe_type_guess: docker-compose | native
