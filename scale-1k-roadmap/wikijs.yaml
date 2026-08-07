@@ -1,0 +1,74 @@
+slug: wikijs
+name: Wiki.js
+source_description: "Wiki.js is a modern, powerful and extensible wiki platform for documentation"
+
+upstream:
+  url: https://js.wiki/
+  repo_url: https://github.com/requarks/wiki
+  license: AGPL-3.0
+  docker_image: requarks/wiki
+
+version_health:
+  latest_version: "2.5.314"
+  latest_release_date: "2026-05-01"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Latest tag (2.5.314) is about 3 months old as of 2026-08-05 — not
+    dormant. But the release history over the trailing ~2.5 years is bursty
+    rather than steady: three releases packed into early January 2026
+    (2.5.309-311), then an 8-month gap back to 2.5.308 (2025-08-13), a
+    7-month gap before that to 2.5.307 (2025-03-24), and a similar
+    multi-month gap to 2.5.305 (2024-10-12). The 2.x line has stayed on
+    major version 2 since 2020 with no v3 in sight; upstream itself
+    describes it as feature-complete with fixes/security patches rather
+    than active feature development. Repo is not archived and issues are
+    still triaged, so this reads as maintenance-mode rather than abandoned.
+
+catalogue_fit:
+  categories: [productivity, documentation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers dedicated knowledge-base/wiki documentation.
+    Gitea (developer-tools) has a basic per-repo wiki feature but is a Git
+    hosting platform first, not a general-purpose documentation tool;
+    Paperless-ngx/Paperless-AI handle scanned-document archival, not
+    authored wiki content. Wiki.js fills a genuinely open niche: team
+    knowledge bases, internal docs, runbooks with a proper editor
+    (Markdown/WYSIWYG/AsciiDoc), page history, and access control.
+  usefulness: high
+  usefulness_rationale: >
+    Documentation/knowledge-base is a common self-hosting need with broad
+    appeal (small teams, homelabs, open-source projects) and nothing in the
+    current 24-recipe catalogue addresses it. Wiki.js is the most popular
+    self-hosted wiki by a wide margin (28k+ GitHub stars) and has a clean,
+    modern web UI that fits well behind Traefik.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Wiki.js is a single-container Node app (requarks/wiki) plus a Postgres
+  database, exposing one HTTP port (3000) that sits cleanly behind Traefik
+  on <slug>.<base_domain> — official docker-compose from upstream confirms
+  this shape. It needs no customer-supplied credential at boot: the only
+  secret is the Postgres password, which is server-generated and never
+  customer-facing. The admin account itself is created through Wiki.js's
+  own first-visit setup wizard in the browser (email + password chosen
+  directly by the customer), the same pattern already shipping for Immich
+  in this catalogue — not a platform-injected secret, so no
+  generated_from/basic_auth gate is needed. Version health is the only
+  soft caveat: releases are sporadic (multi-month gaps are normal for this
+  project) though not dormant, and the project appears to be in
+  fixes-and-security-patches maintenance mode on major version 2 rather
+  than active feature development. Recommend building now — it's
+  mechanically installable today and fills a real gap in the catalogue.
