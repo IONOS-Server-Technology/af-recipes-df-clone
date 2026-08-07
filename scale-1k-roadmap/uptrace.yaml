@@ -1,0 +1,89 @@
+slug: uptrace
+name: Uptrace
+source_description: "Open-source APM for distributed traces, metrics, and logs via OpenTelemetry"
+
+upstream:
+  url: https://uptrace.dev
+  repo_url: https://github.com/uptrace/uptrace
+  license: "AGPL-3.0 (full server, including the pre-built uptrace/uptrace image — unlike some AGPL projects there is no separate permissive license for the binary distribution)"
+  docker_image: uptrace/uptrace:2.0.3
+
+version_health:
+  latest_version: "v2.0.3"
+  latest_release_date: "2026-05-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.0.3 (latest stable, non-prerelease) shipped 2026-05-13 — 84 days
+    before today (2026-08-05). A parallel v2.1.0-beta track is moving
+    faster: beta.5 (2026-04-14), beta.6 (2026-05-25), beta.7 (2026-06-05,
+    61 days ago), so the project has cut a release roughly every 3-6 weeks
+    across both tracks over the last 6 months. No archival notice, no EOL
+    announcement, active commit history. Cadence is active, though the
+    stable (non-beta) line moves noticeably slower than the beta line —
+    worth pinning to a stable tag rather than tracking beta.
+
+catalogue_fit:
+  categories: [monitoring, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No current recipe touches distributed tracing/APM. Uptime Kuma is the
+    closest existing neighbor by category (monitoring) but is a simple
+    external uptime/ping checker with no relationship to application-level
+    telemetry; Uptrace ingests OpenTelemetry traces, metrics, and logs
+    emitted from inside a customer's own instrumented applications and
+    gives them a real dashboard (traces, spans, error grouping, alerting)
+    for debugging their own code. That is a genuinely new capability for
+    the catalogue, not a variant of anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    High value, but only to a customer who has already instrumented their
+    own application with an OpenTelemetry SDK and needs somewhere to send
+    the data — a materially narrower audience than end-user apps like
+    Vaultwarden or Immich, similar in kind to Unleash's audience
+    limitation. It also carries real operational weight for a self-hosted
+    box: the backing stack is four containers (Uptrace app, PostgreSQL,
+    ClickHouse, Redis), with ClickHouse in particular being noticeably
+    heavier on RAM/disk than anything else the current 24-recipe catalogue
+    runs. That raises the bar for who this is a good fit for, hence
+    medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_CREDENTIAL, UPTRACE_ADMIN_PASSWORD, POSTGRES_PASSWORD, CLICKHOUSE_PASSWORD, UPTRACE_PROJECT_TOKEN]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+    - secret: UPTRACE_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CLICKHOUSE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: UPTRACE_PROJECT_TOKEN
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Uptrace's own login (auth.users[].password in uptrace.yml) only accepts a plaintext password, either literal or via env-var substitution — there is no hashed-password field. generated_from can only ever project a hash, so the customer's root password cannot drive this app's own admin login directly. Worked around the same way as Unleash: the internal admin password is server-generated (never customer-facing) and the real access gate is Traefik basic_auth on the public port."
+    - "Ingesting telemetry needs a raw OTLP endpoint (gRPC on 4317 and/or HTTP on 4318) exposed publicly in addition to the web-UI port, since the customer's own external applications must reach it to send traces — this is not a single reverse-proxied HTTP port like most of the catalogue, closer to wg-easy's raw-port precedent than to a Traefik-only app. Also unclear how Traefik basic_auth (an HTTP-layer gate) would apply to the separate OTLP ports, which have no auth of their own beyond a per-project token baked into the SDK config — that token is server-generated and not customer-secret, but the port itself would sit open unless explicitly firewalled or paired with mutual TLS."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Uptrace fills a real gap (no current recipe covers OpenTelemetry-based
+  APM/tracing) and is actively maintained (latest stable release 84 days
+  ago, faster-moving beta track alongside it, no EOL signal). Its own
+  admin login only takes a plaintext password with no hash field, so —
+  following the Unleash precedent — it can ship with a server-generated
+  internal admin password and a Traefik basic_auth gate (projected from
+  the customer's root password) as the real access boundary, which keeps
+  it installable_today. The open caveats are operational rather than
+  mechanism-blocking: a four-container backing stack (Postgres +
+  ClickHouse + Redis + the app itself) with ClickHouse being noticeably
+  resource-heavier than anything else in the catalogue, plus a raw OTLP
+  ingestion port (4317/4318) that needs to be reachable by the customer's
+  own external apps and doesn't fit the single-HTTP-port-behind-Traefik
+  pattern most recipes use. Recommended as build_with_caveats: worth
+  building, but plan for the extra resource floor and the non-standard
+  port exposure before treating it as a drop-in template.
