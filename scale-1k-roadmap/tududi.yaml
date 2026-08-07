@@ -1,0 +1,78 @@
+slug: tududi
+name: Tududi
+source_description: "Self-hosted task manager with CalDAV sync, recurring tasks, and OIDC support"
+
+upstream:
+  url: https://tududi.com/
+  repo_url: https://github.com/chrisvel/tududi
+  license: MIT
+  docker_image: chrisvel/tududi
+
+version_health:
+  latest_version: "1.3.1"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.3.1 was pushed to Docker Hub roughly 3 weeks before today
+    (2026-08-05); GitHub release history shows v1.1.1 (2026-06-12), v1.2.0
+    (2026-07-06), v1.2.4 (2026-07-14), with v1.3.0-rc.1/v1.4.0-dev.1
+    pre-releases already cut — several releases per month, no gaps. Repo
+    is not archived and shows ongoing commit/PR activity; clearly active.
+
+catalogue_fit:
+  categories: [productivity, task-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a personal task/project
+    manager — n8n is workflow automation, paperless-ngx/paperless-ai are
+    document management, Anytype is a broader offline-first knowledge base.
+    Tududi is a to-do-list-shaped niche the catalogue doesn't cover.
+    Several other task-manager candidates already sit in apps-gaps/
+    (donetick.yaml — household chores, super-productivity.yaml — client-
+    side PWA time-tracker, tasktrove.yaml — blocked on license, dumbdo.yaml
+    — bare-minimum single-user list); none is an actual recipe yet, so
+    per-CLAUDE.md guidance overlap among candidates doesn't rule any one
+    out. Tududi differentiates within that group via CalDAV sync
+    (bidirectional, works with Apple Reminders/Thunderbird/tasks.org) and
+    OIDC/SSO support, both server-side features the lighter competitors
+    lack.
+  usefulness: medium
+  usefulness_rationale: >
+    Solid single-container SQLite app with a real feature set (subtasks,
+    recurring tasks, projects/areas/tags, PWA, CalDAV, OIDC) and genuine
+    self-hosting demand as a Todoist alternative. Not "high" because the
+    CalDAV and OIDC features that most differentiate it from simpler
+    competitors are both post-boot, in-app configuration the customer sets
+    up themselves after login — the recipe itself ships a plain
+    email/password task manager, with CalDAV/OIDC as optional bonuses the
+    customer configures manually, not a turnkey differentiator.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TUDUDI_USER_PASSWORD, TUDUDI_SESSION_SECRET]
+  secrets_expressible_today:
+    - secret: TUDUDI_USER_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: TUDUDI_SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Tududi is a single-container, SQLite-backed task manager (chrisvel/tududi,
+  MIT-licensed, actively released multiple times per month) that boots from
+  a single admin email/password pair plus a session secret — the same
+  shape as Vaultwarden's ADMIN_TOKEN, mapping cleanly onto
+  generated_from:ROOT_PASSWORD for TUDUDI_USER_PASSWORD, with
+  TUDUDI_SESSION_SECRET generated server-side. Its headline features
+  (CalDAV sync to an external server, OIDC/SSO login) are both optional,
+  customer-configured-after-login capabilities that need no input channel
+  at /compose time, so they don't block installability even though the
+  recipe won't turn them on by default. Fills a genuine gap versus the
+  current 24-recipe catalogue (no task manager exists today) and is
+  installable now, contingent only on the generated_from:ROOT_PASSWORD
+  mechanism (IF-1420) landing. Recommend build_now.
