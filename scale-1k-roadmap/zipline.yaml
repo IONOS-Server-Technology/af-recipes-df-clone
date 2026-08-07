@@ -49,8 +49,12 @@ catalogue_fit:
 
 installability:
   recipe_type_guess: docker-compose
-  secrets_required_at_first_boot: []
-  secrets_expressible_today: []
+  secrets_required_at_first_boot: [CORE_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: CORE_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
   blocking_issues: []
   installable_today: true
   recommendation: build_now
@@ -59,11 +63,14 @@ summary: >
   Zipline is a two-service stack (its own Node app plus a PostgreSQL
   database, matching the n8n/paperless-ngx template) serving its dashboard
   and upload API on a single HTTP port (3000) — fully Traefik-compatible.
-  It needs a `CORE_SECRET` cookie-signing key and a Postgres password at
-  boot, but both are patternless server-side secrets nothing customer-
-  facing ever needs to read, so af-api can generate them internally with
-  no input channel required. Confirmed against current (v4) docs and the
-  official docker-compose: on first browser visit the customer is
+  It needs a `CORE_SECRET` cookie-signing key and a `POSTGRES_PASSWORD`
+  database password at boot, but both are patternless server-side secrets
+  nothing customer-facing ever needs to read, so af-api can generate them
+  internally with no input channel required (mechanism:
+  server_generated_no_customer_input for both). Confirmed against current
+  (v4) docs (zipline.diced.sh/docs/config/core) and the official
+  docker-compose (github.com/diced/zipline docker-compose.yml): on first
+  browser visit the customer is
   redirected to a one-time setup page to create their own super-admin
   username and password directly through the app's UI (the same
   self-locking first-visit pattern already accepted for the shipped
