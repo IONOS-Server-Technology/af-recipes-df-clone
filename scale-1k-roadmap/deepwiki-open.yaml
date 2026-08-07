@@ -53,11 +53,12 @@ catalogue_fit:
 installability:
   recipe_type_guess: docker-compose
   secrets_required_at_first_boot:
-    - "Traefik basic-auth gate credential (app has no built-in login by default; DEEPWIKI_AUTH_MODE/DEEPWIKI_AUTH_CODE exist but require a plaintext shared code compared server-side, not a hash — generated_from cannot supply this because it only ever emits argon2/bcrypt hashes)"
+    - "Traefik basic-auth gate credential"
   secrets_expressible_today:
     - secret: "Traefik basic-auth gate credential"
       mechanism: traefik_basic_auth
   blocking_issues:
+    - "App has no built-in login by default; DEEPWIKI_AUTH_MODE/DEEPWIKI_AUTH_CODE exist but require a plaintext shared code compared server-side, not a hash — generated_from cannot supply this because it only ever emits argon2/bcrypt hashes, so a Traefik basic-auth gate is used instead."
     - "Default config requires GOOGLE_API_KEY (default chat provider) and OPENAI_API_KEY (default embedder, text-embedding-3-small) — both external API keys with no customer-supplied-value channel today."
     - "A no-external-key deployment is possible (DEEPWIKI_EMBEDDER_TYPE=ollama + PROVIDER=ollama, bundling an Ollama service the way recipes/open-webui does) but this is a recipe-authoring workaround, not something the app supports out of the box, and it meaningfully degrades the AI-generated wiki quality that is the app's whole value proposition."
     - "Frontend (Next.js, port 3000) and backend (FastAPI, port 8001) are two separate containers; most HTTP calls are proxied by Next.js rewrites, but the chat WebSocket connects from the browser directly to the backend port (see src/utils/websocketClient.ts), so Traefik needs two routers on one host (path- or port-based) rather than a single pass-through port like most existing recipes."
