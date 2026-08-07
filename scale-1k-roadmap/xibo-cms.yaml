@@ -1,0 +1,73 @@
+slug: xibo-cms
+name: Xibo CMS
+source_description: "Open-source digital signage CMS for scheduling layouts across display networks"
+
+upstream:
+  url: https://xibosignage.com
+  repo_url: https://github.com/xibosignage/xibo-cms
+  license: AGPL-3.0
+  docker_image: ghcr.io/xibosignage/xibo-cms:release-4.5.0
+
+version_health:
+  latest_version: "4.5.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.5.0 published 2026-07-30 (5 days before today, 2026-08-05), preceded
+    by a beta/rc1/rc2 cycle through July 2026 and a steady run of minor/patch
+    releases back through 2026 (4.4.0 2026-01-21, 4.4.1 2026-03-24, 4.4.2
+    2026-04-22, 4.4.3 2026-05-19, 4.4.4 2026-06-16). Roughly monthly cadence
+    sustained for over a year, with the sibling xibo-docker repo tagging in
+    lockstep (its own 4.5.0 release also 2026-07-30). Clearly active, not
+    dormant or maintenance-only.
+
+catalogue_fit:
+  categories: [digital-signage, media, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers digital signage / display scheduling — this
+    would open a genuinely new category. Xibo lets a customer author
+    layouts/playlists and push schedules to a network of physical displays
+    (kiosks, screens, digital menu boards), a use case none of the current
+    24 recipes address.
+  usefulness: medium
+  usefulness_rationale: >
+    Digital signage is a real, distinct self-hosting niche with no overlap
+    against the catalogue, and Xibo is the most established open-source
+    project in that space (500+ GitHub stars, 12k+ commits, active
+    development). Usefulness is capped at medium rather than high because
+    the audience is narrower/more vertical (businesses running physical
+    displays) than most of our current general-purpose catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MYSQL_PASSWORD
+  secrets_expressible_today:
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Xibo CMS is an active, well-established open-source project (v4.5.0
+  released 2026-07-30, ~monthly cadence sustained over a year) with an
+  official multi-container stack (cms-web, cms-db/MySQL, cms-xmr,
+  cms-memcached, cms-quickchart) published under ghcr.io/xibosignage. It
+  would add a net-new digital-signage category with no overlap against the
+  current 24 recipes. The only secret at first boot is the MySQL password,
+  which the official compose file already generates server-side with no
+  admin env var of any kind — Xibo instead runs its own browser-based
+  install wizard on first visit to the web UI, where the customer creates
+  their own CMS admin account directly through the app, so there is no
+  external credential our provisioning layer needs to project. One
+  functional caveat for a future recipe build: besides the HTTP web UI
+  (port 80, Traefik-friendly), the official stack also exposes XMR
+  (port 9505, raw TCP, not HTTP) for real-time push messaging to display
+  players — analogous to how recipes/gitea/ exposes its SSH port alongside
+  its web UI, this needs a public TCP port outside Traefik's HTTP routing,
+  not a blocker but something to plan for in Phase 3 of a real recipe build.
