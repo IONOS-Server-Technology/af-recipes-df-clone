@@ -1,0 +1,75 @@
+slug: teammapper
+name: TeamMapper
+source_description: "Self-hosted real-time collaborative mind mapping tool for teams"
+
+upstream:
+  url: https://teammapper.org
+  repo_url: https://github.com/b310-digital/teammapper
+  license: MIT
+  docker_image: ghcr.io/b310-digital/teammapper
+
+version_health:
+  latest_version: "v0.2.9-3"
+  latest_release_date: "2026-06-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v0.2.9-3 (2026-06-19), ~47 days before today
+    (2026-08-05). Release history shows a steady near-monthly-or-faster
+    cadence through 2026 (v0.2.2-2 2026-02-19, v0.2.3-1 2026-03-03,
+    v0.2.4-1 2026-03-18, v0.2.5-1 2026-03-23, v0.2.6-1 2026-04-02,
+    v0.2.7-1 2026-04-20, v0.2.8-1 2026-05-24, v0.2.9-1/-2/-3 clustered
+    2026-05-24 through 2026-06-19). Clearly active development, no signs
+    of maintenance-only or dormant status.
+
+catalogue_fit:
+  categories: [productivity, collaboration, diagramming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current catalogue covers mind mapping, whiteboarding,
+    or diagramming — the closest conceptual neighbors (Excalidraw, AFFiNE,
+    ChartDB, draw.io) have only been gap-analyzed so far, none have shipped
+    as recipes. TeamMapper would be the catalogue's first entrant in this
+    space: a focused, single-purpose real-time collaborative mind-mapping
+    canvas (websocket sync via Yjs) rather than a broader all-in-one
+    workspace like AFFiNE or a generic diagram editor.
+  usefulness: medium
+  usefulness_rationale: >
+    Real-time collaborative mind mapping is a genuine, narrow use case with
+    a small but real audience (team brainstorming, project planning). Capped
+    at medium rather than high because it is a niche single-purpose tool
+    (much smaller scope than a full workspace product) and the project
+    itself is still fairly small (low star count, single small maintainer
+    org), so long-term maintenance risk is higher than for a widely-adopted
+    tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, jwt_secret, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: jwt_secret
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  TeamMapper is a single reverse-proxy-friendly app (app + postgres, HTTP
+  port 3000 in the upstream image, docker-compose-prod.yml as the
+  production reference) with an active, frequent release cadence (latest
+  v0.2.9-3, 2026-06-19, ~47 days ago) and MIT license. It has no built-in
+  user accounts or admin login of its own — access is purely link-based
+  sharing of individual mindmaps — so the instance needs a mandatory
+  Traefik basic_auth gate to avoid sitting open on the internet; the
+  Postgres password and JWT signing secret can both be generated
+  server-side with no customer input. Mechanically installable today with
+  no blocking issues. Fills a genuine, if narrow, gap (no mind-mapping or
+  whiteboard tool has shipped as a recipe yet) — worth building now, though
+  usefulness is capped at medium given the tool's niche scope and small
+  upstream project size.
