@@ -75,20 +75,29 @@ Worth absorbing from `recipes/n8n/docker-compose.yaml`:
 - Healthchecks use shell-form `CMD-SHELL` so we can use `||` for fallback.
 - Volumes are absolute host paths (`/opt/n8n/n8n`, `/opt/n8n/postgres`) — these are pre-created in `preinstall_cmds` or `install.sh` to set ownership.
 
-## File 3: `.env.template` — placeholders
+## File 3: `.env.template` — shipped verbatim, no placeholders
 
-Lists every `{{PLACEHOLDER}}` the compose file references. Each placeholder must be backed by a parameter in `metadata.yaml`. The AF API renders `.env` from this template by substituting customer values and auto-generated secrets at compose-time.
+The renderer copies this file to the VM's `.env` byte for byte — there is no render-time
+substitution (IF-944), so `{{PLACEHOLDER}}` tokens are forbidden outright
+(`no-env-placeholder`, rfc/002-recipe-rules.md), not just required to match a parameter.
+Every key is one of: a static literal, an empty key the recipe's own `install.sh` fills
+with a per-VM secret on first boot, or an empty key the customer fills in themselves. The
+app's own FQDN is never declared here — reference it in `docker-compose.yaml` as
+`${AF_APP_DOMAIN}`, the platform's reserved key, written into `.env` at render time.
 
-Example shape:
+Example shape (`recipes/n8n/.env.template`):
 
 ```
-APP_DOMAIN={{APP_DOMAIN}}
-N8N_ADMIN_EMAIL={{N8N_ADMIN_EMAIL}}
-POSTGRES_PASSWORD={{POSTGRES_PASSWORD}}
-N8N_ENCRYPTION_KEY={{N8N_ENCRYPTION_KEY}}
+# Secrets are generated per VM by install.sh on first boot and written back here.
+# They ship empty on purpose: nothing substitutes values into this file (IF-944), so a
+# literal committed here would be the same secret on every customer VM.
+POSTGRES_PASSWORD=
+N8N_ENCRYPTION_KEY=
+TZ=UTC
 ```
 
-If a placeholder appears here but not in `metadata.parameters`, validation fails. Keep them in sync.
+`compose-var-defined-in-env` fails if `docker-compose.yaml` references a `${VAR}` that is
+neither a `VAR=` line here nor a reserved platform key.
 
 ## File 4: `install.sh` — the runtime entry
 

@@ -246,6 +246,34 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 - **What:** Every `{{KEY}}` token in `.env.template` corresponds to a `metadata.parameters[].name`.
 - **How to check:** Regex `\{\{(\w+)\}\}` over the template, set-difference against parameter names.
 - **Why:** Render-time substitution would leave the placeholder literal in the env file, breaking the container.
+- **Status:** Never implemented, and its premise is gone — there is no render-time
+  substitution (IF-944). It is superseded by `no-env-placeholder` below, which forbids the
+  tokens outright rather than requiring them to be declared. IF-1390 (PR #49) retires this
+  entry; if that lands first, this block disappears and only `no-env-placeholder` remains.
+
+#### `no-env-placeholder`
+
+- **Level:** ERROR when `metadata.enabled: true`, WARN otherwise.
+- **What:** `.env.template` contains no `{{KEY}}` token, in any line including comments.
+- **How to check:** Regex `\{\{(\w+)\}\}` over the whole file; one finding per distinct token.
+- **Why:** The renderer copies `.env.template` to the VM's `.env` byte for byte, so a token
+  arrives as literal text. A password left that way is identical on every VM in the fleet
+  and readable from this repo; a hostname left that way is not a hostname. No other rule
+  *implemented in af-validate* inspects env template values — `compose-var-defined-in-env`
+  compares key names only, and `param-referenced` below does look at the tokens but was
+  never implemented — which is why 63 unresolvable tokens sat in the catalogue while
+  af-validate reported 24/24 clean, and why IF-1309 shipped a fleet-wide-identical
+  dashboard password green.
+- **What to write instead:** a literal for static config; an empty key the recipe's own
+  `install.sh` fills for a per-VM secret; an empty key the customer fills for a value only
+  they have; nothing at all for the app's own FQDN, which arrives as the platform's
+  reserved `AF_APP_DOMAIN`.
+- **Level rationale:** the same `enabled` split as `logo-required-when-enabled`. Only an
+  enabled recipe reaches a customer, so only there is a leftover token a live defect; a
+  disabled one is a migration backlog item. IF-1417 cleared every enabled recipe, which is
+  what makes the ERROR half safe to switch on — before that it would have turned the whole
+  catalogue red and blocked unrelated PRs. Raise the WARN half to ERROR once the 16 disabled
+  recipes are migrated too, and this rule collapses back to a single level.
 
 #### `param-referenced`
 
@@ -294,12 +322,22 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 - **How to check:** Regex `image:\s*(\S+)` over the file. For each match, fail if it ends with `:latest` or contains no `:` after a `/`.
 - **Why:** Reproducibility (see `app-version-pinned`); also makes WUD diffs meaningful.
 
-#### `compose-var-has-placeholder`
+#### `compose-var-defined-in-env`
 
 - **Level:** ERROR
-- **What:** Every `${VAR}` reference in `docker-compose.yaml` corresponds to a `{{VAR}}` placeholder in `.env.template`.
-- **How to check:** Regex `\$\{(\w+)\}` over compose, set-difference against template placeholders.
-- **Why:** Compose substitutes empty string for undefined variables silently — produces broken containers, no error.
+- **What:** Every `${VAR}` reference in `docker-compose.yaml` corresponds to either a `VAR=` line
+  in `.env.template` or one of the platform's reserved keys.
+- **How to check:** Regex `\$\{(\w+)\}` over compose; regex `^(\w+)=` over template lines that are
+  not comments; set-difference, then drop anything in the platform's allow-list
+  (`AF_APP_DOMAIN`, prefix `AF_`).
+- **Why:** Compose substitutes empty string for undefined variables silently — produces broken
+  containers, no error. Checked by key name only, not by placeholder syntax: since
+  `no-env-placeholder` already forbids `{{VAR}}` tokens outright, a recipe author declares the
+  key as `VAR=` (empty or literal) instead of a placeholder. The `AF_` namespace is exempt
+  because the platform writes those keys into `.env` at render time — only the API knows the
+  value, e.g. the app's own FQDN as `AF_APP_DOMAIN` (IF-1417). Matched against an explicit
+  allow-list rather than the bare `AF_` prefix, so a typo like `${AF_APP_DOMIAN}` still fails
+  here instead of reaching the customer's VM as an empty interpolation.
 
 #### `bind-mount-under-opt`
 

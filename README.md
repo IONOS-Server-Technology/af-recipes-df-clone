@@ -10,7 +10,7 @@ Each recipe lives in `recipes/<app-name>/` and contains:
 |---|---|---|---|
 | `metadata.yaml` | required | required | App info, parameters, resource requirements |
 | `docker-compose.yaml` | required | — | Compose v3 service definition |
-| `.env.template` | required | — | `{{PARAM}}` placeholders resolved at install time |
+| `.env.template` | required | — | Shipped verbatim to the VM's `.env` — no placeholder substitution (IF-944/IF-1417) |
 | `install.sh` | required | required | Prep only for docker-compose (compose-up.sh starts the stack); full install for native — see [rfc/001-recipe-schema.md §9](rfc/001-recipe-schema.md#9-installsh) |
 | `health-check.sh` | required | required | CI-only health check script |
 | `logo.svg` | required* | required* | App logo shown in catalogue thumbnails (*required when `enabled: true`) |
