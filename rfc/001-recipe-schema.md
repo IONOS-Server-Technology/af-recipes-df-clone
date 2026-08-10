@@ -89,7 +89,47 @@ af-recipes/
 | `protocol` | enum | yes | `tcp` or `udp`. |
 | `public` | boolean | yes | Whether this port should be accessible externally. |
 | `http` | boolean | no | Whether this is an HTTP(S) port routed through the per-VM Traefik reverse proxy (default `true`). HTTP ports are reached at `<app-id>.<base_domain>` and never bind the host, so they are exempt from the port-uniqueness rule. Set `false` for raw TCP/UDP services (SSH, WireGuard, sync protocols) that bind the host port directly. A `udp` port cannot be HTTP-routed, so `http` must be `false` for it. A raw port may not claim `80` or `443` — Traefik binds those. Declare at most one HTTP port per recipe: only the first gets a router. |
+| `basic_auth` | boolean | no | Whether Traefik requires HTTP basic auth in front of this port (default `false`). See §4.3.1. |
 | `description` | string | yes | What this port is for (e.g., "Web UI"). |
+
+#### 4.3.1 `basic_auth` — protecting a frontend that has no login
+
+Set `basic_auth: true` to put an HTTP basic-auth prompt in front of the app's frontend. At that
+prompt the customer enters:
+
+- **Username:** `admin` (fixed — not the recipe's name and not `root`)
+- **Password:** their server password, i.e. the same one they use to log in to the VM
+
+One shared credential protects every opted-in frontend on that VM. Traefik stores it as a
+bcrypt hash; the password itself never reaches the recipe.
+
+**Only for frontends without their own login** — dashboards, exporters, admin UIs. If the app
+already authenticates its users, do not set this: the customer would face two prompts, and the
+app's own accounts remain the real access control.
+
+Constraints:
+
+- **Traefik-routed ports only.** Basic auth is applied by the Traefik router, which only exists
+  for a port that is `public`, `http` and `tcp`. Setting it on a raw or non-public port is an
+  error (`basic-auth-requires-routed-port`) — that port has no router, so the flag would
+  silently protect nothing.
+- **One route per app.** As with `http`, the router covers the app's first Traefik-routed port,
+  and auth applies to that whole router. There is no path-scoped auth and no per-app password.
+- **A `base_domain` is required.** Without one there is no Traefik and no route, so a selection
+  containing a basic-auth recipe is rejected at compose time rather than installed unprotected.
+- **Router-wide, including inbound webhooks and OAuth callbacks.** Auth covers the entire
+  router, so external callers hitting a callback path get a `401` too — exempting individual
+  paths is not supported. This is a trade-off to weigh, not an automatic disqualifier: n8n
+  carries the flag despite it (IF-1312), because the setup-takeover window it closes — anyone
+  reaching the URL before the customer's first visit becomes the owner — was judged worse than
+  breaking inbound webhooks until the customer runs `/root/auth.sh off <app>`. Recipe authors
+  should state which way that trade-off falls for their app, the way the n8n and immich recipe
+  comments do, rather than assume one answer.
+- **Your `install.sh` must append to `.env`, never overwrite it.** The renderer writes the
+  credential line into the app's `.env`; an `install.sh` that rewrites the file (`>` instead of
+  `>>`, or regenerating it from a template) removes it. Traefik then fails closed — it rejects
+  the middleware and the app's router stops serving, so the app returns `404` instead of going
+  live unprotected — but the app is broken either way.
 
 ### 4.4 Parameter Object
 

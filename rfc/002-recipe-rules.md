@@ -401,6 +401,14 @@ These rules apply to the catalogue as a whole — running over all `recipes/*/` 
 - **How to check:** Collect `public: true` entries that are Traefik-routed. Collapse a declared 80/443 pair into a single entry. More than one remaining entry is a finding.
 - **Why:** The renderer emits exactly one Traefik router per app, targeting the *first* Traefik-routed port in declaration order — but it strips the host binding of *every* routed port. A second routed port therefore ends up with neither a host binding nor a route, i.e. silently unreachable. Mark the extras `http: false`, or make them non-public.
 
+#### `basic-auth-requires-routed-port`
+
+- **Level:** ERROR
+- **What:** A port with `basic_auth: true` must be Traefik-routed — `public: true`, `http: true` (or defaulted) and `protocol: tcp`.
+- **How to check:** For each `metadata.ports[]` entry with `basic_auth: true`, verify all three conditions. Report which ones fail.
+- **Why:** Basic auth is applied by attaching a middleware to the app's Traefik router, and that router only exists for a Traefik-routed port. On a raw or non-public port the flag has nothing to attach to, so it would read as "this frontend is protected" while protecting nothing — a silent security failure rather than a visible misconfiguration.
+- **Note:** This is stricter than "must be public". A `public: true` port with `http: false` binds the host directly and has no router, so it is rejected too (IF-1312, refining the original wording which predates the `http` flag from IF-1401).
+
 #### `incompatibility-ref-valid`
 
 - **Level:** ERROR
@@ -423,6 +431,7 @@ Per-recipe checks
   http-port-must-be-tcp           ✓
   raw-port-not-reserved           ✓
   single-http-port                ✓
+  basic-auth-requires-routed-port ✓
   bind-mount-under-opt            ⚠ WARN  — bind mount '/var/lib/postgres' should be under /opt/<slug>/
   ...
 
