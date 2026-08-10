@@ -412,14 +412,16 @@ jobs:
           # itself, which is how af-api's own CI gets 3.14. It also removes the
           # ensurepip dance this step needed before — uv provisions its own pip.
           uv venv --python 3.14 .venv-af-api
-          uv pip install --python .venv-af-api ./af-api-src
+          # The `logo` extra adds resvg-py + pillow, which the IF-1416 logo spec
+          # rules need. --require-logo-render below fails if it is missing.
+          uv pip install --python .venv-af-api './af-api-src[logo]'
           # Put the venv first on PATH so both `af-validate` and the inline
           # `python3` heredocs below resolve against it (they need pyyaml, which
           # is one of af-api's base dependencies).
           echo "$PWD/.venv-af-api/bin" >> "$GITHUB_PATH"
 
       - name: Run af-validate against the catalogue
-        run: af-validate catalogue recipes/
+        run: af-validate catalogue recipes/ --require-logo-render
 
       - name: Verify logo URLs are reachable on every active bucket
         run: |
