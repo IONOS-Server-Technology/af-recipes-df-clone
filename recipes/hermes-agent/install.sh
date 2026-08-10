@@ -5,7 +5,34 @@
 # is already checked once in the OS-image bootstrap.
 set -euo pipefail
 
-# Load resolved parameters from .env
+# Generate this VM's own secrets into .env before anything reads it (IF-1417). Both keys
+# ship empty in .env.template because nothing substitutes values into it (IF-944) — they
+# used to carry placeholders, which gave every customer's dashboard the same password.
+#
+# Idempotent on purpose: a non-empty value is left alone, so a customer who changed the
+# dashboard password in .env keeps it across a re-run, and the session secret does not
+# rotate under logged-in users.
+af_gen_secret() {
+    local key="$1" value
+    if [ -n "$(sed -n "s/^${key}=//p" .env | head -1)" ]; then
+        return 0
+    fi
+    # Hex out of /dev/urandom: no openssl dependency, and no '$' for Compose to
+    # interpolate away when it reads this .env.
+    value="$(od -An -tx1 -N32 /dev/urandom | tr -d ' \n')"
+    if grep -q "^${key}=" .env; then
+        sed -i "s|^${key}=.*|${key}=${value}|" .env
+    else
+        printf '%s=%s\n' "$key" "$value" >>.env
+    fi
+}
+
+# The container refuses to start on a non-loopback bind without a password, so this one is
+# not optional. The customer reads it back out of /opt/hermes-agent/.env.
+af_gen_secret HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+af_gen_secret HERMES_DASHBOARD_BASIC_AUTH_SECRET
+
+# Load the app's configuration, now that it is complete.
 set -a
 source .env
 set +a

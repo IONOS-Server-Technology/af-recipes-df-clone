@@ -141,49 +141,61 @@ jobs:
       - name: Validate recipe schema
         run: af-validate recipe recipes/${{ matrix.recipe }} --require-logo-render
 
-      - name: Generate test .env
+      # Two steps below replace a single "Generate test .env" step that substituted
+      # {{PLACEHOLDER}} tokens with generated values of its own (IF-1417). That made the
+      # test exercise a configuration production never produces — nothing has substituted
+      # placeholders since IF-944 — so no placeholder defect could ever fail here. These
+      # two do what the real install does instead: ship the template verbatim, add the
+      # platform's reserved keys, then let the recipe's install.sh fill in its own secrets.
+      - name: Stage .env the way the install archive does
         run: |
-          python3 - <<'EOF'
-          import secrets, string, sys, yaml
-          from pathlib import Path
-          from af_api.core.recipe import load_recipe
+          set -euo pipefail
+          d="recipes/${{ matrix.recipe }}"
+          if [ ! -f "$d/.env.template" ]; then
+            echo "No .env.template — nothing to stage"
+            exit 0
+          fi
+          # Verbatim, exactly as the renderer ships it.
+          cp "$d/.env.template" "$d/.env"
+          # AF_APP_DOMAIN is written by the renderer from the customer's base domain
+          # (IF-1417). There is no Traefik and no real domain in this test, so stand in
+          # with localhost — enough for apps that put their own FQDN in their config.
+          printf 'AF_APP_DOMAIN=%s\n' "localhost" >>"$d/.env"
+          echo "Staged $d/.env:"
+          sed -e 's/=.*/=<redacted>/' "$d/.env"
 
-          def _generate_secret(length=32):
-              alphabet = string.ascii_letters + string.digits
-              return ''.join(secrets.choice(alphabet) for _ in range(length))
+      - name: Run the recipe's install.sh
+        run: |
+          set -euo pipefail
+          # The real install runs this from /opt/<app> as root: it creates the bind-mount
+          # directories and generates the app's per-VM secrets into .env. Running it here
+          # is what makes the placeholder-free .env actually usable by the containers.
+          d="recipes/${{ matrix.recipe }}"
+          run_install() {
+            if [ "$(id -u)" -eq 0 ]; then
+              ( cd "$d" && bash install.sh )
+            else
+              sudo -E bash -c "cd '$d' && bash install.sh"
+            fi
+          }
+          run_install
 
-          recipe_dir = Path("recipes/${{ matrix.recipe }}")
-          recipe = load_recipe(recipe_dir)
-
-          env_template_path = recipe_dir / ".env.template"
-          if not env_template_path.exists():
-              print("No .env.template — skipping")
-              sys.exit(0)
-
-          # The validator no longer exposes recipe.parameters — read metadata.yaml directly
-          raw_meta = yaml.safe_load((recipe_dir / "metadata.yaml").read_text())
-          parameters = raw_meta.get("parameters", [])
-
-          params = {}
-          for p in parameters:
-              if p.get("auto_generate") or p.get("type") == "password":
-                  params[p["name"]] = _generate_secret()
-              elif p.get("type") == "email":
-                  params[p["name"]] = "test@example.com"
-              elif p.get("type") == "domain":
-                  params[p["name"]] = "localhost"
-              elif p.get("default") is not None:
-                  params[p["name"]] = str(p["default"])
-              else:
-                  params[p["name"]] = "test-value"
-
-          template = env_template_path.read_text()
-          env_content = template
-          for key, value in params.items():
-              env_content = env_content.replace(f'{{{{{key}}}}}', str(value))
-          (recipe_dir / ".env").write_text(env_content)
-          print(f"Generated .env for {recipe.id}: {list(params.keys())}")
-          EOF
+          # Second run, asserting the generated secrets survive it. Recipes rely on this:
+          # re-running an install must not rotate an encryption key whose data is already
+          # encrypted, nor a database password Postgres has already committed to its data
+          # directory. Without this the property is only ever claimed in a comment, since
+          # the .env staged above starts out empty every time.
+          if [ -f "$d/.env" ]; then
+            cp "$d/.env" /tmp/env-after-first-install
+            run_install
+            if ! diff -q /tmp/env-after-first-install "$d/.env" >/dev/null; then
+              echo "::error::install.sh is not idempotent — re-running it changed .env"
+              diff <(sed -e 's/=.*/=<redacted>/' /tmp/env-after-first-install) \
+                   <(sed -e 's/=.*/=<redacted>/' "$d/.env") || true
+              exit 1
+            fi
+            echo "install.sh is idempotent — .env unchanged by a second run"
+          fi
 
       - name: Ensure Docker Compose v2 is available
         run: |
