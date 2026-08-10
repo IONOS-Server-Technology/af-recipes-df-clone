@@ -62,8 +62,12 @@ jobs:
         id: changed
         run: |
           set -euo pipefail
+          # `|| true` because grep exits 1 when it matches nothing, and under `pipefail`
+          # that failed the whole step — so any PR touching no logo.svg or metadata.yaml
+          # could never get past this job, even though "nothing to sync" is the normal
+          # case the branch below already handles.
           changed_recipes=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
-            | grep -E '^recipes/[^/]+/(logo\.svg|metadata\.yaml)$' \
+            | { grep -E '^recipes/[^/]+/(logo\.svg|metadata\.yaml)$' || true; } \
             | cut -d/ -f2 \
             | sort -u)
           {
