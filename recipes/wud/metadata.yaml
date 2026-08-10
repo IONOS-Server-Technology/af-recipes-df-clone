@@ -29,15 +29,16 @@ app_min_disk_mb: 1536
 # wire the Traefik route (Host(`wud.<base_domain>`) + Let's Encrypt) and strip the
 # host port binding on ship — exactly like every other docker-compose recipe.
 #
-# NOTE (IF-808): there is NO authentication in front of this route yet. The
-# Traefik basic-auth feature (first-public-port opt-in) is not implemented. Once
-# it lands, WUD's first public port should request basic-auth so anonymous access
-# to /api/* is blocked (AC4). Until then the UI + the RW-Docker-socket API are
-# reachable unauthenticated at wud.<base_domain>. Accepted as an interim state.
+# basic_auth (IF-1312) closes the gap IF-808 left open: WUD has no login of its
+# own, and this route reaches an API that holds the Docker socket read-write, so
+# anonymous access must not be possible. Traefik answers 401 for the whole route
+# — UI and /api/* alike — with username `admin` and the server password the
+# customer chose at order time. WUD is the reference consumer for the feature.
 ports:
   - port: 3000
     protocol: tcp
     public: true
+    basic_auth: true
     description: WUD web UI
 
 # Logo (kept for when WUD may become customer-visible; exempt while enabled: false).

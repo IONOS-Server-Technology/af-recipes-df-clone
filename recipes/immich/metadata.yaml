@@ -21,10 +21,26 @@ app_min_ram_mb: 4096
 app_min_disk_mb: 51200
 
 
+# basic_auth (IF-1312): closes a gap flagged in Björn Jäger's review of this story
+# (Finding 2) — the 2026-08-04 PM decision names immich alongside n8n, wud and
+# openclaw, but this recipe never got the flag.
+#
+# What this protects: a fresh Immich is not initialised and its admin sign-up endpoint
+# is live, so an unclaimed instance can be taken over by anyone who reaches the URL
+# before the customer's first visit — the same class of exposure the n8n and wud
+# comments above document, measured live on an unclaimed instance during the review.
+#
+# What it costs: the whole router goes behind the prompt, including API traffic, and
+# Immich's mobile app talks to that same origin — non-browser clients get a 401 too.
+# Unlike n8n's webhook trade-off this has not been measured against the mobile app
+# itself; flag that explicitly if this recipe is reviewed again before merge. The
+# customer turns the prompt off once their account exists, with
+# '/root/auth.sh off immich', named in the password prompt.
 ports:
   - port: 2283
     protocol: tcp
     public: true
+    basic_auth: true
     description: Immich Web UI
 
 parameters:

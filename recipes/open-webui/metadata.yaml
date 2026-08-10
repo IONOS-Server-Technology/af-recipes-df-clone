@@ -21,10 +21,24 @@ app_min_ram_mb: 8192
 app_min_disk_mb: 51200
 
 
+# basic_auth (IF-1312): closes a gap flagged in Björn Jäger's review of this story
+# (Finding 2) — the 2026-08-04 PM decision names open-webui alongside n8n, wud and
+# openclaw, but this recipe never got the flag.
+#
+# What this protects: a fresh Open WebUI has onboarding pending and signup enabled, so
+# an unclaimed instance (fronting an attached Ollama container) can be taken over by
+# anyone who reaches the URL before the customer's first visit — the same class of
+# exposure the n8n and wud comments above document.
+#
+# What it costs: the whole router goes behind the prompt, including its OpenAI-compatible
+# API, so any script or client calling the API directly gets a 401 too, same as n8n's
+# webhooks. The customer turns the prompt off once their account exists, with
+# '/root/auth.sh off open-webui', named in the password prompt.
 ports:
   - port: 8080
     protocol: tcp
     public: true
+    basic_auth: true
     description: Open WebUI Web Interface (routed via Traefik on 80/443)
 
 parameters:

@@ -21,10 +21,26 @@ app_min_ram_mb: 2048
 app_min_disk_mb: 20480
 
 
+# basic_auth (IF-1312), decided by PM on 2026-08-04: basic auth in front of the
+# complete application, username `admin` plus the server password chosen at order time.
+#
+# What this protects: a fresh n8n reports showSetupOnFirstLoad and hands the owner
+# account to whoever asks first, so an unclaimed instance can be taken over by anyone
+# who reaches the URL. Behind the prompt, the setup screen is not reachable at all.
+#
+# What it costs, stated plainly because it will generate support questions: while the
+# prompt is on, *every* inbound webhook gets a 401, and receiving webhooks is what most
+# customers install n8n for. The customer turns it off once their account exists:
+#
+#     /root/auth.sh off n8n
+#
+# That is named in the password prompt itself (see basic_auth_realm in af-core) and
+# belongs in the customer documentation.
 ports:
   - port: 5678
     protocol: tcp
     public: true
+    basic_auth: true
     description: n8n Web UI
 
 parameters:
