@@ -532,7 +532,6 @@ renderer aborts with `Missing required parameters: …`. Use obviously fake valu
 
 ```yaml
 # recipes/n8n/test-params.yaml
-APP_DOMAIN: n8n.example.com
 N8N_ADMIN_EMAIL: admin@example.com
 POSTGRES_PASSWORD: "test_postgres_password_123"
 N8N_ENCRYPTION_KEY: "test_encryption_key_1234567890"

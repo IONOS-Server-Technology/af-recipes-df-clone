@@ -30,12 +30,6 @@ ports:                            # Network ports the *app declares*. Public one
     description: n8n Web UI
 
 parameters:                       # Customer-facing inputs. UPPER_SNAKE_CASE names.
-  - name: APP_DOMAIN              # Convention: every web-app recipe takes APP_DOMAIN
-    display_name: Domain
-    type: domain                  # validated by AF API as a real domain
-    required: true
-    description: Domain name for accessing n8n (e.g., n8n.example.com).
-
   - name: N8N_ADMIN_EMAIL
     display_name: Admin Email
     type: email
