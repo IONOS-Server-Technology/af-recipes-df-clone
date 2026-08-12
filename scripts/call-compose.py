@@ -21,6 +21,14 @@ def main() -> int:
     parser.add_argument("--api-url", required=True)
     parser.add_argument("--ssh-public-key", required=True)
     parser.add_argument("--root-password", default=None)
+    parser.add_argument(
+        "--root-password-file",
+        default=None,
+        help="Read the root password from this file instead of --root-password (IF-1458). "
+        "Prefer this wherever the caller knows the password: an argv value is visible to "
+        "anything that can read the process list. Mutually exclusive with --root-password; "
+        "with neither, a random one is generated and discarded as before.",
+    )
     parser.add_argument("--base-os", default="ubuntu-26.04")
     parser.add_argument(
         "--base-domain",
@@ -57,6 +65,23 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.root_password and args.root_password_file:
+        print("--root-password and --root-password-file are mutually exclusive", file=sys.stderr)
+        return 1
+    root_password = args.root_password
+    if args.root_password_file:
+        try:
+            # No .strip(): the password is whatever the file holds byte for byte. Stripping
+            # would silently authenticate against something other than what was written,
+            # which is exactly the class of mismatch IF-1458's test exists to catch.
+            root_password = Path(args.root_password_file).read_text()
+        except OSError as exc:
+            print(f"cannot read --root-password-file: {exc}", file=sys.stderr)
+            return 1
+        if not root_password:
+            print(f"--root-password-file is empty: {args.root_password_file}", file=sys.stderr)
+            return 1
+
     try:
         client_cert = resolve_client_cert(args.client_cert, args.client_key)
     except ValueError as exc:
@@ -77,7 +102,7 @@ def main() -> int:
     payload = {
         "applications": applications,
         "root_credentials": {
-            "root_password": args.root_password or random_password(),
+            "root_password": root_password or random_password(),
             "ssh_public_key": args.ssh_public_key,
         },
         # "base_os": args.base_os,
