@@ -29,6 +29,14 @@ def main() -> int:
         "Omit for direct-port access, no Traefik.",
     )
     parser.add_argument(
+        "--use-staging-le",
+        action="store_true",
+        help="Force Let's Encrypt staging instead of production for this VM's Traefik "
+        "(af-api ComposeRequest.use_staging_le). Use on every CI-driven call, including "
+        "against the prod cluster, whose af-api has no env-var override -- that one must "
+        "stay unset so real customer VMs keep getting production certs.",
+    )
+    parser.add_argument(
         "--bootstrap-verification-key",
         default=None,
         help="Ed25519 public key PEM for dev-mode archive signature verification",
@@ -76,6 +84,8 @@ def main() -> int:
     }
     if args.base_domain:
         payload["base_domain"] = args.base_domain
+    if args.use_staging_le:
+        payload["use_staging_le"] = True
 
     resp = requests.post(
         f"{args.api_url}/api/v1/compose", json=payload, timeout=30, cert=client_cert

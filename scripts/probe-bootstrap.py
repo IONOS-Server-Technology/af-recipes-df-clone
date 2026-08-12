@@ -46,6 +46,13 @@ def main() -> int:
         "Traefik block the real VM gets.",
     )
     parser.add_argument(
+        "--use-staging-le",
+        action="store_true",
+        help="Must match the --use-staging-le passed to the real /compose call for this VM "
+        "(scripts/call-compose.py), or this diagnostic archive won't reflect the ACME "
+        "resolver the real VM gets.",
+    )
+    parser.add_argument(
         "--client-cert",
         default=None,
         help="mTLS client certificate (path to a PEM file) for any leg that hits "
@@ -83,6 +90,8 @@ def main() -> int:
     }
     if args.base_domain:
         compose_body["base_domain"] = args.base_domain
+    if args.use_staging_le:
+        compose_body["use_staging_le"] = True
 
     print(f"=== POST {args.api_url}/api/v1/compose ===")
     resp = requests.post(
