@@ -71,18 +71,19 @@ installability:
   blocking_issues:
     - "App has no bundled persistent storage for the vault file (kdbx); usable cross-device sync requires a customer-configured WebDAV/Dropbox/Google Drive/OneDrive backend, none of which our /compose mechanism can provision or supply credentials for today. A recipe would either ship a KeeWeb instance whose saved vaults don't survive a container restart/browser change, or require the customer to wire up unrelated third-party storage entirely out-of-band."
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   KeeWeb is mechanically installable today — single container, single HTTP
   port, no login of its own, so a mandatory Traefik basic_auth gate (with
   the password projected from the customer's root password) covers its
-  only first-boot secret, same pattern as n8n/Adminer/WUD. But it directly
-  overlaps an existing, more capable, more actively maintained recipe
-  (Vaultwarden) in the same category, its own persistence story is weak
-  without external storage wiring we can't provide, and its release
-  history is a ~4.75-year dormancy that only just broke with a two-release
-  burst in early May 2026 followed by 3 more months of silence. The
-  combination of thin differentiation, a shaky storage story, and an
-  unproven revival makes this a pass rather than a build, despite ticking
-  the pure installability box.
+  only first-boot secret, same pattern as n8n/Adminer/WUD. The real caveat
+  is functional, not mechanism-related: the official image has no bundled
+  persistent storage backend, so a vault saved without a customer-wired
+  external WebDAV/Dropbox/Google Drive/OneDrive target only lives in the
+  browser's local storage, tied to one device/browser profile — undercutting
+  cross-device sync, the main reason someone self-hosts a password manager.
+  That caveat, plus an unproven revival after a ~4.75-year release
+  dormancy, makes this a build-with-caveats rather than an unconditional
+  build. (It also overlaps with Vaultwarden in the same category — see
+  catalogue_fit — but that overlap is not itself a reason for the caveat.)
