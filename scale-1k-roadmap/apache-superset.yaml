@@ -7,6 +7,30 @@ upstream:
   repo_url: https://github.com/apache/superset
   license: Apache-2.0
   docker_image: "apache/superset (lean build, e.g. apache/superset:6.1.0)"
+  compose_file_url: https://raw.githubusercontent.com/apache/superset/6.1.0/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo (docs at
+    superset.apache.org/admin-docs/installation/docker-compose walk through
+    it directly), but not a standalone downloadable artifact like Immich's
+    release asset — the documented workflow is `git clone` the repo, then
+    `git checkout <tag>`, then `docker compose up` from within that
+    checkout, because the compose file expects sibling files (docker/
+    scripts, .env, Dockerfile) to be present and in sync. The URL above is
+    version-pinned to the 6.1.0 tag (matches this file's recorded
+    latest_version) rather than a rolling default-branch reference, so it
+    reflects one point in time and would need to be re-pinned on version
+    bumps. The repo ships four compose variants for different purposes:
+    docker-compose.yml (interactive dev environment, builds
+    frontend/backend from source, chosen here as the base/default
+    variant), docker-compose-light.yml (lighter dev setup, in-memory cache
+    instead of Redis, supports multiple instances), docker-compose-non-dev.yml
+    (builds immutable images from the local branch), and
+    docker-compose-image-tag.yml (pulls pre-built images for a specific
+    released TAG rather than building — closest to a "production" flavor).
+    The docs explicitly warn: "THE DOCKER-COMPOSE INSTALLATION IS NOT
+    PRODUCTION-READY OUT OF THE BOX" (metadata Postgres DB has no backup
+    by default) — this applies to all four variants, not just the one
+    picked here.
 
 version_health:
   latest_version: "6.1.0"
