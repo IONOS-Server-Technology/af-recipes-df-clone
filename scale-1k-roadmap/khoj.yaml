@@ -84,12 +84,13 @@ summary: >
   which is exactly the no-built-in-auth case the schema calls out — a
   Traefik basic_auth gate keyed off the customer's root password
   (generated_from) is the correct customer-facing security boundary here,
-  same pattern as n8n/Open WebUI/Immich. The real caveats are catalogue
-  fit and packaging effort rather than the secrets model: it overlaps
-  meaningfully with the already-catalogued Open WebUI, the full upstream
-  stack has a non-proxyable VNC service that would need to be trimmed out
-  of any recipe, and the published container image hasn't been re-tagged
-  in 4+ months despite active upstream commits. Recommend build_with_caveats:
-  worth building once someone confirms the "computer"/VNC service can be
-  dropped cleanly and re-checks that image tagging has resumed, but it's
-  not a priority pick over apps with cleaner single-purpose fit.
+  same pattern as n8n/Open WebUI/Immich. The real caveat is mechanical: the
+  full upstream reference stack ships a "computer" service (an experimental
+  computer-use agent) that publishes a raw VNC port, which is not
+  reverse-proxy compatible as shipped. That service looks droppable from a
+  recipe's compose file since it isn't needed for core chat/RAG
+  functionality, but confirming it can be cleanly excluded is a real
+  recipe-authoring step this analysis doesn't resolve. Recommend
+  build_with_caveats: mechanically installable, pending confirmation that
+  the VNC/"computer" service can be dropped from the compose file without
+  breaking core functionality.
