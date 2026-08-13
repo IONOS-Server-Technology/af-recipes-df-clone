@@ -7,23 +7,26 @@ upstream:
   repo_url: https://github.com/GreptimeTeam/greptimedb
   license: Apache-2.0
   docker_image: greptime/greptimedb
-  compose_file_url: https://raw.githubusercontent.com/GreptimeTeam/dashboard/main/docker/docker-compose.yml
+  compose_file_url: https://raw.githubusercontent.com/GreptimeTeam/greptimedb/main/docker/docker-compose/cluster-with-etcd.yaml
   compose_file_notes: >
-    The main GreptimeTeam/greptimedb repo and its own install docs
-    (docs.greptime.com getting-started/installation/greptimedb-standalone)
-    only document a bare `docker run ... greptime/greptimedb:<tag>
-    standalone start` command — no compose file lives there. The one
-    official compose file is published in the sibling GreptimeTeam/dashboard
-    repo (same GitHub org, i.e. the project itself, not a third party),
-    whose README states "We recommend using docker-compose to setup both
-    GreptimeDB and Dashboard." It defines two services — greptimedb
-    standalone and greptime/greptimedb-dashboard — networked together. This
-    is a rolling reference to the dashboard repo's default branch, and both
-    images are pinned to `latest` (not a specific release tag), so the file
-    itself carries no version pin — pulling it today gets whatever
-    GreptimeDB/dashboard build is current at pull time. No GPU/CPU or
-    dev/prod variant exists; this is the only compose file the project
-    ships.
+    The main GreptimeTeam/greptimedb repo does carry an official compose
+    file, under docker/docker-compose/cluster-with-etcd.yaml — this was
+    missed in an earlier pass, which incorrectly claimed no compose file
+    lives in that repo. This file stands up a full distributed cluster
+    (etcd0 + a TLS-variant etcd, metasrv, datanode, frontend, flownode),
+    using build-arg-style env vars with defaults: `GREPTIMEDB_VERSION`
+    defaults to `latest` (unpinned) and `ETCD_VERSION` defaults to a pinned
+    `v3.5.10`. It's a rolling reference to the main branch, not a tagged
+    release. The project also publishes a simpler standalone compose file
+    in the sibling GreptimeTeam/dashboard repo (README: "We recommend using
+    docker-compose to setup both GreptimeDB and Dashboard"), pairing
+    greptimedb standalone with greptime/greptimedb-dashboard, both pinned
+    to `latest`. The cluster-with-etcd.yaml file is chosen here as the
+    recorded official reference because it lives directly in the primary
+    greptimedb repo (not a sibling project) and is the canonical multi-node
+    deployment topology; the dashboard repo's file remains a legitimate
+    lighter-weight standalone+dashboard alternative but is not the one
+    recorded here.
 
 version_health:
   latest_version: "v1.1.4"
