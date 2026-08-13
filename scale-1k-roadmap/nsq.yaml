@@ -83,23 +83,23 @@ installability:
       authentication mechanism at all (not even a hash-based one) to
       layer beyond the external Traefik gate on the admin UI.
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   NSQ is a real, MIT-licensed message broker with no catalogue overlap —
-  it would join NATS and LavinMQ as a message-broker-style candidate — but
-  it is the weakest of the three on every axis evaluated. Its last tagged
-  release (v1.3.0) is 32 months old against a release cadence that has
-  been widening (1yr, then 2yr, then 2.3yr between successive releases),
-  landing it in dormant-cadence, maintenance-only territory (real but
-  infrequent master-branch activity, no archive notice). It is mechanically
-  installable today only in a narrow sense: nsqadmin's lack of built-in
-  auth maps cleanly to a Traefik basic_auth gate, but nsqadmin alone isn't
-  a useful deployment — a working recipe needs nsqd and nsqlookupd too,
-  both raw-TCP services with zero built-in authentication of any kind
-  (nothing for generated_from to project into), sitting on the public
-  internet behind nothing but network exposure choices. Combined with the
-  narrow technical-integrator audience already noted for NATS/LavinMQ and
-  a heavier multi-daemon footprint for the same underlying need,
-  recommend not_recommended — this is a worse pick than NATS or LavinMQ
-  for the same "give a customer a message bus" slot in the catalogue.
+  it would join NATS and LavinMQ as a message-broker-style candidate. Its
+  last tagged release (v1.3.0) is 32 months old against a release cadence
+  that has been widening (1yr, then 2yr, then 2.3yr between successive
+  releases), landing it in dormant-cadence, maintenance-only territory
+  (real but infrequent master-branch activity, no archive notice). It is
+  mechanically installable today: nsqadmin's lack of built-in auth maps
+  cleanly to a Traefik basic_auth gate, and nsqd's client protocol port
+  (4150) and nsqlookupd's TCP port (4160) can be exposed directly as raw
+  TCP, the same accepted pattern already used by wg-easy and Syncthing in
+  this catalogue. The caveat is that nsqd and nsqlookupd have zero built-in
+  authentication of any kind on those raw-TCP ports (nothing for
+  generated_from to project into), so a real three-service recipe
+  (nsqd + nsqlookupd + nsqadmin) would expose an unauthenticated broker
+  interface on the public internet behind nothing but network exposure
+  choices, with only the admin UI gated by Traefik basic auth. Recommend
+  build_with_caveats on that unauthenticated-broker-port basis.
