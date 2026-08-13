@@ -7,6 +7,25 @@ upstream:
   repo_url: https://github.com/percona/pmm
   license: AGPL-3.0
   docker_image: percona/pmm-server
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for deploying PMM Server itself.
+    Percona's own install docs
+    (docs.percona.com/percona-monitoring-and-management/3/install-pmm/
+    install-pmm-server/deployment-options/docker/) document only a plain
+    `docker run --publish 443:443 ... percona/pmm-server:3` command and an
+    "easy-install" curl script (percona.com/get/pmm); neither page mentions
+    docker-compose. The percona/pmm repo does contain a
+    docker-compose.yml (github.com/percona/pmm/blob/main/docker-compose.yml,
+    main-branch rolling reference), but its own header states its purpose
+    is to "spin up a fully wired PMM stack on a local machine ... including
+    a monitored database workload" for local dev/testing — it bundles
+    pmm-server together with pmm-client, Percona Server/MySQL, optional
+    Postgres/MongoDB, and sysbench load generators as a demo/eval rig, not
+    a production single-service deployment recipe for PMM Server alone.
+    Adopting it would pull in unrelated demo database containers rather
+    than the standalone server this recipe targets, so it is not a fit
+    for compose_file_url despite being in the official repo.
 
 version_health:
   latest_version: "3.9.0"
