@@ -66,6 +66,8 @@ upstream:
   repo_url: <github url if OSS>
   license: <SPDX id or free text>
   docker_image: <official image, or null if none>
+  compose_file_url: <optional; canonical/official docker-compose.yaml URL (e.g. a GitHub release asset or a raw link to the project's own repo), null if no official one exists>
+  compose_file_notes: <optional free text — which variant was picked if the project ships several (GPU/CPU, dev/prod, sqlite/postgres), whether the URL is version-pinned vs a rolling default-branch link, or why none was found>
 
 version_health:
   latest_version: <tag/release>
