@@ -94,17 +94,15 @@ installability:
 
 summary: >
   Elasticsearch is an actively-maintained, monthly-cadence release from
-  Elastic with no catalogue overlap — it would be the first standalone
-  search/analytics engine recipe. Its admin credential (the `elastic`
-  superuser) is mechanically expressible via `generated_from:
-  "bcrypt:ROOT_PASSWORD"` because Elasticsearch's own Change Password API
-  accepts a pre-hashed bcrypt value, but wiring that up needs a two-step
-  bootstrap (temporary password to authenticate, then overwrite via the
-  hash) plus explicitly disabling ES's auto-configured internal TLS so it
-  sits cleanly behind Traefik. The bigger issue is fit, not mechanism:
-  Elasticsearch has no web UI of its own — it's a raw REST API meant for a
-  developer's own application code, not the end-user-facing tools the rest
-  of this catalogue serves, and its recommended RAM footprint (2GB+, ideally
-  8GB+) is heavy for the self-hosted single-tenant profile here.
-  Mechanically buildable, but low-value as a standalone recipe absent a
-  clearer target customer (e.g. paired with a UI layer like Kibana).
+  Elastic. Its admin credential (the `elastic` superuser) is mechanically
+  expressible via `generated_from: "bcrypt:ROOT_PASSWORD"` because
+  Elasticsearch's own Change Password API accepts a pre-hashed bcrypt
+  value, but wiring that up needs a two-step bootstrap (temporary password
+  to authenticate, then overwrite via the hash) rather than a plain
+  metadata.yaml parameter mapping, plus explicitly disabling ES's
+  auto-configured internal TLS so it sits cleanly behind Traefik. It's also
+  a pure REST API with no web UI of its own — the credential it protects is
+  used from a customer's own code/client rather than a browser login, a
+  different usage pattern than the rest of the catalogue's admin logins.
+  Installable today, but with real bootstrap and config caveats around the
+  credential-provisioning path.
