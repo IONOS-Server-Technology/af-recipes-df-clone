@@ -7,6 +7,24 @@ upstream:
   repo_url: https://github.com/nextcloud/server
   license: AGPL-3.0-only (server core; some optional apps/enterprise features are proprietary, but the official Docker image ships the AGPL community edition)
   docker_image: nextcloud
+  compose_file_url: https://raw.githubusercontent.com/nextcloud/docker/master/.examples/docker-compose/insecure/postgres/apache/compose.yaml
+  compose_file_notes: >
+    Official — from nextcloud/docker, the repo Nextcloud GmbH maintains
+    for the official `nextcloud` Docker Hub image (README's "Running this
+    image with docker compose" section points here). This is a rolling
+    reference to the default branch (master), not a version-pinned tag or
+    release asset — the compose file itself carries no Nextcloud version
+    pin (image: nextcloud:apache, unpinned to a release). The repo ships
+    four variants under .examples/docker-compose: {insecure, with-nginx-proxy}
+    x {mariadb, postgres}, each further split {apache, fpm}. Picked
+    insecure/postgres/apache to match this recipe's own stack (Postgres +
+    Redis + Apache-based nextcloud image, per version_health/summary above)
+    and because "insecure" here just means "no bundled reverse proxy/TLS
+    termination" (app binds 127.0.0.1:8080), which is correct since this
+    catalogue's own recipe puts Nextcloud behind its own reverse proxy —
+    the with-nginx-proxy variant would double up. Also includes a `cron`
+    sidecar container (recommended background-jobs runner) alongside
+    `db`, `redis`, and `app`.
 
 version_health:
   latest_version: "34.0.2"
