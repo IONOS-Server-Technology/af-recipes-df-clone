@@ -7,6 +7,29 @@ upstream:
   repo_url: https://github.com/inventree/InvenTree
   license: MIT
   docker_image: inventree/inventree:1.4.3
+  compose_file_url: https://raw.githubusercontent.com/inventree/inventree/6a6736b8d6afea24625a67f5f55024cc2f6317b0/contrib/container/docker-compose.yml
+  compose_file_notes: >
+    Official file, from the InvenTree repo's own `contrib/container/`
+    directory, linked directly from the docs site's Docker install guide
+    (docs.inventree.org/en/stable/start/docker_install/), alongside
+    companion `.env` and `Caddyfile` downloads from the same directory
+    that the compose file depends on. The docs page embeds a raw.
+    githubusercontent.com link pinned to a specific commit SHA
+    (6a6736b8d6afea24625a67f5f55024cc2f6317b0) rather than a tag or
+    `/HEAD/` — this SHA is whatever commit was current on the default
+    branch when that docs version was built, so it is a frozen snapshot
+    per docs version, not a rolling reference. The `/en/latest/` docs
+    build points at a different, newer SHA
+    (9844a4805e5dfc8641039ea75a940b23611c12c9), confirming the pin moves
+    forward as docs are rebuilt but stays fixed for a given docs version.
+    Picked the `/en/stable/` variant (matching this recipe's stable
+    `inventree/inventree:1.4.3` image target) over `/en/latest/`, whose
+    linked commit corresponds to the development image. The file itself
+    is a single compose recipe (Postgres + gunicorn + django-q worker +
+    Caddy + optional redis) that supports both stable and latest images
+    via an `INVENTREE_TAG` variable in the companion `.env` file, so
+    there is no separate stable-vs-latest compose file, only this one
+    with an env-var switch.
 
 version_health:
   latest_version: "1.4.3"
