@@ -7,6 +7,30 @@ upstream:
   repo_url: https://github.com/Openpanel-dev/openpanel
   license: AGPL-3.0
   docker_image: lindesvard/openpanel-api:2.2.1 (+ lindesvard/openpanel-dashboard:2.2.1, lindesvard/openpanel-worker:2.2.1)
+  compose_file_url: https://raw.githubusercontent.com/Openpanel-dev/openpanel/main/self-hosting/docker-compose.template.yml
+  compose_file_notes: >
+    Rolling reference to the `main` branch (no versioned/tagged copy exists;
+    the repo publishes no GitHub Releases at all, matching the
+    version_health note below). Picked the `self-hosting/` variant over the
+    plain `docker-compose.yml` at the repo root: the root file is a
+    dev/local checkout compose (bind-mounts source-relative `./docker/...`
+    paths, exposes raw infra ports 5432/6379/8123/etc, and boots Redpanda
+    instead of the app's api/dashboard/worker images) used for building
+    OpenPanel from source, not for running a released instance. The
+    `self-hosting/docker-compose.template.yml` is the one actually linked
+    from openpanel.dev's self-hosting docs and is the file OpenPanel's own
+    `self-hosting/setup` install flow renders into a runnable
+    `docker-compose.yml` (via env substitution, e.g. `$OP_WORKER_REPLICAS`)
+    — it matches this analysis's 5-service Postgres+Redis+ClickHouse+api+
+    dashboard+worker shape (plus a bundled Caddy reverse proxy, dropped here
+    in favor of Traefik) and uses the same `lindesvard/openpanel-*` image
+    family, floating on the `:2` tag rather than the pinned `:2.2.1` patch
+    used above. It is a `.template.yml`, not a directly up `docker compose`-
+    able file as-is (it still needs the `setup` script's variable
+    substitution/renaming step to become `docker-compose.yml`), but it is
+    the only official self-hosting compose artifact the project ships —
+    there is no separate non-template, ready-to-run compose file published
+    anywhere in the repo or docs.
 
 version_health:
   latest_version: "2.2.1"
