@@ -87,17 +87,19 @@ installability:
       customer-submitted code, and upstream has not shipped a
       security-relevant release in over 2 years despite 169 open issues.
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
-  Judge0 CE is mechanically installable under the current mechanism (basic-auth
-  gate on the one public port, internal DB/cache secrets server-generated) and
-  fills a genuine gap — no other recipe offers code execution. But it's a
-  poor fit for the catalogue: it has no web UI (pure API, unlike every other
-  recipe we ship), targets a narrow developer niche, requires privileged
-  containers to run its untrusted-code sandbox, and upstream has been
-  effectively dormant on actual code/security fixes for over two years (one
-  release since 2021, none since April 2024) while still accumulating open
-  issues. The combination of a security-sensitive sandboxed-execution app and
-  a stalled patch cadence is a bad pairing to recommend to customers; not
-  worth building now.
+  Judge0 CE is mechanically installable under the current mechanism: its own
+  AUTHN_TOKEN can't take a generated_from ROOT_PASSWORD hash (it's checked as
+  a plaintext shared secret, not a hashed login), so the public port must
+  instead be gated with Traefik basic_auth the same way n8n/WUD/Open WebUI
+  are, and POSTGRES_PASSWORD/REDIS_PASSWORD are server-generated. That basic-
+  auth gate means every API call from the customer's own client code must
+  also carry HTTP Basic Auth, adding integration friction for an app whose
+  whole purpose is being called by other software. Separately, both `server`
+  and `worker` require `privileged: true` for Judge0's `isolate` sandbox to
+  get direct cgroup/kernel-namespace access to isolate untrusted submitted
+  code — permitted under RFC-002's `no-privileged-without-justification`
+  rule with a documented justification, but a real operational caveat for a
+  code-execution service. Build with these caveats documented.
