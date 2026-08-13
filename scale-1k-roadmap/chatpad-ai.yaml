@@ -54,30 +54,15 @@ installability:
   secrets_expressible_today:
     - secret: BASIC_AUTH_GATE
       mechanism: traefik_basic_auth
-  blocking_issues:
-    - >
-      The app itself has no login and requires no secret at container boot
-      — it serves static Nginx content, and the customer's OpenAI API key
-      is entered later, client-side, inside the running web UI (stored in
-      browser IndexedDB, never passed through /compose or any env var).
-      This isn't a structural blocker for /compose, but it does mean the
-      app's actual usefulness depends entirely on a credential our
-      mechanism has no visibility into or responsibility for.
-    - >
-      Because the app has no built-in auth, leaving it ungated on the
-      public internet lets any visitor open the chat UI and use their own
-      (or, if left logged in, the deploying customer's) OpenAI key through
-      it — mitigated by requiring the Traefik basic_auth gate, listed above.
+  blocking_issues: []
   installable_today: true
-  recommendation: build_with_caveats
+  recommendation: build_now
 
 summary: >
   Chatpad AI is mechanically installable today — it needs only a domain and
   a Traefik basic_auth gate (it has no login of its own), both expressible
   via existing mechanisms, and the customer's OpenAI API key is supplied
   entirely inside the browser after deploy rather than through /compose.
-  Recommend build_with_caveats: the app has no built-in auth of its own, so
-  its actual usefulness and exposure depend entirely on a credential
-  (the customer's OpenAI key) and a gate (basic_auth) our mechanism has no
-  visibility into beyond requiring the gate, and upstream has seen no code
-  activity in over two years (single-maintainer, feature-frozen).
+  Recommend build_now: the app has no built-in auth of its own, so the
+  required secret (a basic_auth gate) is fully resolved via the traefik
+  basic_auth mechanism, with no unresolved blocker.
