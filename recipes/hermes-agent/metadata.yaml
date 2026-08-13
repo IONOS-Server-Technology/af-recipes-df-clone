@@ -14,18 +14,22 @@ categories:
   - ai
   - automation
 # app_version pinned to a specific nousresearch/hermes-agent Docker Hub tag
-# (:latest / :main deliberately avoided). Bumped 2026-07-22 from v2026.7.7.2 to
-# v2026.7.20: the older tag has an upstream dashboard-auth bug that made the web
-# dashboard return HTTP 500 on first load (IF-1309). When basic-auth is the only
-# session provider, the unauth gate auto-redirected "/" to the OAuth route
-# /auth/login?provider=basic, and BasicAuthProvider.start_login() raises
-# NotImplementedError → 500. v2026.7.20 adds a guard
-# (`if getattr(provider, "supports_password", False): return None` in
-# dashboard_auth/middleware.py) that routes password-only providers to /login
-# instead. Verified live (GET / → 302 /login → 200 on v2026.7.20 vs 500 on
-# v2026.7.7.2) with identical config; no breaking changes (same entrypoint,
-# config_version, required env). RE-VERIFY the tag is still current before merge.
-app_version: "v2026.7.20"
+# (:latest / :main deliberately avoided).
+#
+# The pin must never go back below v2026.7.20: older tags have an upstream
+# dashboard-auth bug that made the web dashboard return HTTP 500 on first load
+# (IF-1309). When basic-auth is the only session provider, the unauth gate
+# redirected "/" to the OAuth route /auth/login?provider=basic, and
+# BasicAuthProvider.start_login() raises NotImplementedError → 500. The fix is a
+# guard in hermes_cli/dashboard_auth/middleware.py:
+#   if getattr(provider, "supports_password", False): return None
+# which routes password-only providers to /login instead.
+#
+# Bumped 2026-08-12 to v2026.8.3 (latest upstream release, 2026-08-03). The guard
+# above is still present at that tag (verified against the upstream source), so
+# the IF-1309 regression cannot return. Not re-tested live on a VM — the dashboard
+# first-load path is worth a smoke test in the next live run.
+app_version: "v2026.8.3"
 recipe_version: "1.1.0"
 recipe_type: docker-compose
 upstream_url: https://github.com/NousResearch/hermes-agent
