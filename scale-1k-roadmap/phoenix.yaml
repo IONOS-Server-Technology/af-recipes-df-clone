@@ -94,22 +94,20 @@ installability:
 
 summary: >
   Phoenix (Arize AI) is an active, well-adopted (9k+ stars, near-daily
-  releases) open-source LLM observability/tracing platform, functionally
-  overlapping apps-gaps/langfuse.yaml's niche rather than filling a new gap
-  in the 24-recipe catalogue. Deployment is lighter than Langfuse (2
-  containers: arizephoenix/phoenix + postgres:16, vs Langfuse's 5-service
-  stack), and its only first-boot secret is the Postgres password
-  (server-generatable, no customer input needed). The install-mechanism
-  wrinkle is auth: Phoenix has no login by default, and its opt-in auth
-  scaffolds a fixed admin/admin account whose initial-password override
-  env var wants a plaintext password (no hash-based input channel exists
-  for it) — so the actual auth boundary has to be a Traefik basic_auth
-  gate in front of the whole app, per SCHEMA.md's guidance for
-  fixed-credential apps. That gate, however, would sit in front of both the
-  web UI (:6006) and the OTLP trace-ingestion ports (:6006 HTTP / :4317
-  gRPC) that customer apps need to reach programmatically, which is a
-  functional caveat beyond the usual single-HTTP-port pattern. Mechanically
-  installable today (build_with_caveats), but given Langfuse already covers
-  this same job-to-be-done and is already flagged for the backlog, Phoenix
-  is best treated as a "which observability tool" prioritization choice
-  rather than an independent build.
+  releases) open-source LLM observability/tracing platform, overlapping
+  apps-gaps/langfuse.yaml's niche in the 24-recipe catalogue. Deployment is
+  lighter than Langfuse (2 containers: arizephoenix/phoenix + postgres:16,
+  vs Langfuse's 5-service stack), and its only first-boot secret is the
+  Postgres password (server-generatable, no customer input needed). The
+  install-mechanism wrinkle is auth: Phoenix has no login by default, and
+  its opt-in auth scaffolds a fixed admin/admin account whose
+  initial-password override env var wants a plaintext password (no
+  hash-based input channel exists for it) — so the actual auth boundary has
+  to be a Traefik basic_auth gate in front of the whole app, per
+  SCHEMA.md's guidance for fixed-credential apps. That gate, however, would
+  sit in front of both the web UI (:6006) and the OTLP trace-ingestion
+  ports (:6006 HTTP / :4317 gRPC) that customer apps need to reach
+  programmatically, which is a functional caveat beyond the usual
+  single-HTTP-port pattern. That extra-endpoint/auth caveat is the reason
+  for build_with_caveats rather than build_now — mechanically installable
+  today, just with that real functional wrinkle.
