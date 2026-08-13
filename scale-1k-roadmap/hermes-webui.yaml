@@ -62,19 +62,18 @@ installability:
   blocking_issues:
     - "HERMES_WEBUI_PASSWORD is read by the app as a plaintext password (api/auth.py: `os.getenv('HERMES_WEBUI_PASSWORD', '').strip()`) and hashed internally with a fixed-salt PBKDF2 scheme the app owns — there is no field that accepts a pre-computed hash. generated_from only ever carries a hash (argon2/bcrypt), so it cannot be projected into this env var directly. Auth is optional by design (\"off by default... required if you expose the port outside 127.0.0.1\"), so the workable path is to leave it unset and put a Traefik basic_auth gate (root-password hash) in front instead — mechanically installable, mirroring the traefik_basic_auth precedent, but the app's own richer auth (passkeys, OIDC) goes unused."
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   Hermes WebUI is a real, actively-developed, MIT-licensed community project
   (github.com/nesquena/hermes-webui) that bundles the same official Hermes
-  Agent our catalogue already ships in `recipes/hermes-agent/` with an
-  unofficial (non-Nous-Research) web frontend. It is mechanically
-  installable today — single HTTP port, reverse-proxy compatible, and its
-  only first-boot secret (a plaintext dashboard password) can be routed
-  around with a Traefik basic_auth gate — but it duplicates
-  `hermes-agent`'s Hostinger-facing pitch exactly with no differentiating
-  capability, rides an unusually chaotic release-tagging scheme that makes
-  picking a stable pin harder than normal, and comes from a third-party
-  maintainer rather than the upstream Hermes Agent project. Not
-  recommended: this would be a lower-provenance duplicate of a recipe we
-  already have.
+  Agent our catalogue already ships in `recipes/hermes-agent/` (overlaps
+  with it) with an unofficial (non-Nous-Research) web frontend. It is
+  mechanically installable today — single HTTP port, reverse-proxy
+  compatible — but its only first-boot secret (HERMES_WEBUI_PASSWORD) can't
+  be set via a pre-computed hash, since the app hashes the plaintext env var
+  itself with a fixed-salt scheme it owns; the workable path is to leave it
+  unset and put a Traefik basic_auth gate in front instead, which means the
+  app's own richer auth (passkeys, OIDC) goes unused. Build with caveats:
+  installable today via the Traefik basic_auth workaround, with that auth
+  limitation as the caveat.
