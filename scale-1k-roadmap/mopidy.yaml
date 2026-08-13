@@ -54,16 +54,18 @@ installability:
     - "Mopidy also exposes the MPD protocol (port 6600), a raw TCP protocol many desktop/mobile MPD clients use directly, not through the web UI. Traefik in this catalogue routes HTTP(S) by hostname; there's no mechanism today to expose a second raw-TCP port per customer, so MPD-native clients would be unusable and only the HTTP/web-UI path could ship."
     - "Spotify and SoundCloud integration — the two most-marketed capabilities in Hostinger's own description — each require the customer's own third-party API key/OAuth app registration (mopidy-spotify needs a Spotify Client ID/Secret; mopidy-soundcloud needs a SoundCloud auth token). No customer-supplied-value channel exists for either, so a shipped recipe could only offer local-file playback and radio streams, not the headline features."
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   Mopidy is actively maintained (4.0.1 shipped 2026-05-16, commits as recent
-  as 2026-07-29) and would be the first music/media recipe in the catalogue,
-  so there's no overlap concern. But it has no official Docker image, no
-  built-in web UI or auth (requiring both a third-party extension and a
-  mandatory Traefik basic_auth gate), and its two headline features —
-  Spotify and SoundCloud — need per-customer API credentials our platform
-  has no channel to collect, leaving only local-file/radio playback
-  installable. Given the missing official image and the value proposition
-  being gutted down to a narrow hobbyist slice, this isn't worth building
-  now even though a stripped-down version is mechanically installable.
+  as 2026-07-29) and would be the first music/media recipe in the catalogue.
+  It has no official Docker image — a recipe would have to adopt an
+  unmaintained third-party image (wernight/mopidy, ~5 years stale) or
+  maintain our own Dockerfile — and no built-in web UI or auth, requiring a
+  mandatory Traefik basic_auth gate. Its MPD protocol (port 6600) can't be
+  exposed through Traefik's HTTP(S)-only routing, and its two headline
+  features, Spotify and SoundCloud, need per-customer API credentials our
+  platform has no channel to collect, leaving only local-file/radio
+  playback and the HTTP/web-UI path shippable. It's mechanically
+  installable today with these caveats, so it's a build_with_caveats
+  candidate rather than blocked.
