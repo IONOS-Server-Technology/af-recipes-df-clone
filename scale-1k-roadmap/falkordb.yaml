@@ -80,13 +80,18 @@ installability:
 
 summary: >
   FalkorDB is an actively maintained, frequently released graph database
-  (v4.20.1, released 2026-07-15) with a bundled web UI, but it doesn't fit
-  the catalogue mechanically or strategically today. Its own login system
-  (FalkorDB Browser) has no documented hash-injection hook compatible with
-  our generated_from/basic_auth mechanisms, and its real value is a raw
-  Redis-protocol port that doesn't reverse-proxy the way our other recipes
-  do. On top of that, its SSPL-1.0 license has a service-provision clause
-  that squarely covers offering it as an Application Factory recipe, which
-  is a legal question independent of the technical gaps. Given a narrow
-  developer-only audience versus the rest of the catalogue, this is a
-  not_recommended candidate rather than blocked_on_platform.
+  (v4.20.1, released 2026-07-15) with a bundled web UI, but it isn't
+  mechanically installable today. Its own login system (FalkorDB Browser)
+  has no documented hash-injection hook compatible with our
+  generated_from/basic_auth mechanisms, and its core protocol port (6379,
+  standard Redis wire protocol) is the same raw TCP port already forbidden
+  as a public host port for every other Redis-protocol service in this
+  catalogue (see apps-gaps/redis.yaml, apps-gaps/dragonfly.yaml) — Traefik
+  cannot front it, so there is no way to expose the database's actual
+  value without either an open unauthenticated port or a credential the
+  customer can never learn. On top of that, its SSPL-1.0 license has a
+  service-provision clause that squarely covers offering it as an
+  Application Factory recipe, an independent legal blocker. None of these
+  is a specific, known platform capability that would clear the blocker if
+  built (unlike, e.g., a missing customer-supplied-secret input channel),
+  so this is not_recommended rather than blocked_on_platform.
