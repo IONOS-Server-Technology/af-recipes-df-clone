@@ -62,16 +62,17 @@ installability:
     - "ADE/API access gate: Letta has no customer-facing login form of its own unless SECURE=true is set; the API is open by default. This is gateable via Traefik basic_auth (see secrets_expressible_today) rather than a native login."
     - "The app needs an LLM provider credential (e.g. OPENAI_API_KEY, or an OLLAMA_BASE_URL pointing at a reachable Ollama instance) to actually create/run agents. This is not required for the container to boot and is configured by the customer inside the ADE web UI after first login (same deferred-config pattern already shipped for hermes-agent's OPENROUTER_API_KEY), so it does not block installable_today, but it does mean the app is non-functional out of the box until the customer does that manual step themselves."
   installable_today: true
-  recommendation: not_recommended
+  recommendation: build_with_caveats
 
 summary: >
   Letta is mechanically installable under the current mechanism — no
   hard blocker exists (the LLM key gap is deferred to post-provision
   self-service like hermes-agent, and the missing native login is
-  gateable via Traefik basic_auth) — but it's a poor catalogue fit: it's
-  a developer-oriented agent framework/SDK rather than a ready-to-use
-  end-user app, overlaps conceptually with three existing recipes
-  (open-webui, hermes-agent, ollama), and the specific self-hosted server
-  product matching Hostinger's description is one upstream itself
-  describes as legacy, with development energy now going into a
-  different, non-Dockerized product. Not recommended for the catalogue.
+  gateable via Traefik basic_auth) — but real caveats remain: the
+  candidate name spans two divergent upstream products and a reviewer
+  must confirm the legacy Dockerized server (analyzed here) rather than
+  the newer non-Dockerized "Letta Code"/App Server is the intended
+  target, and the app ships open by default with no native login until
+  the customer both sets SECURE=true/relies on the Traefik basic-auth
+  gate and supplies an LLM provider credential after first boot before
+  it's functional. Recommended to build with those caveats addressed.
