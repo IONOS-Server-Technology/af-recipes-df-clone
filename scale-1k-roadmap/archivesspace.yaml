@@ -7,17 +7,24 @@ upstream:
   repo_url: https://github.com/archivesspace/archivesspace
   license: Educational Community License 2.0 (ECL-2.0)
   docker_image: archivesspace/archivesspace
-  compose_file_url: https://raw.githubusercontent.com/archivesspace/archivesspace/v4.2.1/docker-compose-release.yml
+  compose_file_url: https://raw.githubusercontent.com/archivesspace/archivesspace/v4.2.1/docker-compose-prod.yml
   compose_file_notes: >
     Official, from the project's own repo root (not a third-party template):
-    docs.archivesspace.org/administration/docker directs users to the
-    GitHub release page to download the versioned
-    archivesspace-docker-${VERSION}.zip bundle, which packages the repo's
-    root-level docker-compose-release.yml (one of several docker-compose-*
-    variants at repo root — release is the one intended for
-    production/deployment use, as opposed to docker-compose-dev.yml,
-    docker-compose-dev-full.yml, docker-compose-docs.yml, and
-    docker-compose-fake-smtp.yml, which target contributor/dev workflows).
+    docs.archivesspace.org/administration/docker directs users to download
+    the versioned archivesspace-docker-${VERSION}.zip bundle from the
+    GitHub release Assets and use the docker-compose.yml inside it. Traced
+    the release build process (.github/workflows/release.yml running
+    `./build/run build-docker-conf-package`, defined in build/build.xml)
+    to confirm that packaged file is the repo's root-level
+    docker-compose-prod.yml, renamed to docker-compose.yml when zipped —
+    verified byte-for-byte identical by downloading and diffing both. This
+    is one of several docker-compose-* variants at repo root
+    (docker-compose.yml, docker-compose-release.yml, docker-compose-dev.yml,
+    docker-compose-dev-full.yml, docker-compose-docs.yml,
+    docker-compose-fake-smtp.yml); docker-compose-release.yml is a
+    separate build-from-source workflow (its own header comment says
+    `docker-compose -f docker-compose-release.yml build` / `up`) and is not
+    what the official docs' pre-built-image deployment path uses.
     Linked here as version-pinned to the v4.2.1 tag (matching
     version_health.latest_version above) rather than the rolling
     master-branch reference, so this URL keeps pointing at the exact
