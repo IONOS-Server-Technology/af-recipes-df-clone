@@ -105,21 +105,17 @@ installability:
   recommendation: not_recommended
 
 summary: >
-  1Backend is a developer platform for building microservice/microfrontend
-  apps, not a ready-to-use end-user application — its value only appears
-  once someone writes and deploys custom services on top of it, which does
-  not fit a one-click catalogue aimed at finished tools; this holds
-  regardless of the auth-mechanism question. On the credential point
-  specifically, this re-run corrects the prior verdict's reasoning:
-  1Backend's fixed default admin login is not by itself disqualifying,
-  since a Traefik basic_auth gate is a real auth boundary per the corrected
-  SCHEMA.md guidance. But 1Backend's official deployment exposes two
-  independently browser-reachable HTTP origins (UI :3901, API :11337), and
-  today's basic_auth mechanism only gates one public port per app — so the
-  default credential remains reachable unauthenticated on the ungated
-  origin, a structural gap distinct from (and narrower than) the original
-  "masks, doesn't fix" objection. Combined with low fit for a
-  finished-product catalogue, overlap with Runtipi/Open WebUI/Ollama, a
-  Docker Hub image line with no pinned version tag, and a stalled GitHub
-  release cadence (last tag ~10 months ago, though `main` is still active),
-  this remains not_recommended.
+  This re-run corrects the prior verdict's reasoning on the credential
+  point: 1Backend's fixed default admin login (`1backend`/`changeme`) is
+  not by itself disqualifying, since a Traefik basic_auth gate is a real
+  auth boundary per the corrected SCHEMA.md guidance. But 1Backend's
+  official deployment exposes two independently browser-reachable HTTP
+  origins (UI :3901, API :11337), and today's basic_auth mechanism only
+  gates one public port per app — so the default credential remains
+  reachable unauthenticated on the ungated origin, and there is no
+  mechanism today to express the `api_basic_auth_gate` secret this app
+  requires at first boot. That gap is compounded by the backend's
+  `/var/run/docker.sock` mount, which lets an unauthenticated caller on the
+  ungated origin start arbitrary sibling containers. Because a
+  first-boot-required secret has no expressible mechanism today, this
+  remains not_recommended on installability grounds alone.
