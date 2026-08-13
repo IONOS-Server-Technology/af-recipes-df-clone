@@ -7,6 +7,26 @@ upstream:
   repo_url: https://github.com/blinkospace/blinko
   license: GPL-3.0
   docker_image: blinkospace/blinko:1.8.8
+  compose_file_url: https://raw.githubusercontent.com/blinkospace/blinko/main/docker-compose.prod.yml
+  compose_file_notes: >
+    Rolling reference to the default branch (main), not version-pinned —
+    the repo has no release-tagged or release-asset compose file (GitHub
+    release assets are desktop-app installers only: .dmg/.deb/.AppImage/
+    .exe/.msi). The repo ships two compose files at its root:
+    docker-compose.yml (a dev-only variant that builds the image locally
+    via `build:`) and docker-compose.prod.yml (uses the published
+    blinkospace/blinko image). Picked docker-compose.prod.yml as the closer
+    match to "official production compose file" since it references the
+    prebuilt image rather than building from source. Note it is not
+    directly runnable as-is: its postgres service is commented out (it
+    assumes an external Postgres reachable at a hardcoded LAN IP) and it
+    sets `networks: blinko-network: driver: host`, i.e. host networking.
+    The docs site's own "Docker Compose Installation" section
+    (docs.blinko.space/en/install.md) embeds a third, undated variant of
+    this same file inline (bridge network, postgres service uncommented)
+    rather than linking to either repo file directly — so there is no
+    single canonical compose file, only the closest-to-production one in
+    the repo.
 
 version_health:
   latest_version: "1.8.8"
