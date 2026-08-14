@@ -5,13 +5,17 @@
 # is already checked once in the OS-image bootstrap.
 set -euo pipefail
 
-# Generate this VM's own secrets into .env before anything reads it (IF-1417). Both keys
-# ship empty in .env.template because nothing substitutes values into it (IF-944) — they
-# used to carry placeholders, which gave every customer's dashboard the same password.
+# Generate this VM's own session secret into .env before anything reads it (IF-1417). It
+# ships empty in .env.template because nothing substitutes values into that file (IF-944) —
+# it used to carry a placeholder, which gave every customer's VM the same signing key.
 #
-# Idempotent on purpose: a non-empty value is left alone, so a customer who changed the
-# dashboard password in .env keeps it across a re-run, and the session secret does not
-# rotate under logged-in users.
+# The dashboard *password* is no longer generated here: af-api derives it from the
+# customer's server password and the renderer writes the scrypt hash into .env at compose
+# time (IF-1454). Only the session secret is still VM-local, because it signs cookies and
+# has no counterpart the customer would ever type.
+#
+# Idempotent on purpose: a non-empty value is left alone, so the session secret does not
+# rotate under logged-in users on a re-run.
 af_gen_secret() {
     local key="$1" value
     if [ -n "$(sed -n "s/^${key}=//p" .env | head -1)" ]; then
@@ -27,9 +31,6 @@ af_gen_secret() {
     fi
 }
 
-# The container refuses to start on a non-loopback bind without a password, so this one is
-# not optional. The customer reads it back out of /opt/hermes-agent/.env.
-af_gen_secret HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
 af_gen_secret HERMES_DASHBOARD_BASIC_AUTH_SECRET
 
 # Load the app's configuration, now that it is complete.

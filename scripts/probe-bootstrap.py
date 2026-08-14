@@ -16,7 +16,6 @@ import sys
 from pathlib import Path
 
 import requests
-import yaml
 from mtls_cert import resolve_client_cert
 
 
@@ -73,12 +72,8 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    repo_root = Path(__file__).resolve().parent.parent
-    applications = []
-    for recipe in args.recipes:
-        params_file = repo_root / "recipes" / recipe / "test-params.yaml"
-        params = yaml.safe_load(params_file.read_text()) if params_file.exists() else {}
-        applications.append({"id": recipe, "parameters": params or {}})
+    # See call-compose.py: /compose takes only `id`, so there is nothing to load per recipe.
+    applications = [{"id": recipe} for recipe in args.recipes]
 
     compose_body = {
         "applications": applications,

@@ -21,8 +21,7 @@ recipes/<id>/
 ├── docker-compose.yaml# (recipe_type: docker-compose) the stack
 ├── install.sh         # docker-compose: prep only (compose-up.sh starts the stack); native: full install — see RFC-001 §9
 ├── health-check.sh    # readiness probe (see docs/health-check-spec.md)
-├── logo.svg           # the application logo — see below
-└── test-params.yaml   # values used by the test workflows
+└── logo.svg           # the application logo — see below
 ```
 
 `id` must be lowercase kebab-case and match `metadata.id` and the directory name.

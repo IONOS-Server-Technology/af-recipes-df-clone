@@ -278,9 +278,17 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 #### `param-referenced`
 
 - **Level:** WARN
-- **What:** Every `metadata.parameters[].name` appears either in `.env.template` as `{{KEY}}` or in a place the AF API can resolve (compose `${KEY}`, install.sh).
-- **How to check:** For each param name, grep the recipe directory; if no hit, warn.
-- **Why:** Unreferenced parameters are usually typos or dead code; they confuse the customer-facing UI.
+- **What:** Every `metadata.parameters[].name` is consumed somewhere in its own recipe.
+- **How to check:** After dropping whole-line `#` comments from each file, the name counts as consumed if any of these holds — otherwise warn, once per parameter:
+  1. it appears as `${NAME}` in `docker-compose.yaml` (or the legacy `docker-compose.yml`);
+  2. it is a key in `.env.template` (`NAME=`);
+  3. it appears as a whole word in `install.sh`.
+- **Why:** Unreferenced parameters are typos or dead code. They cannot reach a customer — af-api strips the whole `parameters` block before parsing and `/compose` accepts none since IF-944 — but they mislead the next author, which is exactly how eight of them accumulated unnoticed (IF-1454).
+- **Three deliberate narrowings**, each one required to catch a real case:
+  - *The compose reference counts, not the definition.* `wg-easy` declared `WG_HOST` while its compose said `WG_HOST=${AF_APP_DOMAIN}`: the name is present, but the value comes from the platform, so the declared parameter was already dead. Matching the left-hand side would call that referenced.
+  - *Comments do not count.* `ollama`'s `.env.template` states in prose that `OLLAMA_DEFAULT_MODEL` "is consumed by nothing" — a comment saying a parameter is dead must not be what keeps it alive.
+  - *Whole word, not substring.* Otherwise `wg-easy`'s `ADMIN_PASSWORD` is satisfied by an unrelated `GITEA_ADMIN_PASSWORD`.
+- **Superseded wording:** this rule used to say a parameter counts when it appears in `.env.template` as `{{KEY}}`. That is the exact form [`no-env-placeholder`](#no-env-placeholder) has flagged as a defect since IF-1417, so the two rules contradicted each other and the rule was unimplementable as written. Recipes ship a bare empty key instead, which is what condition 2 checks.
 
 #### `generated-from-password-only`
 
@@ -460,4 +468,5 @@ The `af-update-recipes` skill (in `.claude/skills/`) implements this sweep — p
 ## 8. Open items
 
 - [ ] CI integration: catalogue check runs on every PR to af-recipes, fails on any ERROR.
-- [ ] A few rules are aspirational (`param-referenced` grep heuristic, `incompatibility-ref-valid` phantom refs) — they need precise pseudo-code if a second implementer tries to write them.
+- [x] `param-referenced` was aspirational — a grep heuristic whose stated predicate contradicted `no-env-placeholder`. Implemented in IF-1454 with the three explicit conditions written out above.
+- [ ] `incompatibility-ref-valid` (phantom refs) is still aspirational — it needs precise pseudo-code if a second implementer tries to write it.

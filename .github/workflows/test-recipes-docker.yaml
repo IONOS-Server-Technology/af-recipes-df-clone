@@ -161,6 +161,52 @@ jobs:
           # (IF-1417). There is no Traefik and no real domain in this test, so stand in
           # with localhost — enough for apps that put their own FQDN in their config.
           printf 'AF_APP_DOMAIN=%s\n' "localhost" >>"$d/.env"
+          # generated_from parameters are filled by af-api at compose time (IF-1420,
+          # IF-1454), not by install.sh, so a staged .env leaves them empty — and
+          # hermes-agent refuses to start on a non-loopback bind with no dashboard
+          # credential at all. Stand in with a hash of a throwaway password, the same role
+          # localhost plays for AF_APP_DOMAIN above. Read out of metadata.yaml rather than
+          # hardcoded, so a recipe that adds such a parameter is covered without touching
+          # this workflow.
+          python3 - "$d" <<'PY'
+          import base64, hashlib, pathlib, secrets, sys
+          import yaml
+
+          recipe = pathlib.Path(sys.argv[1])
+          meta = yaml.safe_load((recipe / "metadata.yaml").read_text()) or {}
+          env_path = recipe / ".env"
+          for param in meta.get("parameters", []) or []:
+              if not isinstance(param, dict):
+                  continue
+              spec = param.get("generated_from")
+              name = param.get("name")
+              if not spec or not name:
+                  continue
+              algorithm = spec.split(":", 1)[0]
+              if algorithm != "scrypt":
+                  # argon2/bcrypt consumers so far treat an empty value as "feature off"
+                  # (vaultwarden disables /admin), which is a valid state to boot in.
+                  print(f"  {name}: {algorithm} — left empty, app boots without it")
+                  continue
+              salt, n, r, p = secrets.token_bytes(16), 2**14, 8, 1
+              derived = hashlib.scrypt(
+                  b"docker-test-throwaway", salt=salt, n=n, r=r, p=p, dklen=32, maxmem=0
+              )
+              value = (
+                  f"scrypt${n}${r}${p}$"
+                  f"{base64.b64encode(salt).decode()}${base64.b64encode(derived).decode()}"
+              )
+              # Doubled, exactly as the renderer writes it: Compose interpolates .env
+              # values too, and these hashes are dollar-heavy.
+              lines = env_path.read_text().splitlines()
+              needle = f"{name}="
+              out = [f"{needle}{value.replace('$', '$$')}" if ln.startswith(needle) else ln
+                     for ln in lines]
+              if out == lines:
+                  out.append(f"{needle}{value.replace('$', '$$')}")
+              env_path.write_text("\n".join(out) + "\n")
+              print(f"  {name}: staged a {algorithm} hash")
+          PY
           echo "Staged $d/.env:"
           sed -e 's/=.*/=<redacted>/' "$d/.env"
 

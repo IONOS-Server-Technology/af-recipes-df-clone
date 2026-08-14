@@ -520,22 +520,17 @@ instead of building an image they install `af-api` from that ref to get the
 everywhere (`af-recipes`, `af-api`, and the OS image). Single-repo PRs need no
 setup — missing branches fall back to `main`.
 
-### `test-params.yaml` — recipe-local test inputs
+### No test inputs to supply
 
-A recipe may ship `recipes/<slug>/test-params.yaml` to supply parameter values that
-`metadata.yaml` declares. Read by `scripts/call-compose.py` / `probe-bootstrap.py` and merged with
-auto-generated (`auto_generate: true`) and `default:` values. Format is a flat
-`KEY: value` mapping keyed by parameter `name`. **Required** only when `metadata.yaml`
-has parameters that are neither `auto_generate: true` nor have a `default:` — else the
-renderer aborts with `Missing required parameters: …`. Use obviously fake values
-(`example.com`, `test_*`); they land on a throwaway VM.
+Test scripts send only `{"id": "<slug>"}` per recipe. `/compose` accepts nothing else —
+`ApplicationSelection` has a single field, because customer-supplied parameters went away
+with IF-944. A recipe's own secrets are produced on the VM by its `install.sh`, or derived
+from the server password by af-api via `generated_from`.
 
-```yaml
-# recipes/n8n/test-params.yaml
-N8N_ADMIN_EMAIL: admin@example.com
-POSTGRES_PASSWORD: "test_postgres_password_123"
-N8N_ENCRYPTION_KEY: "test_encryption_key_1234567890"
-```
+> Removed in IF-1454: recipes used to ship a `test-params.yaml` whose contents were sent
+> alongside the id and then silently discarded by pydantic. The description here claimed the
+> renderer would abort with `Missing required parameters: …` without one — that code has
+> never existed in either repo, and the claim is what made the files look mandatory.
 
 ### Native recipes
 

@@ -61,23 +61,30 @@ parameters:
     type: string
     description: Universal LLM provider key. Hermes routes all models (Anthropic, OpenAI, etc.) through OpenRouter — no direct provider keys are used. Get one at https://openrouter.ai.
 
-  # Migration candidate for generated_from (IF-1420), but not yet expressible:
-  # the container consumes this as a plaintext password, and generated_from only
-  # projects a *hash* of the root password. So it cannot be declared here without
-  # putting the plaintext in the JWE, which IF-1420 rules out. Either this frontend
-  # moves behind Traefik basic-auth (IF-1312), which takes the bcrypt hash and
-  # leaves the app out of it, or IF-1420 grows a plaintext mode. Decision pending
-  # on IF-1437, which currently lists hermes under projection.
+  # generated_from (IF-1454): the dashboard password is derived from the customer's
+  # server (root) password at /compose time, so they log in with the password they
+  # already have instead of reading a generated one out of this VM's .env.
   #
-  # Until that decision lands, install.sh generates both values per VM (IF-1417) and
-  # the customer reads the password out of /opt/hermes-agent/.env. That removes the
-  # fleet-wide-identical password the placeholder produced, but not the need for the
-  # decision above: a projection of the customer's own server password would save them
-  # having to look it up at all.
-  - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+  # The earlier note here said projection was impossible because "the container
+  # consumes this as a plaintext password". That is no longer true: the dashboard's
+  # basic auth provider reads HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH, which its own
+  # documentation calls the preferred form, and only falls back to the plaintext
+  # variable. Hence the rename — the two are different env vars, not two spellings.
+  #
+  # Two constraints for the af-api side:
+  # - The provider verifies with `scheme, n, r, p, salt, dk = encoded.split("$")` and
+  #   rejects anything whose scheme is not the literal `scrypt`, so this must be
+  #   stdlib hashlib.scrypt in that six-field layout — NOT the PHC form
+  #   ($scrypt$ln=...), which would be refused at login.
+  # - That string is dollar-heavy and reaches the container via
+  #   ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH} in docker-compose.yaml, so its
+  #   dollars need doubling on the way into .env — the same escaping IF-1312 added
+  #   for the bcrypt basic-auth hash and IF-1420 for vaultwarden's argon2 token.
+  - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH
     display_name: Dashboard Password
     type: password
-    description: Password for the dashboard basic-auth login. Log in at the dashboard with username "admin".
+    generated_from: "scrypt:ROOT_PASSWORD"
+    description: Password for the dashboard login. Derived from your server password — log in with username "admin" and that password.
 
   - name: HERMES_DASHBOARD_BASIC_AUTH_SECRET
     display_name: Dashboard Session Secret

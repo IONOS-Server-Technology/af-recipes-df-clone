@@ -95,9 +95,11 @@ def main() -> int:
         if not recipe_dir.is_dir():
             print(f"recipe directory not found: {recipe_dir}", file=sys.stderr)
             return 1
-        params_file = recipe_dir / "test-params.yaml"
-        params = yaml.safe_load(params_file.read_text()) if params_file.exists() else {}
-        applications.append({"id": recipe, "parameters": params or {}})
+        # No parameters: /compose's ApplicationSelection has only `id`. Customer-supplied
+        # parameters went away with IF-944, so anything sent alongside was silently dropped
+        # by pydantic — which is what made the old test-params.yaml files look load-bearing
+        # while doing nothing.
+        applications.append({"id": recipe})
 
     payload = {
         "applications": applications,
