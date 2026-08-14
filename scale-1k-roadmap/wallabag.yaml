@@ -7,6 +7,31 @@ upstream:
   repo_url: https://github.com/wallabag/wallabag
   license: MIT
   docker_image: wallabag/wallabag
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose.yaml/.yml file exists anywhere in
+    wallabag's own repos. Wallabag's docs (doc.wallabag.org, Docker page)
+    explicitly tell users: "For running wallabag in production, please use
+    the official docker-compose configuration provided:
+    github.com/wallabag/docker" — but that repo (the source of the
+    wallabag/wallabag Docker Hub image) does not ship an actual compose
+    file at its root, under docker/, or under contrib/. The only thing
+    matching "docker-compose configuration" there is an example block
+    embedded directly in its README.md
+    (https://github.com/wallabag/docker/blob/master/README.md#docker-compose),
+    a rolling reference to the default branch with no version pin — not a
+    fetchable file, so there is no direct-file URL to record. That embedded
+    example is the one this recipe's summary/secrets analysis is based on
+    (MariaDB + Redis, matching secrets_required_at_first_boot above).
+    Two things in the wallabag/docker repo look like compose files but are
+    not production-ready: tests/docker-compose.{default,mariadb,postgresql,sqlite}.yml
+    build the image from local source (`build: context: ../`) for the
+    repo's own CI, they don't pull the published wallabag/wallabag image.
+    The main wallabag/wallabag application repo separately has a root
+    compose.yaml, but it's a developer environment file (builds
+    docker/php from source, bind-mounts the repo into the container) for
+    contributing to wallabag itself, not a production deployment of the
+    published image — so it doesn't qualify either.
 
 version_health:
   latest_version: "2.6.14"
