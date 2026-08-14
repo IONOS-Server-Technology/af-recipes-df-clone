@@ -7,6 +7,36 @@ upstream:
   repo_url: https://github.com/projectsend/projectsend
   license: GPL-2.0
   docker_image: linuxserver/projectsend
+  compose_file_url: https://raw.githubusercontent.com/projectsend/projectsend/main/docker/production/compose.example.yaml
+  compose_file_notes: >
+    Rolling reference to the default `main` branch, not version-pinned —
+    the repo has no tagged release yet (CHANGELOG.md's only entry is
+    "Unreleased"; no GitHub release/tag exists as of 2026-08-14) so there
+    is no `/releases/latest/download/...` equivalent to point at instead.
+    Chose `docker/production/compose.example.yaml` over the root-level
+    `compose.yaml`: the root file builds the app from local source with
+    the whole repo bind-mounted in (`context: .`, `volumes: - .:/var/www/html`)
+    and ships dev-only `adminer`/`mailpit` profiles, i.e. it is the
+    contributor/dev-environment file (README.md links it under its
+    "Getting started" / "Development" section). `compose.example.yaml`
+    is the one meant for end users: it pulls the published
+    `projectsend/projectsend:2` image rather than building, and its own
+    header comment states "This is the file the Docker Hub description
+    points at, so it is written for someone who has never seen the
+    project before."
+    NOTE for a future analysis pass (out of scope for this additive-only
+    task): `repo_url` above now points to a from-scratch Laravel rewrite
+    of ProjectSend, not the legacy PHP app that `version_health` /
+    `installability` / `summary` in this file describe (that legacy app
+    has moved to github.com/projectsend/legacy, which has no
+    docker-compose file). This rewrite's compose file supports unattended
+    first-administrator creation via `ADMIN_NAME`/`ADMIN_EMAIL`/
+    `ADMIN_PASSWORD` env vars — the opposite of this file's current
+    `blocking_issues` claim that no such mechanism exists. The compose
+    file above is genuinely the official one for whatever `repo_url`
+    currently resolves to; whether the rest of this file should be
+    re-analyzed against the rewrite or re-pointed at the legacy repo is a
+    separate decision left untouched here.
 
 version_health:
   latest_version: "r2029"
