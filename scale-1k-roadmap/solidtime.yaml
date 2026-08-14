@@ -7,6 +7,29 @@ upstream:
   repo_url: https://github.com/solidtime-io/solidtime
   license: AGPL-3.0
   docker_image: solidtime/solidtime
+  compose_file_url: https://raw.githubusercontent.com/solidtime-io/self-hosting-examples/main/1-docker-with-database/docker-compose.yml
+  compose_file_notes: >
+    Official — solidtime's own self-hosting docs
+    (docs.solidtime.io/self-hosting/guides/docker) explicitly reference
+    the solidtime-io/self-hosting-examples repo (same GitHub org as the
+    main solidtime-io/solidtime project) as the source of deployable
+    compose configs; the docs don't embed a compose file directly, they
+    point readers to this repo and its per-example READMEs. That repo
+    ships two variants: "0-docker-traefik-with-database" (adds a Traefik
+    reverse proxy + ACME/SSL) and "1-docker-with-database" (app + queue +
+    scheduler + gotenberg + Postgres, no bundled proxy, single
+    ${FORWARD_APP_PORT:-8000} HTTP port). Picked the latter since it
+    assumes an external reverse proxy rather than bundling one, matching
+    how af-recipes structures recipes. This is a rolling default-branch
+    reference (raw.githubusercontent.com/.../main/...), not pinned to a
+    tag; the image itself defaults to
+    solidtime/solidtime:${SOLIDTIME_IMAGE_TAG:-latest}, also a rolling
+    reference unless the deployer overrides SOLIDTIME_IMAGE_TAG. The root
+    docker-compose.yml in the main solidtime-io/solidtime repo
+    (github.com/solidtime-io/solidtime/blob/main/docker-compose.yml) was
+    considered and rejected — it's a Laravel Sail dev-environment compose
+    file that builds the app from source and spins up Playwright/MinIO/
+    Mailpit test scaffolding, not a production deployment artifact.
 
 version_health:
   latest_version: "0.19.1"
