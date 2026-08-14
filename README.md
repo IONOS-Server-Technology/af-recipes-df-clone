@@ -50,7 +50,7 @@ changed logos to IONOS Object Storage (the `appfactory-dev` bucket on PRs, the
 | [Syncthing](recipes/syncthing/) | productivity | `:8384` | `:22000` tcp+udp | 256 MB | |
 | [Uptime Kuma](recipes/uptime-kuma/) | monitoring | `:3001` | — | 256 MB | |
 | [Vaultwarden](recipes/vaultwarden/) | security | `:80` | — | 256 MB | ⚠️ port conflict with AdGuard (post-setup) |
-| [What's Up Docker](recipes/wud/) | monitoring | `:3000` | — | 256 MB | ⚠️ port conflict with Gitea, AdGuard |
+| [What's Up Docker](recipes/wud/) | monitoring | `:3000` | — | 256 MB | **not installed** — auto-injection off since IF-1465; ⚠️ port conflict with Gitea, AdGuard |
 | [AnyType Server](recipes/anytype-server/) | productivity | `:4830` coordinator | `:4730`, `:4630`, `:9000` | 2 GB | 5-service stack (+ MongoDB, MinIO) |
 | [Paperless-AI](recipes/paperless-ai/) | productivity, ai | `:3000` | — | 512 MB | companion for Paperless-ngx; needs API token |
 | [Runtipi](recipes/runtipi/) | infrastructure | `:80`, `:443` | — | 1 GB | manages own Docker apps; socket mount |

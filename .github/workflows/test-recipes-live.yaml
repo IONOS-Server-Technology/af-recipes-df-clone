@@ -148,9 +148,11 @@ jobs:
             # would have bought on its own. Run a two-recipe probe instead, covering
             # both directions of every assertion on two VMs rather than 20:
             #
-            #   n8n         enabled, basic_auth -- the 401 and credentialed-200 paths,
-            #               and as a docker-compose carrier it also brings the
-            #               auto-injected wud, so that check runs too
+            #   n8n         enabled, basic_auth -- the 401 and credentialed-200 paths.
+            #               Until IF-1465 it also carried the auto-injected wud; with
+            #               nothing injected any more it instead proves the opposite --
+            #               that a docker-compose VM still installs cleanly when the
+            #               renderer emits no auto-inject block at all
             #   vaultwarden enabled, no basic_auth -- the "must NOT answer 401" half.
             #               Chosen over any other unprotected recipe on purpose: its
             #               metadata mentions basic_auth in a comment about ADMIN_TOKEN
@@ -162,10 +164,19 @@ jobs:
             # Both must be `enabled: true` to survive filter_enabled below -- gitea,
             # the obvious unprotected candidate, is disabled and would vanish here,
             # silently dropping the negative assertion.
+            #
+            # IF-1465: narrow to activated recipes *before* the emptiness test, not only
+            # in the trailing filter_enabled. A PR touching a disabled recipe (wud) plus
+            # the harness arrived here with a non-empty matrix, skipped this probe, and
+            # was then emptied by that trailing call -- reporting success having tested
+            # nothing, the exact hole IF-1458 opened this branch to close. filter_enabled
+            # is idempotent, so the trailing call still covers the dispatch and
+            # explicit-list branches above.
+            recipes=$(filter_enabled "$recipes")
             if [ "$(echo "$recipes" | jq 'length')" -eq 0 ]; then
               harness_changed=$(echo "$changed" | grep -cE '^(tests/|scripts/|\.github/workflows/test-recipes-live\.yaml)' || true)
               if [ "$harness_changed" -gt 0 ]; then
-                echo "No recipe changed, but the test harness did — running the n8n/vaultwarden probe" >&2
+                echo "No enabled recipe changed, but the test harness did — running the n8n/vaultwarden probe" >&2
                 recipes='["n8n","vaultwarden"]'
               fi
             fi

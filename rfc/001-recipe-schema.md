@@ -165,11 +165,22 @@ Rules (all enforced by `af-validate`, the renderer, or `/api/v1/compose`):
 
 **Security note (RW Docker socket):** Mounting `/var/run/docker.sock` read-write (as `wud` does) grants root-equivalent host access to the container. This is the accepted architectural trade-off for apply-capable update tooling; such recipes must rely on defence-in-depth (TLS, strong auth, no raw-port exposure).
 
-Current auto-inject recipes:
+Current auto-inject recipes: **none.**
 
-| Recipe | Role |
-|---|---|
-| `wud` | Docker image update notifier and one-click updater |
+`wud` (Docker image update notifier and one-click updater) is the only recipe built for
+this mechanism, and IF-1465 set its `docker_auto_inject` to `false` — customers were
+getting an app they never ordered with nothing in Server Panel to explain it. Everything
+described above still holds and is still enforced; it simply has no subject right now.
+Two consequences while the list is empty:
+
+- The renderer emits no auto-inject block, so no auto-injected services are installed. The
+  auto-inject health checks in `tests/auto-inject/` are parked with it.
+- The `base_domain` requirement in §4.5's last rule loses its widest trigger. `wud`
+  requests basic auth, so *every* docker-compose selection without a `base_domain` used
+  to be rejected with `base_domain_required` (IF-1312, Finding 1). Now only a selection
+  containing a recipe that asks for basic auth itself is rejected — a single unprotected
+  docker-compose app with no `base_domain` is accepted and ships with its host port
+  binding and no Traefik in front.
 
 ### 4.6 Logo specification
 
