@@ -7,6 +7,27 @@ upstream:
   repo_url: https://github.com/RocketChat/Rocket.Chat
   license: MIT (Expat) for the core; `ee/` and `apps/meteor/ee/` directories are under a separate proprietary Rocket.Chat enterprise license (repo LICENSE is dual, GitHub reports NOASSERTION)
   docker_image: registry.rocket.chat/rocketchat/rocket.chat (mirrored on Docker Hub as rocketchat/rocket.chat)
+  compose_file_url: https://raw.githubusercontent.com/RocketChat/rocketchat-compose/main/compose.yml
+  compose_file_notes: >
+    Official — docs.rocket.chat's "Deploy with Docker/Docker Compose" page
+    doesn't embed a compose file inline; it points to the RocketChat-org-
+    owned github.com/RocketChat/rocketchat-compose repo as "the official
+    rocketchat-compose repository". That repo splits deployment into several
+    combinable files rather than one all-in-one file: `compose.yml` (the
+    Rocket.Chat app service itself, image pinned via `${RELEASE:-8.0.1}`
+    default but overridable), `compose.database.yml` (MongoDB, required —
+    `compose.yml` already points MONGO_URL at a `replicaSet=rs0`, matching
+    the replica-set requirement noted below), plus opt-in add-ons
+    (`compose.traefik.yml`, `compose.monitoring.yml`, `compose.nats.yml`,
+    `compose.drachtio.yml`/`compose.freeswitch*.yml` for voice/video,
+    `podman.yml`/`podman-rootful.yml` for Podman). Picked `compose.yml` as
+    the primary/recorded file since it's the core app service upstream
+    itself calls out; a real build would also need `compose.database.yml`
+    layered in via Compose's multi-file `-f` mechanism. This is a rolling
+    reference to the repo's default `main` branch, not a version-pinned
+    release tag or asset — the image tag itself defaults to a specific
+    release (`8.0.1` at time of writing, via `${RELEASE:-8.0.1}`) but the
+    compose file's own content can change on `main` between visits.
 
 version_health:
   latest_version: "8.6.1"
