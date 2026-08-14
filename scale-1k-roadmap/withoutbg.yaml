@@ -7,6 +7,22 @@ upstream:
   repo_url: https://github.com/withoutbg/withoutbg-inference
   license: Apache-2.0 (repo code and withoutBG portions of the model); the bundled ONNX weights are under the "withoutBG Open Model License" — Apache-2.0 for withoutBG's own contribution plus the Meta DINOv3 License for the DINOv3 backbone weights the model is built on
   docker_image: withoutbg/withoutbg-openweights-v3-app-cpu
+  compose_file_url: https://github.com/withoutbg/withoutbg-inference/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official, found at the repo root (withoutbg/withoutbg-inference). It's a
+    rolling reference to the default branch (main) — no version-pinned
+    release tag or tagged-commit link exists, matching the version_health
+    note that this repo has no GitHub Releases/semver tags yet. The file
+    defines four services (service-cpu, app-cpu, service-gpu, app-gpu; the
+    GPU pair gated behind a `profiles: [gpu]` compose profile); app-cpu
+    matches the docker_image above and is the CPU/web-UI+API variant this
+    recipe targets. Caveat: every service in this file is set to
+    `pull_policy: never`, meaning it's written for the project's own
+    "bake locally, then `docker compose up app-cpu`" workflow rather than
+    pulling the published `withoutbg/withoutbg-openweights-v3-app-cpu`
+    image straight from Docker Hub — a recipe's own compose file should
+    drop or override that setting to pull the published image instead of
+    copying this file verbatim.
 
 version_health:
   latest_version: "sha-73bcf63 (no semver tags/GitHub Releases published; images are tagged by git commit SHA)"
