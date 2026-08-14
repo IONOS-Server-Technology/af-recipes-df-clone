@@ -173,8 +173,8 @@ getting an app they never ordered with nothing in Server Panel to explain it. Ev
 described above still holds and is still enforced; it simply has no subject right now.
 Two consequences while the list is empty:
 
-- The renderer emits no auto-inject block, so a docker-compose VM runs Traefik → customer
-  apps. The auto-inject health checks in `tests/auto-inject/` are parked with it.
+- The renderer emits no auto-inject block, so no auto-injected services are installed. The
+  auto-inject health checks in `tests/auto-inject/` are parked with it.
 - The `base_domain` requirement in §4.5's last rule loses its widest trigger. `wud`
   requests basic auth, so *every* docker-compose selection without a `base_domain` used
   to be rejected with `base_domain_required` (IF-1312, Finding 1). Now only a selection
