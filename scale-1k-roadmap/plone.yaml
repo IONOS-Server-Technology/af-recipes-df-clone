@@ -7,6 +7,32 @@ upstream:
   repo_url: https://github.com/plone/Plone
   license: GPL-2.0
   docker_image: "plone/plone-backend (paired with plone/plone-frontend for the Volto UI)"
+  compose_file_url: https://6.docs.plone.org/install/containers/examples/nginx-volto-plone-postgresql.html
+  compose_file_notes: >
+    No standalone downloadable docker-compose.yml is published by the
+    project (no release asset, no compose file at the plone/plone-backend
+    or plone/plone-frontend repo roots or under a docker/deploy/contrib
+    directory) — plone/plone-backend ships only Dockerfiles. The closest
+    thing to an official compose file is embedded as literal YAML inside
+    the project's own container documentation (source:
+    github.com/plone/documentation, active `6.0` branch, file
+    docs/install/containers/examples/nginx-volto-plone-postgresql.md),
+    which this URL renders. This is a rolling reference, not a version
+    pin: it tracks the active `6.0` docs branch, and the backend image tag
+    in the embedded YAML is a doc-build placeholder
+    (`plone/plone-backend:{PLONE_BACKEND_MINOR_VERSION}`) substituted with
+    whatever the current Plone 6 minor release is, not a literal tag.
+    The docs list six variants (nginx+Volto+backend; +ZEO; +PostgreSQL;
+    nginx+backend only in Classic UI; HAProxy+ZEO; Traefik+Volto+Varnish).
+    Picked the nginx-volto-plone-postgresql variant: it pairs the
+    default modern Plone 6 UI (Volto) with Postgres/RelStorage for
+    persistent storage, which is closer to this catalogue's typical
+    app+DB shape than the ZEO (file-based clustering) or Classic-UI-only
+    variants, and doesn't swap in an alternate reverse proxy (HAProxy/
+    Traefik) as its main point of difference. Note the example also
+    requires a separate nginx `default.conf` file shown alongside it on
+    the same page — the compose file alone is not sufficient to run the
+    stack as documented.
 
 version_health:
   latest_version: "6.2.1"
