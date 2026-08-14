@@ -7,6 +7,31 @@ upstream:
   repo_url: https://git.mills.io/yarnsocial/yarn
   license: AGPL-3.0
   docker_image: prologic/yarnd:0.16.0
+  compose_file_url: https://git.mills.io/yarnsocial/yarn/raw/branch/main/docker-stack.yml
+  compose_file_notes: >
+    Rolling reference to the `main` branch default, not version-pinned —
+    git.mills.io has no `/releases/latest/download/...`-style stable
+    redirect for this asset. The repo ships three compose-format
+    candidates and none is labeled canonical by the project; I picked
+    `docker-stack.yml` (root) over the alternatives for these reasons:
+    (1) the root `docker-compose.yml` builds from `Dockerfile.dev` and
+    bind-mounts `./internal` from source — it's a contributor/dev-loop
+    file, not something a self-hoster would run; (2) `docker-stack.yml`
+    uses the published `prologic/yarnd:latest` image, exposes port 8000,
+    and already lists the exact three secrets this analysis's
+    `secrets_required_at_first_boot` flags (API_SIGNING_KEY,
+    COOKIE_SECRET, MAGICLINK_SECRET) as plain compose `environment:`
+    entries with no swarm-only keys (no `deploy:` block), so it runs fine
+    under plain `docker-compose up` despite the filename; (3) the
+    `deployment/yarn.yml` + `deployment/traefik.yml` pair is the
+    project's documented production path (see `deployment/README.MD`) but
+    is an explicit Docker Swarm stack (`deploy.replicas`, Traefik swarm
+    labels, `docker stack deploy`) requiring `docker swarm init` and a
+    Cloudflare-DNS-fronted Traefik — a heavier, swarm-specific setup than
+    a single docker-compose file. `deployment/yarn.yml` is also where
+    ADMIN_USER/ADMIN_NAME/ADMIN_EMAIL appear as env vars, confirming this
+    analysis's note that admin claiming is registration-based rather than
+    an ADMIN_PASSWORD-style secret.
 
 version_health:
   latest_version: "v0.16.0"
