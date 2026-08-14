@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generate this VM's own secrets into .env before anything reads it (IF-1417). The key
-# ships empty in .env.template because nothing substitutes values into it (IF-944) — a
-# literal committed to the repo would give every customer's photo database the same
-# password.
+# Generate this server's own secrets into .env before anything reads it. They ship empty
+# in the delivered file — a fixed value here would give every server's photo database
+# the same password.
 #
 # Idempotent on purpose: an existing non-empty value is left alone. Postgres sets the
 # password when it initialises its data directory, so rotating it on a re-run would lock

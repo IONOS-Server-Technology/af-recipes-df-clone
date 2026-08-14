@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# install.sh — prep for What's Up Docker (auto-injected composition app).
-# Prep-only per IF-1139: the shared compose-up.sh brings the stack up afterwards.
+# install.sh — prepare What's Up Docker.
+# Preparation only; the shared compose-up.sh helper starts the stack afterwards.
 set -euo pipefail
 
-# Persistent WUD state (watch history, review status). Host volume per Q61.
+# Persistent state (watch history, update status), kept on a host volume so it
+# survives container restarts.
 mkdir -p /opt/wud/store
 
-# NOTE (IF-808): no auth is configured here yet. WUD's route is currently
-# unauthenticated; the Traefik basic-auth feature (first-public-port opt-in) will
-# own credentials once implemented. The old APR1-in-WUD flow was removed because
-# af-core no longer substitutes {{PARAM}} placeholders and auth is moving to Traefik.
-# traefik-net is created by the renderer's Traefik bootstrap block, not here.
+# This application does not configure its own login. Access is controlled by the
+# reverse proxy in front of it — see `auth.sh` on this server. The shared
+# traefik-net network is created during setup, not here.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generate this VM's own secrets into .env before anything reads it (IF-1417). The key
-# ships empty in .env.template because nothing substitutes values into it (IF-944) — a
-# literal committed to the repo would sign every customer's sessions with the same key.
+# Generate this server's own secrets into .env before anything reads it. They ship empty
+# in the delivered file — a fixed value here would sign every server's sessions with the
+# same key.
 #
 # Idempotent on purpose: an existing non-empty value is left alone, so a re-run does not
 # invalidate the sessions of everyone currently logged in.

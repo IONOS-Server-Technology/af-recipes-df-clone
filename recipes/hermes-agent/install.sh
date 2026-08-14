@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 # install.sh — Prepare Hermes Agent for docker-compose.
-# Prep-only (IF-1139 convention): mkdir/chown/config-preseed here, the shared
-# compose-up.sh helper brings the containers up; docker/compose availability
-# is already checked once in the OS-image bootstrap.
+# Preparation only: create directories, set ownership and pre-seed the config here.
+# The containers are started afterwards by the shared compose-up.sh helper.
 set -euo pipefail
 
-# Generate this VM's own session secret into .env before anything reads it (IF-1417). It
-# ships empty in .env.template because nothing substitutes values into that file (IF-944) —
-# it used to carry a placeholder, which gave every customer's VM the same signing key.
+# Generate this server's own session secret into .env before anything reads it. It ships
+# empty in the delivered file, so no two servers share a signing key.
 #
-# The dashboard *password* is no longer generated here: af-api derives it from the
-# customer's server password and the renderer writes the scrypt hash into .env at compose
-# time (IF-1454). Only the session secret is still VM-local, because it signs cookies and
-# has no counterpart the customer would ever type.
+# The dashboard password is not generated here: it is derived from the server password
+# and filled in as a hash before delivery. Only the session secret is generated locally,
+# because it signs cookies and is never typed by anyone.
 #
 # Idempotent on purpose: a non-empty value is left alone, so the session secret does not
 # rotate under logged-in users on a re-run.
@@ -45,8 +42,7 @@ chmod 777 /opt/hermes-agent/data
 
 # Pre-seed config.yaml with a minimal model block so the agent can answer out of
 # the box when an OpenRouter key was provided. Mirrors openclaw's openclaw.json
-# preseed. Provider/model can be changed later in the authenticated dashboard.
-# NOTE: verify the model slug against OpenRouter's live catalogue before merge.
+# preseed. Provider and model can be changed later from the dashboard.
 if [ -n "${OPENROUTER_API_KEY:-}" ]; then
   cat > /opt/hermes-agent/data/config.yaml <<'EOF'
 model:

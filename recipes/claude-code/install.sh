@@ -2,15 +2,9 @@
 # install.sh — Install Claude Code on bare-metal
 set -euo pipefail
 
-# No `source .env` here: this is a recipe_type: native recipe, and the renderer ships only
-# install.sh for those — the .env write lives in the docker-compose branch. Sourcing a file
-# that is never delivered aborted this script under `set -euo pipefail`, and because the
-# top-level installer runs each app as `( cd /opt/<app> && bash install.sh )` under the same
-# flags, that took the whole bootstrap down with it: every app after this one uninstalled,
-# and cc_application_factory's failure marker leaves the VM quarantined with SSH locked.
-# Latent only because both native recipes are enabled: false — and the live test workflow
-# filters on `enabled`, not on recipe_type, so it would have fired on the first run after
-# anyone flipped that flag.
+# No `source .env` here: this application is installed directly on the server rather than
+# in a container, and no .env file is delivered for it. Sourcing a file that does not
+# exist would abort this script under `set -euo pipefail`.
 
 # Install system dependencies
 echo "Installing system dependencies..."

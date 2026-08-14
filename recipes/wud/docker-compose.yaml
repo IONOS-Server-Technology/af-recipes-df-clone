@@ -18,7 +18,7 @@ services:
       - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_AUTO=false"
       - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_MODE=batch"
       - "WUD_TRIGGER_DOCKERCOMPOSE_APPLY_BACKUP=true"
-    # Published so the af-core renderer detects the public port (metadata ports:),
+    # Published so the public port is detected during setup,
     # injects the Traefik router/service labels, and drops this host binding on ship
     # (traffic then arrives only via Traefik). With no base_domain the binding is
     # kept and WUD is reachable on the host at :3000 — production always sets one.
@@ -35,7 +35,7 @@ services:
       # and rewrite each app's /opt/<app>/docker-compose.yml, but WUD runs in its
       # own container and cannot see the host's /opt without a mount. Without this,
       # apply logs "Compose file ... does not exist" yet still reports success, so
-      # nothing updates. The proper fix is for af-core to inject per-app
+      # nothing updates. A future version will inject per-app
       # /opt/<app>:/opt/<app> mounts (analogous to Traefik-label injection); until
       # that lands we mount all of /opt so WUD can reach every app's compose file.
       # This is a live view — apps started after WUD become visible automatically.
@@ -43,7 +43,7 @@ services:
       - /opt:/opt
     labels:
       # WUD must not watch itself — it cannot safely apply its own update.
-      # (Traefik routing labels are injected by the af-core renderer, not here.)
+      # (Reverse-proxy routing labels are added during setup, not here.)
       - "wud.watch=false"
     healthcheck:
       # Accepts both 200 (no auth) and 401 (auth enabled, once basic-auth lands)

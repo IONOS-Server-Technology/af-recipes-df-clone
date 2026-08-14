@@ -2,12 +2,12 @@
 # install.sh — Install Gemini CLI on bare-metal
 set -euo pipefail
 
-# No `source .env` here — see the same note in recipes/claude-code/install.sh. Short version:
-# native recipes get only install.sh from the renderer, so sourcing .env aborted this script
-# and, through the top-level `( cd ... && bash install.sh )`, the entire bootstrap.
+# No `source .env` here: this application is installed directly on the server rather than
+# in a container, and no .env file is delivered for it. Sourcing a file that does not
+# exist would abort this script under `set -euo pipefail`.
 #
-# GEMINI_API_KEY below is already written to tolerate being unset, which is the right shape
-# for a native recipe: there is no .env to carry it, so the customer sets it post-install.
+# GEMINI_API_KEY below tolerates being unset for the same reason — set it yourself after
+# the installation.
 
 # Install system dependencies
 echo "Installing system dependencies..."

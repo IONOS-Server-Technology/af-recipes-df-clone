@@ -2,9 +2,8 @@
 # install.sh — Install OpenGist via docker-compose
 set -euo pipefail
 
-# Generate this VM's own secrets into .env before anything reads it (IF-1417). The keys
-# ship empty in .env.template because nothing substitutes values into it (IF-944) — a
-# literal committed to the repo would be the same secret on every customer VM.
+# Generate this server's own secrets into .env before anything reads it. They ship
+# empty in the delivered file — a fixed value here would be the same secret on every server.
 #
 # Idempotent on purpose: an existing non-empty value is left alone, so a re-run does not
 # invalidate data already written under the old value.
