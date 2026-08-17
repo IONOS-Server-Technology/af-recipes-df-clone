@@ -30,12 +30,24 @@ set -a
 source .env
 set +a
 
-# Create host directories with world-writable perms so the node user in the
-# container can write the config (openclaw runs as uid 1000, not root).
+# Create host directories owned by the node user in the container (openclaw
+# runs as uid 1000, not root) so it can write its own config — chown instead of
+# chmod 777/666, so the dirs aren't writable by every other process on the host
+# (e.g. wud, which holds RW access to all of /opt to manage every app's compose file).
 mkdir -p /opt/openclaw/config
 mkdir -p /opt/openclaw/workspace
-chmod 777 /opt/openclaw/config /opt/openclaw/workspace
+chown -R 1000:1000 /opt/openclaw/config /opt/openclaw/workspace
+# chown alone doesn't clear mode bits an older recipe version may have already set —
+# re-installing on top of a pre-fix install (777) would otherwise keep the world-writable
+# bit despite the ownership change. uid 1000 is the sole writer, so 700 is enough.
+chmod -R 700 /opt/openclaw/config /opt/openclaw/workspace
 
 # Pre-seed config so the gateway starts without requiring interactive setup.
-echo '{"gateway":{"controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}' > /opt/openclaw/config/openclaw.json
-chmod 666 /opt/openclaw/config/openclaw.json
+# allowedOrigins (rather than the dangerouslyAllowHostHeaderOriginFallback escape
+# hatch) is what openclaw's own `security audit` recommends: it pins the
+# WebSocket/Control-UI origin check to this app's actual domain instead of
+# trusting the Host header, without weakening DNS-rebinding protection.
+# `install` creates the file with its final owner/mode atomically, so the write below
+# never leaves a window where openclaw.json exists at default (world-readable) perms.
+install -m 600 -o 1000 -g 1000 /dev/null /opt/openclaw/config/openclaw.json
+printf '{"gateway":{"controlUi":{"allowedOrigins":["https://%s"]}}}' "${AF_APP_DOMAIN}" > /opt/openclaw/config/openclaw.json
