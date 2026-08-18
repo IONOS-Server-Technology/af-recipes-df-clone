@@ -35,19 +35,31 @@ set -a
 source .env
 set +a
 
-# Create the host data directory world-writable so the non-root uid inside the
-# container (per the Dockerfile) can write config.yaml, sessions, memories, etc.
+# The dashboard service drops to the image's own `hermes` user before it runs
+# (s6-rc.d/dashboard/run does `s6-setuidgid hermes`), and that user is uid 10000 with
+# /opt/data as its home — the directory mounted here. So give it to that uid instead of
+# to everyone: wud holds read-write access to all of /opt to manage every app's compose
+# file, and a world-writable data directory means any process on the host can rewrite
+# this agent's config.
 mkdir -p /opt/hermes-agent/data
-chmod 777 /opt/hermes-agent/data
+chown -R 10000:10000 /opt/hermes-agent/data
+# chown alone does not clear mode bits an older recipe version already set, so a
+# re-install on top of a 777 directory would keep the world-writable bit.
+chmod -R 700 /opt/hermes-agent/data
 
 # Pre-seed config.yaml with a minimal model block so the agent can answer out of
 # the box when an OpenRouter key was provided. Mirrors openclaw's openclaw.json
 # preseed. Provider and model can be changed later from the dashboard.
 if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+  # Created at its final mode and owner before anything is written to it, so the file
+  # never exists world-readable. chown rather than `install -o 10000`: the base image
+  # ships uutils coreutils, whose install accepts a numeric owner only when a passwd
+  # entry with that id exists, and the host has no user at uid 10000.
+  install -m 600 /dev/null /opt/hermes-agent/data/config.yaml
+  chown 10000:10000 /opt/hermes-agent/data/config.yaml
   cat > /opt/hermes-agent/data/config.yaml <<'EOF'
 model:
   provider: openrouter
   default: anthropic/claude-sonnet-4.5
 EOF
-  chmod 666 /opt/hermes-agent/data/config.yaml
 fi
