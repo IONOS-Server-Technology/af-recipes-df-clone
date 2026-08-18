@@ -264,6 +264,157 @@ jobs:
         env:
           COMPOSE_VERSION: v5.1.4
 
+      # Why this step exists at all: install.sh created the bind-mount directories and
+      # chowned them to the uid the app runs as, but that happened in *this* job's
+      # filesystem. The Docker daemon resolves an absolute bind-mount path in its own, so
+      # the app container gets a directory the daemon auto-created as root:root and a
+      # non-root app cannot write it. On a real VM the two are the same filesystem and the
+      # question never arises.
+      #
+      # The symptom was 12 of 19 recipes failing this test with EACCES while 7 passed, and
+      # the split was not arbitrary: the 7 either run as root or use an image whose
+      # entrypoint starts as root, chowns its data directory and only then drops privileges
+      # (postgres does this, which is why a recipe's database came up healthy while the app
+      # beside it did not). Nothing was wrong with the 12 recipes.
+      #
+      # So do the same chown from inside the daemon's namespace, where it lands on the
+      # directory the app will actually see. The uid comes out of the image itself rather
+      # than a table here, so a recipe that switches to a different base image stays covered.
+      - name: Give bind-mounted directories the ownership the app expects
+        run: |
+          set -euo pipefail
+          d="recipes/${{ matrix.recipe }}"
+          python3 - "$d" "${{ matrix.recipe }}" <<'PY' > /tmp/mounts.txt
+          import os
+          import pathlib
+          import sys
+
+          import yaml
+
+          recipe_dir, app_id = pathlib.Path(sys.argv[1]), sys.argv[2]
+          # Only the app's own data directories under /opt/<app>, and only read-write ones.
+          # Recipes also bind-mount things that must never be touched: /etc/localtime and
+          # /etc/timezone (gitea, immich, home-assistant), the Docker socket (portainer,
+          # runtipi, wud) and, in wud's case, the whole of /opt. A recursive chown over any
+          # of those would be a far worse bug than the one this step fixes.
+          #
+          # Normalised before comparing, not compared as a string: `/opt/<app>/../../etc`
+          # passes a plain startswith, and Docker would then resolve the source to /etc and
+          # the chown would land on the daemon's /etc. Normalising also lets a recipe mount
+          # its own root (`/opt/<app>:/x`), which a trailing-slash prefix would have dropped.
+          allowed = f"/opt/{app_id}"
+          compose = yaml.safe_load((recipe_dir / "docker-compose.yaml").read_text())
+          for name, svc in (compose.get("services") or {}).items():
+              image = svc.get("image")
+              if not image:
+                  # Build-only service. Warned about rather than dropped quietly: a future
+                  # recipe using one would otherwise lose this coverage invisibly, which is
+                  # the kind of silence that let a blocking defect reach main.
+                  if svc.get("volumes"):
+                      print(f"WARN\tservice '{name}' has volumes but no image — not prepared",
+                            file=sys.stderr)
+                  continue
+              for vol in svc.get("volumes") or []:
+                  if not isinstance(vol, str):
+                      print(f"WARN\tservice '{name}' uses a long-form volume — not prepared",
+                            file=sys.stderr)
+                      continue
+                  parts = vol.split(":")
+                  host = os.path.normpath(parts[0])
+                  read_only = len(parts) > 2 and "ro" in parts[2].split(",")
+                  inside = host == allowed or host.startswith(allowed + "/")
+                  if inside and not read_only:
+                      print(f"{image}\t{host}")
+          PY
+          if [ ! -s /tmp/mounts.txt ]; then
+            echo "No absolute bind mounts — nothing to prepare"
+            exit 0
+          fi
+          while IFS=$'\t' read -r image host; do
+            # `id` in the image resolves a named user (node, hermes) as well as a numeric
+            # one. One container start for both ids rather than two.
+            #
+            # Its exit status is kept separate from its output on purpose. Treating any
+            # failure as "runs as root" would skip the chown for a distroless image that
+            # ships no `id` at all — the app would then hit the very EACCES this step
+            # exists to prevent, while the log claimed the image runs as root. So fall
+            # back to what the image declares, and if that names a user this cannot
+            # resolve, fail instead of guessing.
+            if idout="$(docker run --rm --entrypoint sh "$image" -c 'id -u; id -g' 2>/dev/null)"; then
+              ids="$(echo "$idout" | sed -n 1p)"
+              gids="$(echo "$idout" | sed -n 2p)"
+            else
+              declared="$(docker image inspect --format '{{.Config.User}}' "$image" 2>/dev/null || true)"
+              if [ -z "$declared" ]; then
+                echo "  $host: image declares no user and has no 'id' — treating as root"
+                continue
+              fi
+              case "$declared" in
+                *[!0-9:]*)
+                  echo "::error::cannot resolve user '$declared' of $image — $host would be left root-owned"
+                  exit 1
+                  ;;
+              esac
+              ids="${declared%%:*}"
+              gids="${declared##*:}"
+              [ "$gids" = "$declared" ] && gids="$ids"
+              echo "  $host: no 'id' in image, using declared user $ids:$gids"
+            fi
+            if [ "$ids" = "0" ]; then
+              echo "  $host: image runs as root, leaving it alone"
+              continue
+            fi
+            echo "  $host: chown ${ids}:${gids} (from $image)"
+            docker run --rm -v "$host:/target" alpine:3 chown -R "${ids}:${gids}" /target
+          done < /tmp/mounts.txt
+
+      # A second thing the daemon's namespace lacks. Three recipes bind-mount the host's
+      # /etc/localtime (and gitea also /etc/timezone) so the app shows the customer's local
+      # time — standard practice, and correct on a VM. The daemon here runs on an Alpine
+      # base, which ships neither file, so Docker creates a *directory* at that path and
+      # then fails to bind it onto the file the image expects:
+      #   error mounting "/etc/localtime" to rootfs: mount src=/etc/localtime ... MS_BIND
+      #
+      # So put a real file there first, and only when the recipe under test actually wants
+      # it.
+      #
+      # ⚠️ The daemon's /etc appears to survive between jobs: one recipe failed on the
+      # missing file, and after this step had run in other jobs a different recipe mounted
+      # it successfully on a branch that does not contain this step at all. The runner pod
+      # is per-job (three different names observed), so what persists is the daemon, not the
+      # runner. Treat this as writing to shared state: the step is therefore idempotent and
+      # replaces the file atomically, and it must never be pointed at a real host.
+      - name: Provide the timezone files the daemon's namespace is missing
+        run: |
+          set -euo pipefail
+          compose="recipes/${{ matrix.recipe }}/docker-compose.yaml"
+          if ! grep -qE '/etc/(localtime|timezone)' "$compose"; then
+            echo "Recipe mounts no timezone files — nothing to provide"
+            exit 0
+          fi
+          # Written to a temp file and moved into place, not created where it belongs. With
+          # fail-fast disabled the gitea, home-assistant and immich legs run this
+          # concurrently; if they turn out to share one daemon, creating in place would leave
+          # the other leg a window where the file is missing or half-written, while an atomic
+          # rename never does. Cheap insurance against a topology this workflow does not
+          # declare: it names no `services:` and no DOCKER_HOST, so whether each leg gets its
+          # own daemon is a property of the runner rather than of this file.
+          docker run --rm -v /etc:/hostetc debian:stable-slim sh -c '
+            set -e
+            for f in localtime timezone; do
+              # A directory here is Docker having auto-created the missing path on an
+              # earlier attempt; it has to go, or the bind fails the same way.
+              [ -d "/hostetc/$f" ] && rm -rf "/hostetc/$f"
+              [ -f "/hostetc/$f" ] && continue
+              if [ "$f" = localtime ]; then
+                cp /usr/share/zoneinfo/Etc/UTC "/hostetc/.af-$f.tmp"
+              else
+                printf "Etc/UTC\n" > "/hostetc/.af-$f.tmp"
+              fi
+              mv -f "/hostetc/.af-$f.tmp" "/hostetc/$f"
+            done
+            ls -l /hostetc/localtime /hostetc/timezone'
+
       - name: Start services
         run: |
           docker compose \
