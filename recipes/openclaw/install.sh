@@ -47,7 +47,16 @@ chmod -R 700 /opt/openclaw/config /opt/openclaw/workspace
 # hatch) is what openclaw's own `security audit` recommends: it pins the
 # WebSocket/Control-UI origin check to this app's actual domain instead of
 # trusting the Host header, without weakening DNS-rebinding protection.
-# `install` creates the file with its final owner/mode atomically, so the write below
-# never leaves a window where openclaw.json exists at default (world-readable) perms.
-install -m 600 -o 1000 -g 1000 /dev/null /opt/openclaw/config/openclaw.json
+# `install` creates the file at its final mode before anything is written to it, so there
+# is never a window where openclaw.json exists at default (world-readable) perms.
+#
+# Ownership is set with chown rather than `install -o 1000`, which aborts the whole script
+# under `set -e`: the base image ships uutils coreutils (the Rust rewrite, default from
+# Ubuntu 26.04), whose `install` accepts a numeric owner only if a passwd entry with that
+# id exists -- and the AF VM has no user at uid 1000. It resolves 65534 fine because
+# `nobody` is in passwd, which is why this only ever bit here. `chown` takes the number
+# either way. Verified on a test VM: install (uutils coreutils) 0.8.0,
+# `install: invalid user: '1000'`, and `+1000` fails the same way.
+install -m 600 /dev/null /opt/openclaw/config/openclaw.json
+chown 1000:1000 /opt/openclaw/config/openclaw.json
 printf '{"gateway":{"controlUi":{"allowedOrigins":["https://%s"]}}}' "${AF_APP_DOMAIN}" > /opt/openclaw/config/openclaw.json
