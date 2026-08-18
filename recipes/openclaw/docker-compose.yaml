@@ -41,6 +41,105 @@ services:
       retries: 5
       start_period: 20s
 
+  # Approves the Control UI device pairing the customer has no way to approve themselves.
+  #
+  # Why approving is sound: pairing exists so the gateway's owner vets each browser from a
+  # shell. On a managed VM there is no shell, so it is a dead end rather than a control --
+  # and what it guards is already guarded, because nothing reaches the gateway without
+  # passing the platform's login page and its password prompt first.
+  #
+  # Speed is the whole design constraint. The Control UI makes exactly one automatic retry
+  # about 3.5s after the first attempt and then stops (measured on a test VM). Land the
+  # approval inside that and the notice disappears on its own with the customer doing
+  # nothing; miss it and they see what reads as an error and have to press connect again.
+  #
+  # Hence HTTP rather than the CLI: `openclaw devices approve` pays about six seconds of
+  # node startup and websocket handshake per call -- not a timeout, it is the same with
+  # --timeout 1500 -- so it always missed the window. The same operation over the gateway's
+  # admin HTTP endpoint takes about 40ms, measured, which is why install.sh enables the
+  # admin-http-rpc plugin.
+  #
+  # An earlier revision shared the gateway's network namespace to satisfy the CLI's refusal
+  # to speak plaintext ws:// to anything but loopback. The HTTP endpoint has no such rule,
+  # so this is an ordinary service on the app network again -- which also fixes the
+  # fragility that came with it: recreating the gateway left a namespace-sharing companion
+  # pointing at a container that no longer existed.
+  openclaw-pair-approve:
+    image: python:3.13-alpine
+    restart: unless-stopped
+    # Approving is only sound behind the platform's login page, so this service is tied to
+    # it: the profile is activated by COMPOSE_PROFILES in this app's own .env, which the
+    # on-VM password switch adds and removes. With the password off the line is gone, and
+    # every later `docker compose up -d` -- an update, a reboot -- leaves this out.
+    profiles: ["af-proxy-password"]
+    # Unprivileged: it needs an outbound HTTP call and a file in /tmp, nothing else. Root
+    # would be the default and buys nothing here.
+    user: "65534:65534"
+    depends_on:
+      openclaw-gateway:
+        condition: service_healthy
+    labels:
+      - "wud.watch=false"
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+    networks:
+      - openclaw-network
+    command:
+      - python3
+      - -u
+      - -c
+      - |
+        import json, os, pathlib, sys, time, urllib.request
+        URL = "http://openclaw-gateway:18789/api/v1/admin/rpc"
+        HEADERS = {
+            "content-type": "application/json",
+            "authorization": "Bearer " + os.environ["OPENCLAW_GATEWAY_TOKEN"],
+        }
+
+        def call(method, params):
+            body = json.dumps({"method": method, "params": params}).encode()
+            req = urllib.request.Request(URL, data=body, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                return json.load(response)
+
+        while True:
+            delay = 0.5
+            try:
+                pending = call("device.pair.list", {})["payload"].get("pending", [])
+                for entry in pending:
+                    request_id = entry.get("requestId")
+                    if not request_id:
+                        # Loudly, not silently: skipping here means a customer sits in front
+                        # of an unapprovable pairing notice, and a quiet `continue` would
+                        # make that indistinguishable from an idle queue.
+                        print("pair-approve: entry without requestId, keys:",
+                              sorted(entry), file=sys.stderr)
+                        continue
+                    result = call("device.pair.approve", {"requestId": request_id})
+                    print("approved", request_id, result.get("ok"), file=sys.stderr)
+            except Exception as exc:
+                # Reported rather than swallowed, and backed off, so a gateway that is
+                # restarting does not fill the log while a real fault still shows up.
+                print("pair-approve:", exc, file=sys.stderr)
+                delay = 5
+            # Touched every pass so the healthcheck below can tell a running poll loop from
+            # a process that is merely still alive -- a wedged loop would leave a device
+            # request unapproved and the customer stuck, with the container reporting fine.
+            pathlib.Path("/tmp/heartbeat").touch()
+            time.sleep(delay)
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/heartbeat')<30 else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 networks:
   openclaw-network:
     driver: bridge

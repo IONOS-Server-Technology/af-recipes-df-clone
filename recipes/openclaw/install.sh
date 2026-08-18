@@ -57,6 +57,13 @@ chmod -R 700 /opt/openclaw/config /opt/openclaw/workspace
 # `nobody` is in passwd, which is why this only ever bit here. `chown` takes the number
 # either way. Verified on a test VM: install (uutils coreutils) 0.8.0,
 # `install: invalid user: '1000'`, and `+1000` fails the same way.
+#
+# plugins.entries.admin-http-rpc activates an extension that already ships inside the
+# upstream image (dist/extensions/admin-http-rpc) but is off unless named here. It exposes
+# the device-pairing calls over HTTP at /api/v1/admin/rpc, behind the same gateway token as
+# everything else, and that is what makes the pair-approve companion fast enough to be
+# invisible — about 40ms per call against the CLI's six seconds. The endpoint listens only
+# on the app network; it is not published, and Traefik does not route to it.
 install -m 600 /dev/null /opt/openclaw/config/openclaw.json
 chown 1000:1000 /opt/openclaw/config/openclaw.json
-printf '{"gateway":{"controlUi":{"allowedOrigins":["https://%s"]}}}' "${AF_APP_DOMAIN}" > /opt/openclaw/config/openclaw.json
+printf '{"gateway":{"controlUi":{"allowedOrigins":["https://%s"]}},"plugins":{"entries":{"admin-http-rpc":{"enabled":true}}}}' "${AF_APP_DOMAIN}" > /opt/openclaw/config/openclaw.json

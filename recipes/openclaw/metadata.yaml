@@ -14,7 +14,7 @@ categories:
   - ai
   - automation
 app_version: "2026.7.1-2"
-recipe_version: "1.2.2"
+recipe_version: "1.3.0"
 recipe_type: docker-compose
 upstream_url: https://github.com/openclaw/openclaw
 
@@ -22,17 +22,36 @@ app_min_ram_mb: 2048
 app_min_disk_mb: 20480
 
 
-# basic_auth (IF-1312): the whole interface sits behind Traefik basic auth, by
-# product decision — username `admin` and the server password chosen at order
-# time. Note that the Gateway API shares this port with the Web UI, so any
-# programmatic client must send those credentials in addition to whatever
-# OPENCLAW_GATEWAY_TOKEN it already uses.
+# basic_auth (IF-1312, mechanism replaced in IF-1490): the whole interface sits
+# behind the platform's login page, which takes the server password chosen at
+# order time. The field name predates the mechanism; renaming it is tracked
+# separately. Note that the Gateway API shares this port with the Web UI, so a
+# programmatic client cannot reach it while the password is on — the login page
+# issues a session cookie and there is no header a client could send instead.
 ports:
   - port: 18789
     protocol: tcp
     public: true
     basic_auth: true
     description: OpenClaw Gateway API and Web UI
+
+# auth_gate_post_login_fragment: the Control UI reads its gateway token from the URL
+# fragment, so the platform's login page can hand it over and the customer never has to
+# find it. A fragment never leaves the browser, so the token stays out of proxy logs and
+# out of the Referer. ${...} is resolved by Compose from this app's own .env, not by the
+# API.
+auth_gate_post_login_fragment: "token=${OPENCLAW_GATEWAY_TOKEN}"
+
+# auth_off_notice: with the login page gone, so is the token handover above -- the Control UI
+# then asks for the gateway token itself, and the customer has no other way to learn where it
+# is. Printed by the on-VM switch right after it turns the password off. It names the file,
+# never the value: the token stays on the machine that already holds it.
+auth_off_notice: >-
+  The login page handed the gateway token to the Control UI for you. Without it the
+  Control UI asks for the token itself: read it on this server with
+  `grep OPENCLAW_GATEWAY_TOKEN /opt/openclaw/.env` and paste it in. New browsers are also
+  no longer paired automatically while the password is off, so a pairing request stays
+  pending until you turn the password back on.
 
 parameters:
   - name: OPENCLAW_GATEWAY_TOKEN
@@ -67,7 +86,7 @@ parameters:
 
 
 # Logo (rendered in app catalogue thumbnails)
-logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/openclaw/1.2.2/logo.svg
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/openclaw/1.3.0/logo.svg
 logo_sha256: ed162296c2fb24f27fe9d8781f656ec54aa1297d9348cd8acfbb19c7d3938c81
 logo_license: trademark-nominative-fair-use
 logo_source: https://raw.githubusercontent.com/openclaw/openclaw/main/ui/public/favicon.svg
