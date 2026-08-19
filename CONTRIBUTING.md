@@ -34,6 +34,9 @@ recipes/<id>/
    - Parameter names are `UPPER_SNAKE_CASE` and must be referenced in
      `.env.template`, the compose file, or `install.sh`.
    - `auto_generate: true` is only valid on `type: password` parameters.
+   - Record where you adapted the compose file from in `compose_file_url` /
+     `compose_file_notes` — a direct link to the file, pinned if upstream offers
+     a tag, and `null` plus a reason when no official one exists (RFC-001 §4.7).
    - Bump `recipe_version` (semver) on **any** change to a published recipe.
 3. Add a logo (see the next section) for any `enabled: true` recipe.
 4. Validate locally before opening a PR:
