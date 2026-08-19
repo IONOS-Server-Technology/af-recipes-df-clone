@@ -20,12 +20,12 @@ dev-cluster signing key when dev mode is active (the IF-1399 trust tightening).
 **normal** mode: the archive is signed by the prod cluster and verified against the
 always-trusted baked prod key, which is the production path the leg exists to
 validate. So no ``dev_mode``, no ``.dev-mode-enabled``, no ``bootstrap_url`` rewrite —
-only the af-finalize break-glass sentinel below, if it was asked for.
+only the af-finalize sentinel below, if it was asked for.
 
-Independently of the leg, the ``.finalize-disabled`` break-glass sentinel is written
-unless ``--keep-finalize`` is passed — that flag lets a caller test with af-finalize
-actually running (its cloud-init cache scrub included) instead of short-circuiting it.
-It is unrelated to dev mode: af-finalize's ``_break_glass()`` checks only that sentinel
+Independently of the leg, the ``.finalize-disabled`` sentinel is written unless
+``--keep-finalize`` is passed — that flag lets a caller test with af-finalize actually
+running (its cloud-init cache scrub included) instead of short-circuiting it. It is
+unrelated to dev mode: af-finalize's ``_finalize_disabled()`` checks only that sentinel
 or the ``af_finalize=off`` kernel argument. ``--leg prod --keep-finalize`` therefore
 asks for nothing at all and is a documented no-op.
 
@@ -117,7 +117,7 @@ def main() -> int:
     parser.add_argument(
         "--keep-finalize",
         action="store_true",
-        help="Do not write the .finalize-disabled break-glass sentinel — "
+        help="Do not write the .finalize-disabled sentinel — "
         "let af-finalize run for real (scrub included) on this VM. Applies to every "
         "leg; with --leg prod it leaves the cloud-init effectively unchanged.",
     )

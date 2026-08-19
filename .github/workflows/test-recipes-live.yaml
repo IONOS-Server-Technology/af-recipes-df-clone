@@ -27,14 +27,22 @@ on:
         description: "IONOS image UUID to use directly (skips image discovery)"
         required: false
         default: ""
-      finalize_break_glass:
-        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+      finalize_disabled:
+        description: "true = boot with af-finalize switched off, so it skips its scrub and teardown and only unlocks access; false = let af-finalize run for real"
         required: false
         default: "true"
       mode:
         description: "dev = ephemeral af-api on a ClusterIP/NodePort (branch/PR); prod = validate a production image against the real dev+prod clusters"
         required: false
         default: "dev"
+      bootstrap_log_replicas:
+        description: "IF-1310 ONLY: number of identical VMs to boot. 0 = normal recipe testing. Replaces the recipe matrix with N replicas of one recipe and asserts exactly N distinct bootstraps in the API log — the bootstrap-log checks themselves run either way. N>1 is what proves N concurrent bootstraps stay N distinguishable groups."
+        required: false
+        default: "0"
+      bootstrap_log_recipe:
+        description: "IF-1310 ONLY: recipe each VM installs. Needed only because /compose must mint a token against something; pick the cheapest enabled recipe."
+        required: false
+        default: "vaultwarden"
   # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
   # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
   workflow_call:
@@ -52,8 +60,8 @@ on:
         type: boolean
         required: false
         default: false
-      finalize_break_glass:
-        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+      finalize_disabled:
+        description: "true = boot with af-finalize switched off, so it skips its scrub and teardown and only unlocks access; false = let af-finalize run for real"
         type: string
         required: false
         default: "true"
@@ -224,8 +232,30 @@ jobs:
         env:
           MODE: ${{ inputs.mode || 'dev' }}
           RECIPES_JSON: ${{ steps.detect.outputs.recipes }}
+          BOOTSTRAP_LOG_REPLICAS: ${{ inputs.bootstrap_log_replicas || '0' }}
+          BOOTSTRAP_LOG_RECIPE: ${{ inputs.bootstrap_log_recipe || 'vaultwarden' }}
         run: |
           set -o pipefail
+
+          # IF-1310 bootstrap-log mode: N identical VMs instead of one per recipe.
+          # Identical on purpose — the property under test is that N bootstraps stay N
+          # distinguishable groups in the API log, which is hardest exactly when their
+          # log lines are the same. Short-circuits before the catalogue intersection,
+          # which exists to keep recipe coverage honest and has no meaning when every
+          # leg installs the same thing. Ephemeral only: these legs deploy an af-api
+          # from this branch, and pointing N VMs at a shared cluster is not something
+          # to trigger from a dispatch input.
+          if [ "${BOOTSTRAP_LOG_REPLICAS:-0}" -gt 0 ] 2>/dev/null; then
+            if [ "$MODE" = "prod" ]; then
+              echo "::error::bootstrap_log_replicas is incompatible with mode=prod — these legs must not load the real clusters."
+              exit 1
+            fi
+            include=$(jq -cn --arg r "$BOOTSTRAP_LOG_RECIPE" --argjson n "$BOOTSTRAP_LOG_REPLICAS" \
+              '[range($n) | {recipe: $r, cluster: "ephemeral", replica: (. + 1)}]')
+            echo "IF-1310 bootstrap-log mode: $BOOTSTRAP_LOG_REPLICAS replicas of '$BOOTSTRAP_LOG_RECIPE'"
+            echo "matrix={\"include\":$include}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           report() {  # message goes to the log AND the run summary
             echo "::${1}::${2}"
@@ -665,11 +695,11 @@ jobs:
         env:
           CLUSTER: ${{ matrix.cluster }}
           RECIPE: ${{ matrix.recipe }}
-          FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
+          FINALIZE_DISABLED: ${{ inputs.finalize_disabled }}
           BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
           keep_finalize_flag=""
-          if [ "$FINALIZE_BREAK_GLASS" = "false" ]; then
+          if [ "$FINALIZE_DISABLED" = "false" ]; then
             keep_finalize_flag="--keep-finalize"
           fi
 
@@ -727,9 +757,9 @@ jobs:
           # cloud-init needs: dev mode plus the https->http downgrade on the ephemeral
           # NodePort, dev mode with https kept on the dev cluster (so the production
           # image trusts the baked dev-cluster key), and normal mode on the prod
-          # cluster, where only the break-glass sentinel is written. That is how an
-          # explicit finalize_break_glass request is honoured on the prod leg too;
-          # --leg prod with break-glass off patches nothing.
+          # cluster, where only the .finalize-disabled sentinel is written. That is how
+          # an explicit finalize_disabled request is honoured on the prod leg too;
+          # --leg prod with finalize left running patches nothing.
           python3 scripts/patch-cloudinit-dev-mode.py \
             --leg "$CLUSTER" $keep_finalize_flag /tmp/cloudinit.yaml
 
@@ -844,7 +874,10 @@ jobs:
           # Cluster in the name: a prod-mode run has two legs per recipe, and
           # without it downloading the failed prod leg's artifact hands you the
           # dev leg's instead.
-          name: bootstrap-response-${{ matrix.recipe }}-${{ matrix.cluster }}
+          # Replica suffix (empty outside replica mode): N replica legs share recipe
+          # AND cluster, so without it every leg writes the same artifact name and
+          # only one survives.
+          name: bootstrap-response-${{ matrix.recipe }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
           path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
           archive: false
           if-no-files-found: warn
@@ -888,8 +921,11 @@ jobs:
           # AF_API_URL: on both real clusters bootstrap lives on a separate public host,
           # while the mTLS main host refuses the certless request a VM makes.
           AF_BOOTSTRAP_URL: ${{ steps.compose.outputs.bootstrap_url }}
-          FINALIZE_BREAK_GLASS: ${{ inputs.finalize_break_glass }}
+          FINALIZE_DISABLED: ${{ inputs.finalize_disabled }}
           IMAGE_ID: ${{ inputs.image_uuid || steps.image.outputs.uuid }}
+          # No bootstrap-log endpoint is passed in: the forwarder on the VM derives it
+          # from its own bootstrap_url by appending -log, so there is one address to
+          # configure rather than two that can disagree.
           # Reuse the IP reserved in "Reserve test IP" instead of having
           # run-imagetester.py reserve its own -- that IP already went into
           # base_domain for /compose above, so the server must come up bound
@@ -928,10 +964,15 @@ jobs:
           export AF_ROOT_PASSWORD_FILE=/tmp/vm_root_password
 
           testsuite_exclude_flag=""
-          if [ "$FINALIZE_BREAK_GLASS" != "false" ]; then
-            # Break-glass skips af-finalize's cloud-init cache scrub, so the
-            # FIN-marked tests (which check the scrub happened) would always
-            # fail here — they only make sense when finalize_break_glass=false.
+          # One config for every leg. The IF-1310 forwarder checks are included from
+          # recipe-health-check.conf rather than swapped in behind a dispatch input:
+          # every VM here runs the forwarder, so "did the log get out, and is the
+          # forwarder gone afterwards" is an ordinary property of a healthy bootstrap.
+          test_config="tests/recipe-health-check.conf"
+          if [ "$FINALIZE_DISABLED" != "false" ]; then
+            # With af-finalize switched off it performs no scrub and no teardown, so
+            # the FIN-marked tests — which assert exactly that those happened — would
+            # always fail. They only make sense when finalize_disabled=false.
             testsuite_exclude_flag="--testsuite-exclude af_FIN_"
           fi
           python3 scripts/run-imagetester.py \
@@ -939,7 +980,7 @@ jobs:
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
-            --test-config tests/recipe-health-check.conf \
+            --test-config "$test_config" \
             $testsuite_exclude_flag > "imagetester-output-${RECIPE_NAME}.log"
 
       - name: Release test IP
@@ -963,7 +1004,10 @@ jobs:
         # too so the dev leg stays advisory.
         continue-on-error: ${{ matrix.cluster == 'dev' }}
         with:
-          name: AppTestResults-${{ matrix.recipe }}-${{ matrix.cluster }}
+          # Replica suffix (empty outside replica mode). Without it the N replica legs
+          # collide on one name and overwrite: true silently leaves a single VM's
+          # results behind — a destroyed run that still looks green.
+          name: AppTestResults-${{ matrix.recipe }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
           path: tests/af-logs/
           if-no-files-found: error
           retention-days: 30
@@ -990,9 +1034,95 @@ jobs:
             echo "dev-cluster leg for ${RECIPE} passed."
           fi
 
+  bootstrap-log-verify:
+    name: IF-1310 verify (bootstrap logs arrived and stayed attributable)
+    needs: [deploy-af-api, test-recipes]
+    # Runs whenever there is an ephemeral af-api to read the log off, which is every
+    # dev-mode run -- not only the replica ones. !cancelled() rather than success():
+    # a leg that failed is exactly when the arriving log matters most, and whether the
+    # VM's log reached the API is the first thing worth knowing about that failure.
+    if: ${{ !cancelled() && needs.deploy-af-api.result == 'success' }}
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get CI secrets
+        uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
+
+      - name: Checkout python-dwh-image-build-algorithm
+        uses: actions/checkout@v5
+        with:
+          repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
+          ref: main
+          path: image-builder-src
+          token: ${{ env.GH_APP_TOKEN }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ./image-builder-src
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v5
+        with:
+          version: v1.30.0
+
+      - name: Assert the VMs' bootstrap logs arrived and stayed attributable
+        env:
+          KUBECONFIG_CONTENT: ${{ env.AF_CI_KUBECONFIG }}
+          # Only the replica scenario asserts an exact count -- that is what booting N
+          # identical VMs is for. On an ordinary run a leg can fail before its VM ever
+          # boots, and demanding a count would report a logging failure for something
+          # that never reached the logging.
+          EXPECTED: ${{ inputs.bootstrap_log_replicas || '0' }}
+        run: |
+          # The evidence is af-api's own log, not a counter: nothing in the API holds
+          # state. Reading the container log also makes the worker count irrelevant,
+          # since all workers write to the same stdout.
+          #
+          # Must run before cleanup-af-api deletes the Deployment -- hence cleanup
+          # depends on this job. Once the pod is gone its log is gone with it.
+          #
+          # --tail=-1 is essential: k8s_helper defaults to 1000 lines, and the first
+          # run silently read only the tail. The install-log lines are sent before the
+          # journal, so they fell outside the window and the check reported them as
+          # missing when they had in fact arrived.
+          python scripts/k8s_helper.py logs "${{ needs.deploy-af-api.outputs.name }}" \
+            --tail=-1 > /tmp/af-api-pod.log
+          # No pipe into tee: the pipeline's status would be tee's, so a failed check
+          # left the job green. Write the summary first, then let the exit code stand.
+          expect_flag=""
+          if [ "${EXPECTED:-0}" -gt 0 ] 2>/dev/null; then
+            expect_flag="--expect $EXPECTED"
+          fi
+          python3 scripts/verify_bootstrap_log.py $expect_flag < /tmp/af-api-pod.log \
+            > /tmp/bootstrap-log-verify.txt 2>&1 || verify_rc=$?
+          cat /tmp/bootstrap-log-verify.txt
+          cat /tmp/bootstrap-log-verify.txt >> "$GITHUB_STEP_SUMMARY"
+          exit "${verify_rc:-0}"
+
+      - uses: actions/upload-artifact@v7
+        name: Upload af-api pod log
+        if: always()
+        with:
+          name: bootstrap-log-af-api-pod-log
+          path: /tmp/af-api-pod.log
+          if-no-files-found: warn
+          retention-days: 30
+
   cleanup-af-api:
     name: Cleanup af-api deployment
-    needs: [deploy-af-api, test-recipes]
+    # bootstrap-log-verify included so the ephemeral af-api survives until its log has
+    # been read -- that log IS the evidence, and it dies with the pod. always() below
+    # still runs cleanup when the verify job is skipped (every non-IF-1310 run) or
+    # failed, so nothing can leak the deployment.
+    needs: [deploy-af-api, test-recipes, bootstrap-log-verify]
     if: always() && needs.deploy-af-api.result == 'success'
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
