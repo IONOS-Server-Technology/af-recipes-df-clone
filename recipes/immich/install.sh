@@ -32,3 +32,12 @@ set +a
 mkdir -p /opt/immich/upload
 mkdir -p /opt/immich/model-cache
 mkdir -p /opt/immich/postgres
+# The application writes here as root, so the directory keeps root as its owner — but
+# 755 lets any other account on the machine walk in, and the files the container creates
+# land at 644. Restricting the directory is what actually protects them: whatever mode a
+# file ends up with, nobody but root can reach it through a 700 directory. Same treatment
+# hermes-agent already gets.
+# upload holds the customer's photo library. postgres is left alone: the database
+# image sets its own owner and mode there, and 700 is already what it wants.
+chmod 700 /opt/immich/upload
+chmod 700 /opt/immich/model-cache

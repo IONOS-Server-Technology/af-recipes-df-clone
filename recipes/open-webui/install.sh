@@ -32,3 +32,11 @@ set +a
 # Create host directories for persistent data
 mkdir -p /opt/open-webui/data
 mkdir -p /opt/open-webui/ollama
+# The application writes here as root, so the directory keeps root as its owner — but
+# 755 lets any other account on the machine walk in, and the files the container creates
+# land at 644. Restricting the directory is what actually protects them: whatever mode a
+# file ends up with, nobody but root can reach it through a 700 directory. Same treatment
+# hermes-agent already gets.
+# data holds webui.db (accounts, chats, API keys) and the vector store.
+chmod 700 /opt/open-webui/data
+chmod 700 /opt/open-webui/ollama
