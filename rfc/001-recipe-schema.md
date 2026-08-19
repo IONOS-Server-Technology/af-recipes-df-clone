@@ -55,6 +55,8 @@ af-recipes/
 | `recipe_version` | string | yes | Recipe format version (semver). |
 | `recipe_type` | enum | yes | `docker-compose` or `native`. |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
+| `compose_file_url` | string \| null | no | Direct URL to the upstream reference `docker-compose` file this recipe's Compose file was adapted from. `null` when the project ships no official one — including every `native` recipe. See §4.7. |
+| `compose_file_notes` | string \| null | no | Free text about `compose_file_url`: which variant was picked, whether the link is pinned or rolling, or why no official file exists. See §4.7. |
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
 | `ports` | list[port] | no | Network ports (see §4.3). |
@@ -205,6 +207,41 @@ Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, m
 **Licensing:** Recipes must declare `logo_license`. Permissible values include any SPDX identifier (`MIT`, `Apache-2.0`, `CC-BY-SA-4.0`, etc.) or the sentinel `trademark-nominative-fair-use` for cases where the logo is a third-party trademark displayed under nominative fair use (i.e. to identify the upstream product in the catalogue). For attribution-required licenses (`CC-BY*`), the upstream source URL should be set in `logo_source`.
 
 **Disabled recipes:** `enabled: false` recipes are exempt from the `logo-required-when-enabled` rule, but if they *declare* `logo_url`, all integrity/canonicalisation rules still apply.
+
+### 4.7 Upstream compose source (IF-1500)
+
+Every `docker-compose.yaml` in this repo is a hand-adapted derivative of some upstream reference — an official docs page, a GitHub release asset, a raw file in the project's repo. Two optional fields record which one, so a recipe can be diffed against its source when upstream moves, and so "which recipes have an official upstream compose file at all" is a query rather than an archaeology exercise.
+
+| Field | Meaning |
+|---|---|
+| `compose_file_url` | Direct link to the file itself — the raw/blob URL, not the docs page that embeds it. `null` when the project publishes no official Compose file. |
+| `compose_file_notes` | Why that URL and not another: the variant chosen when the project ships several, whether the link is version-pinned or a rolling default-branch reference, or — when the URL is `null` — why none exists. |
+
+Both are optional and nullable; recipes predating IF-1500 are not required to carry them. Nothing fetches the URL at build or run time; it is documentation for maintainers.
+
+Conventions:
+
+- **Prefer a pinned link** (a tag or commit SHA) over a `main`/`master` one. When only a rolling link exists, say so in the notes — that is the difference between "this recipe matches upstream" and "this recipe matched upstream at some unrecorded point".
+- **Record what upstream leaves unpinned.** If the reference floats its image tags, note it; our own recipe must still pin (`image-tag-pinned`, RFC-002), so the divergence is deliberate and worth writing down.
+- **`native` recipes always set `compose_file_url: null`** with a note saying the recipe installs into the OS and has no Compose file by definition.
+
+Example — n8n, whose reference is a rolling link that floats the app version:
+
+```yaml
+compose_file_url: https://github.com/n8n-io/n8n-hosting/blob/main/docker-compose/withPostgres/docker-compose.yml
+compose_file_notes: >-
+  withPostgres variant (upstream also ships withMariaDB and a plain one).
+  Rolling default-branch link — upstream publishes no tagged version of it.
+  Upstream pins postgres:16 but floats n8n itself via N8N_VERSION (defaults to
+  `stable` in its .env); this recipe pins both.
+```
+
+Example — a native recipe:
+
+```yaml
+compose_file_url: null
+compose_file_notes: Native recipe — installed into the OS, no upstream compose file exists.
+```
 
 ## 5. OS Baselines and Resource Calculation
 

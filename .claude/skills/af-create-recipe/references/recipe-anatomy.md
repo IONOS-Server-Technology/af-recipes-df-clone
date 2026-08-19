@@ -20,6 +20,13 @@ recipe_version: "1.0.0"           # semver. Bump when this recipe changes (separ
 recipe_type: docker-compose       # or 'native'
 upstream_url: https://github.com/n8n-io/n8n
 
+# Where this recipe's docker-compose.yaml was adapted from (RFC-001 §4.7).
+# Direct file link, not the docs page. `null` when upstream ships none — say why in the notes.
+compose_file_url: https://github.com/n8n-io/n8n-hosting/blob/main/docker-compose/withPostgres/docker-compose.yml
+compose_file_notes: >-
+  withPostgres variant. Rolling default-branch link — upstream tags no version of it.
+  Upstream floats the n8n image via N8N_VERSION (`stable`); this recipe pins it.
+
 app_min_ram_mb: 2048              # APP-ONLY. OS baseline (512 MB on ubuntu-26.04) is added once by the AF API.
 app_min_disk_mb: 20480            # Same logic. CPU is OS-baseline only — don't declare per-app.
 

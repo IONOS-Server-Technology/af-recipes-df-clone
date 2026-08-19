@@ -35,13 +35,17 @@ The first real confirmation point with the developer is at the end of Phase 2 (r
 Goal: build enough understanding to write a sensible draft. Not exhaustive analysis.
 
 - Read the upstream README and any `docker-compose.yml` they ship.
+- **Record where that compose file came from** — this is not optional research, it goes into `metadata.yaml` in Phase 4 as `compose_file_url` / `compose_file_notes` (RFC-001 §4.7):
+    - `compose_file_url` is the direct link to the *file* (raw/blob URL), not the docs page that embeds it. Prefer a tag- or SHA-pinned link over a `main`/`master` one.
+    - `compose_file_notes` records the judgement calls: which variant was picked when upstream ships several (`withPostgres` vs `withMariaDB` …), whether the link is version-pinned or a rolling default-branch reference, and anything upstream leaves unpinned that we pin (e.g. an image tag floated via an env var).
+    - If the project publishes no official compose file — including every `native` recipe — set `compose_file_url: null` and say why in the notes. `null` means "we looked and there is none", not "we didn't check".
 - Read the Docker Hub page for the official image and pick a **pinned, current stable tag** — never `:latest`.
 - Pick **2–3 existing recipes in `recipes/`** that are structurally similar and use them as templates. Heuristics:
     - Needs Postgres → `recipes/n8n/`, `recipes/paperless-ngx/`
     - Single-container web app → `recipes/uptime-kuma/`, `recipes/vaultwarden/`
     - Multi-service stack → `recipes/anytype-server/`, `recipes/immich/`
     - Native (no Docker) → `recipes/claude-code/`
-- Summarize back to the developer in **5–8 bullet points**: what the app is, what services it needs, exposed ports, what parameters the customer must provide, the closest existing recipe, any caveats (privileged needs, GPU, weird volumes, license).
+- Summarize back to the developer in **5–8 bullet points**: what the app is, what services it needs, exposed ports, what parameters the customer must provide, the upstream compose reference (URL, or "none — <reason>"), the closest existing recipe, any caveats (privileged needs, GPU, weird volumes, license).
 - Wait for the developer to confirm or correct the summary before generating.
 
 ## Phase 3 — Plan
@@ -49,7 +53,7 @@ Goal: build enough understanding to write a sensible draft. Not exhaustive analy
 Present a one-screen plan:
 
 - File list (5 files for `docker-compose`; 3 for `native`)
-- `metadata.yaml` skeleton: name, version (pinned), categories, ports, parameters list, resource floors
+- `metadata.yaml` skeleton: name, version (pinned), categories, ports, parameters list, resource floors, upstream compose source (`compose_file_url` / `compose_file_notes`)
 - Which existing recipe is the structural template
 - Open questions (e.g., "is `:8080` OK or does the user want a different default port?")
 
