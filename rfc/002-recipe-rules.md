@@ -56,6 +56,15 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** `test -x install.sh` and `test -x health-check.sh`.
 - **Why:** Cloud-init invokes `install.sh` directly; non-executable scripts fail with permission denied.
 
+#### `health-check-waits`
+
+- **Level:** WARN
+- **What:** A `docker-compose` recipe's `health-check.sh` must wait for the application to come up, not probe it once.
+- **How to check:** Strip comment lines, then require both a loop keyword (`while`, `until`, `for`) and a `sleep`. Not checked for `recipe_type: native`.
+- **Why:** IF-1440 — twelve recipes curled once, immediately after `docker compose up -d`, so their PR-gate test failed for eight days without anyone noticing. Fifteen red marks per pull request are noise, not a signal, and none of those recipes had working coverage at all.
+- **Deliberately not prescribed:** *how* it waits. Two shapes are in the tree and both are correct — polling the containers' Docker health status, or falling back to a localhost URL and retrying it with a ceiling. A rule naming one of them would fail three recipes that work, which is the mistake `param-referenced` had to be rewritten to avoid.
+- **Why WARN:** `health-check.sh` is not part of the install archive, so a bad one misleads the next author and wastes CI time but never reaches a customer. Whether the recipe tests should block a merge at all is a separate, open decision (IF-1440).
+
 ### 3.2 metadata.yaml
 
 #### `metadata-valid-yaml`
