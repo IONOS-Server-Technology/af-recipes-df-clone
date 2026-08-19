@@ -577,7 +577,11 @@ jobs:
         # dollar-escaping path that IF-1312 got wrong: the bcrypt *hash* af-api derives is
         # dollar-heavy ($2b$05$...) regardless of how plain the password is.
         run: |
-          root_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)
+          # head reads a bounded chunk FIRST (closes nothing upstream), tr then hits EOF,
+          # and cut reads to EOF -- so no stage dies of SIGPIPE. The earlier
+          # `tr </dev/urandom | head -c 20` form let head close the pipe while tr kept
+          # reading, killing tr with SIGPIPE (141) and failing the step under `set -o pipefail`.
+          root_password=$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-20)
           # A short read here would otherwise surface much later as a stage-2 401 and be
           # read as the IF-1312 hash bug, when it would really be this generator.
           if [ "${#root_password}" -ne 20 ]; then
