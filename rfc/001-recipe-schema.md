@@ -51,7 +51,7 @@ af-recipes/
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |
 | `categories` | list[enum] | yes | Application categories, one or more (see §4.2). |
-| `app_version` | string | yes | Upstream application version being deployed. |
+| `app_version` | string | yes | Upstream application version being deployed. Free text — a floating identifier (`latest`, `stable`) is valid and is the honest value when the app's image floats with upstream (§6). |
 | `recipe_version` | string | yes | Recipe format version (semver). |
 | `recipe_type` | enum | yes | `docker-compose` or `native`. |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
@@ -222,7 +222,7 @@ Both are optional and nullable; recipes predating IF-1500 are not required to ca
 Conventions:
 
 - **Prefer a pinned link** (a tag or commit SHA) over a `main`/`master` one. When only a rolling link exists, say so in the notes — that is the difference between "this recipe matches upstream" and "this recipe matched upstream at some unrecorded point".
-- **Record what upstream leaves unpinned.** If the reference floats its image tags, note it; our own recipe must still pin (`image-tag-pinned`, RFC-002), so the divergence is deliberate and worth writing down.
+- **Record what upstream pins and what it floats**, per image. We follow it either way (§6): the recipe pins where the reference pins and floats where it floats. Writing it down is what makes the choice reviewable — `image-tag-pinned` was retired in IF-1500, so no rule checks it any more.
 - **`native` recipes always set `compose_file_url: null`** with a note saying the recipe installs into the OS and has no Compose file by definition.
 
 Example — n8n, whose reference is a rolling link that floats the app version:
@@ -232,8 +232,9 @@ compose_file_url: https://github.com/n8n-io/n8n-hosting/blob/main/docker-compose
 compose_file_notes: >-
   withPostgres variant (upstream also ships withMariaDB and a plain one).
   Rolling default-branch link — upstream publishes no tagged version of it.
-  Upstream pins postgres:16 but floats n8n itself via N8N_VERSION (defaults to
-  `stable` in its .env); this recipe pins both.
+  Upstream pins postgres:16 and floats n8n itself via N8N_VERSION (defaults to
+  `stable` in its .env); this recipe does the same — postgres:16 pinned,
+  n8n floating — so app_version reads `stable` rather than a fixed version.
 ```
 
 Example — a native recipe:
@@ -260,7 +261,7 @@ Example: n8n (2048 MB) + Portainer (512 MB) with a 512 MB OS baseline = **3072 M
 ## 6. docker-compose.yaml Conventions
 
 - **Compose v3 format** (no `version:` key — Compose v2 CLI handles this).
-- **Pinned image versions** — never use `:latest`.
+- **Image versions follow upstream** (IF-1500) — pin where the upstream reference pins, float where it floats, `:latest` included. Decided per image, not per recipe: if upstream pins its database and floats its app, so do we. Record the reference in `compose_file_url` / `compose_file_notes` (§4.7); no validator rule checks this, so the reference is the only evidence the choice was deliberate.
 - **Healthchecks** — every service must declare a Docker healthcheck.
 - **Host bind mounts** — for all persistent data. Use paths like `/opt/<app-name>/<service-name>/` on the host.
 - **Dedicated bridge network** — one per recipe, named `<app>-network`.
@@ -430,9 +431,11 @@ services:
 
 The WUD trigger IDs (`ntfy.notify`, `dockercompose.apply`) are configured in `/opt/wud/.env` by the WUD recipe. Recipes only reference the IDs via labels — they do not configure the triggers themselves.
 
+**Open since IF-1500:** this matrix assumes pinned tags. A floating tag (`:latest`) never changes, so tag comparison reports no update and a floating recipe drops out of WUD's notifications; watching digests instead (`wud.watch.digest`) is the likely answer, but it is unverified against WUD's actual behaviour and untested here. Settle this before the first recipe floats. See RFC-002 §3.5.
+
 ## 12. Git Conventions
 
 - **Monorepo:** All recipes live in `af-recipes`.
 - **Branching:** `feature/<ticket>-<topic>`, `fix/<ticket>-<topic>`.
-- **Tagging:** `<app>/v<app_version>-r<recipe_version>` (e.g., `n8n/v1.94.1-r1.0.0`).
+- **Tagging:** `<app>/v<app_version>-r<recipe_version>` (e.g., `n8n/v1.94.1-r1.0.0`). A floating recipe yields `n8n/vstable-r1.2.0` — still unique, since `recipe_version` carries the distinction, but the tag no longer tells you which app version shipped.
 - **Review:** All changes require PR review before merge to `main`.

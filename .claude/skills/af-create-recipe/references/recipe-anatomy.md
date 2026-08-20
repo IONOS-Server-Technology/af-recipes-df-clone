@@ -15,7 +15,9 @@ description: Low-code workflow automation tool to connect various apps and APIs.
 categories:                       # one or more from the enum in metadata.schema.json
   - automation
 
-app_version: "1.94.1"             # PINNED — never "latest". Quote it; YAML may parse 1.94 as a float otherwise.
+app_version: "1.94.1"             # Whatever upstream uses — a pinned release here, or "latest"/"stable"
+                                  # when upstream floats the tag (RFC-001 §6). Quote it; YAML may
+                                  # parse 1.94 as a float otherwise.
 recipe_version: "1.0.0"           # semver. Bump when this recipe changes (separate from app version)
 recipe_type: docker-compose       # or 'native'
 upstream_url: https://github.com/n8n-io/n8n
@@ -25,7 +27,8 @@ upstream_url: https://github.com/n8n-io/n8n
 compose_file_url: https://github.com/n8n-io/n8n-hosting/blob/main/docker-compose/withPostgres/docker-compose.yml
 compose_file_notes: >-
   withPostgres variant. Rolling default-branch link — upstream tags no version of it.
-  Upstream floats the n8n image via N8N_VERSION (`stable`); this recipe pins it.
+  Upstream pins postgres:16 and floats n8n via N8N_VERSION (`stable`); this recipe
+  does the same, per image.
 
 app_min_ram_mb: 2048              # APP-ONLY. OS baseline (512 MB on ubuntu-26.04) is added once by the AF API.
 app_min_disk_mb: 20480            # Same logic. CPU is OS-baseline only — don't declare per-app.
@@ -66,7 +69,7 @@ preinstall_cmds:                  # Optional: shell snippets the cloud-init modu
 
 ## File 2: `docker-compose.yaml` — the runtime
 
-Compose v3 (no `version:` key). Pinned images. Bind mounts under `/opt/<slug>/`. Healthchecks on every service. No public DB ports. One bridge network named `<slug>-network`. Environment from `${VAR}` references, never hardcoded.
+Compose v3 (no `version:` key). Image tags mirror upstream's — pinned where it pins, floating where it floats (RFC-001 §6). Bind mounts under `/opt/<slug>/`. Healthchecks on every service. No public DB ports. One bridge network named `<slug>-network`. Environment from `${VAR}` references, never hardcoded.
 
 Worth absorbing from `recipes/n8n/docker-compose.yaml`:
 
@@ -135,8 +138,8 @@ curl -fsS --max-time 10 "$URL" > /dev/null
 
 ```
 recipes/<slug>/
-├── metadata.yaml           ✅ schema-valid, pinned version, params match .env.template
-├── docker-compose.yaml     ✅ pinned images, healthchecks, bind mounts under /opt/<slug>/
+├── metadata.yaml           ✅ schema-valid, version as upstream has it, params match .env.template
+├── docker-compose.yaml     ✅ tags as upstream has them, healthchecks, bind mounts under /opt/<slug>/
 ├── .env.template           ✅ every {{PLACEHOLDER}} matches a param name in metadata.yaml
 ├── install.sh              ✅ executable bit, set -euo pipefail, waits for healthcheck
 └── health-check.sh         ✅ executable bit, takes $1 = URL, exits 0 on healthy

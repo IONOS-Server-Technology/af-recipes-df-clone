@@ -37,9 +37,11 @@ Goal: build enough understanding to write a sensible draft. Not exhaustive analy
 - Read the upstream README and any `docker-compose.yml` they ship.
 - **Record where that compose file came from** — this is not optional research, it goes into `metadata.yaml` in Phase 4 as `compose_file_url` / `compose_file_notes` (RFC-001 §4.7):
     - `compose_file_url` is the direct link to the *file* (raw/blob URL), not the docs page that embeds it. Prefer a tag- or SHA-pinned link over a `main`/`master` one.
-    - `compose_file_notes` records the judgement calls: which variant was picked when upstream ships several (`withPostgres` vs `withMariaDB` …), whether the link is version-pinned or a rolling default-branch reference, and anything upstream leaves unpinned that we pin (e.g. an image tag floated via an env var).
+    - `compose_file_notes` records the judgement calls: which variant was picked when upstream ships several (`withPostgres` vs `withMariaDB` …), whether the link is version-pinned or a rolling default-branch reference, and — per image — which tags upstream pins and which it floats.
     - If the project publishes no official compose file — including every `native` recipe — set `compose_file_url: null` and say why in the notes. `null` means "we looked and there is none", not "we didn't check".
-- Read the Docker Hub page for the official image and pick a **pinned, current stable tag** — never `:latest`.
+- **Take upstream's versioning, image by image** (RFC-001 §6, IF-1500). Where the reference pins a tag, pin the same one. Where it floats — `:latest`, `stable`, a tag driven by an env var — float too. A recipe may well pin its database and float its app, because that is what upstream does. Do not "improve" on upstream by pinning something it floats: the point is that our compose file stays diffable against theirs.
+    - Note the two rules that used to force pinning, `image-tag-pinned` and `app-version-pinned`, were retired in IF-1500. Nothing checks tags now, so this is on you rather than on CI.
+    - When the app's image floats, `app_version` reads `latest` or `stable` — whatever upstream's default is — not a version you looked up once.
 - Pick **2–3 existing recipes in `recipes/`** that are structurally similar and use them as templates. Heuristics:
     - Needs Postgres → `recipes/n8n/`, `recipes/paperless-ngx/`
     - Single-container web app → `recipes/uptime-kuma/`, `recipes/vaultwarden/`
@@ -53,7 +55,7 @@ Goal: build enough understanding to write a sensible draft. Not exhaustive analy
 Present a one-screen plan:
 
 - File list (5 files for `docker-compose`; 3 for `native`)
-- `metadata.yaml` skeleton: name, version (pinned), categories, ports, parameters list, resource floors, upstream compose source (`compose_file_url` / `compose_file_notes`)
+- `metadata.yaml` skeleton: name, version (matching upstream's — pinned or floating), categories, ports, parameters list, resource floors, upstream compose source (`compose_file_url` / `compose_file_notes`)
 - Which existing recipe is the structural template
 - Open questions (e.g., "is `:8080` OK or does the user want a different default port?")
 
@@ -68,7 +70,7 @@ Output one line per rule, identified by its slug:
 ```
 files-required-compose       ✓
 metadata-valid-yaml          ✓
-image-tag-pinned             ✗ ERROR — image 'redis:latest' on service 'redis'
+no-public-db-port            ✗ ERROR — port 5432 on service 'db' is public
 bind-mount-under-opt         ⚠ WARN  — bind mount '/var/data' should be under /opt/<slug>/
 ```
 
@@ -100,7 +102,7 @@ Tell the developer to review the diff, commit, push, and open the PR themselves.
 - Autonomous PR creation, n8n trigger, self-healing CI loop — that's WP4 Phase 2 (out of scope, see [IF-548 comment from 2026-05-04](https://hosting-jira.1and1.org/browse/IF-548))
 - PII stripping pipelines (also Phase 2)
 - Updating existing recipes — separate skill `af-update-recipes` planned for v1.5; that's the maintenance sweep over RFC-002 changes
-- Inventing app versions — always pin to a tag visible on Docker Hub or the upstream releases page
+- Inventing app versions — take the tag upstream uses, whether that is a pinned release or a floating one; never make one up
 - Calling `af-validate` or any external linter — RFC-002 is the source of truth, applied by the agent itself
 
 ## Bash hook caveat
