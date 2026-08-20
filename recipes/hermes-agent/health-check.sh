@@ -39,7 +39,7 @@ if [ -n "$URL" ]; then
   while [ "$waited" -lt "$max_wait" ]; do
     if curl -fsS --max-time 10 "${URL}/api/status" > /dev/null 2>&1; then
       echo "Hermes Agent is healthy at ${URL}/api/status after ${waited}s"
-      root_code=$(curl -sS -L -o /dev/null --max-time 10 -w '%{http_code}' "${URL}/" 2>/dev/null || echo 000)
+      root_code=$(curl -sS -L -o /dev/null --max-time 10 -w '%{http_code}' "${URL}/" 2>/dev/null || true)
       case "$root_code" in
         5??|000)
           echo "ERROR: Hermes Agent dashboard root ${URL}/ returned HTTP ${root_code}"
@@ -84,7 +84,7 @@ except urllib.error.HTTPError as e:
     code = e.code
 except Exception:
     code = 0
-print(code)
+print("%03d" % code)
 ' 2>/dev/null || echo 000)
       case "$root_code" in
         5??|000)
