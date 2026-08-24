@@ -1,0 +1,17 @@
+# ---- per-VM checks: one VM serves the whole selection, so these run once ----
+
+# Curl the endpoint the VM genuinely redeems its token against, i.e. the
+# bootstrap_url from its own cloud-init. Do NOT rebuild this from AF_API_URL: on
+# both real clusters bootstrap is served on a separate public host, and the mTLS
+# main host refuses the certless request a VM makes (http_code 000, curl 55/35).
+# It only worked against AF_API_URL while prod was on nginx, which kept
+# /api/v1/bootstrap certless on the main host via a per-path exemption; the Envoy
+# SecurityPolicy covers the whole main route, so that exemption is gone.
+# The blocking "Verify the af-api host split" workflow step asserts the same
+# reachability from the runner, plus that the main host does refuse a certless
+# request. This one is the VM's own view of it.
+[test_bootstrap_reachable]
+class = Plugins.Ssh.Test
+executors = exec_vm
+cmd = curl -sS -o /dev/null -w "bootstrap http_code=%{http_code}\n" --max-time 10 $AF_BOOTSTRAP_URL
+expected_exitcode = 0

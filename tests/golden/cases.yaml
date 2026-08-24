@@ -1,0 +1,45 @@
+# Golden matrix for scripts/gen-health-check-conf.py (IF-1140 #7/#8).
+#
+# The single source of truth for the committed health-check-config snapshots
+# under tests/golden/. scripts/golden-health-checks.py reads this file and, for
+# each case, invokes the generator: with no args it diffs the freshly generated
+# config against the committed golden (CHECK mode, used by CI); with --update it
+# rewrites every golden from the current generator output.
+#
+# Each case's fields map onto generator arguments as follows:
+#   recipes       -> positional recipe ids, in selection order
+#   base_domain   -> --base-domain
+#   recipe_label  -> --recipe-label   (combo members joined by "+", sorted)
+#   le_staging    -> --expect-le-staging  (only when true)
+#   golden        -> the committed snapshot the generator --check/--update targets
+#
+# The matrix deliberately locks three behaviours:
+#   single-app-routable      immich is Traefik-routed on a real .com TLD, so the
+#                            served-certificate block MUST be present.
+#   single-app-non-routable  adguard-home has no public/http/tcp port, so after
+#                            the IF-1140 #5 fix the served-certificate block MUST
+#                            be absent even on a real .com TLD (regression lock).
+#   combo-two-app            a representative 2-app selection on the no-cert
+#                            .invalid domain.
+
+cases:
+  - name: single-app-routable
+    recipes: [immich]
+    base_domain: example.com
+    recipe_label: immich
+    le_staging: true
+    golden: tests/golden/single-app-routable.conf
+
+  - name: single-app-non-routable
+    recipes: [adguard-home]
+    base_domain: example.com
+    recipe_label: adguard-home
+    le_staging: true
+    golden: tests/golden/single-app-non-routable.conf
+
+  - name: combo-two-app
+    recipes: [immich, n8n]
+    base_domain: af-test.invalid
+    recipe_label: immich+n8n
+    le_staging: false
+    golden: tests/golden/combo-two-app.conf

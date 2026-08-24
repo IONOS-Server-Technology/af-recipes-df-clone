@@ -1,0 +1,32 @@
+# Traefik routing smoke check for @APP@. With a base_domain in the /compose
+# payload, af-api stops publishing each app's host port and routes it through
+# Traefik at @APP@.$BASE_DOMAIN instead. Every container can therefore be
+# healthy on the internal docker network while nothing is reachable from outside:
+# a broken Traefik render leaves the container health checks fully green, so this
+# is the only block that catches it.
+#
+# --resolve rather than -H "Host: ...": it sets SNI and the Host header to the same
+# name, so the check keeps routing if sniStrict is ever turned on, and it exercises
+# the URL a real client would use. -k stays either way -- af-test.invalid can never
+# obtain an ACME certificate, so Traefik answers with its self-signed default cert.
+#
+# Asserted as a regex over the status line, not a fixed code, because several
+# unrelated codes all prove the same thing:
+#   pass  2xx, 3xx (any redirect), 401, 403 -- Traefik matched a router for this
+#         host and forwarded upstream. Whether the app then demands a login is
+#         not this test's business.
+#   fail  404 -- Traefik is listening but has no router for this host, the usual
+#         symptom of a bad render.
+#   fail  5xx -- a router exists but the upstream did not answer. Not strictly a
+#         routing bug, and test_health_check_@APP@ should catch it first, but
+#         there is no reading of a 5xx here that is good news.
+#   fail  000 -- nothing is listening on :443 at all. curl also exits non-zero
+#         there, so expected_exitcode = 0 catches it a second way (and covers
+#         TLS-level failures, which never produce a status code).
+[test_traefik_route_@APP@]
+class = Plugins.Ssh.Test
+executors = exec_vm
+cmd = curl -k -sS -o /dev/null -w "traefik route @APP@ http_code=%{http_code}\n" --max-time 10 --resolve @APP@.$BASE_DOMAIN:443:127.0.0.1 https://@APP@.$BASE_DOMAIN/
+expected_stdout = http_code=(2[0-9][0-9]|3[0-9][0-9]|401|403)$
+comparator_stdout = regex
+expected_exitcode = 0

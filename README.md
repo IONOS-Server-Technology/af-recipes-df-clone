@@ -423,9 +423,10 @@ version**. For the OS image these recipes install onto, see
 | Workflow | Trigger | Where it runs | Cost / time |
 |----------|---------|---------------|-------------|
 | [`recipe-pipeline.yaml`](.github/workflows/recipe-pipeline.yaml) | PR / push to `main` on `recipes/**` or `bin/build-catalogue` | GitHub runner (static + S3 logo sync) | seconds–1 min |
-| [`test-recipes-docker.yaml`](.github/workflows/test-recipes-docker.yaml) | PR to `main` on `recipes/**`, manual | `docker compose` on the runner | ~2–5 min |
-| [`test-recipes-live.yaml`](.github/workflows/test-recipes-live.yaml) | PR to `main` on `recipes/**`, push on `feature/IF-547-**`, manual | IONOS CoreVPS VM + per-branch `af-api` in k8s | ~10–15 min, IONOS quota |
-| [`nightly-regression.yaml`](.github/workflows/nightly-regression.yaml) | Daily `0 2 * * *` UTC, manual | Reuses `test-recipes-live` via `workflow_call` (all enabled recipes) | ~30–60 min |
+| [`test-recipes-docker.yaml`](.github/workflows/test-recipes-docker.yaml) | PR to `main` on `recipes/**`, manual | `docker compose` on the runner, one app at a time | ~2–5 min |
+| [`test-recipes-live.yaml`](.github/workflows/test-recipes-live.yaml) | PR to `main` on `recipes/**`, push on `feature/IF-547-**`, manual, `workflow_call` | **Depends on `mode`** — `dev`: CoreVPS VM + a per-run ephemeral `af-api` in k8s; `prod`: CoreVPS VMs against the **real dev + prod clusters**, no ephemeral `af-api` | ~10–15 min (`dev`), roughly 2× that (`prod`), IONOS quota |
+| [`nightly-regression.yaml`](.github/workflows/nightly-regression.yaml) | Daily `0 2 * * *` UTC, manual | Reuses `test-recipes-live` via `workflow_call` in **`mode: dev`** (all enabled recipes) | ~30–60 min |
+| [`test-recipes-combinations.yaml`](.github/workflows/test-recipes-combinations.yaml) | Daily `0 3 * * *` UTC, manual | Reuses `test-recipes-live` via `workflow_call` in **`mode: dev`**, with a multi-app combination matrix and a `base_domain` | ~30–60 min |
 | [`debug-af-api.yaml`](.github/workflows/debug-af-api.yaml) | Manual | Deploys `af-api` and holds it for `kubectl` | as long as you hold it |
 | [`af-api-cleanup.yaml`](.github/workflows/af-api-cleanup.yaml) | Manual | Reaps orphaned ephemeral `af-api` deployments | seconds |
 
@@ -436,13 +437,19 @@ version**. For the OS image these recipes install onto, see
   and checks required files / compose structure / `.env.template` placeholders;
   `af-validate-rfc002` runs the [RFC-002](rfc/002-recipe-rules.md) rules and HEADs
   every `logo_url`. (This replaced the old `validate-recipes.yaml`.)
-- **`test-recipes-docker.yaml`** (Phase 1) — spins up the recipe's
-  `docker-compose.yaml` on the runner, runs `health-check.sh` against `localhost`,
-  tears it down. Matrix = changed compose recipes (native recipes dropped here).
-- **`test-recipes-live.yaml`** (Phase 2) — the production path: builds a per-branch
-  `af-api`, deploys it to a per-run k8s NodePort, renders cloud-init via `/compose`,
-  provisions a **real CoreVPS VM**, and runs the recipe's health check on it. Matrix
-  = changed recipes with `enabled: true`. Pipeline shape:
+- **`test-recipes-docker.yaml`** (Phase 1) — spins up each selected app's
+  `docker-compose.yaml` on the runner, runs `health-check.sh` against `localhost`, and
+  tears it down again before starting the next one. Each app gets its own compose
+  project, and only one runs at a time, so apps that publish the same host port do not
+  collide. Matrix = changed compose recipes (native recipes dropped here), or one entry
+  per combination when the combination inputs are used. This leg proves each member of
+  a selection *starts*; the live leg proves they *coexist* on one VM.
+- **`test-recipes-live.yaml`** (Phase 2) — the end-to-end VM test: renders cloud-init
+  via `/compose`, provisions a **real CoreVPS VM**, and runs the recipe's health check
+  on it. Matrix = changed recipes with `enabled: true`. **What it runs against depends
+  on the `mode` input** — see [Pipeline modes](#pipeline-modes-ephemeral-af-api-vs-the-real-clusters).
+  The shape below is `mode: dev`; in `mode: prod` the `af-api` build, deploy and
+  cleanup jobs are all skipped.
 
   ```
   detect-changed-recipes  →  trigger-af-api-build  →  deploy-af-api
@@ -451,25 +458,254 @@ version**. For the OS image these recipes install onto, see
              ├─ /compose → cloud-init → patch dev-mode/http
              ├─ probe /bootstrap with the JWT
              └─ ImageTester: provision VM, inject cloud-init, run
-                tests/recipe-health-check.conf (SSH probes + health-check.sh on the VM)
+                generated per-app config (SSH probes + uploaded health-check.sh, all on the VM)
   ```
 - **`nightly-regression.yaml`** — a dedicated scheduled workflow that reuses
-  `test-recipes-live.yaml` via `workflow_call` (`with: all_enabled: true`), so the
-  nightly runs the **same** production path over every enabled recipe — same run, no
-  second runner, no separate renderer. Scheduled runs fire only from the default
-  branch; use `workflow_dispatch` to run it by hand.
+  `test-recipes-live.yaml` via `workflow_call` (`with: all_enabled: true`) over every
+  enabled recipe — same run, no second runner, no separate renderer. It passes **no
+  `mode`**, so it runs **`mode: dev`**: the ephemeral `af-api` path, never the real
+  clusters. Scheduled runs fire only from the default branch; use `workflow_dispatch`
+  to run it by hand.
+- **`test-recipes-combinations.yaml`** — nightly multi-app coverage. Every other
+  pipeline installs exactly one app per VM, so nothing exercises apps sharing a VM, or
+  the Traefik render a multi-app selection forces. Like the nightly regression it
+  re-implements nothing: it calls `test-recipes-live.yaml` via `workflow_call` with a
+  combination matrix and a `base_domain`. Deliberately **not** on the PR trigger and
+  deliberately `mode: dev` — a randomly drawn combination must not be able to fail an
+  unrelated merge, and `mode: prod` would double the VM cost per combination while
+  letting a random draw block a production image build.
 - **`debug-af-api.yaml`** — deploys an `af-api` for a chosen `af_recipes_ref` and
   holds it `hold_minutes` (default 30) so you can attach with your own `kubectl`
   (`exec`, `logs`). `skip_build=true` reuses the image already in Harbor.
 - **`af-api-cleanup.yaml`** — reaps ephemeral `af-api` deployments a force-cancelled
   run left behind (`max_age_hours`, default 6.5).
 
+### Pipeline modes: ephemeral `af-api` vs the real clusters
+
+`test-recipes-live.yaml` runs in one of two modes. In **`mode: dev`** the run builds
+its own throwaway `af-api`, tests against it, and deletes it. In **`mode: prod`** it
+does not build one at all — it tests against the real dev and prod clusters. The two
+never happen in the same run, which is why an ephemeral `af-api` is sometimes there
+and sometimes not.
+
+`mode` defaults to `dev`, and there is no validation: any value that is not exactly
+`prod` is treated as `dev`.
+
+```mermaid
+%% Source of truth for this diagram. The Confluence page "AF Recipe Testing —
+%% Pipeline Modes" carries a draw.io copy generated from this text, because
+%% Confluence has no Mermaid macro. Re-import it there after changing anything here.
+flowchart TD
+    T1["PR or push<br/>on recipes/**"]
+    T2["nightly-regression.yaml<br/>daily 02:00 UTC"]
+    T3["if-main-ubuntu-2604-af<br/>build_release.yaml"]
+    T4["Manual<br/>workflow_dispatch"]
+
+    T1 -->|"passes no mode"| Q
+    T2 -->|"passes no mode"| Q
+    T3 -->|"prod only when: branch is main<br/>AND dev_mode_image is not true"| Q
+    T4 -->|"you choose"| Q
+
+    Q{"mode == 'prod' ?"}
+
+    Q -->|"no — this is the default.<br/>Anything not literally 'prod'<br/>is treated as dev."| D0
+    Q -->|"yes"| P0
+
+    subgraph DEVMODE ["mode: dev — ONE leg, named 'ephemeral'"]
+        direction TB
+        D0["This run gets its own af-api"]
+        D1["Build af-api from the branch"]
+        D2["Deploy af-api-BRANCH-RUNID<br/>NodePort, plain HTTP<br/>fresh Ed25519 signing key"]
+        D3["compose with --leg ephemeral<br/>dev mode on + sentinel<br/>bootstrap_url downgraded https to http<br/>public key injected into user-data"]
+        D4["Provision CoreVPS VM,<br/>run the recipe health check"]
+        D5["cleanup-af-api DELETES<br/>the deployment"]
+        D6(["BLOCKING"])
+        D0 --> D1 --> D2 --> D3 --> D4 --> D5 --> D6
+    end
+
+    subgraph PRODMODE ["mode: prod — TWO legs, named 'dev' and 'prod'"]
+        direction TB
+        P0["NO ephemeral af-api is built,<br/>deployed or cleaned up.<br/>The build/deploy/cleanup jobs<br/>are all skipped."]
+        PC["Catalogue pre-check against<br/>both live /api/v1/catalogue"]
+        PD["leg 'dev'<br/>api.dev.appfactory.ionos.com<br/>mTLS client cert<br/>--leg dev, dev mode on, https kept"]
+        PP["leg 'prod'<br/>api.appfactory.ionos.com<br/>mTLS client cert<br/>--leg prod, normal mode"]
+        PDV["Provision VM,<br/>run health check"]
+        PPV["Provision VM,<br/>run health check"]
+        PDB(["ADVISORY<br/>continue-on-error"])
+        PPB(["BLOCKING"])
+        P0 --> PC
+        PC --> PD --> PDV --> PDB
+        PC --> PP --> PPV --> PPB
+    end
+
+    HS["Exception: the af-api host-split probe is BLOCKING<br/>on BOTH real-cluster legs, including the advisory dev leg.<br/>A broken host split is infrastructure, not a recipe outcome."]
+    PDB -.-> HS
+    PPB -.-> HS
+
+    WARN["Watch out: 'dev' means two different things.<br/>mode: dev is the ephemeral run and touches no real cluster.<br/>The leg NAMED dev only exists in mode: prod and hits the real dev cluster."]
+
+    classDef devStyle fill:#E8F0FE,stroke:#1A73E8,stroke-width:2px,color:#0B2545
+    classDef prodStyle fill:#FFF4E5,stroke:#B06000,stroke-width:2px,color:#3D2200
+    classDef trigStyle fill:#F1F3F4,stroke:#5F6368,stroke-width:1px,color:#202124
+    classDef warnStyle fill:#FCE8E6,stroke:#C5221F,stroke-width:2px,color:#410E0B
+
+    class T1,T2,T3,T4 trigStyle
+    class D0,D1,D2,D3,D4,D5,D6 devStyle
+    class P0,PC,PD,PP,PDV,PPV,PDB,PPB prodStyle
+    class HS,WARN warnStyle
+```
+
+|                          | `mode: dev` (default)                          | `mode: prod`                                   |
+|--------------------------|------------------------------------------------|------------------------------------------------|
+| Matrix legs              | one, named `ephemeral`                          | two, named `dev` and `prod`                     |
+| Ephemeral `af-api`       | built, deployed, cleaned up                     | **none** — build/deploy/cleanup jobs all skipped |
+| `af-api` it talks to     | `af-api-<branch>-<run_id>` on a k8s NodePort    | the real cluster deployments                    |
+| Transport / client auth  | plain HTTP, no client cert                      | HTTPS with an mTLS client cert on **both** legs |
+| Bootstrap signing key    | fresh Ed25519 per run, public half in user-data | the real keys baked into the image              |
+| cloud-init patch         | `--leg ephemeral`                               | `--leg dev` / `--leg prod`                      |
+| Catalogue pre-check      | skipped (branch build, in sync by construction) | runs against both live catalogues               |
+| Gates the build          | yes                                             | prod leg yes, dev leg no                        |
+
+Who sets which mode:
+
+| Trigger | Mode |
+|---------|------|
+| PR or push on `recipes/**` | `dev` — no `mode` is passed |
+| `nightly-regression.yaml` | `dev` — no `mode` is passed |
+| `if-main-ubuntu-2604-af` → `build_release.yaml` | **`prod`** iff the branch is `main` **and** `dev_mode_image != 'true'`; otherwise `dev` |
+| Manual `workflow_dispatch` | your choice, default `dev` |
+
+> **Two different things are called "dev".** `mode: dev` is the *ephemeral* run and
+> touches no real cluster. The leg *named* `dev` only exists in `mode: prod` and hits
+> the **real dev cluster**. Say which one you mean — the job name shows `(ephemeral)`
+> for the first and `(dev)` for the second.
+
+> **Ordering rule — deploy the prod `af-api` before activating a recipe.** A prod-mode
+> leg is derived from the **live** catalogue, and `af-api` bakes an `af-recipes`
+> snapshot at image build time. Merge an activation first and the blocking prod leg
+> fails with `recipe_not_found`, stopping **every** production image build. Deploy an
+> `af-api` carrying the recipe to prod first, then merge the activation.
+
+> **Nothing in the UI tells you which mode ran.** `Pipeline mode: …` goes to the
+> `detect-changed-recipes` job log only, never the step summary. A **skipped**
+> `Deploy af-api for branch` means `mode: prod`, not a failure and not a leak.
+> (`test-recipes-docker.yaml`'s `| Mode | docker-on-runner (Phase 1) |` summary row is
+> unrelated — that workflow has no `mode` input.)
+
+The long-form version, including the blocking-vs-advisory rationale and the catalogue
+pre-check's failure modes, is on Confluence:
+[AF Recipe Testing — Pipeline Modes](https://confluence.united-internet.org/pages/viewpage.action?pageId=780057911).
+
+### Multi-app combinations
+
+By default both test legs install **one app per job**. The combination inputs switch
+them to drawing multi-app selections instead, which is what a customer picking several
+apps for one VM actually gets. `scripts/select-combinations.py` does the drawing, from
+`catalogue.json`.
+
+`test-recipes-live.yaml`:
+
+| Input | Meaning |
+|-------|---------|
+| `combos` | Combination matrix as JSON, e.g. `[{"apps":"immich n8n","label":"immich+n8n","size":2}]`. Skips selection entirely. |
+| `sizes` | Sizes to draw, e.g. `1,2,3`. **One combination is drawn per requested size** — `sizes: 1` is a single randomly drawn app, not "each recipe on its own". |
+| `fixed_combos` | Combinations to use verbatim, e.g. `"immich+n8n,vaultwarden"`. |
+| `seed` | Seed for the draw. The effective seed is logged either way, so any run can be replayed. |
+| `base_domain` | `base_domain` passed to `/compose`. Empty = fall back to the sslip.io name derived from the reserved test IP (IF-1386), so Traefik always renders and host ports are not published; pass `af-test.invalid` (what combination runs use) if you want a domain that can never obtain a certificate. `af-api` **requires** one for any multi-app combination. |
+| `template_id` | IONOS VM template UUID for the test VMs (default `vars.IONOS_TEMPLATE_ID`). |
+
+`test-recipes-docker.yaml` takes `sizes`, `fixed_combos` and `seed` with the same
+meanings; setting any of them switches it to combination mode.
+
+Because a multi-app VM has more than one app to assert against,
+[`scripts/gen-health-check-conf.py`](scripts/gen-health-check-conf.py) emits the
+per-app blocks itself, once per member of the selection — otherwise every app but
+one would go unchecked. There is no committed config it expands: the generator is
+the definition of the suite, and the workflow writes its output to
+`tests/recipe-health-check.combo.conf` per combination.
+
+### Running and verifying the generator locally
+
+The generator is a plain script — run it yourself to see what the workflow will assert.
+Inspecting the output for a selection just needs the recipe ids:
+
+```bash
+python3 scripts/gen-health-check-conf.py immich n8n
+```
+
+That prints the assembled config to stdout. To reproduce exactly what a live combination leg
+generates, pass the same flags the workflow does:
+
+```bash
+python3 scripts/gen-health-check-conf.py immich n8n \
+  --base-domain af-test.invalid --recipe-label immich+n8n --expect-le-staging
+```
+
+To confirm the output matches what you expect, diff it against a conf file **you** provide. That
+target file is yours and is **not** committed — this is not a golden fixture, just a scratch copy
+of the config you expect. Two routes:
+
+(a) `--check` does the diff for you and sets the exit code — a unified diff and exit 1 on any
+drift, or a `check: generated config matches …` message and exit 0 if identical. It is mutually
+exclusive with `--output`:
+
+```bash
+python3 scripts/gen-health-check-conf.py immich n8n \
+  --base-domain af-test.invalid --recipe-label immich+n8n --expect-le-staging \
+  --check my-expected.conf
+```
+
+(b) no-code fallback — capture stdout and use `diff -u`:
+
+```bash
+python3 scripts/gen-health-check-conf.py immich n8n > /tmp/out.conf && diff -u my-expected.conf /tmp/out.conf
+```
+
+Both routes need PyYAML importable in the environment (the script reads the manifest as YAML).
+
+You do not have to supply a target to be protected from an empty suite: **every** generation
+already runs the built-in `assert_config_populated` base check, which fails loudly if the config
+would declare fewer `[section]` headers than the manifest's unconditional floor, or would drop a
+per-app section for a requested app. A silently-empty "green run that tested nothing" cannot be
+emitted.
+
+Per-app checks can be overridden per recipe via `recipes/<id>/test-checks.yaml` (fully replaces,
+does not merge, that recipe's per-app list). For authoring checks — templates, gates, and the
+override mechanism — see [docs/health-check-spec.md](docs/health-check-spec.md) and the header of
+`tests/checks/manifest.yaml`; adding a check that needs a new gate also means editing the
+generator's `resolve_gates` / `resolve_app_gates`.
+
+### Committed golden snapshots
+
+The scratch `--check` above protects a config **you** describe. To guard the generator
+itself against silent drift, a small matrix of committed snapshots lives under
+[`tests/golden/`](tests/golden/). [`tests/golden/cases.yaml`](tests/golden/cases.yaml) is
+the single source of truth listing each case (its recipes, base domain, recipe label and
+LE-staging flag) and the `.conf` golden it maps to. The matrix deliberately locks the
+routable (served-certificate present), non-routable (served-certificate absent) and
+two-app combination paths.
+
+CI runs [`scripts/golden-health-checks.py`](scripts/golden-health-checks.py) — the same
+helper you run locally — which regenerates each case and diffs it against its committed
+golden, failing with an actionable `::error::` on any difference:
+
+```bash
+python3 scripts/golden-health-checks.py            # CHECK: diff each golden, non-zero on drift
+```
+
+If you intentionally change the generator's output, regenerate every golden and commit the
+result:
+
+```bash
+python3 scripts/golden-health-checks.py --update   # rewrite every committed golden
+```
+
 ### How to test a branch or a specific version
 
 1. **Recipe change (single-repo):** open a PR touching `recipes/**`. That runs, in
    parallel, `recipe-pipeline.yaml` (validation), `test-recipes-docker.yaml` (fast),
-   and `test-recipes-live.yaml` (full VM install of every *enabled* changed recipe).
-   No cross-repo setup — the `af-api` lookup falls back to `main`.
+   and `test-recipes-live.yaml` in `mode: dev` (full VM install of every *enabled*
+   changed recipe). No cross-repo setup — the `af-api` lookup falls back to `main`.
 2. **Recipe change that needs `af-api` too:** give that repo a branch with the
    **same name** (see [Same-name branch resolution](#same-name-branch-resolution)).
    The live test builds `af-api` from your branch and runs it.
@@ -485,7 +721,14 @@ version**. For the OS image these recipes install onto, see
               | "\(.properties.createdDate) \(.id) \(.properties.name)"' \
      | sort | tail
    ```
-5. **Debug a broken `af-api`:** dispatch `debug-af-api.yaml`, then attach with
+5. **Validate a production image against the real clusters:** dispatch
+   `test-recipes-live.yaml` with `mode=prod`, normally together with
+   `image_uuid=<uuid>` of a production image. No ephemeral `af-api` is built; the run
+   fans out a dev-cluster leg (advisory) and a prod-cluster leg (blocking). This is
+   what the `if-main-ubuntu-2604-af` `main` build does automatically. Do **not** use it
+   to test an `af-recipes` branch — prod-mode legs read the live cluster catalogues,
+   not your branch.
+6. **Debug a broken `af-api`:** dispatch `debug-af-api.yaml`, then attach with
    `kubectl` using the deployment name it prints.
 
 ### OS-image integration
@@ -544,7 +787,19 @@ covered by `recipe-pipeline.yaml` (static) only — no end-to-end VM run yet.
 
 - [docs/health-check-spec.md](docs/health-check-spec.md) — the `health-check.sh` contract.
 - [docs/buckets.md](docs/buckets.md) — logo storage / Object Storage operations.
-- [tests/recipe-health-check.conf](tests/recipe-health-check.conf) — the
-  `python-dwh-testsuite` config the live/nightly workflows drive.
-- `scripts/call-compose.py`, `scripts/probe-bootstrap.py`,
-  `scripts/patch-cloudinit-dev-mode.py` — helpers for talking to the per-branch `af-api`.
+- [scripts/gen-health-check-conf.py](scripts/gen-health-check-conf.py) — **the** definition
+  of the `python-dwh-testsuite` suite the live/nightly workflows run. It emits one config
+  per combination (per-app blocks plus the VM-wide ones), written to the git-ignored
+  `tests/recipe-health-check.combo.conf`; an assertion not emitted here runs nowhere.
+  Run it locally to inspect the output, or pass `--check <target.conf>` to diff the generated
+  config against a conf file you supply (unified diff, exit 1 on drift) — see
+  [Running and verifying the generator locally](#running-and-verifying-the-generator-locally).
+- `scripts/select-combinations.py` — draws the multi-app combination matrix from
+  `catalogue.json` and prints it as JSON for `strategy.matrix.include`. `--compose-only`
+  restricts it to recipes the docker leg can run.
+- `scripts/call-compose.py`, `scripts/probe-bootstrap.py` — helpers for calling
+  `/compose` and `/bootstrap`. Both take `--client-cert` / `--client-key`, which the
+  real-cluster legs of a `mode: prod` run use and the ephemeral leg omits.
+- `scripts/patch-cloudinit-dev-mode.py` — adjusts the cloud-init returned by `/compose`
+  for the leg it will boot on: `--leg ephemeral` (dev mode + sentinel, `https`→`http`),
+  `--leg dev` (dev mode, `https` kept), `--leg prod` (normal mode, untouched).

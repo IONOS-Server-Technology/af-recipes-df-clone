@@ -1,0 +1,16 @@
+# IF-1383: the compose definition must persist in /opt/@APP@ after install and
+# the handover scrub, not just live in the temp extract dir that cloud-init
+# deletes. test_install_dir_@APP@ above only proves the directory exists (it
+# passed even under the bug, when /opt/@APP@ held only a data volume) — these
+# two prove the files the definition needs are actually there. The renderer writes
+# docker-compose.yml (.yml) and .env into /opt/@APP@.
+#
+# Assumes an activated docker-compose recipe. Only enabled: true recipes reach
+# this suite, and all currently enabled recipes are docker-compose; if a native
+# recipe is ever activated these two checks must be gated on recipe_type (native
+# recipes ship no compose file or .env).
+[test_compose_file_persisted_@APP@]
+class = Plugins.Ssh.Test
+executors = exec_vm
+cmd = test -f /opt/@APP@/docker-compose.yml
+expected_exitcode = 0

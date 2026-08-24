@@ -1,0 +1,17 @@
+#
+# WRITE THIS FILE INTO tests/ (the directory that contains auto-inject/).
+# [include_auto_inject] is currently parked (IF-1465, wud has docker_auto_inject:
+# false) and is not emitted, so it resolves nothing right now, but the file still
+# belongs there: restoring that include uses the relative path "auto-inject", which
+# the TestSuite resolves against the directory of the *including* config -- not the
+# cwd -- and a missing include target is a hard exit before a single test runs, so
+# this config placed anywhere else would abort the entire suite once it is live again.
+# [test_AF Logs pull] likewise scp's into ./af-logs relative to that directory,
+# which is the path the workflow uploads as the test-results artifact.
+#
+# Every per-app section name carries the app id as a suffix. That is not cosmetic:
+# the TestSuite parses with configparser's default strict mode, and a duplicate section
+# name raises DuplicateSectionError -- the run exits 1, not silently with a green pass.
+# The suite does key loaded test cases by name into a dict, causing overwrites across
+# includes with the same section prefix, but that is one layer up and never happens
+# within the single file this generator emits.

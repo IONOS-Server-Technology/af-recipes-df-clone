@@ -43,6 +43,30 @@ on:
         description: "IF-1310 ONLY: recipe each VM installs. Needed only because /compose must mint a token against something; pick the cheapest enabled recipe."
         required: false
         default: "vaultwarden"
+      combos:
+        description: 'Combination matrix as JSON, e.g. [{"apps":"immich n8n","label":"immich+n8n","size":2}] — skips selection entirely'
+        required: false
+        default: ""
+      sizes:
+        description: "Combination sizes to draw, e.g. 1,2,3 — setting this runs select-combinations.py instead of testing each recipe on its own"
+        required: false
+        default: ""
+      fixed_combos:
+        description: 'Combinations to use verbatim, e.g. "immich+n8n,vaultwarden"'
+        required: false
+        default: ""
+      seed:
+        description: "Seed for the combination draw. Empty = a random seed drawn from system entropy. The effective seed is recorded in the job summary either way, so any run can be replayed by passing it back here"
+        required: false
+        default: ""
+      base_domain:
+        description: "base_domain passed to /compose. Empty = fall back to the sslip.io name derived from the reserved test IP (IF-1386), which is what single-recipe runs use. Combinations pass af-test.invalid. There is no no-Traefik mode: af-api requires a base_domain for any multi-app combination, and a run without one is treated as an error"
+        required: false
+        default: ""
+      template_id:
+        description: "IONOS VM template UUID for the test VMs (default: vars.IONOS_TEMPLATE_ID)"
+        required: false
+        default: ""
   # Reusable entry point so a dedicated caller (e.g. nightly-regression.yaml) can run
   # this exact pipeline in the same run — no second runner, no trigger-and-wait action.
   workflow_call:
@@ -70,6 +94,36 @@ on:
         type: string
         required: false
         default: "dev"
+      combos:
+        description: 'Combination matrix as JSON, e.g. [{"apps":"immich n8n","label":"immich+n8n","size":2}] — skips selection entirely'
+        type: string
+        required: false
+        default: ""
+      sizes:
+        description: "Combination sizes to draw, e.g. 1,2,3 — setting this runs select-combinations.py instead of testing each recipe on its own"
+        type: string
+        required: false
+        default: ""
+      fixed_combos:
+        description: 'Combinations to use verbatim, e.g. "immich+n8n,vaultwarden"'
+        type: string
+        required: false
+        default: ""
+      seed:
+        description: "Seed for the combination draw. Empty = a random seed drawn from system entropy. The effective seed is recorded in the job summary either way, so any run can be replayed by passing it back here"
+        type: string
+        required: false
+        default: ""
+      base_domain:
+        description: "base_domain passed to /compose. Empty = fall back to the sslip.io name derived from the reserved test IP (IF-1386), which is what single-recipe runs use. Combinations pass af-test.invalid. There is no no-Traefik mode: af-api requires a base_domain for any multi-app combination, and a run without one is treated as an error"
+        type: string
+        required: false
+        default: ""
+      template_id:
+        description: "IONOS VM template UUID for the test VMs (default: vars.IONOS_TEMPLATE_ID)"
+        type: string
+        required: false
+        default: ""
 
 jobs:
   detect-changed-recipes:
@@ -81,6 +135,7 @@ jobs:
       contents: read
     outputs:
       recipes: ${{ steps.detect.outputs.recipes }}
+      combos: ${{ steps.combos.outputs.combos }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
@@ -204,6 +259,142 @@ jobs:
           fi
           echo "recipes=$recipes" >> $GITHUB_OUTPUT
 
+      - name: Select recipe combinations
+        id: combos
+        # A combination is one VM. `apps` is the space-separated selection handed to
+        # /compose; `label` names the job and every path and artifact derived from it,
+        # because `apps` contains spaces as soon as there is more than one app.
+        #
+        # The single-recipe pipeline is just the size-1 case, so all three branches
+        # emit the same shape and nothing downstream has to know which one ran.
+        # select-combinations.py reads only catalogue.json and the standard library, so
+        # this step needs no pip install — but it does need an interpreter, and there is
+        # no setup-python here: it relies on the system python3 of IF_DEFAULT_RUNNER, as
+        # the test-recipes job below already does. Only combination dispatches reach it.
+        env:
+          COMBOS_INPUT: ${{ inputs.combos }}
+          SIZES: ${{ inputs.sizes }}
+          FIXED_COMBOS: ${{ inputs.fixed_combos }}
+          SEED: ${{ inputs.seed }}
+          RECIPES_JSON: ${{ steps.detect.outputs.recipes }}
+        run: |
+          set -o pipefail
+
+          if [ -n "$COMBOS_INPUT" ]; then
+            # Supplied verbatim: validate the shape here rather than letting a typo
+            # surface as a mysteriously empty matrix, or as a job that composes the
+            # literal string "null". Checked with an explicit `if !` rather than left
+            # to errexit on the assignment, so the failure carries a message that says
+            # what to fix and does not depend on which shell options are in force.
+            #
+            # `label` is shape-checked, not just type-checked: it names jobs, paths and
+            # artifacts, and it is the only field here a caller can fill with arbitrary
+            # text. \A and \z rather than ^ and $ -- Oniguruma lets $ match before a
+            # trailing newline, which ^…$ would therefore accept.
+            #
+            # `apps` is normalised, not just type-checked: the catalogue intersection in
+            # the matrix step below does `.apps | split(" ")`, so a doubled, leading or
+            # trailing space would inject an empty member that is in no catalogue and
+            # would silently drop the whole combination, reporting an unnamed recipe as
+            # missing. Blank members are dropped and an `apps` with nothing left is an
+            # error -- the same two rules parse_fixed_combos() applies in
+            # scripts/select-combinations.py. `size` is always counted from the
+            # normalised list, so it cannot drift from what the VM actually installs.
+            if ! combos=$(echo "$COMBOS_INPUT" | jq -c '
+              def members: [.apps | split("[[:space:]]+"; "")[] | select(length > 0)];
+              if type != "array" or length == 0 then
+                error("combos must be a non-empty JSON array")
+              else
+                [ .[]
+                  | if (.apps | type) != "string"
+                       or (.label | type) != "string"
+                       or ((.label | test("\\A[a-z0-9][a-z0-9._+-]*\\z")) | not)
+                    then error("every combos entry needs a string `apps` and a `label` of the form immich+n8n -- recipe-id characters, plus `+` between members")
+                    elif (members | length) == 0
+                    then error("combos entry `\(.label)` has an empty `apps`: it must name at least one recipe id, space-separated, e.g. \"immich n8n\"")
+                    elif (.size != null) and (.size != (members | length))
+                    then error("combos entry `\(.label)` declares size \(.size) but its `apps` names \(members | length) recipe id(s) -- leave `size` out and it is counted from `apps`")
+                    else members as $m | {apps: ($m | join(" ")), label, size: ($m | length)}
+                    end
+                ]
+              end'); then
+              echo "::error::the combos input is not a usable combination matrix. Expected a non-empty JSON array of objects, each with a string 'apps' (space-separated recipe ids) and a string 'label' built from recipe-id characters (lower-case alphanumerics, '.', '_', '-') joined by '+', e.g. immich+n8n. Extra spaces inside 'apps' are collapsed, but it must name at least one recipe id, and any 'size' you pass must match how many it names. See jq's message above." >&2
+              exit 1
+            fi
+            echo "Using the combination matrix supplied by the caller."
+          elif [ -n "$SIZES" ] || [ -n "$FIXED_COMBOS" ] || [ -n "$SEED" ]; then
+            args=()
+            if [ -n "$SIZES" ]; then args+=(--sizes "$SIZES"); fi
+            if [ -n "$FIXED_COMBOS" ]; then args+=(--fixed-combos "$FIXED_COMBOS"); fi
+            if [ -n "$SEED" ]; then args+=(--seed "$SEED"); fi
+            # Diagnostics (pool, effective seed, declared RAM/disk per draw) go to
+            # stderr and land in this step's log; stdout is the matrix. Capture stderr
+            # to a file so we can both echo it back into the log AND parse the
+            # effective seed out of it — stdout must stay exactly the matrix.
+            seed_log=$(mktemp)
+            if ! combos=$(python3 scripts/select-combinations.py "${args[@]}" 2>"$seed_log"); then
+              cat "$seed_log" >&2
+              rm -f "$seed_log"
+              echo "::error::select-combinations.py could not produce a matrix — its diagnostics are above. An unknown, disabled or auto-inject recipe id, or a size larger than the eligible pool, all land here." >&2
+              exit 1
+            fi
+            cat "$seed_log" >&2
+            # The script prints `seed: <n>, sizes: ...` on stderr for a random draw
+            # (not for --fixed-combos). Capture it so the job summary can record the
+            # effective seed and a nightly run can be replayed with --seed.
+            effective_seed=$(sed -n 's/^seed: \([0-9][0-9]*\),.*/\1/p' "$seed_log" | tail -n1)
+            rm -f "$seed_log"
+          else
+            # Fall-through: the PR trigger and the nightly caller land here. One
+            # combination per detected recipe, size 1, no base_domain — the same set
+            # of VMs and the same requests as before combinations existed.
+            combos=$(echo "$RECIPES_JSON" | jq -c '[.[] | {apps: ., label: ., size: 1}]')
+          fi
+
+          combo_count=$(echo "$combos" | jq 'length')
+          echo "Combinations selected ($combo_count): $(echo "$combos" | jq -r '[.[].label] | join(", ")')"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ "$combo_count" -gt 0 ]; then
+            echo "### Combinations selected for live test ($combo_count)" >> "$GITHUB_STEP_SUMMARY"
+            echo "$combos" | jq -r '.[] | "- `\(.label)` (\(.size) app(s))"' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # Record the effective seed so a nightly (or any random) draw is replayable.
+          # Only set on the random-draw path; a --fixed-combos or caller-supplied matrix
+          # has no seed and nothing to record here.
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -n "${effective_seed:-}" ]; then
+            {
+              echo ""
+              echo "**Effective seed:** \`$effective_seed\`"
+              echo ""
+              echo "If a leg fails, re-run this workflow with this seed (the \`seed\` input, or \`scripts/select-combinations.py --seed $effective_seed\`) to reproduce the exact same combination draw."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "combos=$combos" >> $GITHUB_OUTPUT
+
+      # The golden check runs gen-health-check-conf.py, which imports PyYAML (to read
+      # manifest.yaml and each recipe's metadata.yaml). This job has no container, so it
+      # uses the runner's bare system python3, which lacks PyYAML -- unlike the generator's
+      # normal invocation in the test-recipes job, which runs inside build_werkzeugkiste.
+      # Install it here, matching the repo idiom in recipe-pipeline.yaml. The stdlib-only
+      # select-combinations.py step above deliberately stays on system python3.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python3 -m ensurepip --upgrade --default-pip || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Verify health-check generator output against golden snapshots
+        # IF-1140 #7/#8: gen-health-check-conf.py is the definition of the live-test
+        # config, but nothing guarded it against silent drift. The golden fixtures under
+        # tests/golden/ and the helper below are the source of truth; running the helper
+        # with no args regenerates the config for each committed case and diffs it against
+        # its golden snapshot, failing (with an actionable ::error::) on any difference.
+        # Runs here in the early detect job so drift is caught before a single VM boots.
+        run: |
+          python3 scripts/golden-health-checks.py
+
       - name: Write mTLS client certs for the catalogue check
         # Both real clusters serve /api/v1/catalogue on the mTLS main host (only
         # /api/v1/bootstrap has its own public listener), so the check needs a
@@ -231,7 +422,7 @@ jobs:
         # assuming the two are in step.
         env:
           MODE: ${{ inputs.mode || 'dev' }}
-          RECIPES_JSON: ${{ steps.detect.outputs.recipes }}
+          COMBOS_JSON: ${{ steps.combos.outputs.combos }}
           BOOTSTRAP_LOG_REPLICAS: ${{ inputs.bootstrap_log_replicas || '0' }}
           BOOTSTRAP_LOG_RECIPE: ${{ inputs.bootstrap_log_recipe || 'vaultwarden' }}
         run: |
@@ -251,7 +442,7 @@ jobs:
               exit 1
             fi
             include=$(jq -cn --arg r "$BOOTSTRAP_LOG_RECIPE" --argjson n "$BOOTSTRAP_LOG_REPLICAS" \
-              '[range($n) | {recipe: $r, cluster: "ephemeral", replica: (. + 1)}]')
+              '[range($n) | {recipe: $r, apps: $r, label: $r, cluster: "ephemeral", replica: (. + 1)}]')
             echo "IF-1310 bootstrap-log mode: $BOOTSTRAP_LOG_REPLICAS replicas of '$BOOTSTRAP_LOG_RECIPE'"
             echo "matrix={\"include\":$include}" >> $GITHUB_OUTPUT
             exit 0
@@ -277,7 +468,7 @@ jobs:
             echo "$body" | jq -r '.applications[].id'
           }
 
-          enabled_count=$(echo "$RECIPES_JSON" | jq 'length')
+          combo_count=$(echo "$COMBOS_JSON" | jq 'length')
           if [ "$MODE" = "prod" ]; then
             clusters="dev prod"
             echo "### Prod-mode catalogue check" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
@@ -298,7 +489,7 @@ jobs:
             esac
 
             if [ -z "$api" ]; then
-              legs="$RECIPES_JSON"
+              legs="$COMBOS_JSON"
             elif ! ids=$(catalogue_ids "$c" "$api" "$crt" "$key"); then
               if [ "$c" = "prod" ]; then
                 report error "prod cluster catalogue is unreachable — cannot tell which recipes production can validate. This is an outage or a cert/allowlist problem, NOT a stale catalogue."
@@ -311,23 +502,31 @@ jobs:
             else
               avail=$(printf '%s\n' "$ids" \
                 | jq -R -s -c 'split("\n") | map(select(length > 0))')
-              legs=$(echo "$RECIPES_JSON" | jq -c --argjson a "$avail" \
-                '[.[] | select(IN($a[]))]')
-              for r in $(echo "$RECIPES_JSON" | jq -r --argjson a "$avail" \
-                           '.[] | select(IN($a[]) | not)'); do
-                report notice "recipe '${r}' is absent from the ${c} cluster catalogue — skipping the ${c} leg. The af-api deployed there predates this recipe activation."
-              done
+              # Intersect per COMBINATION, not per recipe: one VM installs every
+              # member of a combination, so it is testable on this leg only if the
+              # cluster's catalogue carries all of them. Keeping a combination and
+              # quietly dropping the missing member would turn a 3-app test into a
+              # 2-app test that still reports as the 3-app one.
+              legs=$(echo "$COMBOS_JSON" | jq -c --argjson a "$avail" \
+                '[.[] | select(((.apps | split(" ")) - $a) | length == 0)]')
+              while IFS=$'\t' read -r label missing; do
+                [ -n "$label" ] || continue
+                report notice "combination '${label}' is not testable on the ${c} cluster: ${missing} absent from its catalogue — skipping the whole combination on the ${c} leg. The af-api deployed there predates this recipe activation."
+              done < <(echo "$COMBOS_JSON" | jq -r --argjson a "$avail" \
+                '.[] | ((.apps | split(" ")) - $a) as $missing
+                     | select($missing | length > 0)
+                     | "\(.label)\t\($missing | join(", "))"')
               # Silently shipping zero production validation behind a green build is
               # the exact false-green this pipeline exists to remove.
-              if [ "$c" = "prod" ] && [ "$enabled_count" -gt 0 ] \
+              if [ "$c" = "prod" ] && [ "$combo_count" -gt 0 ] \
                  && [ "$(echo "$legs" | jq 'length')" -eq 0 ]; then
-                report error "no recipe in scope is present in the prod cluster catalogue — nothing would be validated against production. Deploy an af-api carrying these recipes to prod first."
+                report error "no combination in scope is fully present in the prod cluster catalogue — nothing would be validated against production. Deploy an af-api carrying these recipes to prod first."
                 exit 1
               fi
             fi
 
             include=$(echo "$include" | jq -c --argjson legs "$legs" --arg c "$c" \
-              '. + [$legs[] | {recipe: ., cluster: $c}]')
+              '. + [$legs[] | . + {cluster: $c}]')
           done
 
           echo "Pipeline mode: $MODE; matrix legs: $(echo "$include" | jq 'length')"
@@ -528,7 +727,7 @@ jobs:
           exit 1
 
   test-recipes:
-    name: Test Recipe - ${{ matrix.recipe }} (${{ matrix.cluster }})
+    name: Test Recipes - ${{ matrix.label }} (${{ matrix.cluster }})
     # deploy-af-api is skipped in prod mode, so gate on !failure rather than
     # success — otherwise a skipped dependency would skip this job too.
     if: ${{ !cancelled() && needs.detect-changed-recipes.result == 'success' && needs.deploy-af-api.result != 'failure' }}
@@ -537,6 +736,17 @@ jobs:
       credentials:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
+    # The ONLY containerised job in this repo, and therefore the only one where a
+    # `run:` block does not get bash by default: GHA resolves container-job steps to
+    # `sh -e {0}`, and /bin/sh in build_werkzeugkiste is dash. Bash is installed, it
+    # just has to be asked for. Declared job-wide rather than per step so the next
+    # step added here cannot silently reintroduce the trap.
+    # Note this is `bash --noprofile --norc -eo pipefail {0}`, not the implicit
+    # `bash -e {0}` — pipefail is deliberate: it stops a failing `… | tee` from
+    # passing the step off with a half-written file.
+    defaults:
+      run:
+        shell: bash
     needs: [detect-changed-recipes, deploy-af-api]
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
@@ -631,8 +841,8 @@ jobs:
 
       - name: Resolve leg configuration
         id: leg
-        # One matrix entry = one recipe on one cluster leg. Map the leg to its
-        # af-api URL; the ephemeral leg uses the per-run deploy job's NodePort.
+        # One matrix entry = one combination of apps on one cluster leg. Map the leg
+        # to its af-api URL; the ephemeral leg uses the per-run deploy job's NodePort.
         env:
           CLUSTER: ${{ matrix.cluster }}
         run: |
@@ -686,8 +896,32 @@ jobs:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
         run: |
-          ip_block_name="${{ matrix.recipe }}_${{ matrix.cluster }}_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_ip"
+          # Combination labels carry a '+' (e.g. immich+n8n), which has never
+          # reached an IONOS block name before, so fold anything outside the
+          # safe set to a dash.
+          label="${{ matrix.label }}"
+          ip_block_name="${label//[^A-Za-z0-9_-]/-}_${{ matrix.cluster }}_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_ip"
           python3 scripts/reserve-test-ip.py --name "$ip_block_name"
+
+      - name: Resolve base_domain
+        id: domain
+        # MUST stay after "Reserve test IP": the fall-through reads that step's output,
+        # and a step reading a later step's output gets "" with no error.
+        # Combination runs pass base_domain explicitly (af-test.invalid: RFC 2606-reserved,
+        # so LE rejects the identifier at order creation — no rate-limit exposure, no cert
+        # for a VM that lives minutes). Single-recipe runs fall back to the routable
+        # sslip.io name derived from the IP reserved above (IF-1386).
+        env:
+          INPUT_BASE_DOMAIN: ${{ inputs.base_domain }}
+          RESERVED_BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
+        run: |
+          base_domain="${INPUT_BASE_DOMAIN:-$RESERVED_BASE_DOMAIN}"
+          if [ -z "$base_domain" ]; then
+            echo "::error::base_domain resolved empty — /compose would render no Traefik. Reserve test IP must run before this step." >&2
+            exit 1
+          fi
+          echo "base_domain=${base_domain}" >> "$GITHUB_OUTPUT"
+          echo "base_domain: ${base_domain}"
 
       - name: Generate cloud-init via /compose
         id: compose
@@ -699,14 +933,21 @@ jobs:
         continue-on-error: ${{ matrix.cluster == 'dev' }}
         env:
           CLUSTER: ${{ matrix.cluster }}
-          RECIPE: ${{ matrix.recipe }}
+          APPS: ${{ matrix.apps }}
+          LABEL: ${{ matrix.label }}
+          BASE_DOMAIN: ${{ steps.domain.outputs.base_domain }}
           FINALIZE_DISABLED: ${{ inputs.finalize_disabled }}
-          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
           keep_finalize_flag=""
           if [ "$FINALIZE_DISABLED" = "false" ]; then
             keep_finalize_flag="--keep-finalize"
           fi
+
+          # Split into an array and expand as "${apps[@]}". Passing "$APPS" as one
+          # quoted word hands argparse the single recipe name "immich n8n", which dies
+          # as an unknown recipe — the size-1 case papered over this for as long as
+          # every combination had exactly one member.
+          read -ra apps <<< "$APPS"
 
           case "$CLUSTER" in
             ephemeral)
@@ -722,7 +963,7 @@ jobs:
                 --base-domain "$BASE_DOMAIN" \
                 --root-password-file /tmp/vm_root_password \
                 --use-staging-le \
-                "$RECIPE" | tee /tmp/cloudinit.yaml
+                "${apps[@]}" | tee /tmp/cloudinit.yaml
               ;;
             dev)
               # Prod-mode dev-cluster leg: reach the real dev af-api and present the
@@ -737,7 +978,7 @@ jobs:
                 --base-domain "$BASE_DOMAIN" \
                 --root-password-file /tmp/vm_root_password \
                 --use-staging-le \
-                "$RECIPE" | tee /tmp/cloudinit.yaml
+                "${apps[@]}" | tee /tmp/cloudinit.yaml
               ;;
             prod)
               # Prod-mode prod-cluster leg: reach the real prod af-api. The prod main
@@ -754,7 +995,7 @@ jobs:
                 --base-domain "$BASE_DOMAIN" \
                 --root-password-file /tmp/vm_root_password \
                 --use-staging-le \
-                "$RECIPE" | tee /tmp/cloudinit.yaml
+                "${apps[@]}" | tee /tmp/cloudinit.yaml
               ;;
           esac
 
@@ -805,10 +1046,13 @@ jobs:
           # 28 = timeout, 35 = TLS, 56/55 = peer reset mid-request (what an Envoy
           # mTLS rejection looks like). http_code is logged for context.
           probe() {  # $1 url -> sets PROBE_EXIT and PROBE_CODE
-            # GHA runs this step under `bash -e` (no `shell:` key = `bash -e {0}`),
-            # and a bare `X=$(cmd)` adopts cmd's exit status, so a failing curl would
-            # kill the step before the verdict below runs — including the expected
-            # mTLS refusal. The && / || list keeps errexit out of it.
+            # This step runs under errexit — the job's `defaults.run.shell: bash`
+            # resolves to `bash --noprofile --norc -eo pipefail {0}`. (It is NOT the
+            # implicit default: this job is containerised, and without that `defaults`
+            # block GHA would hand these steps to `sh -e`, i.e. dash.) A bare
+            # `X=$(cmd)` adopts cmd's exit status, so a failing curl would kill the
+            # step before the verdict below runs — including the expected mTLS
+            # refusal. The && / || list keeps errexit out of it.
             PROBE_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$1") \
               && PROBE_EXIT=0 || PROBE_EXIT=$?
           }
@@ -850,11 +1094,12 @@ jobs:
         # we got back from variant 1.
         env:
           CLUSTER: ${{ matrix.cluster }}
-          RECIPE: ${{ matrix.recipe }}
+          APPS: ${{ matrix.apps }}
+          LABEL: ${{ matrix.label }}
           # Same base_domain passed to the real /compose call above — probe-bootstrap.py
           # makes its own separate /compose call, so without this its diagnostic
           # archive silently omits the Traefik block the real VM actually gets (IF-1386).
-          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
+          BASE_DOMAIN: ${{ steps.domain.outputs.base_domain }}
         run: |
           # Both real-cluster legs need the cert: probe-bootstrap.py makes its own
           # /compose call against the mTLS main host. Its /bootstrap redemption
@@ -864,26 +1109,31 @@ jobs:
           if [ "$CLUSTER" != "ephemeral" ]; then
             cert_args="--client-cert /tmp/af_client.crt --client-key /tmp/af_client.key"
           fi
+
+          read -ra apps <<< "$APPS"
+
+          # The output path keys on LABEL, not APPS: a multi-app APPS contains spaces
+          # and would produce several bogus filenames instead of one.
           python3 scripts/probe-bootstrap.py \
             --api-url "${{ steps.leg.outputs.api_url }}" \
             --ssh-public-key "$(cat /tmp/vm_key.pub)" \
-            --bootstrap-output "/tmp/bootstrap-response-${RECIPE}.tar.gz" \
+            --bootstrap-output "/tmp/bootstrap-response-${LABEL}.tar.gz" \
             --base-domain "$BASE_DOMAIN" \
             --use-staging-le \
             $cert_args \
-            "$RECIPE"
+            "${apps[@]}"
       - uses: actions/upload-artifact@v7
         name: Upload bootstrap response as Artifact
         if: always()
         with:
-          # Cluster in the name: a prod-mode run has two legs per recipe, and
+          # Cluster in the name: a prod-mode run has two legs per combination, and
           # without it downloading the failed prod leg's artifact hands you the
           # dev leg's instead.
           # Replica suffix (empty outside replica mode): N replica legs share recipe
           # AND cluster, so without it every leg writes the same artifact name and
           # only one survives.
-          name: bootstrap-response-${{ matrix.recipe }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
-          path: /tmp/bootstrap-response-${{ matrix.recipe }}.tar.gz
+          name: bootstrap-response-${{ matrix.label }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
+          path: /tmp/bootstrap-response-${{ matrix.label }}.tar.gz
           archive: false
           if-no-files-found: warn
           retention-days: 30
@@ -910,6 +1160,45 @@ jobs:
           path: if-image-tests
           token: ${{ env.GH_APP_TOKEN }}
 
+      - name: Generate the health-check config for this combination
+        id: healthconf
+        # One conf per combination, generated by scripts/gen-health-check-conf.py --
+        # which is the definition of this suite; there is no committed config to fall
+        # back on. A static one would have to assert a single $RECIPE_NAME, so on a
+        # 3-app VM it would check one app and report green for the other two.
+        env:
+          APPS: ${{ matrix.apps }}
+          BASE_DOMAIN: ${{ steps.domain.outputs.base_domain }}
+          # Same value the Run ImageTester step exports as RECIPE_NAME. The generator
+          # needs it to decide whether the served-cert check can pass, because that
+          # check curls https://$RECIPE_NAME.$BASE_DOMAIN. Routed through env: because
+          # a `combos` dispatch controls this label, and an expression interpolated
+          # into a run block becomes shell source rather than data. (The Reserve test
+          # IP step above still interpolates matrix.label directly; the combos input
+          # validator rejects every shell metacharacter, so it is safe today.)
+          LABEL: ${{ matrix.label }}
+        run: |
+          read -ra apps <<< "$APPS"
+          # Must be written into tests/: [include_auto_inject] uses a relative path,
+          # which the TestSuite resolves against the including conf's own directory,
+          # and a missing include target exits hard before a single test runs.
+          out=tests/recipe-health-check.combo.conf
+          # Unconditional on every leg. Since IF-1385 the staging directory is a
+          # property of the request, not of the deployment: every /compose call in
+          # this workflow passes --use-staging-le (all three legs above, plus the
+          # probe-bootstrap call), so af-api renders the staging caserver line into
+          # the Traefik compose it hands back regardless of what env vars that
+          # cluster's own deployment carries.
+          python3 scripts/gen-health-check-conf.py \
+            --base-domain "$BASE_DOMAIN" \
+            --recipe-label "$LABEL" \
+            --expect-le-staging \
+            --output "$out" \
+            "${apps[@]}"
+          echo "config=$out" >> "$GITHUB_OUTPUT"
+          echo "--- $out ---"
+          cat "$out"
+
       - name: Run ImageTester
         id: imagetester
         continue-on-error: ${{ matrix.cluster == 'dev' }}
@@ -917,8 +1206,29 @@ jobs:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
           IONOS_DATACENTER_ID: ${{ vars.IONOS_DATACENTER_ID }}
-          IONOS_TEMPLATE_ID: 2713068b-f0bb-441a-9bdc-b2961e81408b # VPS 6-8-240
-          RECIPE_NAME: ${{ matrix.recipe }}
+          # Overridable so a combination that needs more RAM than VPS 6-8-240 can be
+          # dispatched against a bigger template without editing this file. The
+          # literal stays as the last fallback: it is what every run used before the
+          # input existed, so an unset input and an undefined repo variable must keep
+          # landing on it rather than on an empty template id.
+          IONOS_TEMPLATE_ID: ${{ inputs.template_id || vars.IONOS_TEMPLATE_ID || '2713068b-f0bb-441a-9bdc-b2961e81408b' }} # default: VPS 6-8-240
+          # Combination label, for logging and for the tests that report which VM they
+          # ran on. The per-app assertions do not read it — they have the app name
+          # substituted into their section names at generation time. check-traefik-cert.sh
+          # in if-image-tests does read it, as the host $RECIPE_NAME.$BASE_DOMAIN, which
+          # is exactly why the generator emits the served-cert check only when this label
+          # is itself a routable app id: Traefik routes <recipe-id>.<base_domain> and
+          # nothing else, so a combination label (immich+n8n) or a custom one from a
+          # `combos` dispatch (n8n-smoke) names a host no router matches.
+          RECIPE_NAME: ${{ matrix.label }}
+          # Exported ONCE, and from the same step that fed /compose. It is both expanded
+          # inside the generated conf and read straight out of the process env by
+          # check-traefik-cert.sh. It used to be exported twice under two names —
+          # AF_BASE_DOMAIN from steps.domain and BASE_DOMAIN from steps.reserve_ip —
+          # which on a combination run described two different domains: the explicitly
+          # passed af-test.invalid and the sslip.io name of the reserved IP.
+          BASE_DOMAIN: ${{ steps.domain.outputs.base_domain }}
+          TEST_CONFIG: ${{ steps.healthconf.outputs.config }}
           # Used by the diagnostic SSH tests to verify the VM can reach af-api
           # (the per-run NodePort in dev mode, or the real cluster in prod mode).
           AF_API_URL: ${{ steps.leg.outputs.api_url }}/api/v1
@@ -936,30 +1246,7 @@ jobs:
           # base_domain for /compose above, so the server must come up bound
           # to this exact address.
           RESERVED_SERVER_IP: ${{ steps.reserve_ip.outputs.ip }}
-          # Same base_domain that went into /compose above -- lets the test suite
-          # curl the app through Traefik at https://$RECIPE_NAME.$BASE_DOMAIN and
-          # assert which cert (staging vs. production) it's actually serving (IF-1386).
-          BASE_DOMAIN: ${{ steps.reserve_ip.outputs.base_domain }}
         run: |
-          # IF-1458: tell the suite whether this recipe is supposed to sit behind basic
-          # auth, so check-basic-auth.sh can assert both directions -- 401 where declared,
-          # no 401 where not. Derived by parsing metadata.yaml with af-api's own rule, not
-          # by grepping for the string: recipes that only *mention* basic_auth in a comment
-          # (vaultwarden) would otherwise be misread as protected.
-          RECIPE_BASIC_AUTH=$(python3 scripts/recipe-wants-basic-auth.py "$RECIPE_NAME")
-          export RECIPE_BASIC_AUTH
-          # Fail loudly on anything but a clean true/false. An empty or unexpected value
-          # would otherwise reach check-basic-auth.sh as a broken --expect-protected and
-          # be reported as a test failure, pointing at the app rather than at this step.
-          case "$RECIPE_BASIC_AUTH" in
-            true|false) ;;
-            *)
-              echo "recipe-wants-basic-auth.py returned '$RECIPE_BASIC_AUTH' for $RECIPE_NAME, expected true or false" >&2
-              exit 1
-              ;;
-          esac
-          echo "Recipe $RECIPE_NAME basic_auth: $RECIPE_BASIC_AUTH"
-
           # Where to find the password that went to /compose, so the suite can
           # authenticate through the middleware. The path, not the value: TestSuite's
           # ShellExecutor copies the whole environment into every test process and logs
@@ -969,11 +1256,6 @@ jobs:
           export AF_ROOT_PASSWORD_FILE=/tmp/vm_root_password
 
           testsuite_exclude_flag=""
-          # One config for every leg. The IF-1310 forwarder checks are included from
-          # recipe-health-check.conf rather than swapped in behind a dispatch input:
-          # every VM here runs the forwarder, so "did the log get out, and is the
-          # forwarder gone afterwards" is an ordinary property of a healthy bootstrap.
-          test_config="tests/recipe-health-check.conf"
           if [ "$FINALIZE_DISABLED" != "false" ]; then
             # With af-finalize switched off it performs no scrub and no teardown, so
             # the FIN-marked tests — which assert exactly that those happened — would
@@ -985,7 +1267,7 @@ jobs:
             --cloudinit /tmp/cloudinit.yaml \
             --ssh-keypair-private /tmp/vm_key \
             --ssh-keypair-public /tmp/vm_key.pub \
-            --test-config "$test_config" \
+            --test-config "$TEST_CONFIG" \
             $testsuite_exclude_flag > "imagetester-output-${RECIPE_NAME}.log"
 
       - name: Release test IP
@@ -1012,7 +1294,7 @@ jobs:
           # Replica suffix (empty outside replica mode). Without it the N replica legs
           # collide on one name and overwrite: true silently leaves a single VM's
           # results behind — a destroyed run that still looks green.
-          name: AppTestResults-${{ matrix.recipe }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
+          name: AppTestResults-${{ matrix.label }}-${{ matrix.cluster }}${{ matrix.replica && format('-r{0}', matrix.replica) || '' }}
           path: tests/af-logs/
           if-no-files-found: error
           retention-days: 30
@@ -1024,19 +1306,19 @@ jobs:
         # failure loudly here instead of letting it silently pass.
         if: ${{ always() && matrix.cluster == 'dev' }}
         env:
-          RECIPE: ${{ matrix.recipe }}
+          LABEL: ${{ matrix.label }}
         run: |
           if [ "${{ steps.compose.outcome }}" = "failure" ] \
              || [ "${{ steps.probe.outcome }}" = "failure" ] \
              || [ "${{ steps.imagetester.outcome }}" = "failure" ]; then
-            msg="dev-cluster leg for ${RECIPE} failed — non-blocking. Dev runs pre-release af-api/recipes; this is a forward-compat signal, not a production gate. The prod-cluster leg gates the build."
+            msg="dev-cluster leg for ${LABEL} failed — non-blocking. Dev runs pre-release af-api/recipes; this is a forward-compat signal, not a production gate. The prod-cluster leg gates the build."
             echo "::warning::${msg}"
             {
-              echo "### ⚠️ dev-cluster leg failed (non-blocking): ${RECIPE}"
+              echo "### ⚠️ dev-cluster leg failed (non-blocking): ${LABEL}"
               echo "$msg"
             } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "dev-cluster leg for ${RECIPE} passed."
+            echo "dev-cluster leg for ${LABEL} passed."
           fi
 
   bootstrap-log-verify:
@@ -1187,18 +1469,23 @@ jobs:
           # Via env, not ${{ }}: the value carries recipe names that originate in
           # the workflow_dispatch input, and the shell single-quoting below would
           # not survive one containing a quote.
-          RECIPES_JSON: ${{ needs.detect-changed-recipes.outputs.recipes }}
+          #
+          # Combinations, not detected recipes: a dispatch that passes `combos` or
+          # `sizes` tests VMs regardless of what changed, so gating the no-op on the
+          # detected-recipe count would report "nothing to do" — and exit 0 — for a
+          # run whose combinations had in fact just failed.
+          COMBOS_JSON: ${{ needs.detect-changed-recipes.outputs.combos }}
         run: |
           if [ "${{ needs.detect-changed-recipes.result }}" != "success" ]; then
             echo "Recipe detection failed"
             exit 1
           fi
-          # An empty matrix means no activated recipe was in scope (e.g. only
-          # disabled recipes changed). That's a clean no-op, not a failure —
-          # test-recipes is 'skipped' in that case.
-          count=$(echo "$RECIPES_JSON" | jq 'length' 2>/dev/null || echo 0)
+          # An empty matrix means nothing was in scope (e.g. only disabled recipes
+          # changed). That's a clean no-op, not a failure — test-recipes is 'skipped'
+          # in that case.
+          count=$(echo "$COMBOS_JSON" | jq 'length' 2>/dev/null || echo 0)
           if [ "${count:-0}" = "0" ]; then
-            echo "No activated recipes to test — nothing to do."
+            echo "No combinations to test — nothing to do."
             exit 0
           fi
           if [ "${{ needs.test-recipes.result }}" == "success" ]; then

@@ -1,0 +1,178 @@
+# The check list for the live recipe pipeline's ImageTester config.
+#
+# scripts/gen-health-check-conf.py reads this file, resolves the gates below for
+# the selection it was invoked with, and concatenates the templates named here.
+# The generator emits no INI of its own: every byte of the produced config comes
+# from a tests/checks/*.conf.tmpl file.
+#
+# Entry keys
+# ----------
+# template  Path under tests/checks/, WITHOUT the ".conf.tmpl" suffix. The suffix
+#           is load-bearing: the TestSuite loads a directory of checks by matching
+#           endswith(".conf"), so a template that ended in .conf would be picked up
+#           as a test config in its own right.
+# scope     per_vm   emitted once, however many apps are in the selection.
+#           per_app  emitted once per app, with @APP@ replaced by the recipe id.
+# gate      The name of a boolean the generator resolves for this run (see
+#           resolve_gates() -- gate LOGIC stays in Python, this file only names it).
+#           "always" is unconditional. Unknown names are a hard error. A per_app
+#           check may additionally name a gate resolved once per app by
+#           resolve_app_gates(), which is how one app of a selection can be given a
+#           block the next one is not; a per_vm check has no app to resolve those
+#           against and naming one is the same hard error.
+# join      How this block attaches to the one before it.
+#           blank  (default) a blank line between the two blocks.
+#           tight  a single newline, i.e. the block continues the previous one.
+#                  Used for the header, which is one comment paragraph assembled
+#                  from gated one-line fragments, and for the BASE_DOMAIN entry of
+#                  [require_env], which is one option line inside a static section.
+#
+# Placeholders
+# ------------
+# @APP@ is the only placeholder in a check template, and only per_app templates
+# use it. The header/ fragments additionally take @APPS@ (the selection, comma-
+# joined) and @BASE_DOMAIN@, because those two lines report values rather than
+# describe a check.
+#
+# Order
+# -----
+# Emission order is this list, top to bottom -- never the filesystem's. Two
+# orderings are deliberate and must not be disturbed:
+#   * the AF Logs pair runs LAST, after [include_auto_inject], because it collects
+#     the evidence for whatever failed before it (the TestSuite executes tests in
+#     load order);
+#   * the resource diagnostic runs after the per-app checks, so it measures a fully
+#     started VM rather than a half-installed one.
+#
+# The per_app entries must form ONE contiguous run: the generator expands that run
+# once per app, in selection order, so that a red run names the app that failed.
+#
+# Per-recipe override
+# -------------------
+# If recipes/<id>/test-checks.yaml exists it REPLACES this file's per_app entries
+# for that recipe -- a full replace, not a merge, so the file has to list every
+# check that recipe wants. The per_vm entries and the emission position of the
+# per-app run always come from this manifest. No recipe ships an override today.
+# The use it exists for is a recipe that cannot satisfy a default check (a native
+# recipe has no docker-compose.yml or .env to persist, for instance).
+checks:
+  # ---- header: one comment paragraph, assembled from gated one-liners ----
+  - template: header/preamble
+    scope: per_vm
+    gate: always
+  - template: header/base-domain
+    scope: per_vm
+    gate: base_domain
+    join: tight
+  - template: header/no-base-domain
+    scope: per_vm
+    gate: no_base_domain
+    join: tight
+  # Exactly one of the four TLS lines matches; together they cover every state.
+  - template: header/tls-no-base-domain
+    scope: per_vm
+    gate: no_base_domain
+    join: tight
+  - template: header/tls-le-staging-not-requested
+    scope: per_vm
+    gate: le_staging_not_requested
+    join: tight
+  - template: header/tls-le-staging-and-cert
+    scope: per_vm
+    gate: cert_check
+    join: tight
+  - template: header/tls-le-staging-only
+    scope: per_vm
+    gate: le_staging_without_cert_check
+    join: tight
+  - template: header/epilogue
+    scope: per_vm
+    gate: always
+    join: tight
+
+  # ---- environment and executors ----
+  # RECIPE_NAME is no longer read by any block below (each app is substituted in at
+  # generation time) but stays declared because the workflow still exports it and it
+  # is useful in the run log. check-traefik-cert.sh reads it as well, but out of the
+  # process env rather than through $VAR expansion here.
+  - template: require-env
+    scope: per_vm
+    gate: always
+  # One option line appended to [require_env] above, hence join: tight. BASE_DOMAIN
+  # is only declared when the routing blocks are emitted; an undeclared $VAR is left
+  # in the config literally, with no warning.
+  #
+  # BASE_DOMAIN, not the AF_-prefixed spelling used elsewhere in this repo: the
+  # served-certificate check shells out to check-traefik-cert.sh, which lives in
+  # if-image-tests and reads BASE_DOMAIN (and RECIPE_NAME) straight out of the process
+  # env. That script is not ours to change from here, so it is what fixes the spelling
+  # -- for this file and for the workflow's export alike.
+  - template: require-env-base-domain
+    scope: per_vm
+    gate: base_domain
+    join: tight
+  - template: executors
+    scope: per_vm
+    gate: always
+
+  # ---- per-VM smoke checks: one VM serves the whole selection ----
+  - template: bootstrap-reachable
+    scope: per_vm
+    gate: always
+  - template: docker-images
+    scope: per_vm
+    gate: always
+
+  # ---- per-app checks: expanded once per app, in selection order ----
+  - template: install-dir
+    scope: per_app
+    gate: always
+  - template: compose-file-persisted
+    scope: per_app
+    gate: always
+  - template: env-file-persisted
+    scope: per_app
+    gate: always
+  - template: health-check
+    scope: per_app
+    gate: always
+  # Per-app gate: a base_domain alone is not enough, the recipe also has to declare a
+  # port af-api would route (public + http + tcp). A recipe without one -- adguard-home,
+  # reached over WireGuard only -- gets no Traefik router, so the check is skipped for
+  # that app while the other apps of the same selection keep theirs.
+  - template: traefik-route
+    scope: per_app
+    gate: traefik_route
+  - template: basic-auth
+    scope: per_app
+    gate: traefik_route
+
+  # ---- Traefik TLS: VM-wide, so after the per-app run rather than inside it ----
+  - template: traefik-le-staging
+    scope: per_vm
+    gate: le_staging
+  - template: traefik-cert-issuer
+    scope: per_vm
+    gate: cert_check
+
+  # ---- post-install diagnostics ----
+  - template: resource-diagnostic
+    scope: per_vm
+    gate: multi_app_or_routed
+
+  # ---- trailer: the AF Logs pair stays last, see "Order" above ----
+  # IF-1465: parked while wud -- the only auto-inject recipe -- has docker_auto_inject:
+  # false. With nothing injected the auto-inject blocks fail on every recipe leg, not
+  # just wud's. Restore this entry together with that flag.
+  # - template: auto-inject
+  #   scope: per_vm
+  #   gate: always
+  # IF-1310: bootstrap-log forwarding checks, VM-wide, emitted once per VM.
+  # Global include (like auto-inject), not gated on routability. Sits just before the
+  # AF Logs pair so its own journal dump lands before AF Logs pulls /tmp/af-logs.
+  - template: bootstrap-log
+    scope: per_vm
+    gate: always
+  - template: af-logs
+    scope: per_vm
+    gate: always

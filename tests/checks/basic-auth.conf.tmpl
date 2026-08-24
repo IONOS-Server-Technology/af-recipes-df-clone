@@ -1,0 +1,19 @@
+# IF-1490: the app password must be in force from outside exactly as @APP@'s metadata
+# declares. Runs on exec_local, like the cert check, because a VM curling its own public
+# IP hits hairpin NAT. --expect-protected is baked in as @BASIC_AUTH@.
+#
+# One test, both directions: a protected recipe must send an anonymous visitor to /_af/login,
+# an unprotected one must not. --with-credentials then adds a login stage -- on a protected
+# recipe the server password must be issued a session cookie that reaches the app (a redirect
+# alone only proves some gate is attached), plus a deliberately wrong password that must be
+# refused; on an unprotected one it is a control that /_af/login serves no page. The password
+# is read from a file, never the cmd line.
+#
+# Until IF-1490 this asserted Traefik's basicauth middleware and a 401; that middleware is
+# gone, so the old assertion failed on every protected recipe while the product worked.
+[test_app_password_enforced_@APP@]
+class = Plugins.Shell.Test
+executors = exec_local
+comment = App password enforced as declared for @APP@, probed anonymously and with a login
+cmd = bash $WORKFLOW_HOMEDIR/if-image-tests/app-tests/application-factory/check-app-password.sh --app @APP@ --expect-protected @BASIC_AUTH@ --with-credentials
+expected_exitcode = 0

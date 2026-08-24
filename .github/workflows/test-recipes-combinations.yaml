@@ -1,0 +1,72 @@
+name: Test Recipe Combinations
+
+# Multi-app coverage (IF-1140). Customers can select several apps for one VM, but
+# every other test pipeline installs exactly one, so nothing exercises apps sharing
+# a VM — or the Traefik render that a multi-app selection forces.
+#
+# Like the nightly regression, this re-implements nothing: it calls the real
+# test-recipes-live.yaml via workflow_call, only with a combination matrix and a
+# base_domain instead of one recipe per VM.
+#
+# Deliberately NOT on the PR trigger, and deliberately mode: dev (its default).
+# A randomly drawn combination must not be able to fail an unrelated merge, and
+# mode: prod would double the VM cost per combination while letting a random draw
+# block a production image build. Scheduled rather than dispatch-only because a
+# test nothing triggers is a test nobody runs.
+
+on:
+  schedule:
+    # 03:00, an hour after nightly-regression.yaml, so the two do not compete for
+    # runners or IONOS VM quota.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      sizes:
+        description: "Combination sizes to draw, one combination per size"
+        required: false
+        default: "1,2,3"
+      fixed_combos:
+        description: 'Combinations to use verbatim instead of drawing, e.g. "immich+n8n,vaultwarden"'
+        required: false
+        default: ""
+      seed:
+        description: "Seed for the draw, to replay a specific run. The effective seed is logged either way"
+        required: false
+        default: ""
+      base_domain:
+        description: "base_domain sent to /compose. The default is RFC 2606-reserved and can never resolve, so ACME is rejected at order creation and no certificate is issued"
+        required: false
+        default: "af-test.invalid"
+      template_id:
+        description: "IONOS VM template UUID, to run a combination on something larger than the default VPS 6-8-240"
+        required: false
+        default: ""
+      finalize_break_glass:
+        description: "true = boot with af-finalize break-glass (skips its cloud-init cache scrub); false = let af-finalize run for real"
+        required: false
+        default: "true"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  combinations:
+    name: Live recipe tests (app combinations)
+    uses: ./.github/workflows/test-recipes-live.yaml
+    with:
+      # A scheduled run gets no inputs, so fall back to the same defaults the
+      # dispatch form offers — otherwise the nightly would hit the single-recipe
+      # fall-through branch and quietly stop testing combinations at all.
+      sizes: ${{ inputs.sizes || '1,2,3' }}
+      fixed_combos: ${{ inputs.fixed_combos || '' }}
+      seed: ${{ inputs.seed || '' }}
+      base_domain: ${{ inputs.base_domain || 'af-test.invalid' }}
+      template_id: ${{ inputs.template_id || '' }}
+      # Passed through so test-recipes-live.yaml's existing exclude logic keeps
+      # skipping the af_FIN_* scrub tests. Those are per-VM, so they run once per
+      # combination however many apps it has — correct as-is.
+      finalize_break_glass: ${{ inputs.finalize_break_glass || 'true' }}
+      # mode is left at its 'dev' default on purpose: that is the single
+      # ephemeral-af-api leg. See the header.
+    secrets: inherit

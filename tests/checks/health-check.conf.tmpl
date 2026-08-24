@@ -1,0 +1,13 @@
+# Upload the recipe's health-check.sh to the VM and run it there, so it can
+# curl the app on localhost and inspect docker state. Uploads via SFTP over the
+# exec_vm SSH session, then runs cmd on that same session.
+# dst stays under /tmp: an unwritable or non-existent dst directory raises an
+# uncaught ValueError out of the UploadExecute plugin, which aborts every
+# remaining test in the run instead of just failing this one.
+[test_health_check_@APP@]
+class = Plugins.UploadExecute.Test
+executors = exec_vm
+src = $WORKFLOW_HOMEDIR/recipes/@APP@/health-check.sh
+dst = /tmp/af-hc-@APP@.sh
+cmd = bash /tmp/af-hc-@APP@.sh
+expected_exitcode = 0
