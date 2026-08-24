@@ -33,7 +33,12 @@ recipes/<id>/
 2. Fill in `metadata.yaml` — see RFC-001 for every field. Key rules:
    - Parameter names are `UPPER_SNAKE_CASE` and must be referenced in
      `.env.template`, the compose file, or `install.sh`.
-   - `auto_generate: true` is only valid on `type: password` parameters.
+   - `generated_from: <argon2|bcrypt|scrypt>:ROOT_PASSWORD` derives a parameter
+     from the customer's server password at compose time; only valid on
+     `type: password` parameters. (There is no `auto_generate` flag.)
+   - Record where you adapted the compose file from in `compose_file_url` /
+     `compose_file_notes` — a direct link to the file, pinned if upstream offers
+     a tag, and `null` plus a reason when no official one exists (RFC-001 §4.7).
    - Bump `recipe_version` (semver) on **any** change to a published recipe.
 3. Add a logo (see the next section) for any `enabled: true` recipe.
 4. Validate locally before opening a PR:

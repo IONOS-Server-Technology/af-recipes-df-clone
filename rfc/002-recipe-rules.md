@@ -23,7 +23,7 @@ If a rule cannot be expressed concretely enough to be machine-checked, it does n
 
 Each rule has:
 
-- **ID** — a stable, descriptive slug (`no-public-db-port`, `image-tag-pinned`, …). Stable; never reused. Slugs are chosen to read like assertions, so a finding line in agent output or CI log is intelligible without looking up this RFC.
+- **ID** — a stable, descriptive slug (`no-public-db-port`, `bind-mount-under-opt`, …). Stable; never reused. Slugs are chosen to read like assertions, so a finding line in agent output or CI log is intelligible without looking up this RFC.
 - **Level** — `ERROR` (blocks merge) or `WARN` (advisory).
 - **What** — the rule, one sentence.
 - **How to check** — concrete, deterministic procedure to evaluate the rule against a recipe.
@@ -88,12 +88,15 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** String comparison.
 - **Why:** The directory name is the slug used everywhere (URLs, `incompatible_with_apps`, install paths). Divergence breaks lookups.
 
-#### `app-version-pinned`
+#### `app-version-pinned` — RETIRED (IF-1500)
 
-- **Level:** ERROR
-- **What:** `metadata.app_version` must not be `latest` (case-insensitive).
-- **How to check:** `str(app_version).lower() != "latest"`.
-- **Why:** Customer machines need reproducible installs; rollbacks are impossible if `latest` shifts.
+- **Level:** ~~ERROR~~ — retired, no longer checked.
+- **What it was:** `metadata.app_version` must not be `latest` (case-insensitive).
+- **Status:** Retired with `image-tag-pinned` when we adopted upstream's versioning (§3.5).
+  A recipe whose image floats has no pinned version to name, so `latest` or `stable` became
+  the honest value for the field rather than a defect. Nothing parses `app_version` — it
+  reaches the `/catalogue` response and the compose token and is read by neither — so the
+  rule protected a property no code depended on. Slug retired, never reused.
 
 #### `recipe-version-semver`
 
@@ -332,12 +335,34 @@ Thresholds are constants in [`src/af_api/core/logo_validator.py`](https://github
 - **How to check:** `yaml.safe_load`.
 - **Why:** Same as `metadata-valid-yaml`.
 
-#### `image-tag-pinned`
+#### `image-tag-pinned` — RETIRED (IF-1500)
 
-- **Level:** ERROR
-- **What:** Every `image:` value has an explicit tag, and the tag is not `latest`.
-- **How to check:** Regex `image:\s*(\S+)` over the file. For each match, fail if it ends with `:latest` or contains no `:` after a `/`.
-- **Why:** Reproducibility (see `app-version-pinned`); also makes WUD diffs meaningful.
+- **Level:** ~~ERROR~~ — retired, no longer checked.
+- **What it was:** Every `image:` value has an explicit tag, and the tag is not `latest`.
+- **Status:** Retired when the versioning policy changed. **A recipe now follows whatever its
+  upstream reference does** — pinned where upstream pins, floating (`:latest` included) where
+  upstream floats — applied per image, so a recipe may pin its database and float its app if
+  that is what upstream does. The old rule contradicts that outright.
+
+  It was not reworded into a conditional rule because the condition is not knowable here:
+  whether a tag matches upstream is a fact about someone else's repository, and RFC-001 §4.7
+  is explicit that `compose_file_url` is never fetched at build or run time. A rule that
+  cannot evaluate its own predicate is worse than no rule. Comparison happens in the upstream
+  sweep (§6) instead, by a human reading the reference.
+
+  **What this gives up:** an accidentally untagged image — `image: myorg/app` with the tag
+  forgotten — is no longer caught, because nothing local distinguishes it from a deliberate
+  float. Reviewers own that now. Two consequences to keep in view, neither yet settled:
+
+  - **WUD** compares tags, so a floating tag never reports an update. Watching digests
+    (`wud.watch.digest`) would be needed for floating recipes; the label matrix in RFC-001
+    §11 does not set it today.
+  - **Nothing re-tests a floating recipe.** `test-recipes-docker` and `-live` run only on PRs
+    touching `recipes/**` and on manual dispatch — no schedule — so a recipe validated at
+    merge silently pulls untested images later. A periodic run over floating recipes is the
+    obvious mitigation and belongs in its own card.
+
+  Slug retired, never reused.
 
 #### `compose-var-defined-in-env`
 
@@ -443,8 +468,6 @@ Recipe: <slug>
 Per-recipe checks
   files-required-compose          ✓
   metadata-valid-yaml             ✓
-  app-version-pinned              ✓
-  image-tag-pinned                ✗ ERROR — image 'redis:latest' on service 'redis'
   http-port-must-be-tcp           ✓
   raw-port-not-reserved           ✓
   single-http-port                ✓

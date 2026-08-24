@@ -51,10 +51,12 @@ af-recipes/
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |
 | `categories` | list[enum] | yes | Application categories, one or more (see §4.2). |
-| `app_version` | string | yes | Upstream application version being deployed. |
+| `app_version` | string | yes | Upstream application version being deployed. Free text — a floating identifier (`latest`, `stable`) is valid and is the honest value when the app's image floats with upstream (§6). |
 | `recipe_version` | string | yes | Recipe format version (semver). |
 | `recipe_type` | enum | yes | `docker-compose` or `native`. |
 | `upstream_url` | string | yes | URL to the upstream project (GitHub, website). |
+| `compose_file_url` | string \| null | no | Direct URL to the upstream reference `docker-compose` file this recipe's Compose file was adapted from. `null` when the project ships no official one — including every `native` recipe. See §4.7. |
+| `compose_file_notes` | string \| null | no | Free text about `compose_file_url`: which variant was picked, whether the link is pinned or rolling, or why no official file exists. See §4.7. |
 | `app_min_ram_mb` | integer | yes | Minimum RAM in MB required by the application (excluding OS/Docker overhead). |
 | `app_min_disk_mb` | integer | yes | Minimum disk space in MB required by the application. |
 | `ports` | list[port] | no | Network ports (see §4.3). |
@@ -206,6 +208,42 @@ Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, m
 
 **Disabled recipes:** `enabled: false` recipes are exempt from the `logo-required-when-enabled` rule, but if they *declare* `logo_url`, all integrity/canonicalisation rules still apply.
 
+### 4.7 Upstream compose source (IF-1500)
+
+Every `docker-compose.yaml` in this repo is a hand-adapted derivative of some upstream reference — an official docs page, a GitHub release asset, a raw file in the project's repo. Two optional fields record which one, so a recipe can be diffed against its source when upstream moves, and so "which recipes have an official upstream compose file at all" is a query rather than an archaeology exercise.
+
+| Field | Meaning |
+|---|---|
+| `compose_file_url` | Direct link to the file itself — the raw/blob URL, not the docs page that embeds it. `null` when the project publishes no official Compose file. |
+| `compose_file_notes` | Why that URL and not another: the variant chosen when the project ships several, whether the link is version-pinned or a rolling default-branch reference, or — when the URL is `null` — why none exists. |
+
+Both are optional and nullable; recipes predating IF-1500 are not required to carry them. Nothing fetches the URL at build or run time; it is documentation for maintainers.
+
+Conventions:
+
+- **Prefer a pinned link** (a tag or commit SHA) over a `main`/`master` one. When only a rolling link exists, say so in the notes — that is the difference between "this recipe matches upstream" and "this recipe matched upstream at some unrecorded point".
+- **Record what upstream pins and what it floats**, per image. We follow it either way (§6): the recipe pins where the reference pins and floats where it floats. Writing it down is what makes the choice reviewable — `image-tag-pinned` was retired in IF-1500, so no rule checks it any more.
+- **`native` recipes always set `compose_file_url: null`** with a note saying the recipe installs into the OS and has no Compose file by definition.
+
+Example — n8n, whose reference is a rolling link that floats the app version:
+
+```yaml
+compose_file_url: https://github.com/n8n-io/n8n-hosting/blob/main/docker-compose/withPostgres/docker-compose.yml
+compose_file_notes: >-
+  withPostgres variant (upstream also ships withMariaDB and a plain one).
+  Rolling default-branch link — upstream publishes no tagged version of it.
+  Upstream pins postgres:16 and floats n8n itself via N8N_VERSION (defaults to
+  `stable` in its .env); this recipe does the same — postgres:16 pinned,
+  n8n floating — so app_version reads `stable` rather than a fixed version.
+```
+
+Example — a native recipe:
+
+```yaml
+compose_file_url: null
+compose_file_notes: Native recipe — installed into the OS, no upstream compose file exists.
+```
+
 ## 5. OS Baselines and Resource Calculation
 
 Recipe `app_min_*` fields declare **app-only** resource requirements for RAM and disk. CPU cores are **not** declared per recipe — they are defined only in the OS baseline, since CPU scheduling is handled by the OS and doesn't sum linearly across apps.
@@ -223,7 +261,7 @@ Example: n8n (2048 MB) + Portainer (512 MB) with a 512 MB OS baseline = **3072 M
 ## 6. docker-compose.yaml Conventions
 
 - **Compose v3 format** (no `version:` key — Compose v2 CLI handles this).
-- **Pinned image versions** — never use `:latest`.
+- **Image versions follow upstream** (IF-1500) — pin where the upstream reference pins, float where it floats, `:latest` included. Decided per image, not per recipe: if upstream pins its database and floats its app, so do we. Record the reference in `compose_file_url` / `compose_file_notes` (§4.7); no validator rule checks this, so the reference is the only evidence the choice was deliberate.
 - **Healthchecks** — every service must declare a Docker healthcheck.
 - **Host bind mounts** — for all persistent data. Use paths like `/opt/<app-name>/<service-name>/` on the host.
 - **Dedicated bridge network** — one per recipe, named `<app>-network`.
@@ -393,9 +431,11 @@ services:
 
 The WUD trigger IDs (`ntfy.notify`, `dockercompose.apply`) are configured in `/opt/wud/.env` by the WUD recipe. Recipes only reference the IDs via labels — they do not configure the triggers themselves.
 
+**Open since IF-1500:** this matrix assumes pinned tags. A floating tag (`:latest`) never changes, so tag comparison reports no update and a floating recipe drops out of WUD's notifications; watching digests instead (`wud.watch.digest`) is the likely answer, but it is unverified against WUD's actual behaviour and untested here. Settle this before the first recipe floats. See RFC-002 §3.5.
+
 ## 12. Git Conventions
 
 - **Monorepo:** All recipes live in `af-recipes`.
 - **Branching:** `feature/<ticket>-<topic>`, `fix/<ticket>-<topic>`.
-- **Tagging:** `<app>/v<app_version>-r<recipe_version>` (e.g., `n8n/v1.94.1-r1.0.0`).
+- **Tagging:** `<app>/v<app_version>-r<recipe_version>` (e.g., `n8n/v1.94.1-r1.0.0`). A floating recipe yields `n8n/vstable-r1.2.0` — still unique, since `recipe_version` carries the distinction, but the tag no longer tells you which app version shipped.
 - **Review:** All changes require PR review before merge to `main`.
