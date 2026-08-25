@@ -2,7 +2,9 @@ name: Nightly Regression Tests
 
 # Dedicated nightly workflow. It does NOT re-implement anything — it reuses the real
 # live pipeline via `workflow_call` (af-api /compose + /bootstrap on a real VM) over
-# every enabled recipe, in the same run (no trigger-and-wait, no second runner).
+# every curated recipe, in the same run (no trigger-and-wait, no second runner).
+# IF-1542: the scope is the curated set, not every enabled recipe — the two are the
+# same six today and are expected to diverge as the catalogue grows.
 # It passes no `mode`, so it runs in mode: dev — the ephemeral af-api path. It does
 # NOT exercise the real clusters; only the if-main-ubuntu-2604-af main build does that.
 # Scheduled runs fire only from the default branch; use workflow_dispatch to run it
@@ -19,8 +21,8 @@ permissions:
 
 jobs:
   live:
-    name: Live recipe tests (all enabled recipes)
+    name: Live recipe tests (curated recipes)
     uses: ./.github/workflows/test-recipes-live.yaml
     with:
-      all_enabled: true
+      all_curated: true
     secrets: inherit
