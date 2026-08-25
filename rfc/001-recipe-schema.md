@@ -47,6 +47,7 @@ af-recipes/
 |---|---|---|---|
 | `id` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
 | `enabled` | boolean | yes | Whether the recipe is exposed by the AF API. Disabled recipes stay in the catalogue source but are hidden from public endpoints. |
+| `curated` | boolean | no | Whether the recipe belongs to the **curated set** — the apps the nightly regression run exercises end-to-end. Requires `enabled: true`. Defaults to `false`; exposed on `GET /api/v1/catalogue` for every app. See §4.8. |
 | `display_name` | string | yes | Human-readable name for UI display. |
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |
@@ -243,6 +244,34 @@ Example — a native recipe:
 compose_file_url: null
 compose_file_notes: Native recipe — installed into the OS, no upstream compose file exists.
 ```
+
+### 4.8 Curated recipes (IF-1542)
+
+`curated: true` marks a recipe as part of the **curated set**: the apps the platform
+treats as first-class and exercises end-to-end every night — `/compose`, a real VM,
+`/bootstrap`, health check.
+
+It is a **separate axis from `enabled`**, not a stricter grade of it:
+
+| | `enabled` | `curated` |
+|---|---|---|
+| Question it answers | May a customer order this app? | Do we deploy it every night? |
+| Consumer | `GET /api/v1/catalogue`, `POST /api/v1/compose` | the nightly regression run |
+
+The nightly used to deploy every `enabled: true` recipe, which is affordable at six
+apps and stops being affordable well before the 200+ this catalogue is heading for.
+`curated` is what keeps the nightly bounded as the catalogue grows: the two sets are
+identical today and are expected to diverge steadily.
+
+- **Must be enabled.** `curated: true` requires `enabled: true` — `POST /api/v1/compose`
+  rejects a disabled recipe, so a curated-but-disabled one is a nightly that can only
+  fail. `af-validate` enforces this (`curated-requires-enabled`).
+- **Declared per recipe, on every recipe.** The field is optional and defaults to
+  `false`, but every recipe in this repo states it explicitly: which apps are worth a
+  nightly VM is a maintenance decision, and an absent field reads as an oversight
+  rather than a decision.
+- **Exposed to catalogue consumers.** `GET /api/v1/catalogue` returns `curated` for
+  every application, so a panel can order or shortlist by it.
 
 ## 5. OS Baselines and Resource Calculation
 

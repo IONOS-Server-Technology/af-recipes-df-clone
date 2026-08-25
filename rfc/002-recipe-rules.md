@@ -105,6 +105,13 @@ These rules apply to a single `recipes/<slug>/` directory.
 - **How to check:** Regex.
 - **Why:** Allows mechanical bumping when this recipe (not the upstream app) changes.
 
+#### `curated-requires-enabled`
+
+- **Level:** ERROR
+- **What:** `metadata.curated: true` requires `metadata.enabled: true` (RFC-001 §4.8).
+- **How to check:** `if meta.get("curated") and not meta.get("enabled")` → fail.
+- **Why:** `POST /api/v1/compose` rejects a disabled recipe, so the nightly regression run could never deploy a curated-but-disabled one — the pair is a nightly that can only fail, and the flag is silently doing nothing until someone notices.
+
 #### `short-description-required`
 
 - **Level:** ERROR
