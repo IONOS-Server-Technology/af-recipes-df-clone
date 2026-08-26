@@ -192,6 +192,11 @@ jobs:
             echo "$out"
           }
 
+          # The curated set as selected, before `enabled` narrows it. Kept so the run can
+          # report which curated recipes it had to leave out (see below); stays empty on
+          # every non-nightly path, where there is no curated selection to compare against.
+          curated_selection='[]'
+
           if [ -n "$RECIPES_INPUT" ]; then
             # explicit list (manual dispatch or a caller passing recipes)
             recipes=$(echo "$RECIPES_INPUT" | tr ',' '\n' | jq -c -R -s 'split("\n") | map(select(length > 0))')
@@ -201,7 +206,8 @@ jobs:
             # hand satisfies both conditions, and it has to keep meaning "run the nightly"
             # rather than silently widening to every recipe.
             all=$(ls -d recipes/*/ | xargs -n1 basename | jq -c -R -s 'split("\n") | map(select(length > 0))')
-            recipes=$(filter_curated "$all")
+            curated_selection=$(filter_curated "$all")
+            recipes="$curated_selection"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             # manual dispatch without a list: test every recipe (filter_enabled narrows to
             # activated). Deliberately NOT narrowed to curated — this is the escape hatch
@@ -283,6 +289,23 @@ jobs:
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             echo "### Recipes selected for live test ($count, $scope)" >> "$GITHUB_STEP_SUMMARY"
             echo "${selected:-_none — no recipe in scope_}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # A curated recipe that is currently disabled is a legal state, not an error:
+          # the two flags are independent axes, so an app withdrawn for maintenance or a
+          # pending security fix stays curated. It does drop out of tonight's run, and the
+          # only trace of that was a "Skipping non-enabled recipe" line on stderr. Name it
+          # where the nightly is actually read, so a gap meant to last a day cannot become
+          # permanent unnoticed.
+          if [ "$ALL_CURATED" = "true" ]; then
+            withheld=$(jq -nc --argjson c "$curated_selection" --argjson s "$recipes" '$c - $s')
+            if [ "$(echo "$withheld" | jq 'length')" -gt 0 ]; then
+              withheld_names=$(echo "$withheld" | jq -r 'join(", ")')
+              echo "::warning::Curated but currently disabled, so not deployed tonight: $withheld_names"
+              if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "⚠️ **Curated but currently disabled**, so not deployed tonight: $withheld_names" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
           fi
           # IF-1542: the nightly branch needs its own emptiness guard now. It never did
           # while it selected every recipe directory, and the PR-diff branch above has

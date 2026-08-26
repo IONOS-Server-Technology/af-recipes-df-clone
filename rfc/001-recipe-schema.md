@@ -47,7 +47,7 @@ af-recipes/
 |---|---|---|---|
 | `id` | string | yes | Machine-readable slug (lowercase, hyphens). Must match directory name. |
 | `enabled` | boolean | yes | Whether the recipe is exposed by the AF API. Disabled recipes stay in the catalogue source but are hidden from public endpoints. |
-| `curated` | boolean | no | Whether the recipe belongs to the **curated set** — the apps the nightly regression run exercises end-to-end. Requires `enabled: true`. Defaults to `false`; exposed on `GET /api/v1/catalogue` for every app. See §4.8. |
+| `curated` | boolean | no | Whether the recipe belongs to the **curated set** — the apps the nightly regression run exercises end-to-end. Independent of `enabled`. Defaults to `false`; exposed on `GET /api/v1/catalogue` for every app. See §4.8. |
 | `display_name` | string | yes | Human-readable name for UI display. |
 | `description` | string | yes | One-line description of the application. |
 | `short_description` | map[lang→string] | yes | Customer-facing short description as a language map. Keys are ISO 639-1 codes (`en` required, max 160 chars per value). The `en` key must always be present. Additional languages: `de`, `es`, `fr`, `it`, `nl`, `pl`. |
@@ -263,9 +263,15 @@ apps and stops being affordable well before the 200+ this catalogue is heading f
 `curated` is what keeps the nightly bounded as the catalogue grows: the two sets are
 identical today and are expected to diverge steadily.
 
-- **Must be enabled.** `curated: true` requires `enabled: true` — `POST /api/v1/compose`
-  rejects a disabled recipe, so a curated-but-disabled one is a nightly that can only
-  fail. `af-validate` enforces this (`curated-requires-enabled`).
+- **Independent of `enabled`.** Every combination of the two flags is legal, including
+  `curated: true` with `enabled: false`. An app withdrawn from sale for maintenance, or
+  until a security fix lands, keeps its place in the curated set rather than being
+  demoted and having to be remembered back in afterwards — the flag records that the app
+  is first-class, not that it is orderable this week. Nothing enforces the pair, and
+  nothing needs to: the nightly selects on the conjunction, so a disabled curated recipe
+  drops out of that run for as long as it is disabled and rejoins it on re-enable. The
+  run names what it dropped, so a temporary gap in nightly coverage cannot quietly
+  become a permanent one.
 - **Declared per recipe, on every recipe.** The field is optional and defaults to
   `false`, but every recipe in this repo states it explicitly: which apps are worth a
   nightly VM is a maintenance decision, and an absent field reads as an oversight
