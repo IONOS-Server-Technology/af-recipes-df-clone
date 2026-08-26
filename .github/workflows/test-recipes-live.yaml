@@ -561,11 +561,14 @@ jobs:
       - name: Derive Harbor image tag from af-recipes branch
         id: image-tag
         run: |
-          # Same sanitisation as deploy-af-api's tag derivation — must match
-          # so the deploy step finds the image at harbor.../af-api:<tag>.
+          # Same sanitisation + ephemeral- prefix as deploy-af-api's tag derivation —
+          # must match so the deploy step finds the image at harbor.../af-api:<tag>.
+          # The ephemeral- prefix also drives af-api's scan skip: build.yaml gates its
+          # security job on this prefix, so these unscanned recipe-test images are both
+          # produced without the OWASP scan and visibly distinct from real af-api builds.
           raw="${{ github.event.pull_request.head.ref || github.ref_name }}"
           safe=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-*//' | sed 's/-*$//')
-          echo "value=$safe" >> "$GITHUB_OUTPUT"
+          echo "value=ephemeral-$safe" >> "$GITHUB_OUTPUT"
 
       - uses: IONOS-Server-Technology/trigger-workflow-and-wait@v1.6.7
         with:
@@ -629,12 +632,14 @@ jobs:
           # same branch get their own pod and NodePort instead of stomping
           # on each other. k8s Service names cap at 63 chars (DNS subdomain),
           # so trim the branch portion to leave room for the run-id suffix.
-          # Image tag stays branch-scoped — that's the artifact af-api built.
+          # The name stays unprefixed; only the image tag carries ephemeral-.
+          # Image tag is ephemeral-<branch> — must match the trigger-af-api-build
+          # derivation so this deploy finds the artifact af-api built.
           run_id="${{ github.run_id }}"
           name_branch="${safe:0:44}"
           name="af-api-${name_branch}-${run_id}"
           echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "tag=$safe" >> "$GITHUB_OUTPUT"
+          echo "tag=ephemeral-$safe" >> "$GITHUB_OUTPUT"
 
       - name: Ensure Harbor pull secret
         env:
