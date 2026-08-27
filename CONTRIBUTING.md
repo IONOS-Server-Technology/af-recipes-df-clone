@@ -39,6 +39,10 @@ recipes/<id>/
    - Record where you adapted the compose file from in `compose_file_url` /
      `compose_file_notes` — a direct link to the file, pinned if upstream offers
      a tag, and `null` plus a reason when no official one exists (RFC-001 §4.7).
+   - Set `curated` explicitly: `true` only for an app the nightly regression run
+     should deploy end-to-end every night, `false` otherwise. It is a separate axis
+     from `enabled` — a curated app may be disabled for maintenance and stays curated.
+     Every recipe here states it — see RFC-001 §4.8.
    - Bump `recipe_version` (semver) on **any** change to a published recipe.
 3. Add a logo (see the next section) for any `enabled: true` recipe.
 4. Validate locally before opening a PR:
