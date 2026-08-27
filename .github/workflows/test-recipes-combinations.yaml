@@ -8,10 +8,10 @@ name: Test Recipe Combinations
 # test-recipes-live.yaml via workflow_call, only with a combination matrix and a
 # base_domain instead of one recipe per VM.
 #
-# Deliberately NOT on the PR trigger, and deliberately mode: dev (its default).
+# Deliberately NOT on the PR trigger, and deliberately test_against: ephemeral.
 # A randomly drawn combination must not be able to fail an unrelated merge, and
-# mode: prod would double the VM cost per combination while letting a random draw
-# block a production image build. Scheduled rather than dispatch-only because a
+# testing the real clusters would double the VM cost per combination while letting a
+# random draw block a production image build. Scheduled rather than dispatch-only because a
 # test nothing triggers is a test nobody runs.
 
 on:
@@ -67,6 +67,7 @@ jobs:
       # skipping the af_FIN_* scrub tests. Those are per-VM, so they run once per
       # combination however many apps it has — correct as-is.
       finalize_disabled: ${{ inputs.finalize_disabled || 'true' }}
-      # mode is left at its 'dev' default on purpose: that is the single
-      # ephemeral-af-api leg. See the header.
+      # Ephemeral (per-run af-api) on purpose — see the header. Set explicitly rather
+      # than relying on the default so the intent is visible at the call site.
+      test_against: ephemeral
     secrets: inherit

@@ -31,10 +31,16 @@ on:
         description: "true = boot with af-finalize switched off, so it skips its scrub and teardown and only unlocks access; false = let af-finalize run for real"
         required: false
         default: "true"
-      mode:
-        description: "dev = ephemeral af-api on a ClusterIP/NodePort (branch/PR); prod = validate a production image against the real dev+prod clusters"
+      test_against:
+        description: "Which target(s) to test against: ephemeral = per-run throwaway af-api on a ClusterIP/NodePort (branch/PR); dev / prod = the real dev or prod cluster only; dev+prod = both real clusters. Unknown values fail fast."
+        type: choice
         required: false
-        default: "dev"
+        default: "ephemeral"
+        options:
+          - ephemeral
+          - dev
+          - prod
+          - dev+prod
       bootstrap_log_replicas:
         description: "IF-1310 ONLY: number of identical VMs to boot. 0 = normal recipe testing. Replaces the recipe matrix with N replicas of one recipe and asserts exactly N distinct bootstraps in the API log — the bootstrap-log checks themselves run either way. N>1 is what proves N concurrent bootstraps stay N distinguishable groups."
         required: false
@@ -89,11 +95,11 @@ on:
         type: string
         required: false
         default: "true"
-      mode:
-        description: "dev = ephemeral af-api on a ClusterIP/NodePort (branch/PR); prod = validate a production image against the real dev+prod clusters"
+      test_against:
+        description: "Which target(s) to test against: ephemeral = per-run throwaway af-api; dev / prod = the real dev or prod cluster only; dev+prod = both real clusters. Unknown values fail fast."
         type: string
         required: false
-        default: "dev"
+        default: "ephemeral"
       combos:
         description: 'Combination matrix as JSON, e.g. [{"apps":"immich n8n","label":"immich+n8n","size":2}] — skips selection entirely'
         type: string
@@ -126,8 +132,33 @@ on:
         default: ""
 
 jobs:
-  detect-changed-recipes:
-    name: Detect Changed Recipes
+  resolve-run-config:
+    name: Resolve run config
+    # Resolves run-level facts (the test target) once, up front, so a bad
+    # test_against fails the whole run fast before any recipe work or VM boot.
+    runs-on:
+      - ${{ vars.IF_DEFAULT_RUNNER }}
+    permissions:
+      contents: read
+    outputs:
+      test_against: ${{ steps.target.outputs.test_against }}
+      clusters: ${{ steps.target.outputs.clusters }}
+      build_ephemeral: ${{ steps.target.outputs.build_ephemeral }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve test target
+        id: target
+        # Normalises test_against (empty -> ephemeral), rejects unknown values
+        # (::error:: + exit 1, no silent fallback), and emits the cluster set.
+        env:
+          TEST_AGAINST_RAW: ${{ inputs.test_against }}
+        run: |
+          python3 scripts/resolve-test-target.py >> "$GITHUB_OUTPUT"
+
+  select-recipes:
+    name: Select recipes to test
+    needs: resolve-run-config
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -137,8 +168,9 @@ jobs:
       recipes: ${{ steps.detect.outputs.recipes }}
       combos: ${{ steps.combos.outputs.combos }}
       matrix: ${{ steps.matrix.outputs.matrix }}
+      has_selection: ${{ steps.combos.outputs.has_selection }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -428,6 +460,13 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "combos=$combos" >> $GITHUB_OUTPUT
+          # Whether anything was selected, so a run that picked nothing (e.g. a PR
+          # touching only disabled recipes) never spins up a throwaway af-api.
+          if [ "$combo_count" -gt 0 ]; then
+            echo "has_selection=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_selection=false" >> $GITHUB_OUTPUT
+          fi
 
       # The golden check runs gen-health-check-conf.py, which imports PyYAML (to read
       # manifest.yaml and each recipe's metadata.yaml). This job has no container, so it
@@ -458,7 +497,7 @@ jobs:
         # Both real clusters serve /api/v1/catalogue on the mTLS main host (only
         # /api/v1/bootstrap has its own public listener), so the check needs a
         # client cert per cluster. umask 077 keeps the private keys off 0644.
-        if: ${{ (inputs.mode || 'dev') == 'prod' }}
+        if: ${{ needs.resolve-run-config.outputs.build_ephemeral != 'true' }}
         run: |
           umask 077
           printf '%s' "$AF_RECIPES_MTLS_CLIENT_CRT_PEM_DEV"  > /tmp/af_client_dev.crt
@@ -468,19 +507,21 @@ jobs:
 
       - name: Expand recipe/cluster matrix
         id: matrix
-        # Expand the recipe list into the test-recipes job matrix. The dev-mode run
-        # tests each recipe once against the ephemeral af-api; the prod-mode run
-        # tests each recipe against BOTH real clusters (dev + prod legs), so a
-        # single prod-mode invocation exercises both signing paths.
+        # Expand the recipe list into the test-recipes job matrix. An ephemeral run
+        # tests each combination once against the per-run af-api; a real-cluster run
+        # (dev, prod, or dev+prod) tests each combination against every selected
+        # cluster, so a dev+prod invocation exercises both signing paths.
         #
-        # A prod-mode leg can only validate a recipe the cluster's af-api actually
+        # A real-cluster run can only validate a recipe the cluster's af-api actually
         # serves: af-api bakes an af-recipes snapshot at build time, so a recipe
         # activated here but not yet carried by the deployed af-api would fail with
         # recipe_not_found. On the blocking prod leg that stops every production
         # image build, so derive the legs from the live catalogue instead of
         # assuming the two are in step.
         env:
-          MODE: ${{ inputs.mode || 'dev' }}
+          TEST_AGAINST: ${{ needs.resolve-run-config.outputs.test_against }}
+          CLUSTERS: ${{ needs.resolve-run-config.outputs.clusters }}
+          BUILD_EPHEMERAL: ${{ needs.resolve-run-config.outputs.build_ephemeral }}
           COMBOS_JSON: ${{ steps.combos.outputs.combos }}
           BOOTSTRAP_LOG_REPLICAS: ${{ inputs.bootstrap_log_replicas || '0' }}
           BOOTSTRAP_LOG_RECIPE: ${{ inputs.bootstrap_log_recipe || 'vaultwarden' }}
@@ -496,8 +537,8 @@ jobs:
           # from this branch, and pointing N VMs at a shared cluster is not something
           # to trigger from a dispatch input.
           if [ "${BOOTSTRAP_LOG_REPLICAS:-0}" -gt 0 ] 2>/dev/null; then
-            if [ "$MODE" = "prod" ]; then
-              echo "::error::bootstrap_log_replicas is incompatible with mode=prod — these legs must not load the real clusters."
+            if [ "$BUILD_EPHEMERAL" != "true" ]; then
+              echo "::error::bootstrap_log_replicas requires an ephemeral run (test_against=ephemeral) — these legs must not load the real clusters."
               exit 1
             fi
             include=$(jq -cn --arg r "$BOOTSTRAP_LOG_RECIPE" --argjson n "$BOOTSTRAP_LOG_REPLICAS" \
@@ -528,11 +569,9 @@ jobs:
           }
 
           combo_count=$(echo "$COMBOS_JSON" | jq 'length')
-          if [ "$MODE" = "prod" ]; then
-            clusters="dev prod"
-            echo "### Prod-mode catalogue check" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
-          else
-            clusters="ephemeral"
+          clusters="$CLUSTERS"
+          if [ "$clusters" != "ephemeral" ]; then
+            echo "### Real-cluster catalogue check ($TEST_AGAINST)" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi
 
           include='[]'
@@ -550,14 +589,11 @@ jobs:
             if [ -z "$api" ]; then
               legs="$COMBOS_JSON"
             elif ! ids=$(catalogue_ids "$c" "$api" "$crt" "$key"); then
-              if [ "$c" = "prod" ]; then
-                report error "prod cluster catalogue is unreachable — cannot tell which recipes production can validate. This is an outage or a cert/allowlist problem, NOT a stale catalogue."
-                exit 1
-              fi
-              # A dev-cluster outage must never block a production image build,
-              # for the same reason the whole dev leg is continue-on-error.
-              report warning "dev cluster catalogue is unreachable — dropping all dev legs (non-blocking). The prod leg still gates the build."
-              continue
+              # A cluster the caller asked for but we cannot evaluate is a hard
+              # failure, not a silent drop. Unreachable = an outage or a
+              # cert/allowlist problem, not a stale catalogue.
+              report error "${c} cluster catalogue is unreachable — cannot tell which recipes it can validate. This is an outage or a cert/allowlist problem, NOT a stale catalogue."
+              exit 1
             else
               avail=$(printf '%s\n' "$ids" \
                 | jq -R -s -c 'split("\n") | map(select(length > 0))')
@@ -575,11 +611,12 @@ jobs:
                 '.[] | ((.apps | split(" ")) - $a) as $missing
                      | select($missing | length > 0)
                      | "\(.label)\t\($missing | join(", "))"')
-              # Silently shipping zero production validation behind a green build is
-              # the exact false-green this pipeline exists to remove.
-              if [ "$c" = "prod" ] && [ "$combo_count" -gt 0 ] \
+              # Silently shipping zero validation behind a green build is the exact
+              # false-green this pipeline exists to remove — applies to every
+              # selected cluster, dev as well as prod.
+              if [ "$combo_count" -gt 0 ] \
                  && [ "$(echo "$legs" | jq 'length')" -eq 0 ]; then
-                report error "no combination in scope is fully present in the prod cluster catalogue — nothing would be validated against production. Deploy an af-api carrying these recipes to prod first."
+                report error "no combination in scope is fully present in the ${c} cluster catalogue — nothing would be validated against ${c}. Deploy an af-api carrying these recipes to ${c} first."
                 exit 1
               fi
             fi
@@ -588,14 +625,16 @@ jobs:
               '. + [$legs[] | . + {cluster: $c}]')
           done
 
-          echo "Pipeline mode: $MODE; matrix legs: $(echo "$include" | jq 'length')"
+          echo "Test target: $TEST_AGAINST (clusters: $clusters); matrix legs: $(echo "$include" | jq 'length')"
           echo "matrix={\"include\":$include}" >> $GITHUB_OUTPUT
 
   trigger-af-api-build:
     name: Trigger af-api image build
-    # Ephemeral af-api is only for the dev-mode run. The prod-mode run targets
-    # the real clusters, so it skips build/deploy/cleanup entirely.
-    if: ${{ (inputs.mode || 'dev') != 'prod' }}
+    # Build the ephemeral af-api only for an ephemeral run that actually selected
+    # something. Real-cluster runs target live clusters, and a run that selected
+    # nothing has no VM to boot, so both skip build/deploy/cleanup entirely.
+    needs: [resolve-run-config, select-recipes]
+    if: ${{ needs.select-recipes.result == 'success' && needs.resolve-run-config.outputs.build_ephemeral == 'true' && needs.select-recipes.outputs.has_selection == 'true' }}
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -645,8 +684,11 @@ jobs:
 
   deploy-af-api:
     name: Deploy af-api for branch
+    # No if: needed — this cascades off trigger-af-api-build. When that job is skipped
+    # (a real-cluster run, or an ephemeral run that selected nothing) deploy is skipped
+    # too, and downstream jobs already tolerate a skipped deploy (test-recipes requires
+    # deploy != 'failure'; bootstrap-log-verify / cleanup deploy == 'success').
     needs: trigger-af-api-build
-    if: ${{ (inputs.mode || 'dev') != 'prod' }}
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
@@ -657,13 +699,13 @@ jobs:
       url: ${{ steps.url.outputs.url }}
       bootstrap_verification_key: ${{ steps.signing_key.outputs.bootstrap_verification_key }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
 
       - name: Checkout python-dwh-image-build-algorithm
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
           ref: main
@@ -792,9 +834,10 @@ jobs:
 
   test-recipes:
     name: Test Recipes - ${{ matrix.label }} (${{ matrix.cluster }})
-    # deploy-af-api is skipped in prod mode, so gate on !failure rather than
-    # success — otherwise a skipped dependency would skip this job too.
-    if: ${{ !cancelled() && needs.detect-changed-recipes.result == 'success' && needs.deploy-af-api.result != 'failure' }}
+    # deploy-af-api is skipped for real-cluster runs (and for an ephemeral run that
+    # selected nothing), so require !failure rather than success — otherwise a
+    # skipped dependency would skip this job too.
+    if: ${{ !cancelled() && needs.select-recipes.result == 'success' && needs.deploy-af-api.result != 'failure' }}
     container:
       image: harbor.infra.cluster.ionos.com/imagefactory/build_werkzeugkiste:latest
       credentials:
@@ -811,17 +854,17 @@ jobs:
     defaults:
       run:
         shell: bash
-    needs: [detect-changed-recipes, deploy-af-api]
+    needs: [select-recipes, deploy-af-api]
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
     permissions:
       id-token: write
       contents: read
     strategy:
-      matrix: ${{ fromJson(needs.detect-changed-recipes.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.select-recipes.outputs.matrix) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/if-ci-actions/.github/actions/get-secrets@main
@@ -989,12 +1032,6 @@ jobs:
 
       - name: Generate cloud-init via /compose
         id: compose
-        # Dev-cluster leg runs against pre-release af-api/recipes and only
-        # exercises non-customer paths (mTLS, dev-mode). A recipe-test failure
-        # there is a forward-compat signal, not a production gate — keep it
-        # non-blocking so it never fails a production image build. See the
-        # "Flag dev-cluster leg outcome" step below and test-results.
-        continue-on-error: ${{ matrix.cluster == 'dev' }}
         env:
           CLUSTER: ${{ matrix.cluster }}
           APPS: ${{ matrix.apps }}
@@ -1015,7 +1052,7 @@ jobs:
 
           case "$CLUSTER" in
             ephemeral)
-              # Dev-mode run: ephemeral af-api over plain-HTTP NodePort. The
+              # Ephemeral run: per-run af-api over plain-HTTP NodePort. The
               # per-run ed25519 pubkey is injected as the user-data verification
               # key; patch downgrades bootstrap_url https->http and switches on
               # dev mode. bootstrap_verification_key is a multiline PEM — GHA
@@ -1030,7 +1067,7 @@ jobs:
                 "${apps[@]}" | tee /tmp/cloudinit.yaml
               ;;
             dev)
-              # Prod-mode dev-cluster leg: reach the real dev af-api and present the
+              # Real dev cluster: reach the real dev af-api and present the
               # recipes-pipeline PUKI client cert to its mTLS ingress; no user-data key
               # (the archive is signed by the real dev-cluster key, verified via the
               # baked key).
@@ -1045,7 +1082,7 @@ jobs:
                 "${apps[@]}" | tee /tmp/cloudinit.yaml
               ;;
             prod)
-              # Prod-mode prod-cluster leg: reach the real prod af-api. The prod main
+              # Real prod cluster: reach the real prod af-api. The prod main
               # host is mTLS-required host-wide, so present the _PROD recipes client
               # cert exactly as the dev leg does — a certless request dies in the TLS
               # handshake, it does not get a 4xx. The always-trusted baked prod key
@@ -1085,12 +1122,10 @@ jobs:
 
       - name: Verify the af-api host split
         # BLOCKING ON EVERY REAL-CLUSTER LEG, INCLUDING DEV — deliberately not
-        # continue-on-error. The dev leg is advisory for *recipe* outcomes, because it
-        # runs pre-release recipes against a pre-release af-api. A broken host split or
-        # an mTLS gate that stopped enforcing is not a recipe outcome, it is our
-        # infrastructure, and collapsing the two is how the dev leg sat green while its
-        # bootstrap reachability check had been failing ever since the dev cluster moved
-        # to Envoy Gateway. The prod cutover is what finally surfaced it.
+        # continue-on-error. A broken host split or mTLS enforcement that stopped
+        # enforcing is our infrastructure, not a recipe outcome, and must never be
+        # swallowed — collapsing the two once let a dev cluster sit green while its
+        # bootstrap reachability check was silently failing.
         if: ${{ matrix.cluster != 'ephemeral' }}
         env:
           BOOTSTRAP_URL: ${{ steps.compose.outputs.bootstrap_url }}
@@ -1151,7 +1186,6 @@ jobs:
 
       - name: Probe /bootstrap with the JWT before booting the VM
         id: probe
-        continue-on-error: ${{ matrix.cluster == 'dev' }}
         # Calls /compose and /bootstrap from a single Python process so the
         # token never goes through the shell. Rules out awk/jq quoting from
         # the earlier-observed "Token is malformed or cannot be decrypted"
@@ -1209,7 +1243,7 @@ jobs:
         # must be on disk before that step, at the same relative path convention.
         id: image_tests_checkout
         continue-on-error: true
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: IONOS-Server-Technology/if-image-tests
           path: if-image-tests
@@ -1218,7 +1252,7 @@ jobs:
 
       - name: Checkout if-image-tests (fallback to main)
         if: steps.image_tests_checkout.outcome == 'failure'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: IONOS-Server-Technology/if-image-tests
           path: if-image-tests
@@ -1265,7 +1299,6 @@ jobs:
 
       - name: Run ImageTester
         id: imagetester
-        continue-on-error: ${{ matrix.cluster == 'dev' }}
         env:
           IONOS_USERNAME: ${{ env.INSTALLTEST_DCD_USERNAME }}
           IONOS_PASSWORD: ${{ env.INSTALLTEST_DCD_PASSWORD }}
@@ -1350,10 +1383,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         name: Upload Test Results as Artifact
         if: always()
-        # if-no-files-found: error would hard-fail the leg when ImageTester
-        # soft-failed on dev and produced no logs — keep it non-blocking there
-        # too so the dev leg stays advisory.
-        continue-on-error: ${{ matrix.cluster == 'dev' }}
         with:
           # Replica suffix (empty outside replica mode). Without it the N replica legs
           # collide on one name and overwrite: true silently leaves a single VM's
@@ -1363,27 +1392,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           overwrite: true
-
-      - name: Flag dev-cluster leg outcome (non-blocking)
-        # The dev-cluster leg is advisory (pre-release control plane, non-customer
-        # paths). Its recipe-test steps are continue-on-error, so surface any
-        # failure loudly here instead of letting it silently pass.
-        if: ${{ always() && matrix.cluster == 'dev' }}
-        env:
-          LABEL: ${{ matrix.label }}
-        run: |
-          if [ "${{ steps.compose.outcome }}" = "failure" ] \
-             || [ "${{ steps.probe.outcome }}" = "failure" ] \
-             || [ "${{ steps.imagetester.outcome }}" = "failure" ]; then
-            msg="dev-cluster leg for ${LABEL} failed — non-blocking. Dev runs pre-release af-api/recipes; this is a forward-compat signal, not a production gate. The prod-cluster leg gates the build."
-            echo "::warning::${msg}"
-            {
-              echo "### ⚠️ dev-cluster leg failed (non-blocking): ${LABEL}"
-              echo "$msg"
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "dev-cluster leg for ${LABEL} passed."
-          fi
 
   bootstrap-log-verify:
     name: IF-1310 verify (bootstrap logs arrived and stayed attributable)
@@ -1399,13 +1407,13 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
 
       - name: Checkout python-dwh-image-build-algorithm
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
           ref: main
@@ -1481,13 +1489,13 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Get CI secrets
         uses: IONOS-Server-Technology/af-ci-actions/.github/actions/get-secrets@main
 
       - name: Checkout python-dwh-image-build-algorithm
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: IONOS-Server-Technology/python-dwh-image-build-algorithm
           ref: main
@@ -1525,7 +1533,7 @@ jobs:
     name: Report Test Results
     runs-on:
       - ${{ vars.IF_DEFAULT_RUNNER }}
-    needs: [detect-changed-recipes, test-recipes]
+    needs: [select-recipes, test-recipes]
     if: always()
     steps:
       - name: Check test status
@@ -1538,10 +1546,10 @@ jobs:
           # `sizes` tests VMs regardless of what changed, so gating the no-op on the
           # detected-recipe count would report "nothing to do" — and exit 0 — for a
           # run whose combinations had in fact just failed.
-          COMBOS_JSON: ${{ needs.detect-changed-recipes.outputs.combos }}
+          COMBOS_JSON: ${{ needs.select-recipes.outputs.combos }}
         run: |
-          if [ "${{ needs.detect-changed-recipes.result }}" != "success" ]; then
-            echo "Recipe detection failed"
+          if [ "${{ needs.select-recipes.result }}" != "success" ]; then
+            echo "Recipe selection failed"
             exit 1
           fi
           # An empty matrix means nothing was in scope (e.g. only disabled recipes
