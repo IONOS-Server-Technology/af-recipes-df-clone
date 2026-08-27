@@ -201,6 +201,8 @@ Every customer-visible (`enabled: true`) recipe must have a logo. The logo binar
 | Production | `appfactory` | `https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
 | PR preview | `appfactory-dev` | `https://appfactory-dev.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg` |
 
+The stored `logo_url` is a canonical input whose host is replaced at serve time by af-api's `AF_LOGO_BASE_URL` environment variable — only the `/recipes/…` path component is authoritative in `metadata.yaml`.
+
 Paths are versioned by `recipe_version`. Combined with `Cache-Control: public, max-age=31536000, immutable` on the uploaded object, this means **any logo change requires a `recipe_version` bump** — otherwise consumers see the previously-cached file forever. The `sync-logos` job refuses to merge a logo change without an accompanying `recipe_version` change.
 
 **Integrity:** `logo_sha256` is the SHA-256 of the file content. `af-validate` recomputes the hash from the on-disk file and refuses the recipe if it diverges from the declared value. This protects against silent edits, partial uploads, and S3 drift.

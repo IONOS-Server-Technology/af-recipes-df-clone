@@ -28,6 +28,8 @@ credential rotation, debugging).
 https://<bucket>.s3.eu-central-3.ionoscloud.com/recipes/<id>/<recipe_version>/logo.svg
 ```
 
+The base URL (bucket hostname) is replaced at serve time by af-api's `AF_LOGO_BASE_URL` environment variable — only the versioned recipe path is stored in `metadata.yaml`.
+
 PR builds upload to `appfactory-dev` only. A merge to `main` uploads to **both**
 `appfactory` (prod) and `appfactory-dev` (keeps dev in sync).
 

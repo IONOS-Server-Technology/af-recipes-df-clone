@@ -157,6 +157,9 @@ def main() -> int:
             # IF-1385: this deployment only ever serves ephemeral test/CI VMs, so
             # the Traefik it renders onto them must never mint real LE certs.
             {"name": "LE_CASERVER", "value": "https://acme-staging-v02.api.letsencrypt.org/directory"},
+            # PR recipe logos are synced to the appfactory-dev bucket only, so the
+            # ephemeral test af-api must serve that bucket's base URL.
+            {"name": "AF_LOGO_BASE_URL", "value": "https://appfactory-dev.s3.eu-central-3.ionoscloud.com"},
         ]
         k8s.apply({
             "apiVersion": "apps/v1",
