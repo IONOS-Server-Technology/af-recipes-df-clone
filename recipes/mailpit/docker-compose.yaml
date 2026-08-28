@@ -1,0 +1,34 @@
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.6
+    restart: unless-stopped
+    environment:
+      - MP_UI_AUTH=admin:${MAILPIT_ADMIN_PASSWORD}
+      - MP_DATABASE=/data/mailpit.db
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    volumes:
+      - /opt/mailpit/data:/data
+    networks:
+      - mailpit-network
+    healthcheck:
+      # This image's wget is BusyBox, not GNU wget — BusyBox collapses every
+      # non-2xx outcome (HTTP 401 from MP_UI_AUTH *and* connection refused) to
+      # exit code 1, so exit-code-only checks (e.g. "accept 0 or 8") can't tell
+      # "server up, needs auth" apart from "server down" on this image.
+      # Piped (not captured into a shell variable): docker compose's own
+      # variable interpolation treats any unescaped $name in a compose file
+      # as its own substitution syntax and silently blanks it out before the
+      # string ever reaches the container — confirmed via `docker compose
+      # config` on this exact line's earlier $st-capturing form, which got
+      # interpolated to empty and made the healthcheck fail forever.
+      test: ["CMD-SHELL", "wget -S -O /dev/null http://127.0.0.1:8025/api/v1/info 2>&1 | grep -q 'HTTP/1.1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  mailpit-network:
+    driver: bridge

@@ -1,0 +1,56 @@
+id: mailpit
+enabled: false
+display_name: Mailpit
+description: SMTP email testing tool with a browser-based inbox for developers.
+short_description:
+  en: "Catch outgoing emails from any app during development and inspect them in a browser inbox — no real mail provider needed."
+  de: "Fange ausgehende E-Mails jeder Anwendung während der Entwicklung ab und prüfe sie im Browser — ohne echten Mailanbieter."
+  es: "Intercepta los correos salientes de cualquier aplicación durante el desarrollo e inspecciónelos en el navegador — sin proveedor de correo real."
+  fr: "Interceptez les e-mails sortants de n'importe quelle application en développement et inspectez-les dans le navigateur — sans prestataire de messagerie."
+  it: "Intercetta le email in uscita da qualsiasi applicazione durante lo sviluppo e ispezionale nel browser — senza provider email reale."
+  nl: "Onderschep uitgaande e-mails van elke app tijdens ontwikkeling en inspecteer ze in de browser — zonder echte mailprovider."
+  pl: "Przechwytuj wychodzące e-maile z dowolnej aplikacji podczas programowania i sprawdzaj je w przeglądarce — bez prawdziwego dostawcy poczty."
+categories:
+  - developer-tools
+# app_version: no official docker-compose file exists (compose_file_url: null in
+# apps-gaps/mailpit.yaml) — per IF-1501 rule 3, the current latest stable release tag
+# from the project's releases page is used: v1.30.6 released 2026-07-28.
+app_version: "v1.30.6"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/axllent/mailpit
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/mailpit/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/axllent/mailpit/develop/server/ui/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: b63f8f3f3b106aae72c5b241d180f06782e7bc2c409307c9a1cd8724f0db7ff3
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+ports:
+  # Web inbox UI on port 8025; Traefik-routed to <slug>.<base_domain>.
+  # Mailpit ships built-in authentication (MP_UI_AUTH / MP_UI_AUTH_FILE) so
+  # basic_auth is not set — the app protects its own frontend.
+  - port: 8025
+    protocol: tcp
+    public: true
+    description: Mailpit web inbox (search, preview, HTML check)
+  # SMTP is a raw TCP protocol that cannot be Traefik-routed. Exposed directly
+  # on host port 1025 (Mailpit default; avoids conflict with system MTA on 25).
+  - port: 1025
+    protocol: tcp
+    public: true
+    http: false
+    description: SMTP (raw TCP — point your app's mailer here)
+
+parameters:
+  # Mailpit's built-in auth env var (MP_UI_AUTH) expects "user:bcrypt_hash" format.
+  # This parameter generates only the bcrypt hash portion from ROOT_PASSWORD.
+  # install.sh (Task 2) writes: MP_UI_AUTH=admin:{{MAILPIT_ADMIN_PASSWORD}} in
+  # .env.template so af-api substitutes the computed hash at compose time.
+  # (apps-gaps/mailpit.yaml: secrets_expressible_today, mechanism: generated_from_root_password)
+  - name: MAILPIT_ADMIN_PASSWORD
+    display_name: Admin Password
+    type: password
+    generated_from: "bcrypt:ROOT_PASSWORD"
+    description: "bcrypt hash of the server password used for Mailpit's built-in web UI (username: admin). Log in with your server password."
