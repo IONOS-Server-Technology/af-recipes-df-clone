@@ -1,0 +1,107 @@
+slug: duplicati
+name: Duplicati
+source_description: "Encrypted backup solution supporting cloud storage and remote servers"
+
+upstream:
+  url: https://duplicati.com
+  repo_url: https://github.com/duplicati/duplicati
+  license: MIT
+  docker_image: duplicati/duplicati
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml file is published anywhere: not
+    at the repo root, not under a docker/, deploy/, or contrib/ directory
+    (github.com/duplicati/duplicati has no such paths at master), and not
+    as a downloadable release asset. The project's own docs page
+    (docs.duplicati.com/platform-specific-guides/using-duplicati-from-docker)
+    contains several inline docker-compose snippets (basic secrets,
+    preload-settings, secret-manager, and an nginx-reverse-proxy variant)
+    using a placeholder "myapp" service name, but these are illustrative
+    examples embedded in prose, not a standalone file the project publishes
+    or versions — there is nothing to link to that matches the
+    release-asset/raw-file pattern (e.g. Immich's
+    releases/latest/download/docker-compose.yml). Community-maintained
+    compose files exist (e.g. LinuxServer.io's duplicati image docs,
+    assorted GitHub forks) but are explicitly not official and were not
+    adopted here.
+
+version_health:
+  latest_version: "2.3.0.4 (stable)"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.3.0.4-stable tagged 2026-07-09, about 4 weeks before today
+    (2026-08-05). The canary channel is releasing roughly weekly
+    (2.3.0.105 on 2026-06-24, 2.3.0.106 on 2026-07-03, 2.3.0.107 on
+    2026-07-13, 2.3.0.108 on 2026-07-20) and a 2.3.1.0-beta landed
+    2026-07-28, ~1 week before today. Repo is not archived; 14,900+
+    stars, 1,100+ forks, 14,463 commits on master. Clearly active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [backup, storage, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers scheduled, encrypted, incremental backup of
+    arbitrary files/folders to remote/cloud storage (S3, B2, WebDAV, SFTP,
+    etc.). Syncthing (existing recipe) is continuous peer-to-peer file
+    sync between devices — a different job (live mirroring, not
+    versioned/encrypted archival backup). Paperless-ngx/Immich manage
+    specific document/photo libraries, not general-purpose backup of
+    arbitrary data. Duplicati would be the catalogue's first dedicated
+    backup-target app.
+  usefulness: high
+  usefulness_rationale: >
+    "Back up my server to the cloud" is a common, well-understood
+    self-hosting need with no current catalogue entry; Duplicati (AES-256
+    or GPG encryption, incremental/deduplicated backups, broad backend
+    support) is one of the most recognized open-source options for it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DUPLICATI__WEBSERVICE_PASSWORD
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Duplicati's web UI login is set via the plaintext
+      DUPLICATI__WEBSERVICE_PASSWORD env var. Server-side, `SetWebserverPassword()`
+      (Duplicati/Library/RestAPI/Database/ServerSettings.cs) takes the raw
+      password and PBKDF2-hashes it internally — it does not accept a
+      pre-hashed value as input, and the same method explicitly throws
+      ("Disabling password protection is not supported") if the value is
+      empty, so the login cannot be turned off either. `generated_from`
+      only ever projects a hash of the customer's root password, never
+      the plaintext, so there is no channel to seed this credential with
+      something the customer can actually log in with.
+    - >
+      Fronting the app with Traefik `basic_auth` does not substitute for
+      this the way it does for a login-less app (e.g. Adminer): Duplicati
+      has a real, mandatory admin login gating the backup-configuration
+      UI the customer needs to use, not a bare unauthenticated tool.
+      Setting DUPLICATI__WEBSERVICE_PASSWORD to a server-generated random
+      value nobody communicates to the customer would lock them out of
+      the app's primary function (configuring and monitoring backups)
+      even with basic_auth in front — unlike a backing-service secret
+      (DB password, JWT key) the customer never needs to interact with
+      directly.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Duplicati would fill a genuine gap — the catalogue has no dedicated
+  encrypted-backup-to-cloud recipe — and upstream is actively released
+  (stable tag ~4 weeks old, canary/beta channels shipping roughly weekly).
+  It's a single-container, single-HTTP-port (8200) web app that would sit
+  cleanly behind Traefik. However, its own admin login only accepts a
+  plaintext password (hashed internally with PBKDF2, no pre-hashed input
+  path, and disabling it is explicitly unsupported in the source), so
+  `generated_from`'s hash-only projection cannot seed a login the customer
+  can actually use, and Traefik `basic_auth` can't stand in because the
+  app's real admin UI — not just an open door — sits behind that
+  credential. Revisit once the platform can supply a plaintext
+  customer-derived credential, or if Duplicati adds support for a
+  pre-hashed WEBSERVICE_PASSWORD.

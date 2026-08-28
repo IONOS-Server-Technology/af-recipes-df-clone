@@ -1,0 +1,105 @@
+slug: wps-office
+name: WPS Office
+source_description: "WPS Office is a comprehensive office suite with document editing capabilities"
+
+upstream:
+  url: https://www.wps.com/
+  repo_url: https://github.com/linuxserver/docker-wps-office
+  license: "Proprietary (Kingsoft/WPS Office, freeware desktop app) — container packaging itself is GPL-3.0 (linuxserver.io), but the packaged application is closed-source freemium software, not open source"
+  docker_image: lscr.io/linuxserver/wps-office
+  compose_file_url: null
+  compose_file_notes: >
+    WPS Office (Kingsoft) is proprietary desktop software with no official
+    self-hosted server product and therefore no official docker-compose
+    file. The only packaging is linuxserver.io's unofficial
+    docker-wps-office image (already noted above as third-party, not
+    endorsed by Kingsoft/WPS); its README/docs do include a
+    docker-compose.yml example, but adopting that as "official" would
+    misrepresent it, so it is not recorded here.
+
+version_health:
+  latest_version: "11.1.0.11723-2-ls180"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    linuxserver.io ships a new container build roughly every 7-11 days
+    (ls175 through ls180 span ~1 month as of 2026-08-05, most recent 4 days
+    before analysis date). All recent tags carry the same underlying WPS
+    Office application version (11.1.0.11723-2) — these are base-image /
+    packaging maintenance releases, not application version bumps, so
+    "active" reflects container upkeep more than upstream WPS Office release
+    velocity. No visibility into Kingsoft's own WPS Office release cadence
+    since it is closed-source; linuxserver.io is the only tracked upstream
+    for this packaging.
+
+catalogue_fit:
+  categories: [productivity, office]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes provide document editing. However this
+    is not a native web-based office suite (unlike OnlyOffice or Collabora
+    Online) — it is a full Linux desktop environment streamed to the
+    browser via KasmVNC, with the WPS Office desktop app running inside.
+    Functionally it's closer to "remote desktop for one app" than to a
+    lightweight embeddable document editor.
+  usefulness: low
+  usefulness_rationale: >
+    A customer reading "office suite with document editing" expects a
+    Google-Docs-like web editor, not a full remote-desktop session running
+    a heavyweight (2.38GB image) proprietary Chinese office app with GPU/
+    shm requirements. Real self-hosted alternatives that actually match the
+    expectation (OnlyOffice Docs, Collabora Online) are proper web-native
+    editors and would serve this use case far better; this recipe would
+    likely disappoint customers who click it expecting lightweight
+    document editing in-browser.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Web UI access gate credential"]
+  secrets_expressible_today:
+    - secret: "Web UI access gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app has no strong login of its own — its optional built-in
+      CUSTOM_USER/PASSWORD env vars provide only HTTP basic auth that
+      linuxserver.io's own docs describe as "suitable only for securing
+      the container on a trusted local network," not for internet-facing
+      use. A Traefik basic_auth gate (root-password projected) can
+      substitute for this, sidestepping the weak built-in mechanism.
+    - >
+      Upstream explicitly warns the web interface ships a terminal with
+      passwordless sudo access: "any user with access to the GUI can gain
+      root control within the container, install arbitrary software, and
+      probe your local network." Even gated behind Traefik basic_auth,
+      every legitimate customer login is handed a root shell inside the
+      container by design — a materially different risk profile than any
+      other recipe in the catalogue.
+    - >
+      This is an unofficial third-party packaging (linuxserver.io), not a
+      product WPS/Kingsoft ships or supports for server/multi-tenant
+      hosting; running their freeware desktop license as a hosted service
+      product sits in licensing gray area.
+    - >
+      Heavy resource footprint for what it delivers: 2.38GB image, requires
+      `--shm-size=1gb` for Electron, and recommends GPU passthrough for
+      usable rendering performance — well above the floor of comparable
+      productivity recipes.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  WPS Office has no official server/web offering; the only packaging is
+  linuxserver.io's unofficial KasmVNC wrapper that streams the full desktop
+  app to a browser rather than providing a native web editor. It is
+  mechanically installable today (Traefik basic_auth can gate the exposed
+  port), but upstream's own security warnings — a passwordless root
+  terminal reachable by any authenticated user, and basic-auth-only
+  protection deemed unsuitable for internet exposure — plus its heavy
+  resource needs and licensing ambiguity make it a poor catalogue fit.
+  Customers wanting "document editing" would be far better served by a
+  true web-native suite like OnlyOffice Docs or Collabora Online, neither
+  of which we currently carry either.

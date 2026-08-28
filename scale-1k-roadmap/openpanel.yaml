@@ -1,0 +1,117 @@
+slug: openpanel
+name: OpenPanel
+source_description: "Privacy-first product analytics with real-time dashboards and session replay"
+
+upstream:
+  url: https://openpanel.dev
+  repo_url: https://github.com/Openpanel-dev/openpanel
+  license: AGPL-3.0
+  docker_image: lindesvard/openpanel-api:2.2.1 (+ lindesvard/openpanel-dashboard:2.2.1, lindesvard/openpanel-worker:2.2.1)
+  compose_file_url: https://raw.githubusercontent.com/Openpanel-dev/openpanel/main/self-hosting/docker-compose.template.yml
+  compose_file_notes: >
+    Rolling reference to the `main` branch (no versioned/tagged copy exists;
+    the repo publishes no GitHub Releases at all, matching the
+    version_health note below). Picked the `self-hosting/` variant over the
+    plain `docker-compose.yml` at the repo root: the root file is a
+    dev/local checkout compose (bind-mounts source-relative `./docker/...`
+    paths, exposes raw infra ports 5432/6379/8123/etc, and boots Redpanda
+    instead of the app's api/dashboard/worker images) used for building
+    OpenPanel from source, not for running a released instance. The
+    `self-hosting/docker-compose.template.yml` is the one actually linked
+    from openpanel.dev's self-hosting docs and is the file OpenPanel's own
+    `self-hosting/setup` install flow renders into a runnable
+    `docker-compose.yml` (via env substitution, e.g. `$OP_WORKER_REPLICAS`)
+    — it matches this analysis's 5-service Postgres+Redis+ClickHouse+api+
+    dashboard+worker shape (plus a bundled Caddy reverse proxy, dropped here
+    in favor of Traefik) and uses the same `lindesvard/openpanel-*` image
+    family, floating on the `:2` tag rather than the pinned `:2.2.1` patch
+    used above. It is a `.template.yml`, not a directly up `docker compose`-
+    able file as-is (it still needs the `setup` script's variable
+    substitution/renaming step to become `docker-compose.yml`), but it is
+    the only official self-hosting compose artifact the project ships —
+    there is no separate non-template, ready-to-run compose file published
+    anywhere in the repo or docs.
+
+version_health:
+  latest_version: "2.2.1"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    No GitHub Releases are published for this repo (releases page is empty).
+    The in-docs self-hosting changelog only goes up to 2.0.0 and under-counts
+    the true release cadence: Docker Hub tag history for
+    lindesvard/openpanel-api (and matching -dashboard/-worker images) shows
+    pinned patch releases 2.0.0, 2.0.1-rc, 2.1.0, 2.2.0, and 2.2.1, with 2.2.1
+    pushed roughly 5 months before today (2026-08-05), i.e. around March
+    2026. Main branch also had multiple commits as recently as 2026-07-06
+    ("feat: bot detection", billing/logging fixes), about one month before
+    today — clearly active, not dormant.
+
+catalogue_fit:
+  categories: [analytics, monitoring, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover product/web analytics (event
+    tracking, funnels, session replay, real-time dashboards). OpenPanel
+    would be a genuinely new category for the catalogue — a privacy-first,
+    cookieless alternative to Mixpanel/Google Analytics that customers can
+    point their own sites/apps at instead of a third-party SaaS tracker.
+  usefulness: high
+  usefulness_rationale: >
+    Product analytics is a common self-hosting want (data ownership, GDPR),
+    and OpenPanel is one of the more actively developed open-source options
+    in that space. It fills a real gap rather than competing with anything
+    we already ship.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth gate credential (front-door protection until the customer completes first-run signup)
+  secrets_expressible_today:
+    - secret: basic_auth gate credential (front-door protection until the customer completes first-run signup)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      OpenPanel has no env-var/API path to pre-seed the initial admin
+      account. Per its own self-hosting docs, "the first user to register
+      becomes the admin" and registration is auto-disabled after that —
+      there is no `ADMIN_EMAIL`/`ADMIN_PASSWORD`-style seed variable
+      documented anywhere (env var reference only covers infra: DATABASE_URL,
+      REDIS_URL, CLICKHOUSE_URL, COOKIE_SECRET, ALLOW_REGISTRATION, etc). This
+      means the app cannot be pre-provisioned with a customer login the way
+      `generated_from: "<algo>:ROOT_PASSWORD"` normally handles it — the
+      customer has to do an interactive signup themselves after the domain
+      is up. That in itself is not a hard blocker (the customer choosing
+      their own arbitrary in-app credential through the UI is fine, same
+      as any first-run wizard), but it does create a race: whoever reaches
+      the public domain first and submits the registration form becomes the
+      permanent admin. The mitigation is the same pattern already used for
+      n8n/WUD/Open WebUI — front the whole app with a Traefik `basic_auth`
+      gate (projected from the root-password hash) so no outsider can reach
+      the registration form before the customer does. With that gate in
+      place, installability is otherwise unblocked.
+    - >
+      5-service stack (Postgres + Redis + ClickHouse + api + dashboard +
+      worker, bundled Caddy dropped in favor of our Traefik) is heavier than
+      most of our current single/two-container recipes — closer in shape to
+      `recipes/immich/` than to `recipes/uptime-kuma/`. Not a blocker, just a
+      sizing/RAM note for `app_min_ram_mb`.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OpenPanel is an actively developed, AGPL-3.0 privacy-first product
+  analytics platform with a real web UI, filling a category the current
+  24-recipe catalogue has no coverage of at all. It is installable today by
+  gating the whole app behind Traefik basic_auth (root-password-derived) to
+  close the "first registrant becomes admin" race, since OpenPanel itself
+  has no way to pre-seed an admin account via env vars. Pinned patch tags
+  (e.g. `2.2.1`) are available on Docker Hub for api/dashboard/worker, so a
+  recipe can pin exactly rather than tracking upstream's floating `:2`
+  default. The only remaining caveat is a 5-service footprint
+  (Postgres/Redis/ClickHouse/api/dashboard/worker), which is a sizing note
+  for `app_min_ram_mb` rather than a blocker — this is a `build_now`
+  candidate.

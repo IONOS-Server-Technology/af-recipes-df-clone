@@ -1,0 +1,113 @@
+slug: flipt
+name: Flipt
+source_description: "Self-hosted feature flag management platform with Git integration"
+
+upstream:
+  url: https://www.flipt.io/
+  repo_url: https://github.com/flipt-io/flipt
+  license: >
+    v2 (current, actively developed line) is Fair Core License, Version 1.0,
+    MIT Future License (FCL) for the server code — a source-available, NOT
+    OSI-approved open-source license. Client/SDK code (gRPC clients, Go SDK)
+    is separately MIT-licensed. Each FCL-covered version converts to MIT
+    automatically two years after its release. Older v1.x releases were
+    Apache-2.0; v1 is now a legacy/maintenance branch, v2 is the actively
+    released line.
+  docker_image: flipt/flipt:v2.11.0 (also mirrored at docker.flipt.io/flipt/flipt:v2.11.0;
+    a numeric tag is published per release, plus a rolling v2-nightly — use the pinned
+    numeric tag)
+  compose_file_url: null
+  compose_file_notes: >
+    No official production docker-compose file exists. docs.flipt.io/v2/installation/
+    documents only `docker run`, Homebrew, a binary install script, and a Helm chart —
+    no docker-compose is mentioned anywhere. The only docker-compose.yml in the
+    flipt-io/flipt repo (checked at root of both the `main` and `v2` branches, and
+    confirmed no other compose file exists anywhere in the v1 or v2 tree via the
+    GitHub API) is a dev-environment file that builds the server and UI from source
+    via `Dockerfile.dev`/`./ui` rather than pulling the published image, and is not
+    intended for self-hosting/production use. No `deploy/`, `contrib/`, or `examples/`
+    directory with a compose file exists either.
+
+version_health:
+  latest_version: "v2.11.0"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.11.0 released 2026-07-18, about 2.5 weeks before today (2026-08-05).
+    Preceding v2.x tags (v2.10.0, v2.9.0) landed roughly one to two months
+    apart, a steady cadence consistent with active development. Repo is not
+    archived and v2 is the actively maintained line; v1.x is legacy/frozen
+    but that's not the line we'd pin to.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 shipped recipes cover feature-flag/experimentation
+    management (closest neighbours — n8n, Gitea, Anytype, Opengist — are
+    workflow automation, source control, notes, and pastebin). Flipt's own
+    angle within that niche is "Git-native": flags can be stored as
+    declarative files in a Git repo (or served purely from local storage,
+    which is what a default single-VPS recipe install would use) rather than
+    a database, and it ships as a single dependency-free binary/container.
+    Note this is the same niche already covered by the `flagsmith` gap-
+    analysis candidate (apps-gaps/flagsmith.yaml, recommended build_now,
+    BSD-3-Clause, active) — the catalogue does not need both, and Flagsmith
+    is the cleaner pick on licensing grounds (see below).
+  usefulness: medium
+  usefulness_rationale: >
+    Feature flagging is a genuine, recurring need for teams running their own
+    backends, so the category itself is high-value (as reflected in the
+    Flagsmith gap analysis). Flipt specifically is downgraded to medium here
+    purely because of the license conflict below, which makes it a
+    considerably riskier pick than Flagsmith for the same customer need.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik gate credential (perimeter auth)"
+  secrets_expressible_today:
+    - secret: "Traefik gate credential (perimeter auth)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      LICENSE CONFLICT (not a mechanism/secrets gap): Flipt v2's Fair Core
+      License explicitly prohibits creating a competing cloud/SaaS offering
+      using Flipt or offering Flipt as a managed service to third parties
+      (per docs.flipt.io/v2/licensing). The Application Factory's business
+      model — packaging and provisioning Flipt for customers through our own
+      recipe/bootstrap mechanism — sits uncomfortably close to exactly what
+      that clause targets, even though the resulting instance runs on the
+      customer's own VPS rather than IONOS-operated infrastructure. This is
+      a legal-review question, not something a recipe author can resolve by
+      choice of config; flagging explicitly so it isn't shipped on the
+      assumption that "self-hosted" automatically clears FCL's non-compete
+      bar.
+    - >
+      Technically the app is otherwise straightforward to ship: single
+      container, one HTTP port (8080) for the UI/API plus an optional gRPC
+      port (9000) that a customer-facing recipe would not need to expose,
+      and no external database is required for a default local/filesystem-
+      backed install. The only first-boot secret is the Traefik perimeter
+      gate, same pattern as n8n/WUD/Open WebUI. If the license question gets
+      cleared (e.g. legal confirms the customer-operated-VPS model is fine,
+      or a version ages into its MIT Future License window), this would be
+      a fast build.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Flipt is an actively developed (~monthly releases, not archived), single-
+  binary, Git-native feature-flag platform that would be mechanically easy to
+  ship — one HTTP port, no external DB, no built-in login so a Traefik
+  basic_auth gate keyed off the root password covers the only first-boot
+  secret. The blocker isn't the recipe mechanism, it's licensing: Flipt v2's
+  Fair Core License bars using it to offer a competing managed/cloud service
+  to third parties, which is uncomfortably close to what packaging it as an
+  Application Factory recipe would do. That license conflict alone is
+  grounds to not build this one now — revisit Flipt only after legal clears
+  the FCL question, or once a given version ages into its MIT Future
+  License window.

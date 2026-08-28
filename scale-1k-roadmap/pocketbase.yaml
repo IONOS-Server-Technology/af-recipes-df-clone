@@ -1,0 +1,127 @@
+slug: pocketbase
+name: PocketBase
+source_description: "Open-source backend for your next SaaS and mobile app in a single file"
+
+upstream:
+  url: https://pocketbase.io
+  repo_url: https://github.com/pocketbase/pocketbase
+  license: MIT
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists, and none could exist in the
+    usual sense: PocketBase ships only as a single prebuilt binary with no
+    official Docker image (confirmed on pocketbase.io/docs/going-to-production,
+    whose own "Docker" section states "PocketBase doesn't have an official
+    Docker image, but you could use the below minimal Dockerfile as an
+    example" — a hand-rolled Dockerfile, not a compose file). Checked the
+    upstream repo (github.com/pocketbase/pocketbase) root and README
+    directly: no docker-compose.yaml/.yml anywhere in the repo (root,
+    docker/, deploy/, contrib/ all absent), and the README's install
+    guidance is standalone-executable or Go-framework only, never
+    containers. Community-maintained compose files exist (e.g. around the
+    third-party ghcr.io/muchobien/pocketbase image referenced in
+    installability.blocking_issues above) but are not adopted here per the
+    "official only" rule — none exists to record.
+
+version_health:
+  latest_version: "0.39.10"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via the GitHub releases page (not training-data recall): the
+    project ships on two parallel branches — v0.39.x (current line, v0.39.7
+    2026-07-16 → v0.39.8 2026-07-19 → v0.39.9 2026-07-22 → v0.39.10
+    2026-07-30) and v0.22.x (backport line, receiving matching releases the
+    same days for security/stability fixes). As of today 2026-08-05, the
+    latest release (v0.39.10) is only 6 days old, and the repo shows
+    releases multiple times a month on both branches — clearly active, not
+    slowing. 60.5k GitHub stars, 2,443+ commits. Project explicitly notes it
+    is pre-1.0 ("full backward compatibility is not guaranteed before
+    reaching v1.0.0") but has been in this state for years without signs of
+    abandonment.
+
+catalogue_fit:
+  categories: [developer-tools, backend-as-a-service, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover a general-purpose app backend
+    (embedded SQLite database, realtime subscriptions, auth, file storage,
+    and a REST-ish API behind an admin dashboard). n8n is workflow
+    automation and Anytype Server is personal knowledge sync — neither
+    serves the "backend for your own SaaS/mobile app" use case PocketBase
+    targets. This would be a genuinely new category: a self-hosted
+    Supabase/Firebase-style BaaS for customers building their own apps on
+    top of the AF-hosted instance.
+  usefulness: high
+  usefulness_rationale: >
+    Very high real-world adoption (60k+ stars) and fills a gap none of our
+    existing recipes touch — a lightweight backend a customer's own
+    app/mobile client talks to, not just an end-user-facing tool. Held back
+    from being a slam dunk only by the installability gap below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No official Docker image: pocketbase/pocketbase ships as a single
+      prebuilt binary (confirmed on the GitHub Releases page and
+      pocketbase.io/docs/going-to-production, whose own Docker example is a
+      hand-rolled Dockerfile that downloads and unzips the release binary).
+      A docker-compose recipe would have to depend on an unofficial
+      third-party image (e.g. ghcr.io/muchobien/pocketbase, the most
+      widely-used community build) rather than a vendor-published one —
+      a supply-chain/maintenance risk beyond the usual "pin a tag" concern.
+    - >
+      No channel to project generated_from onto the superuser login: the
+      only two supported ways to set the initial superuser
+      email/password — the CLI command `pocketbase superuser create EMAIL
+      PASS` (or `upsert`), and the community image's PB_ADMIN_EMAIL /
+      PB_ADMIN_PASSWORD env vars which just call that same command — both
+      take a plaintext password and bcrypt-hash it internally on write.
+      PocketBase's underlying auth record model can technically store an
+      already-hashed bcrypt value directly (`record.SetRaw("password",
+      "$2a$...")`, confirmed via PocketBase JSVM docs/discussions), which is
+      the same trick Vaultwarden uses for ADMIN_TOKEN — but that path is
+      only reachable by writing a custom Go/JSVM migration script executed
+      at container startup, not through any documented CLI flag or env var.
+      Today's recipe mechanism (env-var templating over a fixed
+      docker-compose file) has no way to run that custom script, so
+      `generated_from: "bcrypt:ROOT_PASSWORD"` cannot actually reach this
+      app's login yet, even though bcrypt is a supported algorithm in
+      principle.
+    - >
+      Traefik basic_auth is not a clean substitute here: PocketBase's core
+      value is the REST/realtime API that a customer's own mobile or web
+      app calls directly, not just the admin dashboard a human logs into.
+      Gating the whole public port behind basic_auth (the pattern used for
+      apps with no login of their own, e.g. Adminer) would also block that
+      API traffic, breaking the actual product this recipe would be
+      installed for. Scoping basic_auth to just the /_/ admin path would
+      dodge that, but leaves the superuser login itself ungated by anything
+      root-password-derived, and path-scoped Traefik auth isn't a mechanism
+      this catalogue currently uses in any recipe.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PocketBase would be a strong, differentiated addition — a genuinely new
+  BaaS/backend category with no overlap among the current 24 recipes, MIT
+  licensed with no commercial-hosting restriction, a single reverse-proxy-
+  friendly HTTP port, and an active project (latest release 6 days old as
+  of 2026-08-05, multiple releases a month across two branches). The blocker
+  is mechanism, not merit: there is no official Docker image (would have to
+  ship on an unofficial community build), and more importantly the
+  superuser login only accepts a plaintext password through every
+  documented interface (CLI command and the community image's env vars),
+  with no supported way to inject an already-hashed value without writing
+  and running a custom migration script the current install.sh/env-var
+  mechanism has no channel for. Recommend blocked_on_platform: revisit once
+  either an official image ships or the platform gains a way to run a
+  one-off setup script at first boot (which would also make the bcrypt
+  SetRaw trick usable).

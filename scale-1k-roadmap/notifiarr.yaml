@@ -1,0 +1,86 @@
+slug: notifiarr
+name: Notifiarr
+source_description: "Notifiarr.com client for Starr app notifications and media automation"
+
+upstream:
+  url: https://notifiarr.com/
+  repo_url: https://github.com/Notifiarr/notifiarr
+  license: MIT
+  docker_image: ghcr.io/notifiarr/notifiarr
+  compose_file_url: https://github.com/Notifiarr/notifiarr/blob/main/examples/compose.yml
+  compose_file_notes: >
+    Official — linked directly from the project's own install wiki
+    (notifiarr.wiki/pages/client/install/) as "a sample docker compose
+    file". It is a rolling reference to the default `main` branch, not
+    version-pinned to a release tag. Only one variant is shown in this
+    file (it uses the `golift/notifiarr` image rather than the
+    `ghcr.io/notifiarr/notifiarr` image also referenced in the wiki, but
+    both are the same client published to two registries — there's no
+    GPU/CPU or sqlite/postgres split to choose between).
+
+version_health:
+  latest_version: "v0.9.5"
+  latest_release_date: "2026-03-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases roughly every 4-6 weeks (v0.9.0 2025-10-18, v0.9.1 2025-11-06,
+    v0.9.2 2026-01-31, v0.9.4 2026-02-25, v0.9.5 2026-03-08). Latest release
+    is ~5 months before today (2026-08-05), which is a bit longer than the
+    prior gaps but still well inside "active" — no archival notice, no EOL
+    announcement, repo/org actively maintained.
+
+catalogue_fit:
+  categories: [notifications, media-automation, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 shipped recipes touch the Starr ecosystem (Sonarr, Radarr,
+    Lidarr, etc.) or Discord-based media-automation notifications — this
+    would be a genuinely new category, not a competitor to an existing
+    recipe (see project note: overlap is fine anyway, but there isn't any
+    here).
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to the self-hosted-media-server audience that already runs
+    Sonarr/Radarr/Plex, but it is a companion/notification layer for other
+    apps we don't ship (no Sonarr/Radarr/Plex recipe exists in this
+    catalogue today), and it is entirely dependent on a third-party SaaS
+    account (notifiarr.com) to do anything useful.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DN_API_KEY (notifiarr.com account API key), DN_UI_PASSWORD (web UI login)]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      DN_API_KEY is a mandatory environment variable holding the customer's
+      personal API key from their notifiarr.com account (Profile > API
+      Keys). The client will not function at all without it — it's not an
+      optional integration, it's the core purpose of the app. There is no
+      form field or API param today through which /compose could receive an
+      arbitrary customer-supplied external credential like this.
+    - >
+      The web UI login is either the API key itself or a separately settable
+      DN_UI_PASSWORD env var, both plaintext values the app reads directly
+      (not a hash) — root-password projection via generated_from only ever
+      carries a hash, so even the UI-login half of this (ignoring the
+      DN_API_KEY problem) isn't expressible via generated_from. It could in
+      principle be masked behind Traefik basic_auth instead, but that does
+      not solve the DN_API_KEY blocker, which is unavoidable regardless of
+      how the UI is gated.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Notifiarr is an actively maintained, MIT-licensed, single-container Docker
+  app with a web UI on :5454, and would add a category (Starr-app/media
+  notifications) not currently in the catalogue. It is blocked from shipping
+  today purely on the mechanism gap: it hard-requires a notifiarr.com
+  account API key at first boot, which is exactly the "external API key the
+  app can't function without" case the schema calls a structural no — there
+  is no way to get a customer's own key into /compose. Revisit once an
+  arbitrary-customer-secret input channel exists, or if a way is found to
+  let the customer self-service that key inside the app's own web UI after
+  boot (deferring only the login screen to Traefik basic_auth).

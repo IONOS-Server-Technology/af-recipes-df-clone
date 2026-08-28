@@ -1,0 +1,111 @@
+slug: nocodb
+name: NocoDB
+source_description: "Open-source Airtable alternative that turns databases into smart spreadsheets"
+
+upstream:
+  url: https://nocodb.com
+  repo_url: https://github.com/nocodb/nocodb
+  license: "Sustainable Use License (source-available, not OSI-approved; source-visible for internal/non-commercial use only — versions before 0.301.0 were AGPL-3.0)"
+  docker_image: "nocodb/nocodb:2026.08.0"
+  compose_file_url: "https://github.com/nocodb/nocodb/blob/develop/docker-compose/examples/quickstart-demo/docker-compose.yml"
+  compose_file_notes: >
+    Official docs (nocodb.com/docs/self-hosting/installation/docker-compose)
+    point directly to this file as "a plain Compose file you can read
+    before running" for anyone who prefers not to use the automated
+    install.nocodb.com/noco.sh script. It is a rolling reference to the
+    `develop` branch, not version-pinned — no release-asset or tagged-ref
+    link is offered for this file. The repo ships several docker-compose
+    variants under `docker-compose/` (this quickstart-demo, an
+    1_Auto_Upstall folder driving the installer script, and other
+    `examples/*` folders); this one is the variant the official docs
+    themselves link to for manual/plain-compose use, and it is the
+    Postgres+Redis+worker stack (image `nocodb/nocodb:latest`, no
+    sqlite-only variant offered at this path).
+
+version_health:
+  latest_version: "2026.08.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release published the same day as this analysis (2026-08-05),
+    confirmed via the GitHub releases API. Cadence is a steady ~monthly tag
+    (2026.04.x through 2026.08.0, roughly one release every 2-4 weeks
+    including point releases), with matching Docker Hub tags published
+    same-day. No dormancy or EOL signal. Separately: the project relicensed
+    away from AGPL-3.0 to the Sustainable Use License as of v0.301.0
+    (2024) — no longer OSI open source, restricting self-hosted use to
+    internal/non-commercial purposes. That is a licensing-suitability
+    question for a hosted-for-customers catalogue, not a version-health
+    concern, but it should be flagged to whoever owns catalogue licensing
+    policy before this ships.
+
+catalogue_fit:
+  categories: [productivity, database, no-code]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers a no-code database/spreadsheet-hybrid tool.
+    Closest neighbors in the catalogue (n8n for automation, paperless-ngx
+    for document management) address adjacent but distinct needs. NocoDB
+    would be the catalogue's first "structured data + spreadsheet UI"
+    offering, filling a real gap for customers wanting an Airtable-style
+    tool they host themselves.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated and popular upstream (turns any SQL database
+    into a spreadsheet UI with API access), but the Sustainable Use License
+    caveat and the plaintext-admin-password blocker below cap it below
+    "high" until both are resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DASHBOARD_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: DASHBOARD_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      NocoDB's own admin bootstrap (NC_ADMIN_EMAIL / NC_ADMIN_PASSWORD) only
+      accepts a plaintext password (min 8 chars, one uppercase, one number,
+      one special char) — there is no hashed-credential input on that path,
+      so `generated_from` cannot project the customer's root password into
+      it. This is a genuine plaintext-only requirement, not merely an
+      unsupported hash algo, so it is a structural blocker for that specific
+      channel.
+    - >
+      Workaround exists and is recommended: omit NC_ADMIN_EMAIL/PASSWORD
+      entirely. Without them, NocoDB has no preset admin — whoever visits
+      the instance first and signs up through the web UI becomes the first
+      (super admin) user. That first-come-first-served signup is itself a
+      real risk on a public IP before the customer claims it, so it must be
+      gated behind Traefik `basic_auth: true` (auto-generated credential,
+      same pattern as n8n/WUD/Open WebUI) until the customer signs up, then
+      the customer's own in-app signup becomes the durable login. This
+      makes the app installable today via the basic_auth mechanism, just
+      not via NocoDB's native admin-bootstrap env vars.
+    - >
+      Needs a persistent database (Postgres recommended for production;
+      falls back to embedded SQLite if NC_DB unset) plus NC_AUTH_JWT_SECRET
+      — both are server-generated random secrets with no customer-facing
+      value, so no blocker there.
+    - >
+      Sustainable Use License is source-available, not OSI open source, and
+      explicitly restricts running it as a service that competes with
+      NocoDB's own paid offering — worth a licensing-policy sign-off before
+      build, independent of the technical mechanism question above.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  NocoDB is an actively maintained (monthly releases, latest tag same-day as
+  this analysis), single-container-plus-Postgres web app with no overlap in
+  the current 24-recipe catalogue, filling a real no-code/spreadsheet-on-
+  database gap. It is mechanically installable today by skipping its
+  plaintext-only admin-bootstrap env vars and gating first access behind a
+  Traefik basic_auth wall until the customer signs up in-app — the same
+  pattern already used for n8n and WUD. The remaining open question is
+  non-technical: NocoDB's Sustainable Use License is source-available, not
+  OSI-approved, and restricts hosting it as a competing service, which
+  should get a licensing-policy review before this becomes a real recipe.

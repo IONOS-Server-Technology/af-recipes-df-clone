@@ -1,0 +1,81 @@
+slug: kroki
+name: Kroki
+source_description: "Unified diagram-as-code API that renders 30+ diagram types over HTTP"
+
+upstream:
+  url: https://kroki.io
+  repo_url: https://github.com/yuzutech/kroki
+  license: MIT
+  docker_image: yuzutech/kroki:0.32.0
+  compose_file_url: https://raw.githubusercontent.com/yuzutech/kroki/main/docs/modules/setup/examples/kroki-docker-compose.yml
+  compose_file_notes: >
+    Official — this exact file is included via Antora's `include::` directive
+    into docs/modules/setup/pages/use-docker-or-podman.adoc, which renders on
+    the docs.kroki.io "Use Docker or Podman" setup page, so it's the same
+    content shown there. The URL is a rolling reference to the `main` branch
+    default, not version-pinned to a release tag; kroki has no tagged-release
+    assets for this file, so a raw-content link to main is the closest
+    equivalent to Immich's release-asset pattern. This is the full variant
+    with the Mermaid, BPMN, and Excalidraw companion containers wired in via
+    KROKI_*_HOST env vars (the core-only single-container form is just
+    `docker run -d -p 8000:8000 yuzutech/kroki` with no compose file); picked
+    the multi-container version since it's what the project ships as "the"
+    docker-compose.yml and gives broader diagram-type coverage out of the
+    box. The diagrams.net companion (marked experimental upstream) is not
+    included in this file.
+
+version_health:
+  latest_version: "0.32.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (v0.32.0) shipped 2026-08-03, two days before this
+    analysis. Prior releases (v0.31.2 2026-07-26, v0.31.1 2026-07-15,
+    v0.31.0 2026-06-11, v0.30.1 2026-03-02) show a steady roughly-monthly
+    cadence with occasional faster patch turnarounds. No indication of
+    maintenance-only mode or archival; actively developed.
+
+catalogue_fit:
+  categories: [developer-tools, documentation, utilities]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers diagram-as-code rendering. Kroki is a pure
+    HTTP API (single Java/Vert.x gateway container on port 8000) that turns
+    text descriptions (PlantUML, Mermaid, GraphViz, D2, BPMN, Excalidraw,
+    and 20+ others) into images — used by documentation pipelines, wikis,
+    and static-site generators rather than as a standalone product a
+    customer opens in a browser.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated (no overlap), and lightweight to run, but it's
+    an API consumed by other tooling rather than an end-user destination —
+    narrower audience than our UI-fronted recipes. Full diagram coverage
+    also requires wiring up to four optional companion containers
+    (kroki-mermaid, kroki-bpmn, kroki-excalidraw, kroki-diagramsnet), adding
+    compose complexity beyond a single-container app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kroki is mechanically installable today: it's a stateless, single-port
+  (8000) HTTP API with no login of its own, so a Traefik basic_auth gate
+  covers its only first-boot secret need, matching the pattern used for
+  WUD/Adminer-style recipes. It's active upstream (release two days before
+  this analysis, steady monthly cadence) and doesn't duplicate anything in
+  the current catalogue. It's a backend API meant to be called by other
+  tools/pipelines rather than a UI a customer opens directly, and full
+  diagram-type coverage would need several optional companion containers
+  wired in via compose, but neither of those blocks a working install with
+  the core gateway — installable_today is true with no blocking issues, so
+  this is build_now.

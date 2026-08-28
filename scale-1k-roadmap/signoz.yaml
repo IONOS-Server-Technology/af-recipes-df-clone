@@ -1,0 +1,118 @@
+slug: signoz
+name: SigNoz
+source_description: "OpenTelemetry-native APM with unified traces, metrics, and logs"
+
+upstream:
+  url: https://signoz.io/
+  repo_url: https://github.com/SigNoz/signoz
+  license: "Open-core: MIT for the core repo, with the ee/ and cmd/enterprise/ directories under a separate proprietary license (ee/LICENSE)"
+  docker_image: signoz/signoz
+  compose_file_url: null
+  compose_file_notes: >
+    No official static docker-compose file exists. SigNoz deprecated
+    install.sh and the bundled Compose/Swarm manifests under deploy/ as of
+    v0.130.0 (confirmed: deploy/docker/docker-compose.yaml returns 404 on
+    the main branch as of 2026-08-14) in favor of Foundry (foundryctl), a
+    CLI that generates a docker-compose.yaml at install time from a
+    casting.yaml config rather than shipping one. Per SigNoz's own
+    deploy/MIGRATION.md: "SigNoz no longer distributes these files." The
+    closest thing to an official reference is the Docker Compose
+    casting.yaml example embedded in that migration guide, but it is
+    itself an input to a generator, not a deployable compose file.
+
+version_health:
+  latest_version: v0.136.1
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.136.1 published 2026-08-05T19:38Z (today) per the GitHub Releases
+    API, with v0.136.0 also shipping earlier the same day and v0.135.1/
+    v0.135.0 on 2026-07-31/07-29 — sub-weekly release cadence throughout
+    July-August 2026. 31.6k GitHub stars, 1539 open issues. Clearly active,
+    not slowing or dormant.
+
+catalogue_fit:
+  categories: [monitoring, observability, apm, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue does APM/tracing/log
+    aggregation; Uptime Kuma (our only "monitoring" recipe) is blackbox
+    up/down ping checking, a different use case entirely. SigNoz would fill
+    a genuine gap the same way HyperDX and OpenObserve would (both already
+    analyzed, apps-gaps/hyperdx.yaml and apps-gaps/openobserve.yaml) — it
+    is one of several credible OTel-native "unified observability"
+    candidates competing for the same niche, not a duplicate of anything
+    already shipped.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-adopted open-source APM tool (31.6k stars) that a customer
+    running several other self-hosted services (our own n8n, Gitea,
+    Immich, etc.) could point OpenTelemetry-instrumented workloads at. But
+    like HyperDX/Jaeger/OpenObserve it only has value for a customer who
+    has other instrumented services to feed it — no standalone utility —
+    and it carries a heavier resource/operational footprint (ClickHouse +
+    ClickHouse Keeper + Postgres + OTel Collector + backend) than a typical
+    single-container recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Not a single-HTTP-port app: SigNoz's entire purpose is receiving
+      telemetry pushed by OpenTelemetry-instrumented services, which
+      requires the OTel Collector's raw ingestion ports (4317 gRPC, 4318
+      HTTP) to be reachable directly by whatever external service is
+      pushing traces/metrics/logs — not just a browser routed through
+      Traefik on 80/443. This is the identical structural mismatch already
+      flagged for Apache SkyWalking, HyperDX, and Jaeger
+      (apps-gaps/hyperdx.yaml, apps-gaps/jaeger.yaml): every current recipe
+      is a single browser-facing HTTP port fronted by Traefik, and exposing
+      raw ingestion ports per customer VM is a product decision that hasn't
+      been made.
+    - >
+      Heavier multi-container stack than most of the catalogue: the
+      official deployment is five containers — the SigNoz backend/UI,
+      OpenTelemetry Collector, ClickHouse, ClickHouse Keeper, and
+      PostgreSQL (metadata store) — comparable in weight to Immich/
+      anytype-server rather than the single-container recipes that make up
+      most of the catalogue, and needs a real ClickHouse data volume.
+    - >
+      Upstream has deprecated static docker-compose manifests entirely in
+      favor of "Foundry" (foundryctl), a CLI that generates the Docker
+      Compose files at install time from a casting.yaml config rather than
+      shipping a fixed compose file to fork from. A recipe would need to
+      either pin to the last pre-Foundry compose manifest (a dead end,
+      since upstream no longer maintains it) or wrap the foundryctl install
+      flow itself, which doesn't fit the current metadata.yaml/
+      docker-compose.yaml recipe shape.
+    - >
+      No first-boot secret is required by the platform itself: on first
+      visit to the UI (port 8080) the app presents its own signup screen
+      where the visitor creates their own admin account directly (no
+      env-var-injected admin credential, no API key gate) — the same
+      self-serve pattern already accepted for n8n and Immich in this
+      catalogue, so authentication alone is not what blocks this recipe.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  SigNoz is an actively developed (multiple releases per week, latest
+  v0.136.1 shipped today, 2026-08-05), open-core APM platform with no
+  equivalent already in the catalogue. Its own first-run account creation
+  is unproblematic (self-serve signup, same pattern as n8n/Immich/HyperDX),
+  so it is not blocked by the usual root-password/basic_auth secrets
+  mechanism. What blocks it is structural, identical to HyperDX and
+  Jaeger: its core purpose requires exposing raw OTel ingestion ports
+  (4317/4318) directly to whatever external, separately-hosted services
+  are pushing telemetry, a fundamentally different exposure shape than our
+  Traefik-only, single-HTTP-port recipes — compounded here by a
+  five-container ClickHouse/Postgres-backed stack and upstream's move away
+  from a maintainable static docker-compose manifest toward the
+  Foundry/foundryctl installer. Recommend blocked_on_platform pending a
+  product decision on exposing non-HTTP ingestion ports per recipe;
+  revisit alongside HyperDX and Jaeger if/when that decision is made.

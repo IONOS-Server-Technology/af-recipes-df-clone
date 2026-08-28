@@ -1,0 +1,84 @@
+slug: homer
+name: Homer
+source_description: "Simple self-hosted static dashboard for organizing all your server services"
+
+upstream:
+  url: https://homer-demo.netlify.app/
+  repo_url: https://github.com/bastienwirtz/homer
+  license: Apache-2.0
+  docker_image: b4bz/homer:v26.4.2
+  compose_file_url: null
+  compose_file_notes: >
+    No downloadable docker-compose file exists anywhere in the project —
+    checked the repo root and docker/deploy/contrib directories on the
+    default branch (all 404), and there is no release asset either. The
+    README's "or docker-compose" install section only embeds a compose
+    snippet directly in the markdown (services.homer using image
+    b4bz/homer, a config volume mount, port 8080:8080, user 1000:1000, and
+    INIT_ASSETS=1) rather than linking to a file the project publishes and
+    updates. Since there's no file to point to, compose_file_url is null.
+
+version_health:
+  latest_version: "v26.4.2"
+  latest_release_date: "2026-04-18"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Not archived; repo has 11.5k stars and 894+ commits on main. Release
+    history is CalVer-style (vYY.MM.patch) and was roughly monthly through
+    2025 (v25.03.3, v25.04.1, v25.05.1/.2, v25.08.1, v25.09.1, v25.10.1,
+    v25.11.1), but there was a ~4.5 month gap between v25.11.1 (2025-11-16)
+    and v26.4.1 (2026-04-05)/v26.4.2 (2026-04-18). Since v26.4.2, no new
+    tag has landed in the ~3.5 months up to today (2026-08-05), longer than
+    any prior within-year gap in the cadence above. Treat as "active but
+    slowing" rather than confidently on a steady cadence — worth
+    re-checking closer to build time rather than assuming monthly releases
+    will resume.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Homer is a bookmark/startpage-style app-launcher dashboard (a static
+    grid of tiles/icons linking to a customer's other self-hosted
+    services), the same niche already covered by three prior gap-analysis
+    candidates — dashy.yaml, heimdall.yaml, and flame.yaml (and, more
+    loosely, glance.yaml, which is a feed-aggregator rather than a
+    launcher). None of the current 24 recipes fill this niche (portainer is
+    container management, uptime-kuma is monitoring), but Homer would be
+    the fourth-or-fifth near-identical "startpage" candidate rather than a
+    new gap.
+  usefulness: low
+  usefulness_rationale: >
+    Convenience layer, not a standalone draw, and the catalogue already has
+    several competing candidates for the exact same slot. Homer is the
+    simplest of the bunch technically (pure static HTML/JS behind nginx, no
+    backend, no database, config via one YAML file) but that simplicity
+    doesn't add anything Dashy/Heimdall/Flame don't already offer for this
+    use case; at most one startpage recipe should be built, and Homer isn't
+    a stronger pick than the others already analyzed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Homer is a single-container (b4bz/homer), single-port (8080), officially
+  imaged, Apache-2.0 static dashboard with no built-in authentication at
+  all — it's plain HTML/JS/CSS served by nginx, configured entirely via one
+  mounted YAML file, with no admin login, no database, and no external API
+  dependency. That makes it mechanically installable today via the same
+  Traefik basic_auth gate pattern already used for Dashy/Heimdall/Adminer,
+  with no platform changes needed and no blocking issues. It overlaps with
+  three prior "startpage/launcher dashboard" candidates (Dashy, Heimdall,
+  Flame), targeting the same niche, and release cadence has visibly slowed
+  since April 2026 — but neither of those is a mechanism/installability
+  blocker. Recommend build_now.

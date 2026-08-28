@@ -1,0 +1,102 @@
+slug: esphome
+name: ESPHome
+source_description: "System for controlling ESP8266/ESP32 microcontrollers with YAML"
+
+upstream:
+  url: https://esphome.io/
+  repo_url: https://github.com/esphome/esphome
+  license: "MIT OR GPL-3.0-only (dual-licensed: Python codebase MIT, C++/runtime firmware code GPLv3)"
+  docker_image: esphome/esphome
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml is published anywhere in the
+    esphome/esphome repo (checked docker/ and repo root - neither has one,
+    and no GitHub release ships a compose asset). The official docs page
+    "Running ESPHome in Docker" (esphome.io/install/docker/) has a
+    "Docker Compose" section with a compose snippet embedded directly in
+    the page (image: ghcr.io/esphome/esphome, privileged: true,
+    network_mode: host, config volume + /etc/localtime mount, and
+    ESPHOME_USERNAME/ESPHOME_PASSWORD env vars) - this is the closest
+    thing to an official compose file, but it's prose-embedded in the docs
+    page, not a fetchable file, so compose_file_url is left null rather
+    than pointing at the docs page. There's no version-pinned vs rolling
+    distinction to make for a URL since none exists; the `image:` line
+    itself has no tag, i.e. floats on the `latest`/`stable` default per
+    the same page's "Image Tags" section. Only one variant is shown (no
+    GPU/CPU or dev/prod split).
+
+version_health:
+  latest_version: "2026.7.4"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly stable release trains (2026.4.0, 2026.5.0, 2026.6.2, 2026.7.x)
+    with frequent patch releases in between (e.g. four 2026.7.x patches
+    within the first days of August 2026), plus active beta pre-releases
+    for the next train (2026.7.0b1/b2). As of 2026-08-05 the latest tag
+    (2026.7.4) is only days old. 16k+ commits, hundreds of open issues/PRs
+    still being triaged — this is a healthy, fast-moving project, not
+    remotely dormant.
+
+catalogue_fit:
+  categories: [automation, iot, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    ESPHome is not a home-automation hub — it's a build/flash/OTA-update
+    tool for ESP8266/ESP32/RP2040/BK72xx microcontroller firmware, defined
+    declaratively in YAML and compiled server-side. recipes/home-assistant
+    is the closest existing recipe (same "smart home" space, frequently
+    paired with ESPHome in real deployments) but solves a different problem:
+    Home Assistant consumes/orchestrates devices, ESPHome builds the
+    firmware those devices run. No recipe in the current 24 touches
+    firmware build/flash tooling.
+  usefulness: medium
+  usefulness_rationale: >
+    Strong appeal to the DIY/smart-home hobbyist segment that already wants
+    Home Assistant, but it's a narrower, more technical audience than most
+    of the catalogue (requires owning ESP-family hardware and editing YAML
+    device configs) rather than a broad-appeal turnkey app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The dashboard's own optional login (ESPHOME_USERNAME / ESPHOME_PASSWORD
+      env vars) is compared as a plaintext credential the container reads
+      directly, not a hash — it has no `generated_from`-compatible input.
+      Not a hard blocker though: leave those env vars unset (dashboard has
+      no auth of its own by default) and gate the whole app behind Traefik
+      `basic_auth: true` instead, same pattern used for n8n/WUD/Immich. The
+      unused ESPHOME_USERNAME/PASSWORD pair could still be set server-side
+      to a random value nobody needs to know, purely as defense in depth.
+    - >
+      USB/serial device passthrough (`--privileged --device=/dev/ttyUSB0`)
+      for flashing devices over a wired connection is not available to a
+      cloud-hosted container and would need to be scoped out of the recipe
+      description — initial flashing would rely on ESPHome's browser-based
+      Web Serial installer (talks to the *customer's local* machine, not
+      the server) or on devices that are already flashed and just need
+      OTA config updates, which the hosted dashboard fully supports.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ESPHome is a single-container, single-HTTP-port (6052) Python/Tornado app
+  with no fixed default admin credential and no external API keys/OAuth
+  requirement, so it fits the current recipe mechanism: front it with a
+  domain param and a mandatory Traefik `basic_auth` gate (the app's own
+  optional login isn't hash-projectable and should just be left disabled).
+  Upstream is very active (near-weekly patch releases as of August 2026),
+  well outside EOL/dormant territory. It doesn't overlap any of the 24
+  existing recipes and pairs naturally with recipes/home-assistant, though
+  it appeals to a narrower DIY-hardware audience than most of the
+  catalogue. The one real caveat to flag for customers is that USB flashing
+  needs a local browser installer rather than the hosted container — worth
+  a documentation note, not a blocker. Recommend building the recipe.

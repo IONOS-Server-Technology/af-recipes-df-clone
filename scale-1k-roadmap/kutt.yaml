@@ -1,0 +1,84 @@
+slug: kutt
+name: Kutt
+source_description: "Modern self-hosted URL shortener with custom domains, analytics, and REST API"
+
+upstream:
+  url: https://kutt.to
+  repo_url: https://github.com/thedevs-network/kutt
+  license: MIT
+  docker_image: kutt/kutt
+  compose_file_url: https://github.com/thedevs-network/kutt/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo root, linked directly from the
+    README's docker-compose section ("Various docker-compose configurations
+    are available"). This is a rolling reference to the default branch
+    (main), not a version-pinned release asset — the repo has no tagged
+    release download for it. The README also lists sibling variants
+    (docker-compose.sqlite-redis.yml, docker-compose.postgres.yml,
+    docker-compose.mariadb.yml); picked the plain docker-compose.yml
+    because it matches the SQLite-default, no-extra-service setup already
+    assumed in this file's installability/summary sections (no Redis,
+    Postgres, or MariaDB required). Note: this file builds the image from
+    source (`build: context: .`) rather than pulling the published
+    kutt/kutt Docker Hub image referenced elsewhere in the README.
+
+version_health:
+  latest_version: "v3.2.6"
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~1 month since v3.2.6 as of 2026-08-05; repo pushed_at matches the
+    release, not archived, 76 open issues actively triaged, 11k+ stars.
+    Release history shows a burst pattern (v3.0.0-v3.2.3 clustered
+    Jan-Feb 2025, then a ~15-month gap, then v3.2.4/v3.2.5 both on
+    2026-05-17, then v3.2.6 on 2026-07-05) — bursty rather than a fixed
+    cadence, but the most recent burst is within the last 3 months, so
+    this reads as active, not sporadic or dormant.
+
+catalogue_fit:
+  categories: [productivity, utility]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover URL shortening/link management.
+    Kutt adds custom short domains, per-link password/expiration, private
+    click analytics, and a REST API — a distinct, well-known self-hosted
+    use case (frequently requested on r/selfhosted as a Bitly/TinyURL
+    alternative) with no functional overlap against the existing catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Solid, well-defined demand from the same self-hoster/homelab audience
+    the catalogue already serves; single official Docker image, SQLite by
+    default (no extra database service required), MIT-licensed. Not a
+    universally-needed tool like a password manager or automation engine,
+    so medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kutt is a clean fit for the current /compose mechanism. JWT_SECRET is an
+  opaque signing key the app never surfaces to the customer, so it can be
+  generated server-side with no input channel needed. The admin account is
+  not an env-var-driven credential at all — Kutt exposes an unauthenticated
+  POST /create-admin route (and matching "Create admin account" page) that
+  is only enabled while no user row exists yet in the database, letting
+  whoever first visits the fresh instance set their own admin email and
+  password through the UI. This is the same first-run-wizard / claim-race
+  pattern already accepted for Uptime Kuma, Gitea, and Koillection, not a
+  new risk. Default env (SQLite, DISALLOW_REGISTRATION=true,
+  DISALLOW_ANONYMOUS_LINKS=true) keeps the instance single-tenant out of
+  the box: no SMTP or OIDC config is required to get a fully functional,
+  privately-authenticated instance, since sign-up/reset-password/OIDC are
+  all optional features gated behind their own env flags rather than
+  prerequisites for basic use. Upstream is active and MIT-licensed with a
+  matching official image tag (kutt/kutt:v3.2.6). Recommend build_now.

@@ -1,0 +1,107 @@
+slug: joplin-server
+name: Joplin Server
+source_description: "Self-hosted synchronization server for Joplin note-taking application"
+
+upstream:
+  url: https://joplinapp.org/
+  repo_url: https://github.com/laurent22/joplin
+  license: "Joplin Server Personal Use License (non-commercial; the wider Joplin monorepo is AGPL-3.0-or-later, but packages/server/LICENSE.md carries its own proprietary personal-use terms)"
+  docker_image: joplin/server:3.7.1
+  compose_file_url: https://raw.githubusercontent.com/laurent22/joplin/dev/docker-compose.server.yml
+  compose_file_notes: >
+    Official — linked directly from the "Using docker compose" section of
+    packages/server/README.md as "the sample docker-compose file". This is
+    a rolling reference to the `dev` branch (no version-pinned tag or
+    release-asset URL is offered), so it tracks HEAD and can change without
+    a version bump. The file defines two profiles, `full` (Joplin Server +
+    a Whisper-based transcription service and its own Postgres queue db)
+    and `server` (Joplin Server + its Postgres db only); `server` is the
+    minimal/relevant variant for a plain sync-server recipe, since the
+    transcription service is an optional add-on with its own heavy
+    resource requirements (up to 16GB RAM / 4 CPUs) unrelated to core sync
+    functionality.
+
+version_health:
+  latest_version: "server-v3.7.1"
+  latest_release_date: "2026-05-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Recent server releases: server-v3.4.4 (2025-09-25), server-v3.5.1
+    (2025-12-03), server-v3.5.2 (2025-12-19), server-v3.6.1 (2026-04-20),
+    server-v3.7.1 (2026-05-18). Roughly one release every 1-4 months, with
+    one wider gap (Dec 2025 -> Apr 2026, ~4 months). As of today
+    (2026-08-05) it has been just under 3 months since the last release —
+    within the project's own historical cadence, not a sign of stalling.
+    Repo is actively developed (desktop client had a v3.7 pre-release as
+    recently as June 2026); not archived, not in maintenance-only mode.
+
+catalogue_fit:
+  categories: [productivity, note-taking, sync]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover note-taking/knowledge-base sync —
+    this would be the first. It's a backend-only sync target for the
+    Joplin desktop/mobile apps plus a small admin web UI, not a
+    general-purpose note editor itself.
+  usefulness: medium
+  usefulness_rationale: >
+    Joplin is a popular open-source note-taking app and self-hosting the
+    sync server (instead of paying for Joplin Cloud) is a common
+    self-hosting use case, so there is real demand. Usefulness is capped at
+    medium rather than high because of the licensing problem below, which
+    caps the realistic ceiling regardless of technical demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ADMIN_PASSWORD (Joplin Server's own admin-panel login)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      LICENSING BLOCKER (likely fatal on its own): packages/server carries
+      a separate "Joplin Server Personal Use License", not AGPL-3.0 like
+      the rest of the repo. It explicitly prohibits installing the
+      software on infrastructure and "charg[ing] others for the use of the
+      Software," installing it "behind a proxy and charg[ing] others," or
+      granting third-party access "for a fee or for any commercial
+      purposes" when the licensee is "engaged in commercial activities."
+      IONOS offering this as a paid/commercial Application Factory recipe
+      is exactly the scenario the license forbids; a commercial license
+      would need to be separately negotiated with the vendor before this
+      could ship at all, independent of any technical mechanism question.
+    - >
+      No first-boot input channel for the admin credential even ignoring
+      the license: Joplin Server ships with a hardcoded default admin
+      account (admin@localhost / admin) and provides no environment
+      variable to seed a different initial email/password/hash at
+      container start — the only way to change it is to log in with the
+      default credentials afterwards and use the admin UI's "change
+      password" screen. This doesn't fit `generated_from` (no env var
+      exists to receive a hash) or plain env-var injection (no plaintext
+      channel either).
+    - >
+      Traefik basic_auth is not a valid substitute gate here, unlike
+      Adminer-style apps: Joplin Server's primary interface is a sync API
+      consumed directly by the Joplin desktop/mobile client apps, which
+      have no UI to supply a separate HTTP Basic Auth credential for the
+      sync target. Wrapping the whole app in `basic_auth: true` would
+      block real sync traffic, not just gate human browser access to an
+      otherwise-open app — so it would break the app's core function
+      rather than secure it.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Joplin Server is a plausible-looking gap (no note-sync app in the
+  catalogue today, active upstream, single reverse-proxy-friendly port),
+  but it fails on two independent grounds: the server component's license
+  explicitly forbids commercial/paid hosting of exactly the kind
+  Application Factory would be doing, and even setting the license aside,
+  the app has no channel — env var, hash, or otherwise — to set its admin
+  credential away from the hardcoded admin@localhost/admin default at
+  first boot, with basic_auth unable to substitute since it would break
+  client sync traffic. Recommend not_recommended; revisit only if the
+  vendor's licensing terms change.

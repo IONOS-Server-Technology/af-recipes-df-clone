@@ -1,0 +1,138 @@
+slug: 1backend
+name: 1Backend
+source_description: "Self-hosted platform for building AI apps with microservices and microfrontends"
+
+upstream:
+  url: https://1backend.com/
+  repo_url: https://github.com/1backend/1backend
+  license: AGPL-3.0
+  docker_image: >
+    crufter/1backend (backend; upstream's own production docker-compose
+    pins `default-1-latest`, or `cuda-12.2.0-latest` for GPU hosts — no
+    numbered version tag exists on Docker Hub for this repo, only these two
+    floating "-latest"-suffixed tags) + crufter/1backend-ui (frontend,
+    tag `latest`, also unpinned)
+  compose_file_url: https://1backend.com/docs/running-the-server/docker-compose/
+  compose_file_notes: >
+    No downloadable compose file exists — upstream's only official
+    production compose is an inline YAML snippet embedded in this docs
+    page ("Running the 1Backend server with Docker Compose and prebuilt
+    images"), which is the two-service (UI + backend) variant referenced
+    by version_health/installability above. It is a rolling reference to
+    whatever is current on `main` docs, not version-pinned to a release
+    tag, and it pins the floating `default-1-latest` backend image (with a
+    commented-out `cuda-12.2.0-latest` alternative for GPU hosts) —
+    consistent with there being no numbered Docker Hub tag to pin to. The
+    repo also has a standalone
+    `docs-source/docs/running-the-server/docker-compose.yaml`, but it was
+    edited in April 2026 to drop the `1backend-ui` service and now diverges
+    from (is stale relative to) the docs page's current inline snippet, so
+    it was not used as the recorded link — the docs page is the file that
+    is actually kept in sync.
+
+version_health:
+  latest_version: "v0.9.0"
+  latest_release_date: "2025-10-12"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Six tagged GitHub releases from v0.4.0 (2025-05-05) through v0.9.0
+    (2025-10-12), roughly monthly — then no new tag in the ~10 months since
+    (as of 2026-08-05). The project is not dormant, though: `main` was last
+    pushed 2026-05-27 (~2.3 months ago, per repo `pushed_at`) and the Docker
+    Hub `cuda-12.2.0-latest` image was rebuilt the same day, so commit and
+    image activity continued well past the last version tag. Repo is not
+    archived, has 2.3k stars and effectively one open issue. Read this as:
+    still actively developed, but has stopped cutting versioned releases,
+    and ships Docker images exclusively under floating tags
+    (`default-1-latest`, `cuda-12.2.0-latest`, `latest`) rather than a
+    pinned version — a recipe would have to pin an increasingly stale
+    `v0.9.0`-era tag or accept a moving target, neither of which is the
+    "pinned, current stable tag" af-create-recipe Phase 2 calls for.
+
+catalogue_fit:
+  categories: [ai, developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [runtipi, open-webui, ollama]
+  differentiation: >
+    1Backend is a developer runtime/framework for building custom
+    microservice + microfrontend apps (built-in auth, request routing, an
+    edge proxy that can replace nginx, and the ability to launch LLM
+    containers on the host) — not a finished end-user application like the
+    rest of the catalogue. It shares surface area with Runtipi (both launch
+    and manage sibling containers via the Docker socket) and with Open
+    WebUI/Ollama (both can run local LLMs in containers it starts), but
+    unlike either of those its own admin console has no standalone function
+    for a non-developer: there is nothing to "use" until someone writes and
+    deploys a microservice or microfrontend on top of it.
+  usefulness: low
+  usefulness_rationale: >
+    AF customers installing from the catalogue want a ready-made product
+    (password manager, notes app, chat UI, Git host) they can start using
+    immediately. 1Backend's admin console is a management/registry surface
+    for a platform, not a product in itself — value only appears once a
+    developer writes code against its SDK and deploys services on it, which
+    is a different (and much narrower) audience than the rest of the
+    catalogue targets, independent of any auth-mechanism question.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_basic_auth_gate, api_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: ui_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app ships a fixed, documented default admin login (username
+      `1backend`, password `changeme`, confirmed current in upstream's
+      `using.md` docs) with no environment variable or first-boot
+      configuration to set a custom password — it can only be changed
+      manually after first login, which a one-click installer can't
+      guarantee happens. Per the corrected SCHEMA.md guidance, this alone
+      is NOT a blocker: gating the app behind a Traefik `basic_auth`
+      credential projected from the customer's root password is a
+      legitimate real auth boundary, same as any app with no configurable
+      login of its own.
+    - >
+      However, 1Backend's official production docker-compose (two
+      containers: `1backend-ui` on :3901 and `1backend` API on :11337) has
+      the browser call the API origin *directly* — `BACKEND_ADDRESS` in the
+      UI container must be a browser-reachable URL, not an internal one.
+      That means there are two independently public HTTP origins, and the
+      current basic_auth mechanism (IF-1312) is wired to gate a single
+      declared public port per app (see `recipes/wud/metadata.yaml`'s
+      IF-808 note: "the Traefik basic-auth feature (first-public-port
+      opt-in) is not implemented" — confirming the feature's scope is one
+      port, not the app as a whole). Gating only the UI port leaves the API
+      port openly reachable with the same fixed `1backend`/`changeme`
+      credential the correction is meant to neutralize — so for this
+      specific two-origin app the credential problem is only half-solved by
+      today's mechanism, not fully resolved the way it is for a
+      single-public-port app like Adminer or n8n.
+    - >
+      Backend container requires a `/var/run/docker.sock` bind mount to
+      launch its own LLM/microservice containers. Precedented in the
+      catalogue (runtipi, wud, portainer already mount the socket), so not
+      a novel blocker by itself, but it compounds the exposure above: an
+      unauthenticated or default-credentialed reach into an app that can
+      start arbitrary sibling containers is a materially worse outcome than
+      the same gap on a simple CRUD app.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  This re-run corrects the prior verdict's reasoning on the credential
+  point: 1Backend's fixed default admin login (`1backend`/`changeme`) is
+  not by itself disqualifying, since a Traefik basic_auth gate is a real
+  auth boundary per the corrected SCHEMA.md guidance. But 1Backend's
+  official deployment exposes two independently browser-reachable HTTP
+  origins (UI :3901, API :11337), and today's basic_auth mechanism only
+  gates one public port per app — so the default credential remains
+  reachable unauthenticated on the ungated origin, and there is no
+  mechanism today to express the `api_basic_auth_gate` secret this app
+  requires at first boot. That gap is compounded by the backend's
+  `/var/run/docker.sock` mount, which lets an unauthenticated caller on the
+  ungated origin start arbitrary sibling containers. Because a
+  first-boot-required secret has no expressible mechanism today, this
+  remains not_recommended on installability grounds alone.

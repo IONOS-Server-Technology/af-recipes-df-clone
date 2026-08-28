@@ -1,0 +1,130 @@
+slug: openship
+name: Openship
+source_description: "Self-hostable deployment platform with built-in CI/CD for any stack"
+
+upstream:
+  url: https://openship.io
+  repo_url: https://github.com/oblien/openship
+  license: Apache-2.0
+  docker_image: "ghcr.io/oblien/openship-api, ghcr.io/oblien/openship-dashboard, ghcr.io/oblien/openship-edge (no Docker Hub image; GHCR only)"
+  compose_file_url: https://raw.githubusercontent.com/oblien/openship/main/docker/docker-compose.yml
+  compose_file_notes: >
+    Rolling reference to the `main` branch (no version-pinned/release-asset
+    URL is published; the project documents cloning the repo and running
+    the file in place, then pinning `OPENSHIP_VERSION` in `.env` for
+    reproducible image pulls — the compose file itself isn't tagged per
+    release). README.md (collapsed "Self-host with raw Docker Compose (no
+    CLI)" section) explicitly names `docker/docker-compose.yml`, run from
+    the repo root, as the self-hosted stack, and warns that the repo-root
+    `../docker-compose.yml` is a *different* file — the SaaS/from-source
+    control plane (builds from source, ships the marketing site, no
+    edge/socket) — not for self-hosting. Picked `docker/docker-compose.yml`
+    (the pull-based GHCR-image variant) over the sibling
+    `docker/docker-compose.build.yml`, which is a build-from-source override
+    layered on top of it, not a standalone variant, per the file's own
+    header comment.
+
+version_health:
+  latest_version: v0.5.0
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5 days before today (2026-08-05) at time of writing. Repo created
+    2026-03-05, last push 2026-08-05 (today). Release history shows near-daily
+    tags through July 2026 (v0.1.6 on 2026-07-13 up through v0.5.0 on
+    2026-07-31 — 7 releases in 18 days). 10.3k GitHub stars, 118 open issues,
+    not archived. This is a young but rapidly-shipping, clearly active project,
+    not dormant.
+
+catalogue_fit:
+  categories: [developer-tools, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [runtipi, portainer]
+  differentiation: >
+    Unlike runtipi (one-click installs of pre-packaged apps) or Portainer
+    (manual container/stack management), Openship is a git-push CI/CD
+    platform: point it at a repo and it detects the stack, builds an image,
+    runs the container, and reverse-proxies + TLS-terminates it on a
+    customer-chosen subdomain, with webhook-driven redeploys on every push.
+    That "push-to-deploy PaaS" niche (closer to a self-hosted Vercel/Heroku)
+    isn't covered by anything in the current 24 recipes.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiated niche and an actively-growing project, but it is
+    architecturally a mini-PaaS that wants to own the whole box (see
+    installability below), which cuts against how narrowly-scoped our other
+    recipes are.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - BETTER_AUTH_SECRET
+    - INTERNAL_TOKEN
+    - first admin account (username/password)
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: INTERNAL_TOKEN
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Openship ships its own reverse-proxy/TLS edge: the `edge` service is
+      OpenResty running with `network_mode: host`, binding the host's
+      :80/:443 directly (Let's Encrypt HTTP-01 handled by the app itself,
+      not Traefik). This has a precedent in the catalogue (`recipes/runtipi/`
+      does the same), so it is not disqualifying on its own, but it does mean
+      our Traefik never sits in front of this app — so Traefik `basic_auth`
+      is NOT available as a gating mechanism for anything Openship exposes.
+    - >
+      Confirmed by reading source (apps/api/src/modules/auth/auth.routes.ts,
+      apps/api/src/middleware/loopback-peer.ts): the open self-registration
+      race does NOT exist. A guard runs before Better Auth's catch-all and
+      unconditionally blocks POST /sign-up with 403 SIGNUP_DISABLED unless
+      (a) zero users exist yet AND (b) the request's kernel-reported TCP
+      peer address is loopback (127.0.0.0/8 or ::1) — not a spoofable
+      header. The real blocker this creates is structural, not racy: there
+      is no remotely-reachable channel to create the first admin at all.
+      The only path in is on-host (the `openship up` CLI, or a raw loopback
+      curl to the API's sign-up endpoint, which the compose file's
+      `127.0.0.1`-only port binding would permit if run from the host
+      during install.sh). But that loopback signup needs the customer's
+      actual plaintext password to produce a login that will later match
+      what the customer types — and our `/compose` mechanism only ever
+      hands install.sh a hash of ROOT_PASSWORD via `generated_from`, never
+      the plaintext (per apps-gaps/SCHEMA.md). So even the loopback path
+      cannot provision an admin account the customer can subsequently log
+      into. This is confirmed from the public repo, not an open question
+      for upstream.
+    - >
+      `api` mounts the host Docker socket (Docker-out-of-Docker, so it can
+      build/run whatever the customer deploys) and optionally reaches the
+      host over SSH (`OPENSHIP_HOST_SSH_*`) for host-level ops. Socket
+      mounts alone have precedent (`recipes/portainer/`, `recipes/runtipi/`,
+      `recipes/wud/`), so not a blocker by itself, but combined with the
+      other two points it reinforces that this app is a full mini-PaaS
+      control plane, not a single scoped application — a materially larger
+      trust boundary than anything else in the catalogue.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Openship (oblien/openship — not to be confused with the unrelated
+  openshiporg/openship e-commerce order-router, ruled out since it doesn't
+  match Hostinger's "deployment platform with built-in CI/CD" description) is
+  a genuinely active, fast-moving self-hosted PaaS with a real differentiated
+  niche (git-push CI/CD) versus our existing app-store/container-manager
+  recipes. It is blocked today because there is no remotely-reachable way to
+  provision the first admin account at all: self-host sign-up is
+  unconditionally gated to loopback-only-while-zero-users (confirmed in
+  source, not a race), and even that loopback path needs the customer's
+  plaintext password to produce a working login, which our `/compose`
+  mechanism never has access to (only a hash, via `generated_from`).
+  Combined with its own host-network reverse-proxy edge (precedented, not
+  fatal, but meaning Traefik `basic_auth` can't front it either), this app
+  has no channel through which our current recipe mechanism could hand it a
+  customer-usable first login.

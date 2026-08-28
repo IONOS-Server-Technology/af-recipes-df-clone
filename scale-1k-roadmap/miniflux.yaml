@@ -1,0 +1,102 @@
+slug: miniflux
+name: Miniflux
+source_description: "Minimalist and opinionated RSS feed reader with a clean web interface"
+
+upstream:
+  url: https://miniflux.app/
+  repo_url: https://github.com/miniflux/v2
+  license: Apache-2.0
+  docker_image: miniflux/miniflux:2.3.3
+  compose_file_url: https://raw.githubusercontent.com/miniflux/v2/main/contrib/docker-compose/basic.yml
+  compose_file_notes: >
+    Official, maintained in-repo at contrib/docker-compose/basic.yml (also
+    embedded verbatim in the docs at miniflux.app/docs/docker.html, which
+    links back to this same contrib/docker-compose directory for further
+    examples). Rolling reference to the main branch, not version-pinned —
+    Miniflux does not publish a release-asset or tag-pinned compose file.
+    Picked basic.yml (plain Miniflux + Postgres, no reverse proxy) over the
+    two siblings in the same directory, caddy.yml and traefik.yml, which
+    add an automatic-HTTPS reverse proxy on top of the same core service
+    definition — basic.yml is the minimal upstream baseline and the one the
+    docs page itself reproduces inline.
+
+version_health:
+  latest_version: "2.3.3"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~12 days since 2.3.3 as of 2026-08-05. Preceding releases land roughly
+    monthly (2.3.2 on 2026-06-27, 2.3.1 on 2026-05-29, 2.3.0 on 2026-05-16,
+    2.2.19 on 2026-04-05) with real feature and security content in each —
+    not a stalled or cosmetic-only cadence. 3,000+ commits on main, active
+    issue triage. No archival notice, no EOL announcement.
+
+catalogue_fit:
+  categories: [productivity, content]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers RSS/feed aggregation — this is a new category
+    for the catalogue. A single lightweight Go binary with a Postgres
+    backend, so it's a plausible "read all my newsletters/blogs/subreddits
+    in one place" self-host for a customer, distinct from anything already
+    offered (closest is n8n for general automation, which doesn't overlap
+    functionally).
+  usefulness: high
+  usefulness_rationale: >
+    Feed readers are a well-understood, evergreen self-hosting use case with
+    steady demand (Google Reader's shutdown legacy keeps driving people to
+    self-hosted alternatives), and Miniflux is one of the most polished,
+    actively maintained options in that space — deliberately minimal
+    dependencies (Go + Postgres, no Node/Python/Redis stack), single web
+    port, no exotic hardware needs.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      First-boot admin bootstrap (CREATE_ADMIN=1 / ADMIN_USERNAME /
+      ADMIN_PASSWORD) only accepts a plaintext password — there is no
+      option in Miniflux's config to seed the admin account from a
+      pre-computed bcrypt/argon2 hash. generated_from can only ever project
+      a hash of the customer's root password, never the plaintext, so there
+      is no channel to let the customer's own password become their Miniflux
+      login. This is the "genuine requirement for the plaintext password"
+      case the schema calls a structural blocker, not a supported-algorithm
+      gap that IF-1420 could close by adding another hash type.
+    - >
+      Gating the whole app behind Traefik basic_auth (as done for n8n/WUD/
+      Open WebUI) does not fully solve this either, because Miniflux still
+      presents its own separate login screen behind that gate — the
+      customer would hit a second login they have no credentials for unless
+      the admin password is also disclosed to them out-of-band, which isn't
+      a supported flow today.
+    - >
+      Miniflux does support trusting a reverse-proxy-supplied identity
+      header (AUTH_PROXY_HEADER + TRUSTED_REVERSE_PROXY_NETWORKS +
+      AUTH_PROXY_USER_CREATION=1), and Traefik's basicAuth middleware does
+      emit an X-Forwarded-User header on successful auth — in principle this
+      could bridge a Traefik basic_auth login (customer's root-password
+      hash) straight into an auto-provisioned Miniflux account with no
+      second login screen. That would resolve the blocker, but it is a novel
+      wiring pattern no current recipe uses and isn't part of the documented
+      generated_from/basic_auth mechanism pair — it would need to be vetted
+      and adopted as a third supported mechanism before relying on it here.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Miniflux is an active, well-maintained project that would fill a genuine
+  gap (no RSS/feed reader in the current 24-recipe catalogue) with a light,
+  reverse-proxy-friendly single-service-plus-Postgres footprint. It's blocked
+  today only on the admin-bootstrap credential: Miniflux's first-run admin
+  account can only be seeded with a plaintext password, which generated_from
+  structurally cannot supply, and a plain Traefik basic_auth gate leaves a
+  second, uncredentialed login screen behind it. A viable path exists
+  (bridging Traefik basic_auth to Miniflux's AUTH_PROXY_HEADER trust so the
+  gate IS the login), but it requires validating and adopting that as a new
+  supported mechanism, not just building the recipe as-is.

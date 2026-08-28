@@ -1,0 +1,97 @@
+slug: formio
+name: Form.io
+source_description: "Open-source form builder and data management platform with REST API"
+
+upstream:
+  url: https://form.io
+  repo_url: https://github.com/formio/formio
+  license: "OSL-3.0 (Open Software License v3.0) — OSI-approved copyleft license requiring attribution when building proprietary products on top of the library; no explicit competing-use/hosting-provider restriction found in the license text or README, unlike e.g. Directus's MSCL-1.0-GPL"
+  docker_image: formio/formio
+  compose_file_url: https://raw.githubusercontent.com/formio/formio/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root (github.com/formio/formio) and is
+    the file the README's "fastest way to run this library locally"
+    section points to (`docker-compose up -d`). Rolling reference to the
+    default branch (master), not version-pinned: it uses the `formio/formio:rc`
+    image tag rather than a numbered release, and there's no tagged/release
+    variant of this compose file to prefer instead. Only one variant is
+    shipped (mongo-ce + formio-ce services), so no GPU/CPU or db-choice
+    fork to pick between.
+
+version_health:
+  latest_version: "v4.8.0"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.8.0 tagged 2026-07-23, 13 days before today (2026-08-05). Tag history
+    shows dense, ongoing activity: v4.7.3 (also 2026-07-23), v4.3.0-patch.3
+    (2026-07-11), v4.7.2 (2026-07-09), v4.7.1/v4.7.0/v4.6.7/v4.6.6/v4.6.5/
+    v4.6.4 all clustered 2026-06-24. Docker Hub shows 4.8.0/4.8 pushed 13
+    days ago and 4.7.3 pushed 15 days ago, consistent with the tag dates.
+    Repo is not archived, 4,389+ commits, 36 open issues/25 open PRs under
+    active triage. No dormancy or EOL signal — this is an actively
+    maintained project with a release roughly every 2-4 weeks.
+
+catalogue_fit:
+  categories: [productivity, forms, developer-tools, data-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a form-builder/data-collection
+    platform. The closest catalogue neighbors by "structured data +
+    self-service builder" spirit are n8n (workflow automation between
+    existing apps, not form/data capture) and paperless-ngx (document
+    archive, not form design). Baserow and Appsmith surfaced elsewhere in
+    this gap-analysis pass are the nearest conceptual relatives (no-code
+    data/app builders) but neither is form-first: Baserow is a general
+    spreadsheet-style database, Appsmith is a CRUD-UI/dashboard builder
+    over existing data sources, while Form.io's core value is a drag-and-
+    drop form designer paired with an auto-generated REST API and
+    submission-data storage for each form — a distinct, commonly-requested
+    use case (surveys, intake forms, workflow data capture with an API)
+    none of the three currently cover.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted form builders with a data API are a real, recurring
+    self-hosting request distinct from general no-code databases or
+    internal-tool builders, and the upstream project is actively
+    maintained. Usefulness is "medium" rather than "high" because the
+    all-in-one open-source server is a fairly niche/dev-facing tool (its
+    own docs steer most production users toward Form.io's hosted/Enterprise
+    platform for scaling, PDF server, and advanced features), so the
+    audience is narrower than a general database or automation tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ROOT_PASSWORD (Form.io project-admin login), JWT_SECRET, MONGO root password]
+  secrets_expressible_today:
+    - secret: ROOT_PASSWORD (Form.io project-admin login)
+      mechanism: generated_from_root_password
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: MONGO root password
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Form.io's official upstream docker-compose.yml (formio/formio image,
+  pinned e.g. v4.8.0, plus a MongoDB sidecar the same shape as
+  anytype-server's existing Mongo dependency) exposes a single HTTP port
+  (3001) and boots from three env vars: ROOT_EMAIL/ROOT_PASSWORD (the
+  built-in project-admin login, set directly via plain env vars — an even
+  more direct fit for generated_from root-password projection than apps
+  that only accept a pre-hashed value), a JWT signing secret embedded in
+  NODE_CONFIG, and the Mongo root password — the latter two are patternless
+  secrets nothing customer-facing ever reads, so both are server-generated
+  with zero customer input needed. That clears the /compose constraint
+  today with no blocking issues. Upstream is actively maintained (release
+  13 days old, dense tag history, no archive/EOL signal) and its OSL-3.0
+  license is a standard OSI copyleft license with no competing-use/hosting
+  clause found (unlike Directus's MSCL-1.0-GPL flagged elsewhere in this
+  pass) — no legal blocker identified. It fills a genuine, currently-
+  unfilled form-builder/data-capture niche adjacent to but distinct from
+  Baserow and Appsmith. Recommend build_now.

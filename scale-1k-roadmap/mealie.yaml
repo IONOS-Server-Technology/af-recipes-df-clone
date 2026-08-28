@@ -1,0 +1,84 @@
+slug: mealie
+name: Mealie
+source_description: "Mealie is a self-hosted recipe manager with meal planning and shopping lists"
+
+upstream:
+  url: https://mealie.io
+  repo_url: https://github.com/mealie-recipes/mealie
+  license: AGPL-3.0
+  docker_image: ghcr.io/mealie-recipes/mealie
+  compose_file_url: https://docs.mealie.io/documentation/getting-started/installation/sqlite/
+  compose_file_notes: >
+    No standalone downloadable compose file exists (the repo's
+    docker/docker-compose.yml at mealie-next builds from source with
+    image: mealie:dev — a dev-build variant, not what the docs recommend for
+    production). The official install docs embed ready-to-use
+    docker-compose.yaml blocks directly in-page, one per database variant:
+    sqlite (linked here) and postgres
+    (https://docs.mealie.io/documentation/getting-started/installation/postgres/).
+    Picked the sqlite variant since the docs call it "the ideal choice for
+    Mealie when you have 1-20 Users" and recommend Postgres only for
+    higher-concurrency or NAS-backed deployments. The embedded example pins
+    image: ghcr.io/mealie-recipes/mealie:v3.22.0 — a specific release tag,
+    not a rolling reference — though the docs themselves note this value can
+    go stale and tell readers to check the README's "latest release" badge
+    before first use.
+
+version_health:
+  latest_version: "v3.22.0"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    8 days since the latest release as of 2026-08-05. Releases have landed
+    roughly every 2-4 weeks over the past several months (v3.16.0 on
+    2026-04-17 through v3.22.0 on 2026-07-28), with occasional same-week
+    patch releases (v3.19.1, v3.19.2, v3.20.1). No signs of slowing;
+    project moved from the original hay-kot/mealie repo to the
+    mealie-recipes org and continues active feature and translation work.
+
+catalogue_fit:
+  categories: [productivity, home]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers recipe/meal-planning management; the closest
+    catalogue entries (paperless-ngx, paperless-ai) are document management,
+    not food/meal-planning. Mealie fills a distinct household-productivity
+    niche with broad appeal (recipe import by URL, meal planner, shopping
+    lists) and has a large, active community (12.9k GitHub stars).
+  usefulness: high
+  usefulness_rationale: >
+    Popular, actively developed, single-container web app with no unusual
+    infra needs (SQLite by default, no mandatory external services) — an
+    easy, high-demand addition that broadens the catalogue beyond its
+    current security/monitoring/dev-tools skew.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_password]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mealie is a single-container, SQLite-by-default web app (Vue frontend +
+  API on internal port 9000) that fits behind Traefik with no raw ports or
+  extra protocols, and it fills a real gap — no existing recipe covers
+  recipe/meal planning. The wrinkle is its login: Mealie creates its first
+  user from DEFAULT_EMAIL/DEFAULT_PASSWORD env vars (default
+  changeme@example.com / MyPassword), both taken as plaintext and explicitly
+  marked deprecated upstream ("should no longer be set by end users") — there
+  is no hash-accepting admin-password field, so generated_from:ROOT_PASSWORD
+  cannot be projected into it. Per SCHEMA.md's guidance for a fixed/default
+  admin credential the app gives no way to change via a supported channel,
+  the practical fix is to front the whole app with a mandatory Traefik
+  basic_auth gate (ALLOW_SIGNUP=false to prevent open registration) rather
+  than rely on Mealie's own login as the security boundary; the customer
+  would still see Mealie's built-in first-login password-change prompt as a
+  secondary, non-blocking step. With that gate in place this is installable
+  today.

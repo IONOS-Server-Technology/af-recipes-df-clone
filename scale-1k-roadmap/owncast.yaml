@@ -1,0 +1,127 @@
+slug: owncast
+name: Owncast
+source_description: "Self-hosted live streaming and chat server with RTMP and Fediverse support"
+
+upstream:
+  url: https://owncast.online/
+  repo_url: https://github.com/owncast/owncast
+  license: MIT
+  docker_image: owncast/owncast:0.2.5
+  compose_file_url: https://owncast.online/quickstart/container/
+  compose_file_notes: >
+    No standalone docker-compose.yml/.yaml file is published anywhere by
+    the project — not in the owncast/owncast repo (root, docker/, contrib/,
+    or deploy/ all checked, none exist on either the develop or 0.1.1
+    branches), and not as a downloadable release asset. The official
+    docs' "Use a container image" quickstart page
+    (owncast.online/quickstart/container/) embeds the compose content
+    inline as a copy-pasteable snippet rather than linking a file: a single
+    `owncast` service using `owncast/owncast:latest`, exposing 8080 (HTTP)
+    and 1935 (RTMP), with `./data:/app/data` bind-mounted for persistence.
+    This is a rolling reference, not version-pinned — it always resolves
+    to whatever `latest` is tagged in Dockerhub at pull time, no
+    release-specific tag or `/releases/latest/download/...` equivalent
+    exists. Only one variant is shown; there is no GPU/CPU or
+    sqlite/postgres split to choose between.
+
+version_health:
+  latest_version: "0.2.5"
+  latest_release_date: "2026-04-11"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    0.2.5 shipped 2026-04-11, ~4 months before today (2026-08-05). History
+    is bursty rather than steady: 0.2.0 (2025-01-11) and 0.2.1 (2025-01-17)
+    landed 6 days apart, then a ~3.5 month gap to 0.2.2 (2025-05-03), a
+    7-day gap to 0.2.3 (2025-05-10), then an ~8 month gap to 0.2.4
+    (2026-01-10), then a 3 month gap to 0.2.5. Tagged releases are
+    infrequent and irregular, but the project shows no archive/EOL notice,
+    the repo has 150+ open issues and ~28 open PRs, and development
+    continues on the `develop` branch between tags — read as a small-team
+    OSS project maintained at a slow but real pace, not abandoned.
+
+catalogue_fit:
+  categories: [media, streaming, social]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does live video
+    ingest/broadcast. Two other live-streaming candidates have already
+    been analyzed in this gap-analysis pass (ant-media-server-ce.yaml,
+    mistserver.yaml) but neither overlaps functionally with Owncast:
+    Ant Media targets WebRTC/low-latency conferencing-style delivery and
+    MistServer is a developer-facing OTT ingest/transcode toolkit, whereas
+    Owncast is a simple, single-purpose "run your own Twitch" app —
+    RTMP ingest from OBS-style software, HLS playback, a built-in web chat,
+    and optional Fediverse (ActivityPub) federation so followers on Mastodon
+    etc. get notified when a stream starts. It would be a genuinely new
+    catalogue category, and the simplest/most consumer-facing of the three
+    streaming candidates analyzed so far.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand from creators/communities who want to self-host streaming
+    instead of using Twitch/YouTube, and Owncast is dramatically simpler to
+    operate than Ant Media or MistServer (single container, no
+    transcode-farm concerns). Capped at medium rather than high because the
+    audience (people who actively stream) is narrower than general
+    self-hosting/productivity tools already in the catalogue, and getting
+    real value requires the customer to already own streaming software
+    (OBS or similar) and understand RTMP basics.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin_password
+    - stream_key
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Owncast's admin password has no env-var or config-file input at
+      container start. It can only be set two ways: a `-adminpassword`
+      CLI flag (confirmed in the current `main.go` source) or an
+      interactive login into the `/admin` web panel — both take the
+      **plaintext** password directly, with Owncast hashing it internally.
+      There is no field that accepts a pre-computed hash. Per SCHEMA.md
+      this is the genuine "app requires the plaintext password, not any
+      hash" case: `generated_from` only ever projects a hash of the
+      customer's root password, so it structurally cannot reach this
+      field — same category of blocker as Castopod's superadmin wizard.
+    - >
+      The stream key (the credential the customer must type into OBS or
+      similar software to publish video) is likewise only viewable/settable
+      through the authenticated `/admin` panel after login — it is a value
+      the customer genuinely needs to read and use, not a secret that stays
+      server-side, so `server_generated_no_customer_input` does not apply
+      either. Both default to the well-known value `abc123` out of the box.
+    - >
+      Traefik `basic_auth` cannot substitute here the way it does for
+      Adminer/n8n-style apps. Owncast's root path (`/`) is the public
+      live-stream viewer page and chat — the entire point of the app is
+      for anonymous visitors to watch without any login. Our `basic_auth`
+      toggle gates the whole public port, not a specific path, so applying
+      it to protect `/admin` would also lock out every viewer and defeat
+      the app's purpose (the same reasoning that ruled out basic_auth for
+      BroadcastChannel, an intentionally-public app).
+    - >
+      Separately from the credential-input gap: core functionality needs a
+      raw RTMP ingest port (1935, TCP) in addition to the HTTP port. This
+      is not a blocker on its own — wg-easy and gitea already ship raw
+      non-HTTP ports in this catalogue — but it does mean the app is not
+      purely reverse-proxy-compatible.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Owncast (official image `owncast/owncast:0.2.5`, MIT, sporadically but
+  not abandoned-ly released) would add a genuinely new, simpler-than-the-
+  alternatives live-streaming category to the catalogue with no overlap
+  against the two other streaming candidates already analyzed. It fails
+  installability today for a structural reason, not a soft one: both the
+  admin password and the stream key are set via plaintext-only channels
+  (a CLI flag or the authenticated admin UI), which `generated_from` cannot
+  reach since it only ever carries a hash, and Traefik `basic_auth` can't
+  substitute because it would gate the intentionally-public viewer page
+  along with the admin panel. Recommend `blocked_on_platform`: revisit if
+  the platform ever gains a plaintext-credential channel or a path-scoped
+  auth gate, neither of which exists today.

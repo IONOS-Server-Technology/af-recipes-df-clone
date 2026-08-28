@@ -1,0 +1,105 @@
+slug: hoppscotch
+name: Hoppscotch
+source_description: "Open-source API development and testing platform for developers and teams"
+
+upstream:
+  url: https://hoppscotch.io
+  repo_url: https://github.com/hoppscotch/hoppscotch
+  license: MIT
+  docker_image: hoppscotch/hoppscotch
+  compose_file_url: https://raw.githubusercontent.com/hoppscotch/hoppscotch/main/docker-compose.yml
+  compose_file_notes: >
+    Official compose file lives at the repo root and is referenced directly
+    by the "Install and build" self-host docs (which call it "the provided
+    docker-compose.yml" without linking a pinned copy) — no separate
+    release-asset variant is published. The link above is a rolling
+    reference to the default branch (main), not version-pinned; a
+    tag-pinned copy also exists (e.g.
+    raw.githubusercontent.com/hoppscotch/hoppscotch/2026.7.0/docker-compose.yml)
+    but main is what upstream's own docs point readers to. The file defines
+    multiple Compose profiles (default, default-no-db, backend, app, admin,
+    database, just-backend, deprecated); the "default" profile (AIO +
+    Postgres + auto-migration) matches this recipe's approach and is what
+    upstream recommends for most users. Note this compose file builds all
+    services from source via `build:` (prod.Dockerfile) rather than pulling
+    the published hoppscotch/hoppscotch image this recipe analysis assumes
+    — the docs' separate `docker run`/`docker pull` instructions are the
+    ones that use the prebuilt DockerHub image.
+
+version_health:
+  latest_version: "2026.7.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2026.7.0 (2026-07-30) is the latest tagged release, 6 days before this
+    analysis on 2026-08-05 — matches a consistent roughly-monthly cadence
+    over the past several months (2026.4.0/2026.4.1 in April, 2026.5.0 in
+    May, 2026.6.0/2026.6.1 in June, 2026.7.0 in July). The `hoppscotch/
+    hoppscotch` Docker Hub image was rebuilt for that same tag 6 days ago,
+    confirming upstream is actively maintained, not just tagging source
+    without shipping images.
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Hoppscotch is a Postman/Insomnia-style API client and testing tool
+    (build/send REST, GraphQL, WebSocket, SSE requests; organize them into
+    collections; run them individually or as automated test suites). No
+    recipe in the current 24-recipe catalogue covers this developer-tooling
+    niche — the closest neighbors (Gitea, Opengist) are source/snippet
+    hosting, not API testing. It would be a genuinely new capability for
+    a customer running other AF-hosted services who wants to develop or
+    debug their own APIs without a local install or a SaaS account.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct value for developer customers, but the self-hosted
+    Community Edition's persistence/collaboration features (saved
+    workspaces, team sync, shared collections — the features that make it
+    worth self-hosting instead of just using the free hoppscotch.io cloud
+    app or a local desktop client) are gated behind a login system that
+    requires either SMTP credentials (magic-link email) or an OAuth app
+    registration (Google/GitHub/Microsoft), neither of which our recipe
+    mechanism can provision today (see below). Without those, a deployed
+    instance is usable anonymously as a stateless request-sender, which is
+    a materially weaker product than what upstream is designed to offer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app's own login (email magic-link or OAuth via Google/GitHub/
+      Microsoft) needs SMTP credentials or an OAuth client id/secret —
+      neither is expressible via generated_from or basic_auth, so those
+      features stay unusable unless the customer manually edits the admin
+      dashboard config post-deploy. Not a hard blocker for shipping (the
+      app functions without login), but it means the recipe would ship an
+      intentionally crippled version of the app's headline feature set.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Hoppscotch is mechanically installable today: the official AIO image
+  (hoppscotch/hoppscotch, pin 2026.7.0) runs as a single container with
+  ENABLE_SUBPATH_BASED_ACCESS=true routing frontend/admin/backend through
+  one port behind Traefik, backed by an internal Postgres container (a
+  server-generated DB password and DATA_ENCRYPTION_KEY, both
+  patternless secrets with no customer-facing value). Since it ships with
+  no self-hosted username/password login of its own — only SMTP-based
+  magic links or OAuth, both external credentials we have no channel for —
+  the whole app should sit behind a Traefik basic_auth gate the same way
+  Homepage and n8n-style no-login apps do. Upstream is actively released
+  (monthly cadence, image rebuilt within the last week) and there's no
+  overlap with any existing recipe, so the gap itself is real. Recommend
+  build_with_caveats: worth building, but flag to product that the
+  self-hosted collaboration/workspace features customers likely expect
+  from "self-hosted Postman alternative" won't work out of the box without
+  a customer manually wiring up SMTP or OAuth after deploy.

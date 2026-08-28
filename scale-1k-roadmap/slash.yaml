@@ -1,0 +1,100 @@
+slug: slash
+name: Slash
+source_description: "Self-hosted shortcut manager that turns URLs into memorable s/ links"
+
+upstream:
+  url: https://github.com/yourselfhosted/slash
+  repo_url: https://github.com/yourselfhosted/slash
+  license: AGPL-3.0
+  docker_image: yourselfhosted/slash
+  compose_file_url: https://raw.githubusercontent.com/yourselfhosted/slash/main/docker-compose.yml
+  compose_file_notes: >
+    Official docker-compose.yml lives at the repo root (single service,
+    single variant — no GPU/CPU or sqlite/postgres split to choose between).
+    It is a rolling reference to the default branch (raw.githubusercontent.com
+    .../main/...), not version-pinned, and the service inside it pulls
+    `yourselfhosted/slash:latest` rather than a tagged release — consistent
+    with version_health's finding that `:latest` on Docker Hub is the
+    project's only actively-referenced tag. The repo's own README does not
+    link to or mention this file; it documents only a bare `docker run`
+    command, so this compose file is official (first-party, in-repo) but
+    undocumented/unadvertised by the project.
+
+version_health:
+  latest_version: "1.0.0-rc.2"
+  latest_release_date: "2025-12-17"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Dates re-verified against github.com/yourselfhosted/slash/tags and the
+    Docker Hub tags API (hub.docker.com/v2/repositories/yourselfhosted/slash/tags);
+    all elapsed times below are computed against today, 2026-08-05.
+    The last tagged *stable* release is v0.5.3 (2024-02-06, Docker image
+    pushed 2024-02-07) — roughly 30 months / 2.5 years ago. Everything since
+    has been pre-release: v1.0.0-rc.0 (2024-11-03, ~21 months ago),
+    v1.0.0-rc.1 (2025-05-07, ~15 months ago), v1.0.0-rc.2 (2025-12-17, ~7.5
+    months ago). The 1.0.0 line has therefore been in RC for ~21 months with
+    no stable promotion, and the RCs themselves land at irregular 6-12 month
+    intervals — hence `sporadic` rather than `slowing`. The Docker Hub
+    `latest` tag was last pushed 2024-10-21 (~21 months stale), i.e. it
+    predates even rc.0, so `:latest` is not a usable pin. Commit history on
+    `main` runs through 2025-12-22 (shadcn UI refactor, CI dependency bumps)
+    with a visible gap before that (previous commit 2025-08-18), and nothing
+    since — ~7.5 months of code silence. The repo is not archived and there
+    is no EOL announcement; users are still filing issues (most recent #503
+    opened 2026-05-13), so `eol_status: active` stands, but this is a
+    low-momentum, single-maintainer project shipping in bursts, not a
+    steadily released one.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover link shortening or shortcut
+    management. Slash's specific niche — short, memorable `s/name` links
+    (e.g. `s/docs`) that redirect to long internal/external URLs, shared via
+    a browser extension and optional public collections — is closer to a
+    team's internal "go-links" tool than a generic bookmark manager
+    (comparable un-built candidates in this gap-analysis set: shlink for
+    branded short links, linkding for personal bookmarking; Slash sits
+    between the two, oriented at team-shared shortcuts rather than either).
+  usefulness: medium
+  usefulness_rationale: >
+    Go-links / team shortcut managers are a recognizable, easily-explained
+    self-hosting want (the internal-tool pattern popularized by Google's
+    "go/" links), and Slash is a small, single-container, single-HTTP-port
+    app with no external dependencies by default (SQLite). Usefulness is
+    medium rather than high because it targets a narrower team-productivity
+    audience than security/monitoring recipes already in the catalogue, and
+    the 2.5-year-old stable release line (see version_health) is a real
+    caveat for a net-new addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Slash is a single-container Go/React app (SQLite by default, Postgres
+  optional) that needs nothing beyond a domain to boot: the first visitor to
+  the instance signs up through the app's own web UI and becomes its admin,
+  the same self-service owner-setup pattern already accepted for the n8n
+  recipe, so there is no customer-supplied secret to project and no
+  Traefik basic_auth gate is structurally required. Mechanically it would be
+  installable today with no blocking issues, so recommendation is build_now.
+  Upstream's version health is worth flagging for whoever schedules the
+  build: no stable tag since v0.5.3 (2024-02-06, ~30 months / 2.5 years ago),
+  sitting in 1.0.0-rc.* for ~21 months, no commits on `main` since 2025-12-22
+  (~7.5 months), and Docker Hub `latest` frozen at a 2024-10-21 build, so any
+  recipe would have to pin `1.0.0-rc.2` (a pre-release, since `latest` and the
+  last stable are both ~21-30 months old). That is not a blocking issue for
+  this mechanical recommendation — it is not `not_recommended` either, since
+  the repo is unarchived, un-EOL'd, and was actively refactored as recently as
+  December 2025 — but it is a real signal to watch: if the next check finds
+  still no commits and no 1.0.0 stable, that should feed into a fresh
+  installability assessment rather than being read as settled.

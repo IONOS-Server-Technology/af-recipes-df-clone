@@ -1,0 +1,78 @@
+slug: actual-budget
+name: Actual Budget
+source_description: "Privacy-focused personal finance app with envelope budgeting"
+
+upstream:
+  url: https://actualbudget.org/
+  repo_url: https://github.com/actualbudget/actual
+  license: MIT
+  docker_image: actualbudget/actual-server
+  compose_file_url: https://github.com/actualbudget/actual/blob/master/packages/sync-server/docker-compose.yml
+  compose_file_notes: >
+    Official: the project's own docs
+    (actualbudget.org/docs/install/docker/) directly link this file as
+    "the docker-compose.yml file included in the actual repository" for
+    running the latest stable version. It is a rolling reference to the
+    default branch (master), not version-pinned — the file path
+    (packages/sync-server/docker-compose.yml) and content will track
+    whatever is current on master, and the image tag inside it is
+    actualbudget/actual-server:latest rather than a pinned version. Only
+    one variant is shown (single actual_server service backed by its own
+    bundled SQLite/data volume, no separate database service), matching
+    the single-container architecture already described in this file's
+    summary, so there was no variant choice to make.
+
+version_health:
+  latest_version: "26.8.0"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly (sometimes twice-monthly) tagged releases going back at least a
+    year (26.2.0 on 2026-02-02 through 26.8.0 on 2026-08-02, plus patch
+    releases like 26.5.1/26.5.2 in between). Latest release was 3 days
+    before today (2026-08-05). No archival or EOL signal; actively
+    developed.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal finance / budgeting.
+    This is a genuinely new category for the catalogue: a privacy-focused,
+    self-hosted alternative to YNAB/Mint-style envelope budgeting apps,
+    appealing to a broad consumer audience rather than the more
+    developer/ops-tool-heavy slant of most existing recipes.
+
+  usefulness: high
+  usefulness_rationale: >
+    Personal finance is a mainstream self-hosting use case with strong
+    "keep my bank data off someone else's server" appeal, and Actual is
+    the most popular open-source app in that space (10M+ Docker pulls),
+    so it broadens the catalogue beyond dev-tools/monitoring into a new,
+    high-demand consumer category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Actual Budget is a single-container, single-HTTP-port (5006) Node.js app
+  backed by its own bundled SQLite storage under /data — no external
+  database service needed, matching the uptime-kuma single-container
+  pattern. It has no username and no admin credential injected at boot: on
+  first browser visit the customer is prompted to set their own server
+  password directly through the app's UI, exactly like Uptime Kuma's
+  first-visit setup wizard. That means af-api needs to pass no
+  customer-specific secret at all — just the domain param — so this clears
+  the current /compose constraint cleanly with zero blocking issues.
+  Release cadence is active (monthly releases, latest 3 days old) and the
+  project shows no maintenance-only or EOL signal. Recommend building the
+  recipe now: it fills a real gap (no finance/budgeting app in the
+  catalogue today) with a well-maintained, high-demand upstream project.

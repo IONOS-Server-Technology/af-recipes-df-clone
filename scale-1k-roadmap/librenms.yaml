@@ -1,0 +1,105 @@
+slug: librenms
+name: LibreNMS
+source_description: Auto-discovering SNMP network monitoring with rich alerting and graphs
+
+upstream:
+  url: https://www.librenms.org/
+  repo_url: https://github.com/librenms/librenms
+  license: GPL-3.0-or-later
+  docker_image: librenms/librenms
+  compose_file_url: https://raw.githubusercontent.com/librenms/docker/master/examples/compose/compose.yml
+  compose_file_notes: >
+    Official file, from the librenms/docker repo (the same org/repo that
+    publishes the librenms/librenms image), documented at
+    docs.librenms.org/Installation/Docker/ and github.com/librenms/docker
+    README as the recommended way to run the image. Link is a rolling
+    reference to the master branch (raw.githubusercontent.com/.../master/...),
+    not a version-pinned tag or release asset — librenms/docker doesn't cut
+    tagged releases the way librenms/librenms does, so master is the only
+    channel. The repo's examples/ dir ships several variants (compose,
+    docker-cli, kubernetes, podman); picked examples/compose/compose.yml as
+    the docker-compose variant. It's the full stack (librenms + mariadb +
+    redis + msmtpd + dispatcher sidecar + optional syslog-ng/snmptrapd
+    receivers), matching what installability.blocking_issues already
+    describes.
+
+version_health:
+  latest_version: "26.7.0"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly release cadence throughout 2026 (26.2.0 Feb 16, 26.3.0 Mar 16,
+    26.5.1 May 20, 26.6.0 Jun 15, 26.7.0 Jul 20 — with a 39-contributor
+    changelog on the latest tag). Latest release is ~2.5 weeks before today
+    (2026-08-05). Clearly an actively maintained project, not
+    maintenance-only or dormant.
+
+catalogue_fit:
+  categories: [monitoring, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Uptime Kuma (our only existing monitoring recipe) does synthetic
+    HTTP/TCP/ping checks against endpoints the customer configures by hand.
+    LibreNMS is a different class of tool: SNMP-based auto-discovery and
+    polling of network devices (switches, routers, APs, UPSes) with
+    interface graphing, threshold alerting, and a device inventory — it
+    monitors the network fabric itself, not application uptime. No existing
+    recipe covers this ground.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for a customer running any amount of network hardware (a
+    small ISP, an MSP, a homelab with managed switches), but it's a niche
+    relative to our current app-hosting-focused catalogue and needs SNMP
+    read access to the customer's own network devices to be useful at all —
+    something no AF-hosted instance can assume by default. Value is real but
+    narrower than a general-purpose app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MARIADB_PASSWORD (or MYSQL_PASSWORD)
+    - basic-auth gate credential for the LibreNMS web UI
+  secrets_expressible_today:
+    - secret: MARIADB_PASSWORD (or MYSQL_PASSWORD)
+      mechanism: server_generated_no_customer_input
+    - secret: basic-auth gate credential for the LibreNMS web UI
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      LibreNMS has no environment-variable or config-file channel to set the
+      initial admin user/password at container boot. The official
+      librenms/docker image either creates a default "librenms"/"librenms"
+      account or prompts the visitor to set username/password via a
+      first-visit web setup wizard, depending on version — in both cases the
+      credential is not something af-api's /compose can project a hash into
+      via `generated_from`. This is the exact "no login of its own worth
+      wiring up, gate the whole thing behind Traefik basic_auth instead"
+      case the schema describes, and that gate mechanism (IF-1312) is still
+      unmerged.
+    - >
+      Full functionality requires a multi-container stack (librenms app +
+      MariaDB/MySQL + Redis + a poller "dispatcher" sidecar, plus cron for
+      scheduled polling) — meaningfully heavier than our current
+      single-container-plus-DB recipes, though mechanically no different
+      in kind from immich/anytype-server.
+    - >
+      Optional syslog-ng (UDP/514) and snmptrapd (UDP/162) receiver
+      containers in the official compose are non-HTTP raw ports; they are
+      NOT required for core SNMP-polling functionality and can be omitted
+      from a recipe, keeping the shipped app single-HTTP-port and
+      Traefik-compatible.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  LibreNMS is an active, well-maintained SNMP network-monitoring tool with
+  a genuine gap versus our catalogue (nothing else does device/interface
+  monitoring), and it's reverse-proxy-friendly on its core web UI port if
+  the optional syslog/snmptrap receivers are left out. It cannot ship as a
+  recipe today because it has no supported way to receive a customer
+  credential at first boot — the only viable gate is Traefik basic_auth,
+  which needs IF-1312 merged first. Revisit once that lands; the app itself
+  is otherwise a reasonable build candidate.

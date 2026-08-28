@@ -1,0 +1,80 @@
+slug: gimp
+name: GIMP
+source_description: "Browser-accessible professional image editor and graphic design tool"
+
+upstream:
+  url: https://www.gimp.org
+  repo_url: https://gitlab.gnome.org/GNOME/gimp
+  license: GPL-3.0-or-later
+  docker_image: lscr.io/linuxserver/gimp
+  compose_file_url: null
+  compose_file_notes: >
+    GIMP itself is a native desktop application with no official Docker
+    distribution: gimp.org/downloads and the GNOME GitLab repo
+    (gitlab.gnome.org/GNOME/gimp) offer AppImage, Flathub, Snap, Windows/
+    macOS installers, and source builds only — no docker-compose file, and
+    no Docker/container deployment mentioned anywhere. The docker_image
+    recorded above (lscr.io/linuxserver/gimp) is a third-party packaging by
+    linuxserver.io, not published or endorsed by the GIMP project, so it is
+    not treated as an official compose source here.
+
+version_health:
+  latest_version: "3.2.4"
+  latest_release_date: "2026-04-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    GIMP 3.2.4 released 2026-04-19 (~3.5 months before today, 2026-08-05).
+    Three stable point releases (3.2, 3.2.2, 3.2.4) shipped within ~5 weeks
+    around the 3.2 major release in March-April 2026, and the upstream
+    GNOME GitLab repo shows continuous commit activity across 291 tags.
+    The deployable image, lscr.io/linuxserver/gimp, is actively rebuilt
+    (observed "updated 1 day ago" on Docker Hub), tracking upstream closely.
+    No sign of maintenance-only mode or slowdown.
+
+catalogue_fit:
+  categories: [productivity, creative]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a creative/productivity
+    desktop tool — the closest structural relative is guacamole (browser
+    remote-desktop gateway, currently disabled in the catalogue), but that
+    is a generic RDP/VNC/SSH gateway, not a single packaged application.
+    GIMP-in-a-browser would be the catalogue's first "run a full desktop
+    app via the browser" recipe, giving customers a hosted image editor
+    without installing anything locally.
+  usefulness: low
+  usefulness_rationale: >
+    Interesting as a novelty but a poor fit for a VPS/hosting-oriented
+    catalogue: it ships a full desktop environment (Selkies/KasmVNC-style
+    streaming) rather than a lightweight service, needs meaningfully more
+    RAM/CPU than a typical single-container recipe, and only serves one
+    interactive user at a time rather than being a persistent service like
+    the rest of the catalogue. The nearest precedent (guacamole, generic
+    remote desktop) is itself currently disabled, suggesting low prior
+    appetite for this app category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  GIMP is active upstream and lscr.io/linuxserver/gimp is a well-maintained,
+  frequently-rebuilt browser-accessible image (noVNC/Selkies desktop over
+  HTTPS on port 3001, single /config volume). It is mechanically
+  installable today by gating the container behind Traefik basic_auth
+  (root-password-derived hash) rather than relying on its own plaintext
+  CUSTOM_USER/PASSWORD basic auth, with no blocking issues. It is a full
+  remote desktop for one interactive application rather than a persistent
+  service, and the catalogue's closest structural precedent, guacamole, is
+  currently disabled — but installability is mechanically clean, so
+  recommend build_now.

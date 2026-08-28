@@ -1,0 +1,95 @@
+slug: langflow
+name: Langflow
+source_description: "Langflow is a visual AI workflow builder for creating LLM applications"
+
+upstream:
+  url: https://www.langflow.org
+  repo_url: https://github.com/langflow-ai/langflow
+  license: MIT
+  docker_image: langflowai/langflow:1.11.2
+  compose_file_url: https://raw.githubusercontent.com/langflow-ai/langflow/main/docker_example/docker-compose.yml
+  compose_file_notes: >
+    Official — lives in the langflow-ai/langflow repo itself at
+    docker_example/docker-compose.yml, alongside a README explaining its
+    use, and is the file the project's own docs point installers to. This
+    is a rolling reference to the default branch (raw `main` link, not a
+    tagged release), and it pulls `langflowai/langflow:latest` with
+    `pull_policy: always` rather than pinning a version — the repo's own
+    README explains you can edit the `image:` line to pin a specific tag
+    instead. Only one variant is shipped (langflow + postgres); there is
+    no separate sqlite-only or GPU/CPU split at this path. Note this
+    compose file always wires up a Postgres sidecar even though the app
+    can run on SQLite alone — relevant since installability.notes above
+    describes Langflow as needing no mandatory Postgres.
+
+version_health:
+  latest_version: "1.11.2"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag v1.11.2 shipped 2026-08-04, one day before this
+    analysis. Prior stable releases (v1.11.1 2026-07-28, v1.11.0/v1.10.3
+    2026-07-23, v1.10.2 2026-07-07, v1.10.1 2026-06-23, v1.10.0 2026-06-09)
+    show a steady roughly-biweekly cadence, and the repo also pushes
+    near-daily `1.12.0.devN` nightly builds on top of that. No sign of
+    maintenance-only mode or archival — this is one of the most actively
+    developed projects considered so far.
+
+catalogue_fit:
+  categories: [ai, developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Langflow is a drag-and-drop visual builder specifically for LLM/agent
+    pipelines (chains, RAG, tool-calling, multi-agent orchestration) that
+    can also be deployed as an API or MCP server. This is distinct from
+    n8n (general-purpose low-code automation with no LLM-specific
+    component library) and from open-webui/hermes-agent/openclaw (chat
+    interfaces / messaging-app agent runtimes, not a workflow-authoring
+    canvas). No existing recipe covers visual LLM-pipeline construction.
+  usefulness: high
+  usefulness_rationale: >
+    Genuinely new category for the catalogue (AI workflow/agent builder)
+    with strong current relevance, runs as a single container with a
+    built-in SQLite store (no mandatory Postgres), and is actively
+    maintained upstream — a good complement to ollama/open-webui for
+    customers building LLM apps rather than just chatting with a model.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Langflow's own login (LANGFLOW_SUPERUSER / LANGFLOW_SUPERUSER_PASSWORD)
+      only accepts a plaintext password via env var — there is no
+      pre-hashed-credential input, so `generated_from` (which only ever
+      carries a hash) cannot project a value into it. Workaround: set
+      LANGFLOW_AUTO_LOGIN=true (this is actually the upstream project
+      default, though the official Docker image ships with it set to
+      false) so Langflow's own login screen is bypassed entirely, and
+      generate LANGFLOW_SUPERUSER_PASSWORD server-side as a random value
+      nobody needs to read. That moves the real auth boundary to a
+      Traefik basic_auth gate in front of the app, matching the pattern
+      already used for n8n/WUD/OpenClaw. Flagging as a caveat rather than
+      a hard blocker since a working mechanism exists today."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Langflow is active upstream (stable release one day before this
+  analysis, roughly biweekly stable cadence plus near-daily nightlies) and
+  fills a genuinely open slot in the catalogue: a visual builder for
+  LLM/agent workflows, distinct from n8n's general automation and from the
+  chat/messaging-agent recipes we already have. It runs as a single
+  container with a built-in SQLite store, so it doesn't need Postgres to
+  boot. Installability requires one workaround: Langflow's built-in login
+  only accepts a plaintext superuser password (no hash input), so instead
+  of projecting the customer's root-password hash into it, the recipe
+  should disable Langflow's own login (LANGFLOW_AUTO_LOGIN=true, matching
+  upstream's own default) and gate the app with Traefik basic_auth instead
+  — the same pattern already used for n8n/WUD/OpenClaw. With that caveat
+  applied this is installable today and worth building.

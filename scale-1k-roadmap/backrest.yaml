@@ -1,0 +1,75 @@
+slug: backrest
+name: Backrest
+source_description: "Web UI for restic backups with scheduling, encryption, and file-level restore"
+
+upstream:
+  url: https://github.com/garethgeorge/backrest
+  repo_url: https://github.com/garethgeorge/backrest
+  license: GPL-3.0
+  docker_image: ghcr.io/garethgeorge/backrest
+  compose_file_url: https://github.com/garethgeorge/backrest/blob/main/README.md#docker-compose
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml exists anywhere in the repo (root,
+    docker/, deploy/, contrib/) or on the docs site
+    (garethgeorge.github.io/backrest) — the only official compose example is
+    embedded inline in the project's own README.md under the "Docker" ->
+    "docker-compose" section, using image ghcr.io/garethgeorge/backrest:latest
+    (a rolling tag, not version-pinned) with volumes for
+    /data, /config, /cache, /tmp, and rclone config. The README also notes an
+    alternative :scratch (minimal) image tag but the compose example itself
+    only shows one variant. The linked URL is a rolling reference to the
+    main branch's README, not a pinned release asset, since no versioned
+    compose file is published.
+
+version_health:
+  latest_version: "v1.14.1"
+  latest_release_date: "2026-07-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag (v1.14.1, and v1.14.0 shortly before it) is ~24 days old as of
+    2026-08-05. Prior releases: v1.13.0 ~3 months ago, v1.12.1 ~5 months ago,
+    v1.12.0 ~5-6 months ago — a steady roughly-monthly cadence with no gaps,
+    active issue/PR triage (310 open issues, 25 open PRs at time of review),
+    and CI still running goreleaser on tag push. No archival notice.
+
+catalogue_fit:
+  categories: [backup, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers versioned/encrypted backup. Syncthing (in the
+    catalogue) is live peer-to-peer file sync, not point-in-time, encrypted,
+    deduplicated backup with retention policies and restore browsing —
+    different use case entirely. Backrest is a thin web UI + scheduler over
+    restic, giving customers a GUI for snapshot management, prune/retention
+    policies, and file-level restore without touching a CLI.
+  usefulness: high
+  usefulness_rationale: >
+    Backup is a foundational, broadly-wanted capability with nothing
+    comparable in the current 24-recipe catalogue. A restic-backed web UI is
+    a natural complement to storage/self-hosting recipes already offered
+    (e.g. as a way to back up other recipe's volumes to remote/cloud repos).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Backrest is a single-container, web-UI-fronted restic backup tool with no
+  overlap in the current catalogue and clear customer value (versioned,
+  encrypted, scheduled backups with a GUI). It has no env-var or CLI flag for
+  presetting the admin account, but its config.json auth schema
+  (Auth.users[].name / password_bcrypt, per proto/v1/config.proto) accepts a
+  pre-hashed bcrypt password, so install.sh can seed that file with
+  generated_from: "bcrypt:ROOT_PASSWORD" before first container start,
+  bypassing the interactive first-run signup wizard exactly like Vaultwarden's
+  ADMIN_TOKEN pattern. Single HTTP port (9898), no other raw ports, actively
+  released roughly monthly. Recommend building this recipe now.

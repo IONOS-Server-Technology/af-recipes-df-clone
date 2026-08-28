@@ -1,0 +1,118 @@
+slug: redpanda-console
+name: Redpanda Console
+source_description: "Web UI for managing Kafka and Redpanda topics, schemas, and live message streams"
+
+upstream:
+  url: https://redpanda.com/redpanda-console-kafka-ui
+  repo_url: https://github.com/redpanda-data/console
+  license: BSL-1.1 (Business Source License; converts to Apache-2.0 per the Change Date in redpanda-data/redpanda's licenses/bsl.md)
+  docker_image: docker.redpanda.com/redpandadata/console:v3.9.0
+  compose_file_url: https://github.com/redpanda-data/console/blob/master/docs/local/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives in the redpanda-data/console repo itself, at
+    docs/local/docker-compose.yaml, and is the file the repo's own README
+    "Getting started" section points to for users without an existing
+    Kafka cluster ("we maintain a docker-compose file that launches
+    Redpanda and Console"). This is a rolling reference to the default
+    (master) branch, not a version-pinned release asset — the repo does
+    not publish this file as a per-release download. It's a single
+    variant (no GPU/CPU or dev/prod split), but is oriented at local
+    demo/dev use rather than production: it pins old images
+    (redpandadata/redpanda:v23.2.17, console:v2.3.8, both far behind the
+    latest_version above) and bundles extra demo-only services (a Kafka
+    Connect datagen container and an "owl-shop" traffic simulator) beyond
+    just Redpanda + Console.
+
+version_health:
+  latest_version: v3.9.0
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.9.0 published 2026-07-23, ~13 days before today (2026-08-05).
+    Recent release history shows a steady near-monthly cadence:
+    v3.8.0 (2026-06-29), v3.7.4 (2026-05-29), v3.7.3 (2026-05-20),
+    v3.7.2 (2026-04-29). Note the repo is also still cutting parallel
+    v2.8.x patch releases (v2.8.16 on 2026-06-22, v2.8.15/v2.8.14 on
+    2026-05-29) alongside the v3 line — likely an LTS/backport branch
+    for customers not yet on v3, not a sign of stagnation. No archival
+    notice; repo pushed to as recently as today. Clearly active.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true  # single HTTP port (8080), config delivered via mounted/inline YAML + env vars, no other raw ports required for the UI itself
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch message streaming/Kafka at all —
+    this would be a new category (dev/ops tooling for event streaming)
+    rather than competing with an existing recipe. Closest is arguably
+    Portainer/Adminer in spirit (an ops UI in front of infrastructure the
+    customer already runs) but for Kafka/Redpanda instead of Docker or a
+    SQL database.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, actively developed tool with a clear niche use case, but that
+    niche is narrower here than it looks: Console's whole value
+    proposition is pointing at a Kafka/Redpanda cluster the customer
+    already operates, typically in production, elsewhere. AF customers
+    provisioning a single self-hosted app instance don't generally have
+    an existing external Kafka cluster to manage. A recipe could bundle
+    its own single-node Redpanda broker (as upstream's own demo
+    docker-compose does) to make the app self-contained, but then it's
+    a Kafka/Redpanda sandbox with a UI attached, not "manage the Kafka
+    cluster I already have" — a materially smaller value prop than the
+    Hostinger description implies.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic-auth gate credential
+  secrets_expressible_today:
+    - secret: basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Redpanda Console's built-in login (OIDC or basic-auth, configured via
+      `authentication.jwtSigningKey` etc.) is an enterprise-license-gated
+      feature per upstream docs — without a license key, unauthenticated
+      users hit a "license expired" page and login is unavailable. The
+      community-edition app is therefore open-by-default with full
+      cluster-management access (topics, consumer groups, ACLs, schema
+      registry) unless something else gates it. Traefik `basic_auth: true`
+      on the app's single public port covers this cleanly (no license
+      needed, no customer-facing credential of the app's own), so this is
+      not a hard blocker — just something the recipe must remember to set.
+    - >
+      Only self-contained (bundled own Redpanda broker) deployment is
+      installable under current constraints. If a customer instead wants
+      Console pointed at their real, already-running Kafka/Redpanda
+      cluster — the actual common use case — that requires supplying
+      `KAFKA_BROKERS` plus, for anything beyond a trivially open local
+      cluster, SASL/TLS credentials (`KAFKA_SASL_USERNAME`,
+      `KAFKA_SASL_PASSWORD`, client certs) for a system entirely outside
+      this recipe. That is exactly the "external, already-running service
+      + arbitrary credential" case SCHEMA.md rules out — no channel exists
+      for af-api to accept or inject such a value at `/compose` time. This
+      doesn't block the bundled/self-contained variant, but it does mean
+      the recipe can only ever manage a fresh sandbox cluster it created
+      for itself, not a customer's real one.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Redpanda Console is an actively maintained (near-monthly releases,
+  latest 13 days before this analysis), BSL-1.1-licensed web UI for
+  Kafka/Redpanda that fills a genuine gap in the current 24-recipe
+  catalogue — nothing else touches event streaming. It clears the
+  mechanical bar for installable_today only in a self-contained form
+  (Console + a bundled single-node Redpanda broker, gated by Traefik
+  basic_auth since the app's own login is enterprise-license-only), which
+  keeps every input server-generated with no customer-supplied secrets.
+  However, that self-contained form is also its main weakness: the
+  product's real value is managing an existing external Kafka/Redpanda
+  cluster, and that path requires arbitrary broker addresses and SASL/TLS
+  credentials with no expressible input channel today. Recommend
+  build_with_caveats — worth building as a bundled Redpanda-sandbox
+  recipe, but be explicit in the recipe description that it manages its
+  own bundled cluster, not an external one the customer may already run.

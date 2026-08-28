@@ -1,0 +1,104 @@
+slug: rustdesk
+name: RustDesk
+source_description: "RustDesk is an open-source remote desktop software for secure remote access"
+
+upstream:
+  url: https://rustdesk.com/docs/en/self-host/rustdesk-server-oss/
+  repo_url: https://github.com/rustdesk/rustdesk-server
+  license: AGPL-3.0
+  docker_image: rustdesk/rustdesk-server
+  compose_file_url: https://raw.githubusercontent.com/rustdesk/rustdesk-server/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root of rustdesk/rustdesk-server (the OSS
+    server repo analysed in version_health, not the client repo). This is
+    a rolling reference to the master branch, not version-pinned: the
+    file's own `image:` line uses `rustdesk/rustdesk-server:latest` rather
+    than a tagged release, and there is no per-release compose asset
+    published alongside GitHub releases the way some projects (e.g.
+    Immich) do. It is the only compose variant the repo ships — a single
+    hbbs+hbbr pair, matching the two-container shape already described
+    above; no separate GPU/CPU or sqlite/postgres variants exist since the
+    server is stateless aside from its generated keypair.
+
+version_health:
+  latest_version: "1.1.16"
+  latest_release_date: "2026-07-20"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    The self-hostable component is rustdesk-server (hbbs/hbbr), a separate
+    repo from the RustDesk client (github.com/rustdesk/rustdesk). Server
+    releases are lumpy: 1.1.12 (2024-10-07), 1.1.13 (2025-01-20), 1.1.14
+    (2025-01-25), then a ~12-month gap to 1.1.15 (2026-01-13) and 1.1.16
+    (2026-07-20) — 16 days ago as of today (2026-08-05). Between-release
+    commit activity is continuous (latest commits on master 2026-07-27), so
+    the gaps reflect a small, stable Rust daemon rather than abandonment;
+    1.1.16 itself shipped a fix for an unauthenticated UDP punch-hole
+    request and an i32 overflow that mis-reported peers offline 24.9-49.7
+    days as online. The client repo is clearly active (1.4.9 on 2026-07-06,
+    1.4.8 2026-06-23, 1.4.7 2026-06-02). Docker Hub carries a matching
+    pinned tag rustdesk/rustdesk-server:1.1.16 (pushed 2026-07-20,
+    amd64/arm64/armv7). Note the vendor also sells RustDesk Server Pro
+    (closed source, paid) — the web console, user management and API server
+    live only there; the OSS server analysed here is the rendezvous/relay
+    pair only.
+
+catalogue_fit:
+  categories: [remote-access, infrastructure, security]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [guacamole]
+  differentiation: >
+    RustDesk's OSS server is a self-hosted rendezvous (hbbs) + relay (hbbr)
+    pair for RustDesk's own native clients — the self-hosted equivalent of
+    TeamViewer/AnyDesk's infrastructure. That is architecturally the
+    opposite of guacamole, the only remote-access recipe in the catalogue
+    (currently `enabled: false`): guacamole is a clientless browser gateway
+    that must be able to reach already-listening RDP/VNC/SSH ports on the
+    target, so it only works for machines the customer can route to.
+    RustDesk's targets dial *out* to the rendezvous server, so it reaches
+    laptops and desktops behind NAT with no inbound firewall rules and no
+    RDP/VNC exposed at all, and it prefers direct P2P hole-punched
+    connections, falling back to the customer's own relay only when
+    hole-punching fails. Complementary to guacamole rather than a
+    replacement.
+  usefulness: high
+  usefulness_rationale: >
+    "Self-hosted TeamViewer replacement" is one of the highest-demand
+    self-hosting use cases, and RustDesk is the leading open-source answer
+    to it with a mature multi-platform client set. The server is tiny
+    (two small Rust daemons, ~256 MB RAM) so it is a cheap, high-perceived-
+    value VM occupant. The catch is that the value is realised in the
+    customer's *clients*, not on the VM: the recipe ships infrastructure
+    with nothing to look at in a browser.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  RustDesk Server OSS (AGPL-3.0, rustdesk/rustdesk-server:1.1.16) is a
+  two-container hbbs + hbbr stack that needs no customer-supplied value at
+  all: hbbs generates its own ed25519 key pair into its data volume on
+  first boot and enforces key validation by default, there is no login, no
+  admin credential and no external API key, so `secrets_required_at_first_boot`
+  is genuinely empty and the /compose parameter gap does not bite here.
+  It is, however, a raw-port app, not a Traefik one — hbbs needs tcp
+  21115/21116 plus udp 21116 and hbbr needs tcp 21117 (optionally ws 21118/
+  21119 for the web client), all of which must be declared `http: false`
+  host-bound public ports in the wg-easy shape; there is no HTTP surface
+  for Traefik to route or for `basic_auth` to gate, and the health check
+  has to be a TCP probe rather than a curl. Two caveats for whoever builds
+  it: the OSS server has no web console (that is a paid Pro feature), so
+  after install the customer must SSH to their own VM and read
+  `id_ed25519.pub` out of the data volume to configure their clients —
+  there is no output channel in the recipe mechanism for handing that key
+  over — and being a relay, sustained sessions consume the VM's bandwidth.
+  Overlaps only nominally with guacamole (different, NAT-traversing,
+  agent-dials-out architecture; guacamole is disabled besides). Nothing
+  here blocks installation today: build_now, with the key-retrieval step
+  documented prominently.

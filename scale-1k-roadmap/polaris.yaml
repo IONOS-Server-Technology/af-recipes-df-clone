@@ -1,0 +1,96 @@
+slug: polaris
+name: Polaris
+source_description: "Lightweight self-hosted music streaming server written in Rust with web UI"
+
+upstream:
+  url: https://github.com/agersant/polaris
+  repo_url: https://github.com/agersant/polaris
+  license: MIT
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. agersant/polaris publishes no
+    Docker image or compose file of its own; docs/SETUP.md's only Docker
+    guidance is "follow instructions from the docker-polaris repository",
+    linking out to the third-party
+    https://github.com/ogarcia/docker-polaris. That repo (not upstream) is
+    where any compose file would live, so it is not adopted here as
+    official.
+
+version_health:
+  latest_version: "0.16.1"
+  latest_release_date: "2026-05-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.16.1 shipped 2026-05-08, about 3 months before today (2026-08-05); the
+    most recent commit on master is also 2026-05-08 ("Updated changelog for
+    0.16.1"), with steady commits through April/May 2026 (0.16.0 on
+    2026-03-05, 0.15.0 on 2026-02-05, and further back 0.14.3, 0.14.2,
+    0.14.1, 0.14.0 at roughly 1-3 month intervals). Repo is not archived, 28
+    open issues, single maintainer (agersant) but consistently active —
+    reads as a genuinely maintained small project, not dormant.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes covers personal music
+    streaming; Immich is the closest neighbor by "self-hosted personal
+    media" flavor but is strictly photo/video. This is the same niche
+    already surfaced by two prior gap analyses, [[airsonic-advanced]]
+    (rejected: dormant 2+ years, no stable release ever cut) and
+    [[ampache]] (recommended build_now: actively maintained, no blocker).
+    Polaris is a third entrant in that niche — smaller/lighter than either
+    (single Rust binary, no bundled DB server) but with a narrower
+    installability story than Ampache due to its auth mechanism (see
+    below).
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted music streaming has a real recurring audience and Polaris
+    is lightweight and actively maintained, but Ampache already fills this
+    niche with a clean build_now path; Polaris only adds value as an
+    alternative if Ampache's footprint (bundled MariaDB) is a concern, and
+    that upside is undercut by the auth-provisioning blocker below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD_HASH]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Polaris has no default user and no first-run web setup wizard: at
+      least one user must be pre-declared in polaris.toml before the app
+      is usable, via either a plaintext `initial_password` or a
+      `hashed_password` field (confirmed against docs/CONFIGURATION.md).
+      Only the hashed form is a viable customer-derived credential channel
+      (plaintext values never reach /compose today), but Polaris hashes
+      with PBKDF2-SHA256 ("$pbkdf2-sha256$i=10000,l=32$..."), which is not
+      in the current `generated_from` supported-algorithm list (argon2,
+      bcrypt). Per SCHEMA.md this is a genuine hash-format gap, not a
+      plaintext-only requirement — not a hard structural no, but it does
+      block `installable_today` until `generated_from` supports pbkdf2-sha256.
+    - >
+      agersant/polaris publishes no official Docker image; the only
+      packaged option is the third-party, community-maintained
+      registry.gitlab.com/connectical/container/polaris (also mirrored on
+      Quay.io), adding an extra maintenance dependency outside upstream's
+      own release process.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Polaris is a single-container, single-HTTP-port (5050) music streamer
+  that would sit behind Traefik the same way Vaultwarden/Uptime Kuma do,
+  and upstream is small but genuinely active (monthly-ish releases through
+  2026, last one 3 months ago). It's blocked from `installable_today`
+  because Polaris requires at least one pre-declared user at first boot and
+  only accepts that user's password as plaintext or a PBKDF2-SHA256 hash —
+  neither of which our current `generated_from` mechanism (argon2/bcrypt
+  only) can project into. It also depends on an unofficial third-party
+  Docker image rather than one agersant publishes. Given Ampache already
+  covers this niche with a clean build_now path, recommend
+  blocked_on_platform rather than prioritizing pbkdf2-sha256 support just
+  for Polaris.

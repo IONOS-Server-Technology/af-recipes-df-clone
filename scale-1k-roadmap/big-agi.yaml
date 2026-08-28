@@ -1,0 +1,95 @@
+slug: big-agi
+name: Big-AGI
+source_description: "Multi-model AI workspace with parallel model comparison across 500+ LLMs"
+
+upstream:
+  url: https://big-agi.com/
+  repo_url: https://github.com/enricoros/big-AGI
+  license: MIT
+  docker_image: "ghcr.io/enricoros/big-agi:v2.0.5"
+  compose_file_url: https://raw.githubusercontent.com/enricoros/big-AGI/main/docker-compose.yaml
+  compose_file_notes: >
+    Official — this is the root docker-compose.yaml in the enricoros/big-AGI
+    repo, and it is the exact file docs/deploy-docker.md links to and
+    describes ("The docker-compose.yaml file is configured to run the app").
+    It's a rolling reference to the default branch, not version-pinned: the
+    file has no release-tag-scoped URL (GitHub has no releases with
+    attached compose assets for this repo), and the compose file itself
+    pins the image to `ghcr.io/enricoros/big-agi:latest` rather than a
+    version tag. Picked the plain root file over the alternate
+    docs/docker/docker-compose-browserless.yaml, which is a supplementary
+    example that adds an optional browserless/Puppeteer sidecar for web
+    browsing — the root file is upstream's own baseline/default variant;
+    there's no separate GPU/CPU or sqlite/postgres split since Big-AGI is a
+    single stateless Next.js container.
+
+version_health:
+  latest_version: "v2.0.5"
+  latest_release_date: "2025-05-13"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v2.0.5 ("Roberto") published 2025-05-13 — roughly 14.5 months before
+    today (2026-08-05). Earlier tags (v2.0.2 2024-12-01, v2.0.3 2025-02-02,
+    v2.0.4 2025-03-25, v2.0.5 2025-05-13) landed every 6-8 weeks, so the
+    ~14-month silence since v2.0.5 is a real slowdown in the tagged-release
+    cadence, not a rounding artifact. However the repo is not archived and
+    development on the default branch has continued right up to today
+    (github.com/enricoros/big-AGI/commits/main shows commits dated through
+    2026-08-05), so this reads as an actively developed project that has
+    simply stopped cutting tagged releases, rather than an abandoned one.
+    287 open issues, 7k+ stars.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Open WebUI (already in the catalogue, bundled with Ollama) is a
+    local-model-first chat UI: its default story is "bring no API keys, run
+    models on this box via Ollama." Big-AGI is the opposite shape — it ships
+    no model-running backend at all and is built around BYO API keys for
+    500+ hosted models across OpenAI, Anthropic, Gemini, DeepSeek, xAI,
+    Mistral, Groq, OpenRouter, Bedrock, and more, plus a distinctive
+    multi-model "Beam" feature that fans one prompt out to several models in
+    parallel for side-by-side comparison. A customer who wants to compare
+    cloud frontier models rather than self-host small local ones gets
+    materially different value than Open WebUI offers.
+  usefulness: high
+  usefulness_rationale: >
+    Cloud multi-model comparison in one self-hosted, no-vendor-lock-in
+    workspace is a real, distinct use case (procurement/eval work, agencies
+    serving multiple clients on different providers, developers who already
+    pay for several LLM APIs and want one UI). It's a single lightweight
+    Next.js container with no mandatory backend service, making it cheap to
+    run compared to Open WebUI+Ollama's GPU/RAM footprint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Big-AGI is a single-container, single-HTTP-port (3000) Next.js app with no
+  built-in authentication of any kind — upstream's own docs explicitly say
+  "big-AGI does not come with built-in authentication" and point operators
+  at a reverse proxy or platform-level gate, exactly the Traefik
+  basic_auth:true pattern we already use for n8n/WUD/Open WebUI-style apps.
+  All LLM provider API keys (OpenAI, Anthropic, Gemini, etc.) are optional
+  and entered client-side by the end user in the browser after login, or set
+  server-side by the operator as optional env vars to pre-enable vendors —
+  neither is required at first boot, so there is no external-API-key
+  blocker. Upstream's tagged-release cadence has slowed (last tag ~14.5
+  months ago), but the default branch is still actively developed (commits
+  merged today), so the project reads as active rather than abandoned; the
+  app meaningfully differentiates from our existing
+  Open WebUI recipe by targeting BYO-cloud-key multi-model comparison rather
+  than local-model hosting. Recommend building this recipe now, gated behind
+  Traefik basic_auth with the gate password projected from the customer's
+  root password via generated_from.

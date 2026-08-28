@@ -1,0 +1,89 @@
+slug: classquiz
+name: ClassQuiz
+source_description: "Open-source Kahoot alternative for real-time multiplayer classroom quizzes"
+
+upstream:
+  url: https://classquiz.de
+  repo_url: https://github.com/mawoka-myblock/ClassQuiz
+  license: MPL-2.0
+  docker_image: null # no versioned/pinned image published — see version_health.notes
+  compose_file_url: https://raw.githubusercontent.com/mawoka-myblock/ClassQuiz/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the project's own
+    self-host docs (classquiz.de/docs/self-host) tell users to fill out and
+    run. It is a rolling reference to the default branch, not version-pinned:
+    the docs explicitly say to run "the latest commit (where checks pass)
+    from the master-branch" rather than a tagged release, consistent with
+    the moving ":master" image tags noted in version_health above. The repo
+    also ships a docker-compose.dev.yml for local development; the root
+    docker-compose.yml (production config) was picked as it is the one the
+    self-host docs reference.
+
+version_health:
+  latest_version: "v0.1.3"
+  latest_release_date: "2022-05-11"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    Confusing signal: no tagged GitHub release since v0.1.3 (2022-05-11), i.e.
+    over 4 years and 2 months with zero cut releases as of today (2026-08-05).
+    But the repo itself is NOT abandoned — commit history shows activity as
+    recently as 2026-08-04 (docs cleanup), with a steady stream of commits
+    through June-August 2026. The project ships container images
+    (ghcr.io/mawoka-myblock/classquiz-backend and classquiz-caddy) tagged only
+    ":master", a continuously-moving rolling tag, never a pinned stable
+    version. This is an upstream release-hygiene problem, not a maintenance
+    problem: there is no "current stable tag" to pin the way RFC-002 requires,
+    only a moving target that changes underneath any recipe on every upstream
+    merge to master.
+
+catalogue_fit:
+  categories: [education, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue targets classroom/education
+    use cases; this would be a genuinely new category (real-time multiplayer
+    quiz/polling for teachers and students), not an overlap with any existing
+    productivity, automation, or media-management recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted Kahoot alternatives (privacy-conscious
+    schools/orgs), and a web UI behind Traefik fits our model well. Usefulness
+    is capped at medium rather than high because upstream's own release
+    practice (no pinned tags, moving :master image) makes it a riskier
+    long-term maintenance bet than most of our current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No pinned, versioned Docker image exists upstream — only a rolling
+      ":master" tag for both ghcr.io/mawoka-myblock/classquiz-backend and
+      classquiz-caddy. RFC-002 requires pinning to a current stable tag;
+      there is none to pin to (the last cut release, v0.1.3, predates the
+      current compose/image layout and is not what :master ships today).
+    - >
+      Multi-service stack (frontend, backend api, worker, Postgres, Valkey/
+      Redis, Meilisearch, and upstream's own bundled Caddy proxy) adds real
+      operational surface; the bundled Caddy proxy would need to be dropped
+      in favor of Traefik, which is mechanically fine but adds authoring
+      effort beyond a single-container recipe.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  ClassQuiz is a genuinely differentiated, education-focused candidate with no
+  overlap in our current catalogue and no problematic customer-supplied-secret
+  requirement — auth is self-registration per user, not a single admin login,
+  and all server-side secrets (SECRET_KEY, DB password) can be generated
+  without customer input. The blocker is entirely upstream release hygiene:
+  no tagged version has shipped since May 2022 despite ongoing active
+  development, and the only container images available are tagged with a
+  moving ":master" tag rather than a pinned stable version, which conflicts
+  with our pin-to-a-stable-tag requirement. Recommend revisiting if upstream
+  starts cutting real version tags again; not blocked by our secret-projection
+  mechanism (IF-1420/IF-1312), so no need to wait on those specifically.

@@ -1,0 +1,102 @@
+slug: grav
+name: Grav
+source_description: "Modern flat-file CMS that requires no database, just files and folders"
+
+upstream:
+  url: https://getgrav.org/
+  repo_url: https://github.com/getgrav/grav
+  license: MIT
+  docker_image: getgrav/grav
+  compose_file_url: https://raw.githubusercontent.com/getgrav/docker-grav/master/docker-compose.yml
+  compose_file_notes: >
+    getgrav/docker-grav is the official Docker image repo, owned by the
+    getgrav GitHub org and linked as the "GitHub Repository" from Docker
+    Hub's getgrav/grav page (the main getgrav/grav README does not mention
+    Docker at all). Its
+    docker-compose.yml is a rolling reference to the default branch
+    (master) — there are no tags/releases on this repo to pin to, so no
+    versioned or /latest/download-style URL exists. Picked over
+    docker-compose.frankenphp.yml (the other file at repo root) because
+    the plain file is the one the README documents as the default/primary
+    path; frankenphp is an alternative PHP runtime variant. Note this
+    committed file builds the image locally (`build: context: .` from the
+    repo's own Dockerfile with a GRAV_VERSION build arg) rather than
+    pulling the published getgrav/grav tag referenced in this recipe's
+    upstream.docker_image — the README additionally shows an inline
+    `image: getgrav/grav` compose snippet that pulls the published image
+    directly, but that snippet is not checked into the repo as a separate
+    file, only embedded in prose.
+
+version_health:
+  latest_version: "2.0.15"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.0.15 released 2026-08-03 — 2 days before today (2026-08-05). Recent
+    tag history is dense: 2.0.14 (2026-07-30), 2.0.13 (2026-07-25), 2.0.12
+    (2026-07-21), 2.0.11 (2026-07-14), 2.0.10 (2026-07-10), 2.0.9
+    (2026-07-09), 2.0.8 (2026-07-06), 2.0.7 (2026-07-04), 2.0.6
+    (2026-06-30) — multiple releases per month, no gap over ~2 weeks in the
+    last two months, several of them explicitly security fixes (plugin
+    blueprints, content-security scanning, media handling, upload
+    restrictions). Repo has 15.6k stars, is not archived, and the
+    2.0.x line is a major rewrite (new Admin2 REST-API-based admin, MCP
+    server, Quark 2 theme, PHP 8.3+ baseline) shipped earlier in 2026 per
+    the project's own "State of Grav 2026" post — this is a project in an
+    active growth phase, not maintenance mode. The older 1.7 branch is
+    still receiving security-only backports (1.7.53) for sites not yet
+    upgraded, which does not affect this analysis since a new recipe would
+    target 2.0.x.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a general-purpose website
+    CMS. Gitea and OpenGist cover code/text hosting and Anytype covers
+    notes/knowledge management, but none of them let a customer build and
+    publish an actual public website. Grav's flat-file model (no database
+    service to provision, back up, or restore) is also a meaningfully
+    lighter-weight offering than a typical CMS (WordPress-style) recipe
+    would be, fitting the single-container pattern the rest of the
+    catalogue already uses.
+  usefulness: high
+  usefulness_rationale: >
+    "Build a website" is one of the most common self-hosting asks, and
+    Grav is a well-known, actively developed, no-database CMS that maps
+    cleanly onto a single container with one persistent volume — no
+    separate database service, backup job, or connection string to manage.
+    Clear, broad-appeal gap in the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Grav is a single-container PHP app (official image getgrav/grav, pinned
+  e.g. 2.0.15) serving one HTTP port (80), auto-installing into a mounted
+  volume on first run with no external database — fully Traefik-compatible.
+  The official image exposes no admin-credential env var at all (GRAV_SETUP,
+  GRAV_CHANNEL, GRAV_SCHEDULER, FIX_PERMISSIONS only govern install/cron
+  behavior); instead Admin2's own first-run flow lets whoever first browses
+  to the site create the admin account. Left unprotected, an anonymous
+  visitor could claim the admin account before the customer does, exactly
+  the same structural gap already documented for An Otter Wiki
+  (apps-gaps/an-otter-wiki.yaml). The fix is the same: gate the app behind
+  Traefik basic_auth with the credential projected from the customer's root
+  password via generated_from, so only the customer can reach the
+  admin-creation form; they can loosen or remove that gate from inside
+  Grav's own admin once their account exists. That fully clears the
+  /compose constraint today with no blocking issues, so this is build_now.
+  Combined with an active, security-conscious release cadence (latest
+  release 2 days ago) and a genuine, high-value gap in the catalogue (no
+  website/CMS recipe today), Grav is a strong candidate for building.

@@ -1,0 +1,98 @@
+slug: broadcastchannel
+name: BroadcastChannel
+source_description: "Turn any public Telegram channel into a SEO-friendly microblog with RSS"
+
+upstream:
+  url: https://github.com/miantiao-me/BroadcastChannel
+  repo_url: https://github.com/miantiao-me/BroadcastChannel
+  license: AGPL-3.0
+  docker_image: ghcr.io/miantiao-me/broadcastchannel:main
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere in the repo (root, and no
+    docker/deploy/contrib directories) and none is linked from the README
+    or README.zh-cn.md. The project's only documented container deployment
+    instructions are a bare `docker pull` + `docker run -d --name
+    broadcastchannel -p 4321:4321 -e CHANNEL=miantiao_me` in the README;
+    the rest of the README's deployment section covers forking the repo to
+    deploy on Cloudflare Workers, Netlify, or Vercel instead of Docker. No
+    community-maintained compose file was found either.
+
+version_health:
+  latest_version: "v0.3.0"
+  latest_release_date: "2024-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The last tagged GitHub Release is v0.3.0 (2024-07-19), roughly 2 years
+    before this analysis (2026-08-05) — on tag cadence alone that reads as
+    dormant. The full release history (v0.1.1 through v0.3.0) spans Aug 2023
+    to Jul 2024, so tagging itself stopped 2 years ago, not within the last
+    12 months. However, the GHCR `main` image tag was last pushed ~18 days
+    before this analysis (per the package page), indicating commit/build
+    activity on the main branch is current even though versioned-tag
+    releases have stalled — the project ships continuously off `main`
+    rather than cutting frequent tagged releases (repo was also renamed from
+    ccbikai/BroadcastChannel to miantiao-me/BroadcastChannel, with the old
+    URL redirecting). `release_cadence: active` is based on that current
+    main-branch/image activity, not on the stale release tags.
+
+catalogue_fit:
+  categories: [social, content, rss]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes do Telegram-channel-to-website mirroring.
+    It's a narrow, single-purpose utility (read-only microblog + RSS feed
+    generated from a public Telegram channel) aimed at creators/communities
+    who already publish on Telegram and want an SEO-indexable, RSS-syndicated
+    web presence without also running a full CMS.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated capability with a real audience (Telegram
+    channel owners), but it's a thin, single-feature app with essentially no
+    configuration surface beyond "which channel" — modest value-add compared
+    to a general blogging/CMS recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "CHANNEL (the public Telegram channel handle to mirror)"
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The app's one mandatory setting is the `CHANNEL` env var — the public
+      Telegram channel handle to mirror. This is not a secret/credential, it
+      is a required customer-supplied configuration value, and /compose has
+      no input channel for arbitrary customer-supplied values beyond the
+      domain and a root-password-derived hash. There is no `generated_from`
+      or `basic_auth` mechanism that can carry an arbitrary text value like a
+      channel handle into the container.
+    - >
+      Even setting aside the input-channel gap, the app has no login of its
+      own by design — it's meant to be a public, search-engine-indexable
+      microblog with a public RSS feed. Gating it behind Traefik
+      `basic_auth` (the usual workaround for apps with no built-in auth)
+      would defeat the app's entire purpose, so that mechanism is not a
+      viable substitute here.
+    - >
+      The official image is only published as `ghcr.io/miantiao-me/broadcastchannel:main`
+      (plus bare digest tags) — no pinned semver tag is published to GHCR
+      alongside the GitHub release tags, which would need a digest-pin
+      workaround to satisfy RFC-002's image-tag-pinning rule if this were
+      ever built.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  BroadcastChannel is a small, actively maintained, differentiated app (no
+  catalogue overlap) but its only required setting — the target Telegram
+  channel handle — is a plain customer-supplied configuration value with no
+  delivery mechanism under the current /compose constraints, which only
+  carry a domain and a root-password-derived hash. Unlike most blocked apps
+  in this catalogue, the gap here isn't a missing secret/OAuth channel but a
+  missing generic "arbitrary customer text input" channel, so it stays
+  blocked_on_platform rather than not_recommended: it becomes trivially
+  installable once (or if) such a channel exists, and gating it with
+  Traefik basic_auth is not an option since the app is intentionally public.

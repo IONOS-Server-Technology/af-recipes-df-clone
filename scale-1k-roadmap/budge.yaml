@@ -1,0 +1,123 @@
+slug: budge
+name: Budge
+source_description: "Personal finance budgeting app for expense tracking and financial planning"
+
+upstream:
+  url: https://github.com/linuxserver/budge
+  repo_url: https://github.com/linuxserver/budge
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/budge:0.0.9
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official compose file exists to link to. LinuxServer.io
+    (the upstream itself, per repo linuxserver/docker-budge — confirmed via
+    the repo's file listing, which has no docker-compose.yaml/.yml at root
+    or elsewhere) publishes only an embedded YAML snippet in its docs page
+    (docs.linuxserver.io/images/docker-budge/) and mirrored in the repo's
+    README.md, under the "docker-compose (recommended)" heading — there is
+    no separate file, release asset, or raw-file link backing that snippet
+    the way Immich publishes a downloadable docker-compose.yml. The snippet
+    itself is a rolling reference to a default branch/`:latest` tag, not
+    version-pinned.
+
+version_health:
+  latest_version: "0.0.9"
+  latest_release_date: "2022-05-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    BudgE ("budgie") is developed by LinuxServer.io itself (not a
+    third-party image wrapping someone else's upstream) — repo_url and
+    docker_image both point at the same linuxserver/budge project.
+    Releases were roughly monthly from the first public tag (0.0.1,
+    2022-02-13, per tags.atom) through 0.0.9 (2022-05-27T14:12:38Z, per
+    tags.atom — confirmed against raw ISO timestamps, not GitHub's
+    rendered relative-time text): 0.0.1, 0.0.2, 0.0.3, 0.0.4, 0.0.5, 0.0.6,
+    0.0.7, 0.0.8, 0.0.9. No app-version tag has shipped since — as of
+    today (2026-08-05) that is ~4 years and 2 months of silence on the app
+    code itself, so "dormant" fits, not "slowing" (which would imply a
+    recent monthly rhythm only now tailing off). The `lscr.io/linuxserver
+    /budge` Docker Hub tag list shows the image is still being rebuilt
+    periodically (0.0.9-ls184 through -ls189, most recently 2026-06-28)
+    but these are LinuxServer.io base-layer/security rebuilds against the
+    unchanged 0.0.9 app code, not new releases — the app version itself
+    has been frozen since 2022. That base-layer rebuild activity is why
+    "maintenance-only" fits better than "archived": the repo isn't
+    abandoned outright, but no app-level development has happened in
+    years. The project still self-describes as "alpha" ("still under
+    active development and considered an 'alpha' version until more
+    tests can be written to ensure functionality is maintained"), which
+    given the ~4-year gap since the last release reads as aspirational
+    rather than current.
+
+catalogue_fit:
+  categories: [finance, budgeting]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No app in the current 24-recipe catalogue covers personal finance or
+    budgeting — this would be a genuinely new category. Budge is an
+    envelope-budgeting tool (in the Aspire Budgeting / YNAB style) letting a
+    customer track spending and plan a budget entirely on infrastructure
+    they control, appealing to the same privacy-conscious audience already
+    served by Vaultwarden (passwords) and Paperless (documents).
+  usefulness: medium
+  usefulness_rationale: >
+    Personal budgeting has broad general-audience appeal and fills a real
+    gap in the catalogue, but the upstream project is explicitly alpha
+    quality, single-maintainer-org, with only 696 GitHub stars, and its
+    app code has not shipped a new version in ~4 years (frozen at 0.0.9
+    since 2022-05-27) — real risk that a customer's financial data sits
+    on top of software that has effectively stalled while still labeled
+    "alpha."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Budge has its own multi-user account system, not a single fixed
+      admin-login field — there is no ADMIN_TOKEN/ADMIN_PASSWORD-style env
+      var to project a `generated_from: "<algo>:ROOT_PASSWORD"` hash into.
+      Worse, registration is open by default: any visitor to the app's
+      public URL can self-register a new account (see linuxserver/budge
+      issue #6, "Allow disable registration for new users," filed
+      precisely because anyone hitting a publicly exposed instance can
+      create an account). No documented env var or setting to durably
+      disable registration was found in the LSIO docs, README, or image
+      metadata as of this analysis. Left ungated, a customer's Budge
+      instance would let arbitrary internet visitors register and use it.
+    - >
+      A Traefik `basic_auth` gate in front of the whole app (the same
+      pattern used for n8n/WUD/Open WebUI) closes this: it blocks anyone
+      without the root-password-derived basic-auth credential from
+      reaching the app at all, including the registration page. The
+      customer's own in-app account (created after clearing the gate) is
+      then their own chosen credential, which the platform never needs to
+      supply — consistent with how the catalogue already treats
+      first-visitor-claims-the-account apps (e.g. Uptime Kuma has no gate
+      because setup locks after the first admin; Budge needs one because
+      its registration stays open indefinitely).
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Budge is a single-container, self-contained (no external DB) envelope
+  budgeting web app with no overlap in the current catalogue — personal
+  finance is a genuinely new category for us, and it's reverse-proxy
+  friendly on a single HTTP port. It clears the installability bar only
+  via a Traefik `basic_auth` gate over the whole app, since Budge's own
+  auth is an open multi-user registration system with no admin-password
+  field to hash-project into and no confirmed way to disable signup.
+  Despite being mechanically installable today behind a mandatory
+  basic-auth gate, recommend `not_recommended`: the app's own version has
+  been frozen at 0.0.9 since 2022-05-27 — nearly 4 years of no app-level
+  releases, with only the underlying LinuxServer.io base image getting
+  periodic security rebuilds (most recently 2026-06-28) on top of the
+  same unchanged code. Shipping customer financial data on top of a
+  project this dormant, still self-labeled "alpha," is not worth the
+  risk regardless of the category gap it would fill.

@@ -1,0 +1,77 @@
+slug: spoolman
+name: Spoolman
+source_description: "3D printing filament spool tracker with inventory management and QR code labels"
+
+upstream:
+  url: https://github.com/Donkie/Spoolman
+  repo_url: https://github.com/Donkie/Spoolman
+  license: MIT
+  docker_image: ghcr.io/donkie/spoolman
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The project's own installation
+    guide (github.com/Donkie/Spoolman/wiki/Installation) only embeds an
+    inline copy-paste `docker-compose.yml` snippet directly in the wiki
+    page's Markdown — there is no linked/downloadable file, no release
+    asset, and no compose file anywhere in the Donkie/Spoolman repo itself
+    (root contains only a Dockerfile, no docker/ or deploy/ directory). The
+    wiki snippet pins the SQLite-by-default single-container setup (the
+    same one this recipe already targets) but is prose documentation, not
+    a file the project publishes or versions — same situation as
+    Speedtest Tracker.
+
+version_health:
+  latest_version: v0.26.0
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released 2026-07-31, 5 days before this analysis (2026-08-05). Prior
+    releases: v0.25.0 (2026-07-22), v0.24.0 (2026-07-07) — three releases in
+    about a month, following a slower stretch (v0.23.1 2026-02-03, v0.23.0
+    2026-01-23, a ~10-month gap back to v0.22.1 2025-03-18 / v0.22.0
+    2025-03-16, which themselves followed v0.21.0 2024-12-01). The
+    maintainer has previously noted development slowed "due to multiple
+    personal reasons," but the last month shows renewed, active cadence.
+    2,681 stars, 281 open issues, not archived — no EOL signal.
+
+catalogue_fit:
+  categories: [utilities, home-automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches 3D-printing/maker
+    workflows. Spoolman is a niche but well-defined inventory tracker for
+    filament spools that integrates with Moonraker/Klipper and OctoPrint,
+    updating spool weights live as prints run and generating QR labels for
+    physical spools — a distinct use case with no adjacent recipe today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-scoped value for the specific audience of self-hosted 3D
+    printer owners (Klipper/Moonraker or OctoPrint users), but that audience
+    is narrower than most of the existing catalogue's general-purpose
+    utilities. Single-container, SQLite-by-default, low resource footprint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential (customer-facing)]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential (customer-facing)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Spoolman is a single-container app (ghcr.io/donkie/spoolman, pin
+  0.26.0) with a built-in web UI on port 8000, SQLite by default, and no
+  authentication of its own — the upstream wiki explicitly warns "Spoolman
+  has no authentication" and recommends reading their Security page before
+  exposing it. That maps cleanly onto our existing Traefik `basic_auth: true`
+  pattern (as used for n8n, WUD, and Open WebUI): gate the app behind a
+  Traefik basic-auth credential projected from the root-password hash via
+  `generated_from`, with no changes needed inside the app itself. Fully
+  installable today with no platform blockers. Recommend build_now: low
+  mechanical risk, active upstream, and it fills a genuine catalogue gap
+  (3D-printing/maker tooling) even though the target audience is niche.

@@ -1,0 +1,109 @@
+slug: excalidraw
+name: Excalidraw
+source_description: "Virtual whiteboard for sketching hand-drawn diagrams and collaborative brainstorming"
+
+upstream:
+  url: https://excalidraw.com
+  repo_url: https://github.com/excalidraw/excalidraw
+  license: MIT
+  docker_image: excalidraw/excalidraw
+  compose_file_url: null
+  compose_file_notes: >
+    No official compose file for self-hosting the published image exists.
+    The repo does have a root docker-compose.yml
+    (github.com/excalidraw/excalidraw/blob/master/docker-compose.yml), but
+    docs.excalidraw.com/docs/introduction/development documents it under
+    "Local Development" only: it builds the image from source
+    (`build: context: .`, NODE_ENV=development, bind-mounts the working
+    tree) so contributors can iterate without a Node.js env — it does not
+    consume the published excalidraw/excalidraw image. The same docs page's
+    "Self-Hosting" section gives only bare `docker build` / `docker run`
+    commands for excalidraw/excalidraw, no compose file at all, and notes
+    self-hosting doesn't support sharing/collaboration. No release-asset or
+    other deploy-oriented compose file was found in the repo, docs, or
+    README.
+
+version_health:
+  latest_version: "v0.18.1"
+  latest_release_date: "2025-04-21"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Last tagged GitHub release is v0.18.1 (2025-04-21, a security patch for a
+    Mermaid-import XSS CVE), ~15.5 months before today (2026-08-05); the prior
+    feature release v0.18.0 was 2025-03-11. No v0.19/v0.20 has shipped since.
+    Despite the tagging gap, the repo itself is not dormant: ~4k commits,
+    ~2.3k open issues and ~1k open PRs, and the excalidraw/excalidraw Docker
+    Hub `latest` tag was rebuilt as recently as ~3 months ago (~May 2026),
+    indicating upstream ships continuously off `master` without cutting
+    discrete version tags rather than having stopped development. Treating
+    this as a rolling-release project (active on `master`, sporadic on
+    formal releases) rather than maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [productivity, diagramming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover a whiteboard/diagramming tool —
+    closest conceptual neighbor is anytype-server (knowledge management),
+    but that's a native-app sync backend with no web UI, not a browsable
+    sketching canvas. Excalidraw would be the catalogue's first
+    hand-drawn-diagram/whiteboard offering, a genuinely new category.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular, well-known tool (widely embedded in docs/wikis, large existing
+    user base) and a real gap in the catalogue's categories. Capped at
+    medium rather than high because the official Docker image is a
+    client-only static frontend: it has no accounts, no server-side
+    persistence, and no built-in real-time collaboration relay — so what
+    ships out of the box behind Traefik is closer to a solo local-storage
+    sketchpad than the "collaborative brainstorming" tool Hostinger's
+    description promises.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Upstream publishes no pinned semantic-version Docker tags for
+      excalidraw/excalidraw — only a rolling `:latest` and a set of
+      commit-sha tags last pushed roughly five years ago. RFC-002 forbids
+      `:latest`; the only workaround is pinning to an image digest
+      (`excalidraw/excalidraw@sha256:...`), which upstream doesn't version
+      or document, so there is no stable, human-readable tag to track or
+      bump on updates.
+    - >
+      The stock docker_image is client-only: it serves the static
+      Excalidraw web app with drawings kept in the browser's local storage,
+      nothing else. Real-time multi-user collaboration (the "collaborative
+      brainstorming" half of Hostinger's own description) is not included —
+      it requires standing up a separate excalidraw-room websocket relay
+      (plus optional Redis) and rebuilding the frontend with a custom
+      VITE_APP_WS_SERVER_URL baked in at build time. None of that ships in
+      excalidraw/excalidraw, so a recipe built directly on the official
+      image would deliver a single-user sketchpad, not the collaborative
+      tool being evaluated.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Excalidraw is a single-port, Traefik-friendly static web app (MIT
+  licensed) with no built-in login, so the only required secret is a
+  mandatory Traefik basic_auth gate projected from the customer's root
+  password — mechanically installable today with no blocked secrets. It
+  would fill a genuine gap (no whiteboard/diagramming tool in the current
+  24 recipes) but comes with two real caveats: upstream ships no pinned
+  version tags (only rolling `latest` and ancient sha tags), conflicting
+  with the catalogue's no-`:latest` rule, and the official image alone is a
+  solo local-storage sketchpad, not the collaborative whiteboard Hostinger's
+  description advertises, since real-time collaboration needs a separate
+  room/websocket server this image doesn't provide. build_with_caveats:
+  worth building, but only with an explicit decision on image pinning
+  (digest pin, most likely) and a call on whether a single-user recipe is
+  an acceptable scope or whether the collab-server stack should be built
+  out too.

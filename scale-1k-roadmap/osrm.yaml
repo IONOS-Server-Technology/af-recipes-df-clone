@@ -1,0 +1,130 @@
+slug: osrm
+name: OSRM
+source_description: "OpenStreetMap routing engine with a built-in directions UI for self-hosting"
+
+upstream:
+  url: https://project-osrm.org
+  repo_url: https://github.com/Project-OSRM/osrm-backend
+  license: BSD-2-Clause
+  docker_image: ghcr.io/project-osrm/osrm-backend, ghcr.io/project-osrm/osrm-frontend
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. osrm-backend's README, its
+    docker/ directory (Dockerfile only), and the GitHub wiki's "Docker
+    recipes" page all document only bare `docker run` commands (plus the
+    multi-step osrm-extract/osrm-partition/osrm-customize/osrm-contract CLI
+    pipeline run as separate one-shot containers) — no compose file is
+    linked or embedded anywhere. The wiki page points to a companion
+    Project-OSRM/osrm-backend-docker repo, but that repo is explicitly
+    marked DEPRECATED ("Part of osrm-backend since 5.7") and never
+    contained a compose file either, only a Dockerfile/build.sh. The
+    osrm-frontend repo's docker/ directory is likewise Dockerfile-only.
+    Every docker-compose.yml found in searches (Monogramm/docker-osrm-
+    backend, Roqore/osrm, assorted Medium/blog write-ups) is third-party/
+    community-authored, not published or maintained by Project-OSRM, so
+    none qualifies as official.
+
+version_health:
+  latest_version: "v26.8.0"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v26.8.0 published 2026-08-01, 4 days before today (2026-08-05). Prior
+    releases confirm a steady cadence: v26.7.3 (2026-07-10), v26.7.1/v26.7.0
+    (2026-07-01), v26.6.x cluster (2026-06-03/04). Upstream automates a
+    scheduled release on the 1st of every month (version format
+    (YYYY-2000).M.patch) with additional patch releases landing between
+    them. 9,000+ commits, active issue/PR triage, no archive notice.
+    Clearly active, not slowing.
+
+catalogue_fit:
+  categories: [geospatial, devtools, api]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing built recipe covers geospatial routing/directions. OSRM is
+    a C++ routing engine over OpenStreetMap data (route, nearest, table/
+    matrix, match, trip, tile services) plus an official companion
+    "osrm-frontend" (Leaflet-based directions map UI, ghcr.io/project-osrm/
+    osrm-frontend) that can front the backend's HTTP API. The bundled UI is
+    the main differentiator from openrouteservice, an unbuilt gap-analysis
+    candidate covering the same routing-API niche (apps-gaps/
+    openrouteservice.yaml) but with no web UI of its own — OSRM would be
+    the version of that same idea with a turnkey directions frontend a
+    customer can actually click around in, rather than an API-only service.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuine self-host motivation (avoid per-request quotas/costs on
+    Google/Mapbox/HERE directions APIs) and, unlike openrouteservice, ships
+    a ready-to-use web UI. Held to medium rather than high because, same as
+    openrouteservice, its real-world usefulness is gated by the OSM-extract
+    problem below — a generic recipe can only serve whatever one region is
+    baked in at build time, which will not match most customers' actual
+    routing needs.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Neither osrm-routed (backend, API-only, default port 5000) nor
+      osrm-frontend (UI, default port 9966) has any login of its own, so
+      per SCHEMA.md the publicly-exposed frontend needs a mandatory
+      Traefik basic_auth gate. That gate credential is expressible today
+      via generated_from/basic_auth, so this alone does not block
+      installable_today.
+    - >
+      osrm-backend ships with zero bundled map data — worse than
+      openrouteservice, which at least ships a small default Heidelberg
+      test extract. The operator must always supply an .osm.pbf for a
+      specific region and run it through a multi-step CLI preprocessing
+      pipeline (osrm-extract, then osrm-partition+osrm-customize for MLD or
+      osrm-contract for CH) as separate one-shot container invocations
+      before osrm-routed can serve anything. There is no channel today for
+      a customer to choose their region/extract at install time (the same
+      class of "no input field for a customer-chosen value" problem as
+      openrouteservice, just with an extra manual build step on top). A
+      recipe could still ship by baking one fixed default region (e.g. a
+      single country) into install.sh and running the extract/partition/
+      contract pipeline during install, but that is a one-size-fits-nobody
+      compromise, not a real per-customer configuration, and adds install
+      time proportional to the baked-in region's size.
+    - >
+      Two services to run (backend + frontend), with the frontend as the
+      only one that needs public Traefik routing and the backend kept
+      internal-only — mechanically fine, but combined with the
+      extract/partition/contract preprocessing step this is a more
+      involved compose setup than a typical single-container recipe.
+    - >
+      Resource floor scales with the baked-in region size: osrm-contract/
+      osrm-partition RAM and disk usage for graph construction are
+      meaningfully higher than a small extract (worth flagging for
+      app_min_ram_mb/app_min_disk_mb sizing — e.g. a single mid-size
+      country extract is modest, but there is no way to cap this per
+      customer since the region is fixed at build time, not chosen by
+      them).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OSRM is an active, actively-released (monthly cadence) routing engine
+  with no equivalent among the 24 built recipes, and it differentiates
+  from the unbuilt openrouteservice gap-analysis candidate by shipping an
+  official directions-map web UI (osrm-frontend) rather than being API-only.
+  It has no login of its own, so both services need a mandatory Traefik
+  basic_auth gate — mechanically expressible today, so not structurally
+  blocked. The real caveat, shared with and slightly worse than
+  openrouteservice, is that osrm-backend ships with no bundled map data at
+  all and requires a multi-step CLI preprocessing pipeline
+  (extract/partition/contract) against a customer-chosen OSM region before
+  it can serve a single route — something the current /compose mechanism
+  cannot let a customer choose at install time. A recipe would have to bake
+  in one fixed region, limiting who it is actually useful for out of the
+  box. Recommend build_with_caveats: technically installable now via a
+  fixed baked-in region, but flag the data-provisioning limitation and the
+  added install-time preprocessing step before prioritizing it.

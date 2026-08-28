@@ -1,0 +1,99 @@
+slug: enclosed
+name: Enclosed
+source_description: "Minimalistic web application for sending private and secure encrypted notes"
+
+upstream:
+  url: https://enclosed.cc
+  repo_url: https://github.com/CorentinTh/enclosed
+  license: Apache-2.0
+  docker_image: corentinth/enclosed
+  compose_file_url: https://raw.githubusercontent.com/CorentinTh/enclosed/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the file lives at the repo root
+    (github.com/CorentinTh/enclosed/blob/main/docker-compose.yml) and the
+    project's own self-hosting docs
+    (packages/docs/src/self-hosting/docker-compose.md) embed it verbatim
+    and tell users to `curl` this exact raw URL. It's a rolling reference
+    to the default branch, not version-pinned to a release tag — there is
+    no `/releases/download/...` asset variant. Only one compose file
+    exists in the repo (single service, filesystem-backed, no
+    Postgres/GPU/dev variants), so no variant choice was needed.
+
+version_health:
+  latest_version: "v1.16.0"
+  latest_release_date: "2025-07-22"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v1.16.0 (2025-07-22) is both the latest tagged release and the single
+    most recent commit on `main` — no code has merged in ~12.5 months as
+    of today, 2026-08-05. Earlier cadence was much denser (multiple
+    releases a month through most of 2023-2024), so this is a sharp
+    slowdown, not a project that was always slow. The repo is not
+    archived and still receives community activity — 39 open issues, 31
+    open PRs, and issues as recent as 2026-07-22 (#479) — but none of
+    that backlog has been reviewed or merged in over a year, which reads
+    as an unofficially stalled single-maintainer project (CorentinTh)
+    rather than a healthy "maintenance-only" one: a growing pile of
+    unanswered community contributions with zero merges is a stronger
+    warning sign than a quiet-but-responsive repo.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does ephemeral,
+    client-side-encrypted, self-destructing note sharing (the
+    PrivNote/"burn after reading" use case) — Vaultwarden is long-term
+    credential storage for the account owner, OpenGist is unencrypted
+    code-snippet sharing, Syncthing is P2P sync between the owner's own
+    devices. However, `apps-gaps/cryptgeon.yaml` already analyzed a
+    near-identical candidate for this exact same gap (also
+    encrypted/self-destructing note+file sharing) and is currently
+    healthier upstream (release 6 weeks ago vs. 12.5 months for Enclosed,
+    still-merging single maintainer vs. a stalled PR queue). Enclosed's
+    one real edge over Cryptgeon: it supports an *optional* login gate on
+    note *creation* (`AUTHENTICATION_USERS`) while keeping note *viewing*
+    open for recipients, so a customer could restrict who can send notes
+    without breaking the recipient experience — Cryptgeon has no such
+    option at all. Building both would be redundant; if only one ships,
+    Cryptgeon is the stronger pick today on upstream health, with
+    Enclosed's creation-gate design as the main argument in its favor.
+  usefulness: low
+  usefulness_rationale: >
+    Real use case, but it's a second entrant into a niche another
+    gap-analysis candidate (Cryptgeon) already covers more freshly, and
+    Enclosed's own upstream has gone quiet for over a year with a stuck
+    PR backlog — a real risk of shipping a recipe on a project that stops
+    getting even security fixes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [AUTHENTICATION_USERS]
+  secrets_expressible_today:
+    - secret: AUTHENTICATION_USERS
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Enclosed is a single-container app (corentinth/enclosed, one HTTP port
+  8787, filesystem storage by default — no external DB) that is
+  mechanically installable today: by default it needs zero secrets (both
+  note creation and viewing are open, by design, so recipients don't need
+  an account), and if the team wants to restrict who can create notes,
+  `AUTHENTICATION_USERS` (email:bcryptHash pairs) can be projected from
+  the customer's root password via `generated_from:"bcrypt:ROOT_PASSWORD"`
+  without touching note viewing. `apps-gaps/cryptgeon.yaml` already covers
+  this same PrivNote-style niche with a currently more active upstream,
+  and Enclosed itself has had zero merged commits in ~12.5 months despite
+  an actively-growing backlog of 39 open issues and 31 open PRs —
+  classic stalled-single-maintainer signal even though the repo isn't
+  formally archived. None of that changes the mechanical verdict, though:
+  installable_today is true with no blocking issues, so recommendation is
+  build_now; the upstream-health and overlap concerns are captured above
+  in version_health and catalogue_fit for whoever prioritizes the build
+  queue, not as a reason to downgrade this recommendation.

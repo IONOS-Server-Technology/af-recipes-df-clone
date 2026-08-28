@@ -1,0 +1,99 @@
+slug: influxdb-2
+name: InfluxDB 2
+source_description: "Unified time series platform with Flux queries and integrated web UI"
+
+upstream:
+  url: https://www.influxdata.com/products/influxdb-overview/
+  repo_url: https://github.com/influxdata/influxdb
+  license: MIT (dual MIT/Apache-2.0, user's choice)
+  docker_image: influxdb
+  compose_file_url: https://docs.influxdata.com/influxdb/v2/install/use-docker-compose/
+  compose_file_notes: >
+    No standalone compose file is published in the influxdata/influxdb repo
+    or as a release asset; the official source is a `compose.yaml` embedded
+    directly in InfluxData's own docs page (docs.influxdata.com/influxdb/v2/
+    install/use-docker-compose/), which is the only OSS v2 Docker Compose
+    guide InfluxData publishes (there's no separate GPU/CPU or dev/prod
+    variant to choose between). It is a rolling reference, not
+    version-pinned: the embedded file uses `image: influxdb:2`, which
+    always resolves to the latest 2.x release rather than a specific tag —
+    consistent with version_health's note that any actual recipe should
+    override this with an explicit `2.9.1`/`2.9` tag rather than following
+    the docs example as-is.
+
+version_health:
+  latest_version: "2.9.1"
+  latest_release_date: "2026-05-11"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    2.9.1 (2026-05-11) followed 2.9.0 (2026-05-01) closely, but nothing has
+    shipped on the 2.x line in the ~3 months since, as of today (2026-08-05).
+    InfluxData's actual current development focus has moved to InfluxDB 3
+    (v3.10.0 shipped 2026-06-17, with a roughly quarterly major/minor
+    cadence and its own two-latest-minors support window), while 2.x now
+    only receives occasional bug-fix patches. InfluxData has publicly
+    stated that on 2026-09-15 (about 6 weeks from today) the `latest` Docker
+    tag will stop pointing at 2.x and switch to InfluxDB 3 Core, and
+    endoflife.date notes 2.x has no announced EOL date but is clearly in a
+    reduced-cadence, maintenance-only posture relative to the actively
+    developed 3.x line. Not archived and not EOL, but a customer picking
+    "InfluxDB 2" today is explicitly choosing the superseded major version;
+    a recipe would need to pin an explicit `2.9.1` (or `2.9`) tag rather
+    than `latest`, since `latest` will silently become v3 in six weeks.
+
+catalogue_fit:
+  categories: [database, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a time-series database. InfluxDB 2
+    is a purpose-built store for metrics/events (Flux/InfluxQL query
+    engine, built-in web UI for dashboards and data exploration) that
+    customers would pair with something like Telegraf or their own
+    instrumentation to push data in, and optionally Grafana on top for
+    richer visualization. It's a different niche from Uptime Kuma
+    (self-contained external ping/uptime checker) — no existing recipe
+    lets a customer stand up their own metrics backend.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to developers/power users who want a self-hosted metrics store
+    (IoT telemetry, custom app instrumentation, Home Assistant long-term
+    history, etc.), but it's a backend building block with a technical
+    audience, not a broad-appeal end-user app, and a bare instance with
+    nothing writing to it yet is an empty shell — same caveat noted for
+    Grafana in this candidate set.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_setup_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_setup_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  InfluxDB 2's official image has no env var or CLI path that accepts a
+  pre-hashed admin credential — the documented `DOCKER_INFLUXDB_INIT_MODE=
+  setup` path (INIT_USERNAME/INIT_PASSWORD/INIT_ORG/INIT_BUCKET) only
+  accepts a plaintext password, which `generated_from` (hash-only) cannot
+  supply. However, if that init mode is simply left unset, InfluxDB boots
+  uninitialized and presents an unauthenticated first-visit setup wizard at
+  :8086 where the visitor creates their own username, password,
+  organization, and bucket directly in the browser — the same pattern
+  already accepted for Ghost/Firefly III/Baikal in this candidate set, not
+  a blocker. install.sh should put a Traefik basic_auth gate (projected
+  from the customer's root password via `generated_from`) in front of the
+  app at first boot so a stranger can't race the customer to claim the
+  initial account, with the customer expected to remove the gate after
+  completing the wizard. Separately, the 2.x line has gone quiet (last
+  patch 2026-05-11, ~3 months ago) as InfluxData's development attention
+  has shifted to InfluxDB 3, and the Docker `latest` tag itself switches
+  from 2.x to 3.x on 2026-09-15 — any recipe must pin an explicit
+  `2.9.1`/`2.9` tag rather than `latest`. Recommend build_now: mechanically
+  installable today via the same setup-wizard-plus-temporary-gate pattern
+  as Ghost, with no blocking issues; pinning the tag is an implementation
+  detail for install.sh, not a reason to caveat the recommendation.

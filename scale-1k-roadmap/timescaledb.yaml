@@ -1,0 +1,113 @@
+slug: timescaledb
+name: TimescaleDB
+source_description: "Time-series database built on PostgreSQL for fast ingest and analytics at scale"
+
+upstream:
+  url: https://www.tigerdata.com/
+  repo_url: https://github.com/timescale/timescaledb
+  license: Apache-2.0 (core extension); the official Docker image (timescale/timescaledb) additionally bundles Timescale-Licensed features — the Apache-2.0-only build is the "-oss" tagged image
+  docker_image: "timescale/timescaledb:2.26.1-pg17"
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere upstream. The docs site
+    (docs.timescale.com/self-hosted/latest/install/installation-docker/,
+    which 301-redirects to www.tigerdata.com/docs/self-hosted/latest/install/installation-docker)
+    documents installation with plain `docker run` commands only (for both
+    the TimescaleDB-HA and TimescaleDB-light image variants) — no compose
+    file is shown or linked. The two image-build repos, timescale/timescaledb-docker
+    and timescale/timescaledb-docker-ha, likewise ship no docker-compose.yaml/.yml
+    at their root or anywhere else (their READMEs also only show `docker run`
+    examples; the -ha repo's README instead targets Kubernetes deployment).
+    Compose files that do surface in search results (timescale/timescaledb-ruby's, or
+    timescale/pgai's examples/docker_compose_pgai_ollama/docker-compose.yml)
+    belong to unrelated client-library/example repos, not to TimescaleDB
+    itself, so they were not adopted here.
+
+version_health:
+  latest_version: "2.26.1 (packaged for PostgreSQL 15/16/17/18)"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    timescale/timescaledb-docker tags are pushed roughly monthly, with the
+    latest-pg18/2.26.1-pg18 build landing within the last week (as of
+    2026-08-05). The upstream company (now branded "Tiger Data") is actively
+    developing and shipping new PostgreSQL major-version support (pg18 added
+    2026). No archival, EOL notice, or slowdown signal — this is a
+    commercially backed, actively released project.
+
+catalogue_fit:
+  categories: [database, developer-tools, analytics]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a standalone,
+    customer-provisioned database product — existing recipes (n8n,
+    paperless-ngx, gitea, immich, etc.) all run Postgres/MySQL as an
+    internal, unexposed implementation detail of the app, not as the
+    product itself. TimescaleDB would be the first "bring your own client
+    and connect over the wire" database recipe, aimed at developers who
+    want managed time-series storage (IoT telemetry, metrics, sensor data)
+    without provisioning Postgres + the extension by hand.
+  usefulness: low
+  usefulness_rationale: >
+    Real technical value for a narrow developer/analytics audience, but it
+    is a raw SQL server with no web surface at all — the customer's only
+    interaction is a Postgres connection string over TCP 5432, and
+    publishing that port is exactly what our own recipe rules forbid (see
+    `blocking_issues`). Same structural class as PostgreSQL, MySQL, and
+    MariaDB (apps-gaps/postgresql.yaml, apps-gaps/mysql.yaml,
+    apps-gaps/mariadb.yaml) — raw-protocol RDBMS engines with no
+    application-layer presence to gate behind Traefik.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [postgres_superuser_password]
+  secrets_expressible_today:
+    - secret: postgres_superuser_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The only useful shape for a standalone TimescaleDB recipe is a
+      publicly reachable Postgres-protocol port so an external customer
+      app can connect to it (timescale/timescaledb extends the official
+      postgres image and speaks the identical wire protocol on 5432).
+      Publishing host port 5432 is exactly what RFC-002's
+      `no-public-db-port` rule forbids (rfc/002-recipe-rules.md:220-226) —
+      5432 is explicitly on the forbidden-host-port list. There is no
+      alternate exposure path today: Traefik only routes HTTP, and
+      Postgres speaks a raw binary wire protocol, so it cannot be fronted
+      the way our web-UI recipes are (no `basic_auth`, no subdomain
+      routing).
+    - >
+      Even setting the port rule aside, the superuser password is only
+      projectable via `POSTGRES_PASSWORD` (a plaintext env var, which
+      `generated_from` does not produce) — same as upstream Postgres, the
+      image has no pre-hashed-password input at all (unlike MySQL/
+      MariaDB's `*_ROOT_PASSWORD_HASH` variants). This is not a
+      `blocked_on_platform`-shaped gap waiting on a new supported hash
+      algorithm; Postgres/TimescaleDB structurally requires the plaintext
+      password at container start, which `generated_from` can never
+      supply. Moot anyway given the public-port blocker above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  TimescaleDB is an actively released, commercially backed project (Tiger
+  Data, monthly image cadence, PostgreSQL 18 support shipped days before
+  this analysis) with no EOL or dormancy concerns. It doesn't overlap any
+  existing recipe since every current Postgres usage in the catalogue is
+  internal to another app, not customer-facing. But a standalone
+  TimescaleDB recipe has no viable shape in the current catalogue: its
+  only useful exposure — a public, customer-reachable 5432 — is explicitly
+  forbidden by our own `no-public-db-port` rule, and it has no web UI to
+  gate behind Traefik/basic_auth the way our other no-login apps do. This
+  is the identical structural mismatch documented for PostgreSQL, MySQL,
+  and MariaDB (timescale/timescaledb is literally the postgres image with
+  an extension bundled on top) — a raw internet-facing DB port that our
+  security rules and Traefik-only routing model don't support, and a
+  plaintext-only password variable with no hashed-credential channel.
+  Recommend not_recommended rather than blocked_on_platform, since no
+  plausible mechanism change fixes this without relaxing a deliberate
+  security rule.

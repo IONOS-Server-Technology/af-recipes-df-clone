@@ -1,0 +1,85 @@
+slug: element
+name: Element
+source_description: "Secure Matrix client with end-to-end encryption and cross-platform messaging"
+
+upstream:
+  url: https://element.io/
+  repo_url: https://github.com/element-hq/element-web
+  license: AGPL-3.0
+  docker_image: vectorim/element-web
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists for Element Web. The
+    project's install docs (github.com/element-hq/element-web/blob/develop/docs/install.md,
+    mirrored at web-docs.element.dev/install.html) only document `docker
+    run` invocations against the prebuilt `vectorim/element-web` image
+    (plain, external-access, and custom-config variants) and how to build
+    the image yourself via `docker build .` — no compose file is
+    referenced anywhere in the docs. Checked for a compose file at the
+    repo root and under docker/, contrib/ on the develop branch; none
+    exist (404s). The element-hq/element-docker-demo repo does ship a
+    docker-compose.yaml, but it is an explicitly "Experimental ... stack
+    for rapidly showing off EW+EX+EC" (bundling Element Web with Element
+    X and Element Call, not a general install path) rather than the
+    official way to deploy Element Web alone, so it is not adopted here.
+
+version_health:
+  latest_version: "v1.12.25"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.12.25 was tagged today (2026-08-05), the same day as this analysis.
+    Docker Hub shows a steady weekly-to-fortnightly cadence of point
+    releases over the prior several months (v1.12.16 on 2026-04-28,
+    v1.12.18 on 2026-05-12, v1.12.19 on 2026-05-27, v1.12.20 on
+    2026-05-27, v1.12.21 on 2026-06-09, v1.12.22 on 2026-06-23, v1.12.23
+    on 2026-07-07, v1.12.24 on 2026-07-21, v1.12.25 on 2026-08-05), plus
+    an actively-updated `develop` tag and RC tags ahead of each release.
+    Element Web is Element.io's flagship product, backed by a company
+    (Element/New Vector) with paid enterprise offerings — clearly active,
+    not maintenance-only, archived, or EOL.
+
+catalogue_fit:
+  categories: [communication, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers chat/messaging. Element is a Matrix protocol
+    client (web UI only — it is not a Matrix homeserver). It would be the
+    first communication-category recipe, giving customers a self-hosted,
+    de-branded alternative to using app.element.io directly. Its practical
+    value is capped by the fact that it is only a client: it has no
+    server-side data of its own and must be pointed at a Matrix homeserver
+    (either a public one like matrix.org, or the customer's own Synapse/
+    Dendrite instance running elsewhere) — there is no homeserver recipe
+    in this catalogue to pair it with.
+  usefulness: low
+  usefulness_rationale: >
+    Self-hosting the client shell mainly buys branding/privacy (own
+    domain, no third-party telemetry from app.element.io) rather than new
+    functionality — the actual chat data and account live on whatever
+    homeserver the user configures, entirely outside this recipe. Absent a
+    companion Matrix homeserver recipe (e.g. Synapse) in the catalogue,
+    most customers already have app.element.io as a free equivalent, so
+    the incremental value of a self-hosted client-only recipe is modest.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Element Web is an actively developed (weekly-release cadence, latest tag
+  cut the same day as this analysis), AGPL-3.0-licensed Matrix client with
+  no overlap in the current 24-recipe catalogue. Mechanically it is easy to
+  ship: it is a single static-file nginx container on one HTTP port behind
+  Traefik, has no login of its own to seed (Matrix auth happens entirely
+  browser-side against whatever homeserver the user selects at sign-in,
+  either the built-in default or one they type in), and needs no secret at
+  first boot — so there is no `/compose` input-channel blocker. Recommend
+  build_now — mechanically installable today with no blocking issues.

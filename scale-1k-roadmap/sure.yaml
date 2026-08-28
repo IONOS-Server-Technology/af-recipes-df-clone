@@ -1,0 +1,92 @@
+slug: sure
+name: Sure
+source_description: "Self-hosted personal finance app for net worth and investment tracking"
+
+upstream:
+  url: https://sure.am/
+  repo_url: https://github.com/we-promise/sure
+  license: AGPL-3.0
+  docker_image: ghcr.io/we-promise/sure
+  compose_file_url: https://raw.githubusercontent.com/we-promise/sure/main/compose.example.yml
+  compose_file_notes: >
+    Official — the project's own self-hosting guide
+    (docs/hosting/docker.md in the repo) instructs users to fetch this
+    exact file via `curl -o compose.yml
+    https://raw.githubusercontent.com/we-promise/sure/main/compose.example.yml`.
+    This is a rolling reference to the default (main) branch, not
+    version-pinned to a release tag — no tagged/release-asset copy of the
+    compose file is published, so this raw main-branch link is the
+    canonical source and will need to be re-diffed on main-branch changes
+    rather than a release cut. The repo also ships a second variant,
+    compose.example.ai.yml, which adds optional AI-assistant integration
+    on top of the base stack; compose.example.yml (the base/no-AI variant)
+    was picked here since AI features are optional and not required to
+    boot, matching this recipe's docker_image and secrets already assuming
+    the base stack.
+
+version_health:
+  latest_version: "v0.7.3"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag v0.7.3 shipped 2026-07-31, 5 days before this analysis
+    (2026-08-05); a v0.7.4-alpha.2 pre-release followed on 2026-08-04. Release
+    cadence is roughly monthly for stable tags with hotfixes and alphas in
+    between — this is a young but very actively developed fork, not a dormant
+    project. Sure is a community fork of the abandoned Maybe Finance app
+    (Maybe stopped development mid-2023 and open-sourced the codebase); the
+    fork itself (we-promise/sure, formerly community-maintained under other
+    forks such as we-are-sure) has an active maintainer team, 3000+ commits,
+    and hundreds of open issues/PRs actively triaged. Do not confuse this
+    with the original archived maybe-finance/maybe repo, which is EOL — the
+    fork is the one to track.
+
+catalogue_fit:
+  categories: [finance, personal-finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal finance / net worth / investment
+    tracking; the closest catalogue entries (paperless-ngx, paperless-ai)
+    are document management, not financial data. This would open a new
+    category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Personal finance tracking with bank-account/investment linking is a
+    commonly requested self-hosted category (e.g. Firefly III-style demand)
+    and Sure is the actively maintained successor to a well-known,
+    well-funded app (Maybe Finance) whose UI and feature set are already
+    mature.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_KEY_BASE, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Sure is a single stateless web service (Rails app) plus Postgres, Redis and
+  a Sidekiq worker, all fronted by one HTTP port (3000) — a straightforward
+  fit behind Traefik like our other multi-service stacks (e.g. n8n,
+  paperless-ngx). Its only first-boot secrets are SECRET_KEY_BASE and the
+  Postgres password, both patternless values the server can generate with no
+  customer input needed; the admin account itself is created afterward by
+  the customer through Sure's own sign-up screen, the same self-registration
+  pattern already used by other recipes in this catalogue (e.g. n8n),
+  so there is no unsupported credential-projection requirement. Optional
+  features (AI assistant integration via an external LLM API key, WebAuthn
+  passkeys) are not required to boot and can simply be left unset. Combined
+  with an active fork of a mature, well-known app and no overlap in the
+  current catalogue, this is a strong build_now candidate — the recipe
+  author should just double-check which exact version-pinned tag is
+  published to ghcr.io/we-promise/sure at build time, since the GHCR
+  package UI surfaced only sha-/nightly tags rather than a clear v0.7.3
+  tag at the time of this analysis, even though the git tag itself exists.

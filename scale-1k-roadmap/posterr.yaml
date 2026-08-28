@@ -1,0 +1,115 @@
+slug: posterr
+name: Posterr
+source_description: "Digital now-playing poster signage for Plex, Sonarr, Radarr, and Readarr"
+
+upstream:
+  url: https://github.com/petersem/posterr
+  repo_url: https://github.com/petersem/posterr
+  license: MIT
+  docker_image: petersem/posterr:v1.21.10
+  compose_file_url: https://raw.githubusercontent.com/petersem/posterr/v1.21.10/docker-compose.yml
+  compose_file_notes: >
+    Version-pinned to the v1.21.10 git tag (matching version_health's
+    recorded latest_version for the original petersem/posterr app), not
+    a rolling default-branch reference — this matters here because the
+    repo's current master-branch docker-compose.yml has been rewritten
+    for the unrelated PosterX fork (image binarygeek119/posterrx, built
+    from a different Dockerfile) per the fork-transition already noted
+    in version_health, so pulling from master today would produce the
+    wrong app entirely. The v1.21.10-tagged file is a single-variant
+    compose (no GPU/CPU or sqlite/postgres split) but builds the image
+    from source in-repo (`build: context: .`) rather than pulling the
+    published petersem/posterr:v1.21.10 Docker Hub tag referenced above;
+    the README at that same tag documents a `docker run` one-liner
+    against the published Docker Hub image instead. No community-only
+    compose file was considered as a substitute since this official,
+    version-matched one exists.
+
+version_health:
+  latest_version: "v1.21.10 (petersem/posterr Docker Hub tag)"
+  latest_release_date: "2026-01-29 (image pushed; git tag also dated 2026-01-29)"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Ambiguous-name warning: two distinct, actively-maintained code bases
+    share this app identity. The Hostinger description ("...for Plex,
+    Sonarr, Radarr, and Readarr") matches the original repo,
+    github.com/petersem/posterr (MIT, by Matthew Petersen), whose newest
+    Docker Hub tag is v1.21.10, pushed 2026-01-29 — about 6 months before
+    today (2026-08-05), a slowing cadence versus the ~1-month gaps between
+    its earlier v1.21.x point releases (2025-05-30 through 2026-01-29).
+    GitHub Releases on that repo stopped even earlier, at v1.15.0
+    (2023-02-02) — day-to-day versioning moved to git tags + Docker Hub
+    pushes without a matching GitHub Release object.
+    However, petersem/posterr's own `master` branch README (fetched
+    2026-08-05) has been rewritten to describe a *different*, actively
+    developed fork: "PosterX" by binarygeek119
+    (github.com/binarygeek119/posterrX, image binarygeek119/posterrx,
+    package.json version 2.1.0, adds Jellyfin/Emby/Kodi support, ads,
+    TMDB "Now Showing", etc.). Recent commits on petersem/posterr master
+    (through 2026-07-20) explicitly redirect users and support links to
+    the PosterX fork/Discord. So the upstream repo matching Hostinger's
+    slug is still active as a commit history, but its own README now
+    positions PosterX as the actively-developed successor and itself as
+    upstream-in-name-only for new features. Considered and ruled out as
+    the analysis target: binarygeek119/posterrX itself — it is a superset
+    fork with extra media-server support (Jellyfin/Emby/Kodi) beyond what
+    Hostinger's description names (Plex/Sonarr/Radarr/Readarr only), so
+    this analysis targets the original petersem/posterr, consistent with
+    the catalogue slug and description, while flagging the fork
+    relationship for whoever revisits this.
+
+catalogue_fit:
+  categories: [media, dashboard]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes overlap: nothing in the catalogue is a
+    display/signage layer for an existing media stack. Posterr is not a
+    media server itself (no Plex/Jellyfin recipe exists in the catalogue
+    either) — it is a read-only "now playing" poster board that connects
+    outward to a customer's own, separately-hosted Plex/Sonarr/Radarr/
+    Readarr instances (which are not themselves in scope of this
+    catalogue) and renders a theatre-lobby-style display. It has no
+    content of its own and does nothing useful without those upstream
+    services already configured by the customer.
+  usefulness: low
+  usefulness_rationale: >
+    Real self-hosting niche use case (movie-room/media-room signage
+    displays), but it is a narrow accessory app: it requires the customer
+    to already run and expose Plex/Sonarr/Radarr/Readarr somewhere
+    reachable from this deployment, none of which AF currently hosts.
+    Likely low discoverability/demand relative to a general media-server
+    or dashboard recipe, and it provides no standalone value without those
+    external dependencies already in place.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [settings_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: settings_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Posterr boots with no required secrets: it needs no database, no admin
+  signup, and no API key to start serving its display page. Its only
+  built-in protection is an optional settings-page password that is empty
+  (no login at all) unless the customer sets one manually through the UI
+  after deploy — so like Adminer/n8n-style apps with no enforced login of
+  their own, the whole app should sit behind a Traefik `basic_auth` gate
+  keyed off the customer's root-password hash, expressible today via
+  IF-1312. Plex/Sonarr/Radarr/Readarr connection details (server URL, API
+  tokens) are entered by the customer directly into the app's own settings
+  UI post-deploy — not env vars needed at boot — so they don't block
+  `installable_today`. It is mechanically buildable now with no blocking
+  issues, so it is `build_now`. Separately, usefulness is low: it is a
+  narrow signage accessory with no value unless the customer already
+  self-hosts a full Plex/Sonarr/Radarr/Readarr stack outside this platform,
+  and upstream is only in a slowing/name-ambiguous state (see
+  version_health) — the original petersem/posterr repo's own README now
+  points users toward a community fork (PosterX) as the actively developed
+  successor. Neither of those factors bears on the recommendation itself.

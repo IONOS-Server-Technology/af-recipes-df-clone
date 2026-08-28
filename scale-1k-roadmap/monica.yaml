@@ -1,0 +1,98 @@
+slug: monica
+name: Monica
+source_description: "Personal relationship management system for documenting your life"
+
+upstream:
+  url: https://www.monicahq.com
+  repo_url: https://github.com/monicahq/monica
+  license: AGPL-3.0
+  docker_image: monica  # official Docker Hub library image (hub.docker.com/_/monica)
+  compose_file_url: https://raw.githubusercontent.com/monicahq/docker/master/.examples/simple/apache/docker-compose.yml
+  compose_file_notes: >
+    No compose file ships in the main monicahq/monica app repo — its own
+    docker-compose.yml is a Laravel Sail dev environment for the unreleased
+    v5 rewrite, not a production deployment file. The official source is
+    the separate monicahq/docker repo, which builds and documents the
+    Docker Hub library image referenced above (its README links
+    hub.docker.com/_/monica). That repo's README embeds this same
+    apache+mariadb example inline and links out to a fuller set of
+    variants under .examples/ (apache vs fpm, "full" adding
+    redis/cron/queue/nginx for the stable 4.x line, and "full_v5" adding
+    memcached/meilisearch for the v5 rewrite). Picked .examples/simple/
+    apache/docker-compose.yml because it matches this recipe's target (the
+    stable 4.x apache image, mariadb, no extra services) and is the
+    smallest complete example rather than the Sail dev-only or v5-targeted
+    variants. The link is a rolling reference to the default `master`
+    branch, not version-pinned — the repo's only git tag (v2.19.0) is
+    stale and unrelated to current example content.
+
+version_health:
+  latest_version: "4.1.2-apache"  # current stable line; recommended pinned tag
+  latest_release_date: "2024-05-04"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Two parallel lines exist. The 4.x stable line's last tagged release
+    (4.1.2) was 2024-05-04 — over 27 months before today (2026-08-05) — with
+    no newer stable tag since. The next-generation rewrite ("main" branch,
+    docs call it Monica-next / codename "Chandler") is still pre-1.0: its
+    latest tag is v5.0.0-beta.5 from 2025-04-21, ~15.5 months ago, and no
+    beta.6 or GA has followed. The repo itself is not archived and still
+    shows recent commit/issue/PR activity (724 open issues, 61 open PRs,
+    966 commits on main per GitHub), so this reads as a real but slow
+    multi-year rewrite rather than abandonment — flagging it as slowing,
+    not dormant/EOL. A third, unrelated Docker Hub repo, `monicahq/monicahq`,
+    also exists and is stale (~6 years since last push, version 2.19.0) —
+    do not confuse it with the correct official `monica` image.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers personal relationship
+    management / personal CRM. Monica tracks contacts, life events,
+    relationships, reminders, and journaling for personal (not sales) use —
+    distinct from developer/infra/media/automation tools already offered.
+    It has a genuine, sizeable audience (~25k GitHub stars) suggesting real
+    demand for a self-hosted, privacy-focused alternative to note apps or
+    spreadsheets for this use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular and well-differentiated within the catalogue, but a personal
+    (not business) use case is a narrower fit for an SME-focused hosting
+    platform than e.g. developer tools or automation. The stale stable
+    release and unfinished next-gen rewrite (see version_health) also
+    temper enthusiasm for building on the 4.x line right now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - APP_KEY  # Laravel app encryption key
+    - DB_PASSWORD  # MySQL/Postgres credential
+    - registration_gate  # Traefik basic_auth to prevent a public race to self-register the first (only) account
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: registration_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Monica is mechanically installable today: it needs only a domain, a
+  server-generated APP_KEY and DB password (no customer-facing secret
+  input), and — because it has open self-registration by default rather
+  than a single preset admin credential — a Traefik basic_auth gate to
+  stop a random visitor from registering the account before the customer
+  does. No external API key is required to boot; Mapbox/LocationIQ/
+  Uploadcare integrations are optional enhancements only. The catalogue
+  gap it fills (personal relationship management) is real and unduplicated.
+  The stable 4.x release line has had no update in over two years and the
+  next-major rewrite is still an unreleased beta (see version_health), but
+  neither is a blocking issue for installability, so this is a build_now
+  candidate.

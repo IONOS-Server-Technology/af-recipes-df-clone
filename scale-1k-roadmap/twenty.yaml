@@ -1,0 +1,84 @@
+slug: twenty
+name: Twenty
+source_description: "Twenty is a modern, customizable CRM designed to fit unique business needs"
+
+upstream:
+  url: https://twenty.com/
+  repo_url: https://github.com/twentyhq/twenty
+  license: "AGPL-3.0 (core), with an Enterprise-license carve-out for files marked '@license Enterprise' and MIT for SDK/client packages; a 'Twenty Application Exception' lets third-party apps built against Twenty's published interfaces avoid AGPL copyleft"
+  docker_image: twentycrm/twenty
+  compose_file_url: https://raw.githubusercontent.com/twentyhq/twenty/main/packages/twenty-docker/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked directly from the project's own docs
+    (docs.twenty.com/developers/self-host/capabilities/docker-compose),
+    which instructs self-hosters to curl this file plus its companion
+    packages/twenty-docker/.env.example. It is a rolling reference to the
+    main branch (not version-pinned) — the docs' one-line install script
+    supports pinning to a specific tag/branch via a VERSION variable, but
+    the manual download URLs given always resolve to main's current
+    contents. Only one compose variant is shipped (no separate GPU/CPU or
+    dev/prod split); Postgres and Redis are both included as services in
+    this single file.
+
+version_health:
+  latest_version: "v2.28.0"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Multiple tagged releases per week: v2.24.3 (2026-07-24), v2.25.0
+    (2026-07-28), v2.25.1 (2026-07-29), v2.26.0 (2026-07-30), v2.26.1
+    (2026-08-03), v2.27.0 (2026-08-04), v2.28.0 (2026-08-06) — same cadence
+    mirrored on Docker Hub tags. Repo is not archived: 14k+ commits, 54k+
+    stars, 89 open issues, 63 open PRs, clearly under active heavy
+    development. No EOL signal of any kind.
+
+catalogue_fit:
+  categories: [crm, business, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a CRM or sales/customer
+    pipeline tool — the closest neighbors are workflow automation (n8n) and
+    document management (paperless-ngx/paperless-ai), which serve a
+    different job. Twenty is a genuine new category: a self-hosted
+    Salesforce/HubSpot alternative with a modern UI, custom objects, and an
+    open API, which is a real self-hosting demand segment (54k GitHub
+    stars) our catalogue has no answer for today.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a clear category gap with a well-maintained, popular, feature-
+    complete product rather than a niche or half-abandoned alternative.
+    Multi-service (server + worker + Postgres + Redis) but every service is
+    official and Docker-Compose-first, so operational complexity is
+    reasonable for the value delivered.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PG_DATABASE_PASSWORD, ENCRYPTION_KEY, APP_SECRET]
+  secrets_expressible_today:
+    - secret: PG_DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Twenty is an actively developed (multiple releases/week), popular
+  (54k-star) open-source CRM shipped as an official multi-container stack
+  (twentycrm/twenty server + worker, postgres:16, redis) behind a single
+  HTTP port (3000), reverse-proxy-friendly with no extra raw ports. Unlike
+  Vaultwarden/n8n-style apps it has no env-var-driven admin credential to
+  project a root-password hash into — like Immich (already in our
+  catalogue), the first admin account is created via self-service signup
+  in the web UI after boot, so every secret the compose stack itself needs
+  (DB password, ENCRYPTION_KEY, APP_SECRET) is a random value the server
+  can generate with no customer input at all, matching the
+  server_generated_no_customer_input mechanism cleanly. Fills a genuine
+  category gap (no CRM exists in the current 24-recipe catalogue) with a
+  well-maintained, high-demand product. Recommend build_now.

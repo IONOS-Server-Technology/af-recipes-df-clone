@@ -1,0 +1,96 @@
+slug: easyappointments
+name: Easy!Appointments
+source_description: "Free appointment scheduling system for businesses and professionals"
+
+upstream:
+  url: https://easyappointments.org
+  repo_url: https://github.com/alextselegidis/easyappointments
+  license: "Code: GPL-3.0; Content: CC BY 3.0"
+  docker_image: alextselegidis/easyappointments
+  compose_file_url: https://hub.docker.com/r/alextselegidis/easyappointments
+  compose_file_notes: >
+    No docker-compose file is published in the GitHub repo for production
+    use — the docker-compose.yml at the repo root (github.com/
+    alextselegidis/easyappointments/blob/main/docker-compose.yml) is a
+    dev-only environment that builds php-fpm/nginx from source and bundles
+    phpmyadmin/mailpit/swagger-ui/baikal/openldap dev tooling, not a
+    deployment recipe for the published image. The only compose example
+    that targets the actual published image
+    (alextselegidis/easyappointments) is an embedded snippet in the
+    "How to use this image" section of the image's own Docker Hub page,
+    maintained by the same person (alextselegidis) as the GitHub repo —
+    there is no standalone downloadable compose file, so the Docker Hub
+    page itself is the closest thing to an official source. That snippet
+    pins the app service to the `:latest` tag (a rolling reference, not a
+    version-pinned tag) and pairs it with a plain `mysql:8.0` service; it
+    is the only variant offered (no GPU/CPU or sqlite/postgres split).
+
+
+version_health:
+  latest_version: "1.6.0"
+  latest_release_date: "2026-05-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.6.0 tagged 2026-05-27, about 2.3 months before today (2026-08-05).
+    Release history shows steady cadence: 1.5.0 (2024-07-07), 1.5.1
+    (2025-01-20), 1.5.2 (2025-09-15), 1.6.0-alpha.1 (2026-02-20) through
+    1.6.0-beta.2 (2026-04-01) into the 1.6.0 stable (2026-05-27) — a
+    ~6-10 month major/minor rhythm with pre-releases in between, no gaps
+    longer than ~8 months. Repo is not archived, has an active Discord/
+    support-group presence, and the maintainer ships alpha/beta/stable
+    trains consistently. Clearly active, not maintenance-only.
+
+catalogue_fit:
+  categories: [business, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers appointment/booking scheduling. The
+    catalogue's closest neighbors (n8n, paperless-ngx, paperless-ai,
+    gitea) are workflow/document/dev-tooling apps, not customer-facing
+    booking calendars. Easy!Appointments fills a distinct small-business
+    use case: staff/service/customer booking pages, working-hour rules,
+    and email/CalDAV reminders, self-hosted instead of a SaaS booking
+    tool.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful to small businesses/professionals (salons, clinics,
+    consultants) who want a self-hosted booking page instead of a paid
+    SaaS scheduler, and it's a category the catalogue doesn't have yet.
+    Not "high" because it's a single-purpose vertical app with a smaller
+    addressable audience than infra/productivity tools already in the
+    catalogue, and it depends on a separate MySQL service.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, admin_setup_gate_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: admin_setup_gate_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Easy!Appointments is a single web-container app (official image
+  alextselegidis/easyappointments, pinned tag 1.6.0, one HTTP port)
+  backed by MySQL. The Docker image only exposes DB_HOST/DB_NAME/
+  DB_USERNAME/DB_PASSWORD and mail-related env vars — there is no env
+  var to pre-seed an admin account. Instead, the app self-detects an
+  empty database on first HTTP request and redirects to a one-page
+  /index.php/installation wizard where whoever gets there first types in
+  an admin name/email/username/password and creates the account. That is
+  the same "no built-in login until first use" pattern the schema already
+  covers for Open WebUI/Immich-style apps: it is not customer-supplied
+  through /compose, but it does need a mandatory Traefik `basic_auth: true`
+  gate (root-password-derived) in front of the whole app so a stranger
+  can't race the customer to the installer and claim the admin account.
+  With that gate plus a server-generated MySQL password, the app is
+  mechanically installable today with zero blocking issues. Recommend
+  build_now: the mandatory basic-auth wrapper (rather than the app's own
+  login) is a real implementation detail worth documenting in the recipe,
+  but it is not a blocking issue for installability.

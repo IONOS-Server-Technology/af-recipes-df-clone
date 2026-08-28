@@ -1,0 +1,86 @@
+slug: imgproxy
+name: imgproxy
+source_description: "Fast on-the-fly image processing server for resize, crop, and format conversion"
+
+upstream:
+  url: https://imgproxy.net/
+  repo_url: https://github.com/imgproxy/imgproxy
+  license: MIT
+  docker_image: darthsim/imgproxy
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. docs.imgproxy.net/installation
+    documents only a bare `docker run -p 8080:8080 ghcr.io/imgproxy/imgproxy`
+    command (or building from the repo's Dockerfile) — no compose
+    orchestration is provided. The imgproxy/imgproxy repo's only
+    docker-compose.yml lives under .devcontainer/ and is a dev-container
+    setup for hacking on imgproxy's own source (mounts the repo, sets
+    debug/leak-check env vars), not a deployment file, so it was not
+    adopted. Community compose files exist (e.g. shinsenter/docker-imgproxy,
+    Dokploy's imgproxy template, awesome-docker-compose) but none are
+    published by the imgproxy project itself.
+
+version_health:
+  latest_version: "v4.0.12"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.0.12 shipped 2026-07-29 (~1 week before today, 2026-08-05) with
+    security fixes (BMP loader heap overflow, SSRF boundary hardening).
+    Preceding patch releases landed roughly weekly through June-July 2026
+    (v4.0.4 through v4.0.11), with the v4.x line branching off v3.31.x in
+    early June. Clear active, fast-moving maintenance cadence with a
+    responsible security-disclosure address; no EOL or dormancy signal.
+
+catalogue_fit:
+  categories: [developer-tools, media]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    imgproxy is a standalone HTTP image-processing proxy: a customer's own
+    application constructs signed URLs against it and imgproxy fetches,
+    resizes/crops/converts, and returns the image on the fly, replacing
+    image-processing code that would otherwise live inside the app. Nothing
+    in the current 24 recipes offers this as a general-purpose, app-
+    agnostic service — Immich does its own internal thumbnailing for its
+    own photo library and does not expose a reusable resize/convert API for
+    other applications to call. Like Apache Tika, imgproxy's entire value
+    surface is a REST-ish API consumed by other software, not a page a
+    customer visits and uses directly.
+  usefulness: low
+  usefulness_rationale: >
+    Pure developer-infrastructure microservice with no end-user workflow
+    and no web UI — visiting the root URL returns only a bare health
+    check, not a functional interface. Useful only to a customer who
+    already runs their own web/mobile app and wants to offload its image
+    resizing to a separate service, which is a narrow, technical audience
+    compared to the end-user apps making up most of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mechanically installable: single container, single HTTP port (8080, no
+  TLS of its own — expects to sit behind a reverse proxy, which matches our
+  Traefik setup exactly), no web login of its own, so a Traefik
+  basic_auth:true gate (password projected from the customer's root
+  password) covers the only secret it would need — same pattern as
+  Tika/adminer/n8n. imgproxy also supports its own IMGPROXY_SECRET
+  bearer-token header auth and URL-signing keys, but those are
+  server-generated internal secrets an application caller uses, not a
+  customer-facing login, so they don't change the installability picture.
+  Upstream is healthy and actively released (v4.0.12, 2026-07-29). No
+  blocking issues: installable_today is true with an empty blocking_issues
+  list, so recommendation is build_now. imgproxy has no web UI and its
+  whole value is as a REST API consumed by other software, and it overlaps
+  with nothing else in the catalogue (see catalogue_fit) — neither of those
+  is a valid ground for downgrading the recommendation.

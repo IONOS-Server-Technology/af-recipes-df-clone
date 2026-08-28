@@ -1,0 +1,129 @@
+slug: zulip
+name: Zulip
+source_description: "Open-source team chat with organized topic threading and 100+ integrations"
+
+upstream:
+  url: https://zulip.com/
+  repo_url: https://github.com/zulip/zulip
+  license: Apache-2.0
+  docker_image: ghcr.io/zulip/zulip-server:12.1-0
+  compose_file_url: https://raw.githubusercontent.com/zulip/docker-zulip/12.1-0/compose.yaml
+  compose_file_notes: >
+    Official compose file, published by Zulip itself in the
+    github.com/zulip/docker-zulip repo (root-level compose.yaml,
+    referenced from the project's own Docker Compose deployment docs at
+    zulip.readthedocs.io/projects/docker/). Version-pinned: linked at the
+    12.1-0 git tag rather than the main branch, matching the docker_image
+    tag already recorded above, so the two stay in sync rather than one
+    being pinned and the other rolling. docker-zulip ships only one
+    variant of this file (Postgres/Memcached/RabbitMQ/Redis stack; no
+    separate dev/prod or sqlite alternative), so no variant choice was
+    needed. Production use additionally requires a compose.override.yaml
+    for host-specific settings (ports/TLS), per the project's own docs;
+    that override file is user-authored, not part of the official
+    template, so it isn't linked here.
+
+version_health:
+  latest_version: "12.1"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable 12.1 published 2026-06-26, ~41 days before today
+    (2026-08-05). Release history shows a steady cadence: 12.0 (2026-04-27),
+    12.0-beta1/beta2 (2026-03-12, 2026-04-26), 11.6 (2026-03-31), 11.5
+    (2026-02-05), 11.4 (2025-10-23) — roughly a major/minor every 1-2
+    months plus interleaved patch releases on the prior LTS-ish line. No
+    dormancy or EOL signal; Zulip is a well-established, actively
+    commercially backed (Zulip, Inc.) open-source project with continuous
+    development.
+
+catalogue_fit:
+  categories: [communication, team-chat, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue covers team chat /
+    threaded messaging. Zulip's differentiator versus generic chat tools
+    is topic-based threading (each message belongs to a topic within a
+    channel, unlike flat channel timelines), aimed at teams that want
+    organized, searchable, asynchronous-friendly conversation history —
+    a genuinely new category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted team chat is a common need once a customer has more than
+    a couple of self-hosted apps and people collaborating on them, and
+    Zulip is one of the more actively developed open-source options in
+    this space with a modern web UI and broad integration ecosystem
+    (100+ integrations per Hostinger's description). It runs as a single
+    HTTP(S)-fronted web app, matching our Traefik model well on the
+    surface — see installability below for the first-boot login caveat.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ZULIP_POSTGRES_PASSWORD
+    - ZULIP_MEMCACHED_PASSWORD
+    - ZULIP_RABBITMQ_PASSWORD
+    - ZULIP_REDIS_PASSWORD
+    - ZULIP_SECRET_KEY
+    - ZULIP_EMAIL_PASSWORD
+    - initial_organization_admin_credential
+  secrets_expressible_today:
+    - secret: ZULIP_POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ZULIP_MEMCACHED_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ZULIP_RABBITMQ_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ZULIP_REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ZULIP_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ZULIP_EMAIL_PASSWORD (outgoing SMTP relay credential) has no
+      supported input channel. Zulip's docs state outgoing email is
+      required so it "can confirm new users'" accounts — both the
+      self-serve organization-creation flow (visiting /new/, gated by the
+      OPEN_REALM_CREATION setting) and the standard EmailAuthBackend
+      signup path depend on being able to send a confirmation email. The
+      needed credential is a third-party SMTP account (e.g. a transactional
+      email provider) that the customer would have to supply — an external
+      credential with no projection mechanism today, per SCHEMA.md's
+      "external API key/token the app can't function without" case.
+    - >
+      Independent of the email problem, the two ways to create the first
+      admin/organization both fail the plaintext-vs-hash test: (1) the web
+      /new/ self-serve flow lets the customer type their own password
+      directly into the browser (no projection needed at all, matching the
+      n8n/Immich "customer sets their own credential live" pattern) but is
+      blocked on the SMTP issue above; (2) the non-interactive fallback,
+      `manage.py create_user ... --password=<value>`, requires the
+      password as plaintext on the command line — Zulip hashes it
+      internally with Django's own hasher, and there is no
+      pre-hashed-password input flag. `generated_from` only ever produces
+      a hash, never plaintext, so this path is a structural blocker, not
+      merely an unsupported-algorithm gap.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Zulip is an actively maintained (12.1, 2026-06-26), Apache-2.0 team-chat
+  app with a genuinely new catalogue category (topic-threaded chat) and
+  no overlap with the existing 24 recipes. Its official docker-zulip
+  compose stack (app + Postgres + Redis + RabbitMQ + Memcached, all
+  behind a single HTTP(S) port) is otherwise a good structural fit for
+  our Traefik-fronted model, and all its infra secrets are
+  server-generatable. The blocker is the first-admin/organization
+  bootstrap: Zulip mandates outgoing SMTP to send confirmation emails for
+  either its self-serve /new/ signup or standard account creation, and
+  that SMTP credential is an external, customer-supplied secret with no
+  input channel today; the CLI fallback (`create_user --password`) sidesteps
+  email but needs a plaintext password that `generated_from` cannot
+  provide (hash-only). If the platform were to provision a shared
+  outgoing-mail relay (so no per-customer SMTP credential is needed),
+  the self-serve /new/ flow would let the customer set their own admin
+  password directly in the browser with no projection required at all —
+  hence blocked_on_platform rather than not_recommended.

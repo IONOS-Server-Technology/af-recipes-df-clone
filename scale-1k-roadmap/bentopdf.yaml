@@ -1,0 +1,88 @@
+slug: bentopdf
+name: BentoPDF
+source_description: "Privacy-first browser-based PDF toolkit for merging, splitting, converting, and editing PDFs"
+
+upstream:
+  url: https://bentopdf.com/
+  repo_url: https://github.com/alam00000/bentopdf
+  license: AGPL-3.0 (self-hosted, free) / commercial ($79 lifetime, closed-source use)
+  docker_image: ghcr.io/alam00000/bentopdf-simple
+  compose_file_url: https://raw.githubusercontent.com/alam00000/bentopdf/main/docker-compose.yml
+  compose_file_notes: >
+    Official compose file at the repo root (alam00000/bentopdf). This is a
+    rolling reference to the default branch (`main`), not version-pinned —
+    no tagged/release-asset variant is published. Only one file matches
+    the self-hosted build: the file's `image:` defaults to
+    ghcr.io/alam00000/bentopdf-simple:latest, the same image this recipe's
+    installability analysis uses, with commented-out alternatives for the
+    commercial image (ghcr.io/alam00000/bentopdf:latest) and Docker Hub
+    mirrors (bentopdfteam/bentopdf-simple, bentopdfteam/bentopdf) rather
+    than separate compose files. A second file, docker-compose.dev.yml,
+    exists for local development only and is not relevant here.
+
+version_health:
+  latest_version: "v2.8.7"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v2.8.7 published 2026-07-27, 9 days before today (2026-08-05).
+    Release history shows near-weekly to biweekly tags through 2026
+    (v2.3.1 on 02-21, v2.4.0 on 03-01, v2.5.0 on 03-10, v2.6.0 on 03-18,
+    v2.7.0 on 03-24, v2.8.0-v2.8.2 on 04-01/04-05, v2.8.3-v2.8.4 fixing a
+    CVE and a CSP regression on 04-18/04-21, v2.8.5 on 05-23, v2.8.6 on
+    06-28, v2.8.7 on 07-27). Repo created 2025-10-12 (~10 months old),
+    14.5k+ GitHub stars, last push 2026-08-02. Clearly active, fast-moving
+    project, not archived/maintenance-only.
+
+catalogue_fit:
+  categories: [productivity, utilities, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers ad-hoc PDF manipulation
+    (merge/split/convert/OCR/compress/sign). Paperless-ngx and
+    paperless-ai are document *archival/indexing* systems, not editing
+    toolkits, so there's no functional overlap. BentoPDF would give
+    customers a self-hosted alternative to public tools like
+    smallpdf.com/ilovepdf.com, with the pitch that files never leave the
+    customer's own server/browser rather than a third-party SaaS.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad, non-technical appeal (everyone occasionally needs to
+    merge/split/compress a PDF) and a strong privacy story that fits the
+    "self-host it yourself" pitch well. Capped at medium rather than high
+    because the app is entirely client-side WASM/JS — a customer gets the
+    same tool for free at bentopdf.com or by running it locally; the value
+    of self-hosting is branding/privacy-optics and offline/air-gapped use,
+    not unlocking capability unavailable otherwise.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  BentoPDF is a single-container, single-HTTP-port (8080 internally) static
+  web app with no server-side processing and no built-in login of any
+  kind — all PDF work happens client-side in the browser via WASM, so
+  there's no admin account or credential for `generated_from` to project
+  into. That makes it directly installable today the same way as
+  Adminer/WUD: front it with the domain param and a Traefik
+  basic_auth:true gate (password projected from the customer's root
+  password via `generated_from`) purely to keep the subdomain from sitting
+  open and anonymously usable by anyone who finds it — not because the app
+  itself handles sensitive data, since by design no file content ever
+  reaches the server. Use the `ghcr.io/alam00000/bentopdf-simple` image
+  (the maintained self-hosted build, distinct from `bentopdf/bentopdf` /
+  `bentopdf-simple` on Docker Hub, which upstream's README flags as
+  deprecated in favor of `bentopdfteam/*` and `ghcr.io/alam00000/*`).
+  Project is young (created Oct 2025) but very active — weekly-ish
+  releases through the past several months, 14.5k+ stars, no EOL signal.
+  Recommend building the recipe.

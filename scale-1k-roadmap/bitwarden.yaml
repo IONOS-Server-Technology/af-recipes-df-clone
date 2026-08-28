@@ -1,0 +1,107 @@
+slug: bitwarden
+name: Bitwarden
+source_description: "Official self-hosted Bitwarden server for encrypted password management"
+
+upstream:
+  url: https://bitwarden.com/host/
+  repo_url: https://github.com/bitwarden/server
+  license: "AGPL-3.0 (core) + Bitwarden License v1.0 (commercial modules under /bitwarden_license)"
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/bitwarden/self-host/main/bitwarden-lite/docker-compose.yml
+  compose_file_notes: >
+    Official file, published by Bitwarden in their bitwarden/self-host
+    repo for the "Bitwarden Lite" deployment option (single-container,
+    generally available per bitwarden.com/blog/new-deployment-option-for-self-hosting-bitwarden/,
+    as distinct from the ~11-container standard bitwarden.sh-driven
+    deployment described in installability.blocking_issues above). The
+    link is a rolling reference to the default `main` branch, not
+    version-pinned — the image tag inside it (ghcr.io/bitwarden/lite) is
+    what actually pins the running version, defaulting to `latest` unless
+    edited. No release-asset or tag-pinned equivalent was found; this is
+    the only docker-compose file Bitwarden itself publishes. It ships
+    commented-out alternatives for MariaDB (default), PostgreSQL, and MS
+    SQL Server — MariaDB is the only one left active, so that's the
+    variant this URL represents as-is.
+
+version_health:
+  latest_version: "v2026.7.2"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2026.7.2 published 2026-08-05, i.e. today — the project ships on a
+    tight, regular cadence (roughly every 2 weeks: v2026.7.0 on 2026-07-22,
+    v2026.7.1 on 2026-07-23, v2026.7.2 on 2026-08-05, and similar spacing
+    back through 2026.2.x-2026.6.x). Not archived, actively maintained by
+    Bitwarden Inc.
+
+catalogue_fit:
+  categories: [security, password-manager]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [vaultwarden]
+  differentiation: >
+    Bitwarden Server is the official upstream implementation of the same
+    Bitwarden client-compatible password-manager protocol that
+    recipes/vaultwarden/ already serves via the community Rust
+    reimplementation. Vaultwarden is a single-container drop-in that speaks
+    the identical client API, so for an AF customer the end-user experience
+    (official Bitwarden browser extension/mobile/desktop apps, vault sync)
+    is indistinguishable between the two. Official Bitwarden Server adds
+    enterprise-only features (SSO, SCIM provisioning, org-level policies,
+    billing) behind the separate Bitwarden License, none of which matter to
+    a single-tenant self-host customer.
+  usefulness: low
+  usefulness_rationale: >
+    Functional overlap with vaultwarden is total from the customer's point
+    of view (same client apps, same vault-sync protocol); the only things
+    official Bitwarden Server adds are enterprise multi-org features that
+    don't apply to a single self-hosted instance, at the cost of a vastly
+    heavier and harder-to-operate multi-container stack (see
+    installability below). No rationale for a customer to pick this over
+    the recipe we already ship.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BITWARDEN_INSTALLATION_ID
+    - BITWARDEN_INSTALLATION_KEY
+    - SMTP_CREDENTIALS
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Official self-hosted Bitwarden requires a free "installation ID and
+      key" pair obtained by registering an account at
+      https://bitwarden.com/host before the installer (bitwarden.sh) will
+      even run — these values are issued by Bitwarden's own hosted service
+      per-installation and are checked against it, not something af-api can
+      derive or hash from the customer's root password. No input channel
+      exists for this today (external third-party account credential).
+    - >
+      The reference deployment (bitwarden.sh install/start) is not a single
+      docker-compose service like Vaultwarden — it orchestrates roughly a
+      dozen containers (Admin, Api, Identity, Web, Events,
+      EventsProcessor, Notifications, SCIM, SSO, Nginx, plus a MSSQL
+      database) fronted by its own bundled Nginx doing TLS termination,
+      which conflicts with putting Traefik in front the way every other
+      recipe in the catalogue does.
+    - >
+      The self-hosted admin portal login is passwordless: it emails a
+      one-time login code to the configured admin email address via SMTP,
+      so a working SMTP relay/credentials must be supplied at setup time
+      just to reach the admin UI at all — another externally-sourced
+      secret with no projection mechanism today.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Bitwarden Server is active and well-maintained upstream, but it is not
+  installable today: it requires a Bitwarden-issued installation ID/key
+  (an external third-party account credential with no input channel today),
+  SMTP credentials just to reach the passwordless admin login, and a
+  ~12-container stack with its own bundled reverse proxy that conflicts
+  with the Traefik-fronted single-service recipe model — none of which fit
+  the current `/compose` secret-projection mechanism. Recommend
+  not_recommended. (It also overlaps with recipes/vaultwarden/ from the
+  customer's perspective — same client-compatible vault protocol — but that
+  overlap is not the reason for this verdict.)

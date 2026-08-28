@@ -1,0 +1,97 @@
+slug: immudb
+name: ImmuDB
+source_description: "Immutable, tamper-proof database with cryptographic verification and web console"
+
+upstream:
+  url: https://immudb.io/
+  repo_url: https://github.com/codenotary/immudb
+  license: BSL-1.1 (Business Source License 1.1 — source-available, not OSI-approved open source; converts to Apache-2.0 four years after each version's release)
+  docker_image: codenotary/immudb:1.11.1
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. immudb's own docs
+    (docs.immudb.io) and README document only three installation paths:
+    downloading the binary, `docker run -d --net host -it --rm --name
+    immudb codenotary/immudb:latest`, and a Helm chart
+    (helm repo add immudb https://packages.codenotary.org/helm) for
+    Kubernetes. The codenotary/immudb GitHub repo has no docker-compose.yml
+    or docker-compose.yaml at its root or under any subdirectory (checked
+    root tree, a GitHub code search scoped to the repo, and Docker Hub's
+    codenotary/immudb page) — only a `helm/` directory and a bare
+    `Dockerfile`. Community docker-compose snippets for immudb do circulate
+    (e.g. blog posts, HackerNoon tutorials) but none are published or
+    endorsed by codenotary/immudb itself, so none qualifies as official.
+
+version_health:
+  latest_version: "1.11.1"
+  latest_release_date: "2026-06-25"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    1.11.1 released 2026-06-25, ~6 weeks before today (2026-08-05). Tag
+    history shows the release cadence has stretched out: 1.9.6 (2025-03-31)
+    → 1.9.7 (2025-05-30, 2mo) → 1.10.0 (2025-10-21, 5mo) → 1.11.0
+    (2026-04-28, 6mo) → 1.11.1 (2026-06-25, 2mo, a fix release). That's
+    roughly one release every 4-6 months over the last 18 months, down from
+    a much faster cadence in immudb's early years. The GitHub repo (Codenotary)
+    is not archived — ~9k stars, 4,894 commits, 33 open PRs, 70 open issues —
+    and a `dev` Docker tag was pushed 2026-08-03 (2 days before analysis),
+    so active development continues even though tagged stable releases have
+    slowed. Not dormant, but clearly past its highest-velocity period.
+
+catalogue_fit:
+  categories: [database, developer-tools, security]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    ImmuDB is a standalone cryptographically-verifiable, append-only
+    key-value/SQL database aimed at developers who need tamper-evident audit
+    trails inside their own applications (e.g. financial ledgers, compliance
+    logs). Nothing in the current 24-recipe catalogue is a bare database
+    server offered as a customer-facing app — our closest recipes
+    (n8n, paperless-ngx) use Postgres internally as an implementation detail,
+    never expose it as the product. ImmuDB would be the first "install a
+    database and use it yourself" recipe rather than an "install a finished
+    consumer app" recipe, which is a different value proposition for a
+    self-hosting customer than the rest of the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Real differentiated capability (cryptographic tamper-evidence) but a
+    narrow, developer-only audience: a customer needs to already be building
+    or operating an application that talks to immudb over gRPC/pgsql-wire
+    to get any value from a freshly deployed, empty instance — there's no
+    "browse and use it" experience like the rest of the catalogue offers.
+    That's a materially smaller addressable slice of self-hosting customers
+    than apps with an immediate, standalone use (password manager, uptime
+    monitor, file sync).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ImmuDB ships with a fixed, hardcoded default login (immudb/immudb) that
+  can only be changed after boot via the separate `immuadmin` CLI against
+  the running server — there is no env var or config option to inject a
+  pre-hashed or plaintext admin credential at container start, so
+  `generated_from` cannot target it directly. That's not a hard blocker per
+  the schema's "fixed default credential" case: the whole app (gRPC service
+  on 3322, web console + REST on 8080, optional pgsql-wire on 5432) can sit
+  behind Traefik `basic_auth: true` gating the real auth boundary, making it
+  mechanically installable_today with no blocking issues. Separately, it is
+  not reverse-proxy-compatible in the way our other recipes are (its primary
+  interface is a raw gRPC/pgsql-wire port, not a single HTTP surface Traefik
+  can front — the web console is a secondary admin panel, not the product),
+  its BSL-1.1 license is source-available rather than open source, release
+  cadence has slowed to roughly one tag every 4-6 months, and its audience
+  (developers embedding a tamper-evident database in their own software)
+  doesn't match the rest of the catalogue's ready-to-use consumer apps —
+  those are catalogue-fit observations, not installability blockers.
+  Recommend build_now.

@@ -1,0 +1,98 @@
+slug: arcadedb
+name: ArcadeDB
+source_description: "Multi-model database for graph, document, key-value, and time series data"
+
+upstream:
+  url: https://arcadedb.com/
+  repo_url: https://github.com/ArcadeData/arcadedb
+  license: Apache-2.0
+  docker_image: arcadedata/arcadedb
+  compose_file_url: https://raw.githubusercontent.com/ArcadeData/arcadedb/main/docker-compose.yml
+  compose_file_notes: >
+    Official — ships at the repository root of ArcadeData/arcadedb. This is
+    a rolling reference to the default branch (main), not version-pinned to
+    a release tag; it will track whatever is current on main rather than a
+    fixed ArcadeDB release. Only one variant exists (no GPU/CPU or dev/prod
+    split): a single "arcade" service on arcadedata/arcadedb:latest exposing
+    2480 (HTTP/Studio) and 2424 (binary), setting the root password via
+    JAVA_OPTS, and preloading the "OpenBeer" sample dataset on first boot.
+
+version_health:
+  latest_version: "26.8.1"
+  latest_release_date: 2026-08-03
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Calendar-versioned (YY.M.patch). Monthly cadence throughout 2026 (26.3.2,
+    26.4.2, 26.5.1, 26.6.1, 26.7.1/26.7.2/26.7.3, 26.8.1), with 26.8.1 landing
+    2026-08-03 — 2 days before this analysis (today: 2026-08-05). 26.8.1 alone
+    closed 381 issues/PRs. Actively developed: recent releases add a Graph
+    Analytical View (OLAP acceleration), a built-in MCP server, TimeSeries
+    data-model support, and native geospatial indexing. No signs of
+    maintenance-only mode.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue is a standalone,
+    customer-facing database service — Postgres/similar only appear as
+    internal backing services inside other recipes (n8n, paperless-ngx). ArcadeDB
+    would be the first recipe letting a customer stand up a queryable
+    multi-model DB (graph/document/KV/time-series, SQL + Cypher + Gremlin +
+    MongoDB/Redis wire protocols) with a browser Studio UI, useful for
+    developers prototyping graph or document workloads without provisioning
+    their own DB infra.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiator for a developer-tooling audience, but it's a raw
+    database rather than an end-user app — narrower appeal than the
+    catalogue's typical productivity/monitoring/media tools, and its value is
+    capped by the installability blocker below (no working login channel for
+    the customer's own credential).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "ArcadeDB server root user password (gates Studio UI and the HTTP/binary APIs — this is the app's only login)"
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      ArcadeDB's root credential can only be set via
+      arcadedb.server.rootPassword (system property, env var, or a
+      root-password-path file) — all three accept the PLAINTEXT password only.
+      ArcadeDB derives its own PBKDF2WithHmacSHA256 hash internally from that
+      plaintext; there is no server option to instead supply a
+      pre-computed hash. generated_from only ever projects a hash
+      (argon2/bcrypt) of the customer's root password — it can never carry
+      the plaintext value ArcadeDB actually requires. This is the genuine
+      "plaintext required" case the schema calls a hard structural blocker,
+      not a missing-algorithm gap that could be closed by extending
+      generated_from's supported-algorithm list.
+    - >
+      Gating the app behind Traefik basic_auth instead doesn't route around
+      the problem: ArcadeDB has its own mandatory login (Studio and every
+      HTTP/binary API call require an ArcadeDB user/password), so a customer
+      who only holds a Traefik basic-auth credential still cannot log in to
+      the app itself. A server-generated random root password (never
+      disclosed to the customer) would work for internal secrets nothing
+      customer-facing reads, but here the credential IS what the customer
+      needs to use the product, so it doesn't fit that "generate and forget"
+      pattern either.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  ArcadeDB is an actively maintained (monthly releases, latest 26.8.1 on
+  2026-08-03), Apache-2.0, multi-model database with a Docker image and an
+  HTTP Studio UI on port 2480 that would add a genuinely new category —
+  standalone databases — to the catalogue with no current overlap. It is
+  blocked from installable_today, however: the app's only login (its root
+  user) can only be provisioned with a plaintext password, and the
+  platform's sole customer-secret channel (generated_from hashing the
+  customer's root password) never carries plaintext. Recommend
+  blocked_on_platform pending a plaintext-password input channel (distinct
+  from the hash-only generated_from mechanism), not not_recommended, since
+  the app itself is healthy and differentiated.

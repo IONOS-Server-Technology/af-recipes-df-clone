@@ -1,0 +1,92 @@
+slug: gotenberg
+name: Gotenberg
+source_description: "Docker-powered stateless API for seamless PDF conversion and generation"
+
+upstream:
+  url: https://gotenberg.dev
+  repo_url: https://github.com/gotenberg/gotenberg
+  license: MIT
+  docker_image: gotenberg/gotenberg:8.34.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose file for end users. The docs'
+    installation page (gotenberg.dev/docs/getting-started/installation)
+    only shows a minimal inline Compose YAML snippet meant to illustrate
+    adding Gotenberg as a service in your own stack (`image:
+    gotenberg/gotenberg:8`, rolling major-version tag, no volumes/env), not
+    a downloadable file. The repo root does have a `compose.yaml`
+    (github.com/gotenberg/gotenberg/blob/main/compose.yaml), but it is the
+    project's own internal dev/CI harness for exercising OpenTelemetry
+    (spins up an otel-collector and openobserve alongside Gotenberg, wired
+    to Makefile targets `make run`/`make telemetry`), not an install
+    artifact aimed at users deploying Gotenberg.
+
+version_health:
+  latest_version: "v8.34.0"
+  latest_release_date: "2026-06-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v8.34.0 published 2026-06-12, about 7.7 weeks (~1.8 months) before today
+    (2026-08-05). Release history through 2026 shows a steady ~2-5 week
+    cadence: v8.27.0 (2026-02-22), v8.28.0 (2026-03-19), v8.29.0/8.29.1
+    (2026-03-28/30), v8.30.0/8.30.1 (2026-04-05/06), v8.31.0 (2026-04-16),
+    v8.32.0 (2026-04-30), v8.33.0 (2026-05-29), v8.34.0 (2026-06-12). No
+    tagged release since, but Docker Hub's rolling `edge` image variants
+    were pushed as recently as ~6 days before this analysis, so main-branch
+    development is ongoing; the gap since 8.34.0 reads as a slightly longer
+    pause between cuts, not a slowdown or abandonment signal.
+
+catalogue_fit:
+  categories: [developer-tools, document-processing, api]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers a headless HTML/Office/Markdown
+    -to-PDF conversion API (Chromium- and LibreOffice-backed routes for
+    converting URLs, HTML, Office documents, and Markdown to PDF, plus PDF
+    merge/split/encrypt/convert operations). Paperless-ngx and Paperless-AI
+    handle document *archiving*, not on-demand PDF *generation*; ConvertX
+    (apps-gaps/convertx.yaml, not yet built) targets end users converting
+    arbitrary media formats via a web UI, whereas Gotenberg is a headless
+    REST API a developer's own app calls to generate PDFs programmatically
+    — closer in audience/shape to Browserless (apps-gaps/browserless.yaml)
+    than to any consumer-facing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability with no catalogue overlap, but it is
+    infrastructure for another application (invoice/report/receipt
+    generation, HTML-to-PDF pipelines) rather than a standalone app a
+    customer opens and uses directly — no dashboard, no settings, just an
+    HTTP API. Audience is developers wiring PDF generation into their own
+    stack, similar in kind to Browserless.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Gotenberg is a single-container, stateless, no-database Go API (port
+  3000) with an MIT license and an active, if not weekly, release cadence
+  — no EOL or dormancy signal. It has no web UI or login of its own: it
+  does ship an optional native basic-auth flag
+  (`API_ENABLE_BASIC_AUTH` + `GOTENBERG_API_BASIC_AUTH_USERNAME`/
+  `_PASSWORD`), but that mechanism compares the configured password as
+  plaintext, so it cannot be filled by `generated_from`'s hash output — the
+  right fit instead is a Traefik `basic_auth: true` gate in front of the
+  whole API, the same pattern used for other login-less apps (n8n, WUD).
+  This matters more than usual here because Gotenberg's Chromium routes
+  accept an arbitrary customer-supplied URL to render/convert, so an
+  ungated instance is a meaningful open-SSRF-relay risk — gating it is a
+  real requirement, not just hygiene. With that gate, it is mechanically
+  installable today. Value is real but narrower than a consumer app: it is
+  developer infrastructure (PDF generation for another app to call), not a
+  standalone tool a customer opens directly, so it's a reasonable
+  build-now candidate rather than a high-priority one.

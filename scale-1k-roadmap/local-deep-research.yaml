@@ -1,0 +1,90 @@
+slug: local-deep-research
+name: Local Deep Research
+source_description: "Self-hosted AI deep research assistant powered by cloud LLM providers"
+
+upstream:
+  url: https://github.com/LearningCircuit/local-deep-research
+  repo_url: https://github.com/LearningCircuit/local-deep-research
+  license: MIT
+  docker_image: localdeepresearch/local-deep-research
+  compose_file_url: https://raw.githubusercontent.com/LearningCircuit/local-deep-research/main/docker-compose.yml
+  compose_file_notes: >-
+    Official file, published in the repo root and linked directly from the
+    README's Docker Compose quick-start ("curl -O
+    .../main/docker-compose.yml && docker compose up -d"). This is a
+    rolling reference to the default (main) branch, not pinned to a release
+    tag — the raw link always resolves to whatever is currently on main.
+    Picked the base docker-compose.yml (CPU) variant over the alternatives
+    the project ships: docker-compose.gpu.override.yml (an NVIDIA-specific
+    overlay meant to be layered on top via `-f docker-compose.yml -f
+    docker-compose.gpu.override.yml`, not a standalone stack) and
+    docker-compose.unraid.yml (a platform-specific variant for Unraid). The
+    base file is the one referenced by the README's default/all-platforms
+    instructions and needs no extra flags to run.
+
+version_health:
+  latest_version: "1.10.1"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Latest tag (1.10.1) shipped 3 days before today (2026-08-05); the
+    preceding four releases (1.9.1, 1.9.2, 1.9.3, 1.10.0) landed roughly
+    weekly through July 2026. Releases are automated end-to-end from
+    towncrier changelog fragments on every version-bump PR merge, so the
+    weekly cadence reflects genuinely active upstream maintenance, not a
+    one-off burst.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Not another chat-with-a-model frontend: it's an autonomous multi-step
+    research agent that plans searches, aggregates results through a
+    bundled SearXNG meta-search instance, iterates on gaps, and returns a
+    cited report (benchmarked at ~95% on SimpleQA). Open WebUI and Ollama
+    give a customer local inference and a chat box; this adds the
+    search-and-synthesize research workflow neither provides. It ships its
+    own bundled Ollama + SearXNG in the official compose file, so functional
+    overlap with the existing ollama/open-webui recipes is real if a
+    customer runs both, but the core capability is distinct.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely novel workflow (agentic web research with citations) not
+    covered by any of the 24 current recipes, but it's a niche,
+    power-user-facing tool compared to the broad appeal of a chat UI, and a
+    customer who wants this can reasonably run it on the same box as
+    open-webui/ollama already in the catalogue rather than needing a
+    dedicated recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Local Deep Research is installable today with no customer-supplied secret
+  at boot: the official compose stack (app + bundled Ollama + bundled
+  SearXNG, all on an isolated internal network) works out of the box with
+  local inference, and the app manages its own multi-user auth internally —
+  each user self-registers and gets an isolated, per-user encrypted
+  (SQLCipher/AES-256) database, the same self-serve pattern already used by
+  uptime-kuma and immich, so no root-password projection or basic_auth gate
+  is structurally required. Optional cloud LLM provider API keys (OpenAI,
+  Anthropic, etc.) are entered by each user directly in the web UI's own
+  settings page after signup, not injected by af-api, so they don't block
+  installability — the same "customer configures it themselves post-launch"
+  pattern already accepted for AnythingLLM. One caveat worth flagging: no
+  documentation found for disabling or gating self-registration, so by
+  default anyone who reaches the domain could sign up and consume the
+  server's inference/search compute; a Traefik basic_auth gate in front of
+  the whole app would be a reasonable defense-in-depth addition even though
+  it isn't strictly required by the current mechanism rules. It overlaps
+  partially with the existing open-webui + ollama pairing, but that overlap
+  is descriptive only: the mechanism is installable today with no blocking
+  issues, so this is a build_now recipe.

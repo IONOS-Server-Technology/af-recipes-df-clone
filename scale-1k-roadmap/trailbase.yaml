@@ -1,0 +1,92 @@
+slug: trailbase
+name: TrailBase
+source_description: "Open-source Firebase alternative with type-safe APIs, realtime, and auth"
+
+upstream:
+  url: https://trailbase.io/
+  repo_url: https://github.com/trailbaseio/trailbase
+  license: OSL-3.0
+  docker_image: trailbase/trailbase:0.32.0
+  compose_file_url: https://raw.githubusercontent.com/trailbaseio/trailbase/main/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (github.com/trailbaseio/trailbase),
+    referenced from the project's own docs (trailbase.io/getting-started/
+    install/, though that page's inline example is a bare `docker run`
+    alias rather than this file). This is a rolling reference to the
+    default (`main`) branch, not version-pinned to a release tag — no
+    per-release compose asset is published. Only one variant is shipped
+    (single service, `trailbase/trailbase:latest` image, SQLite embedded,
+    no external DB), so there was no alternative to choose between.
+
+version_health:
+  latest_version: "v0.32.0"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.32.0 was published 2026-08-06T08:53:10Z per the GitHub Releases API —
+    effectively concurrent with today (2026-08-05), one day ahead in UTC.
+    Release history is extremely dense: v0.31.0-0.31.3 spanned 2026-07-17 to
+    2026-08-04, v0.30.0-0.30.6 spanned 2026-07-02 to 2026-07-16, and v0.29.0
+    landed 2026-06-23 — a new tag roughly every 1-9 days for the last two
+    months. This is a fast-moving, actively developed project, not
+    maintenance-only. Repo is not archived; 40 open issues, funded in part
+    by NGI Zero Core (NLnet/EU).
+
+catalogue_fit:
+  categories: [backend-as-a-service, developer-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    TrailBase is a single-binary backend-as-a-service (BaaS): embedded
+    SQLite (experimental Postgres support since v0.28), auto-generated
+    type-safe REST + realtime APIs over existing tables, and a built-in
+    auth system (password + OAuth, JWT-based) with client SDKs for eight
+    languages. It occupies the same product category as Supabase/PocketBase
+    — nothing in the current 24-recipe catalogue does auto-generated REST
+    APIs over a database plus bundled auth/realtime for app developers; the
+    closest neighbors (n8n, paperless-ngx) are end-user apps with their own
+    fixed UI, not a generic backend a customer would build a separate
+    frontend against. Genuinely new ground for developer-facing customers.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable use case (a low-ops Supabase/Firebase alternative for
+    small apps and prototypes) and a single container with no external
+    dependencies, which is operationally simple to host. Capped at medium
+    rather than high because the target audience (developers building an
+    app against a generic backend) is narrower than the general
+    productivity/infra tools already in the catalogue, and — see
+    `blocking_issues` — the built-in admin dashboard, which is required to
+    configure any of the record APIs/auth that make the product useful in
+    the first place, has no reachable login for a customer under our
+    current install mechanism.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["TrailBase admin login (admin@localhost / auto-generated random password)", "Traefik gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "TrailBase creates exactly one admin account on first boot with a hardcoded email (admin@localhost) and a random 20-character password generated in-process and only ever written to the container's stdout log (crates/core/src/app_state.rs: `random_alphanumeric(20)`, then `info!(\"Created new admin user: ... password: '{password}'\")`). There is no env var, config field, or CLI flag to pre-seed this password at startup."
+    - "The only way to change it after the fact is `trail user change-password admin@localhost <new-password>` (or `trail user add` / `trail admin promote`), and every one of those CLI subcommands takes the password as a plaintext argument — there is no field anywhere that accepts a pre-computed hash. Our install mechanism only ever has a hash of the customer's root password (`generated_from: \"<algo>:ROOT_PASSWORD\"`), never the plaintext, so install.sh cannot call any of these commands meaningfully. This is the 'genuine requirement for the plaintext password' case the schema calls a structural blocker, not a missing-algorithm gap IF-1420 would fix."
+    - "Unlike Traccar (also admin-credential-less at boot), TrailBase does not fall back to open self-registration for the first user — an admin already exists, just with an unknowable password — so gating the whole app behind Traefik basic_auth does not restore a usable admin path the way it did for Traccar. Nothing (not even a legitimate customer) can reach TrailBase's admin dashboard, which is required to define any record API, table, or auth setting before the backend does anything useful. A recipe built today would ship an inert, empty backend behind a login wall with no way in."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  TrailBase is an actively developed (near-weekly releases), genuinely
+  novel addition to the catalogue's shape — a single-binary Supabase/
+  PocketBase-style backend-as-a-service with no existing overlap. It fails
+  installability for a reason distinct from most other blocked candidates:
+  it isn't missing an input channel for an external API key or OAuth
+  registration, it's that TrailBase's own admin account is created with a
+  random password that is never exposed through any config/env/CLI surface
+  accepting a hash — only plaintext, which our root-password projection
+  mechanism never carries. Because the admin dashboard gates all
+  productive use (defining APIs, tables, auth), a Traefik basic_auth wall
+  cannot substitute the way it does for apps with open self-registration.
+  This is an upstream design gap (no ADMIN_PASSWORD/ADMIN_PASSWORD_HASH env
+  var), not something IF-1420/1312 would unblock, so not_recommended rather
+  than blocked_on_platform.

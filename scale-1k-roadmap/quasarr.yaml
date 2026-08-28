@@ -1,0 +1,109 @@
+slug: quasarr
+name: Quasarr
+source_description: "Bridge linking JDownloader to Radarr, Sonarr, and Lidarr via Newznab and SABnzbd"
+
+upstream:
+  url: https://github.com/rix1337/Quasarr
+  repo_url: https://github.com/rix1337/Quasarr
+  license: MIT
+  docker_image: ghcr.io/rix1337/quasarr
+  compose_file_url: https://raw.githubusercontent.com/rix1337/Quasarr/main/docker/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at docker/docker-compose.yml in the project's own repo
+    (not linked from the README, but authored/maintained by the project
+    itself, not a third party). This is a rolling reference to the default
+    (main) branch, not a version-pinned release asset — no tagged/versioned
+    copy of the compose file exists. It defines the core `quasarr` service
+    plus three optional add-on services (`sponsorshelper`, a sponsor-only
+    CAPTCHA-solving helper; `flaresolverr-next`; and `magazarr`, a separate
+    magazine-library app) — no GPU/CPU or sqlite/postgres variants exist,
+    just this one multi-service file with optional pieces.
+
+version_health:
+  latest_version: "4.6.14"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active: tagged releases roughly every 1-3 days through
+    July-August 2026 (v.4.6.6 on 2026-07-15 through v.4.6.14 on 2026-08-02),
+    3 days before today (2026-08-05). Not archived, ~870 commits, actively
+    maintained by a single maintainer (rix1337). Note: name is ambiguous —
+    there is also a much smaller/inactive `9Mad-Max5/Quasarr` fork and an
+    unrelated `Korbeil/quasarr` (a PHP Sonarr/Radarr clone, not a bridge
+    tool) on GitHub. `rix1337/Quasarr` was selected as the canonical
+    upstream since it matches Hostinger's description exactly and is the
+    actively maintained, most-starred (150 stars) project.
+
+catalogue_fit:
+  categories: [media, download-management, integration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches media-download automation
+    (the Radarr/Sonarr/Lidarr "*arr" ecosystem) or JDownloader bridging.
+    It would be a genuinely new category for customers running a
+    self-hosted media stack who use JDownloader-only sources (link sites
+    protected by CAPTCHAs) rather than real Usenet/torrent indexers.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists among self-hosted media-automation users, but the
+    app is a niche middleware piece with no value on its own — it only
+    matters to customers who already run Radarr/Sonarr/Lidarr AND
+    JDownloader AND use JDownloader-only ("filecrypt"-style) link sources.
+    None of the *arr apps or JDownloader itself are in the catalogue today,
+    so a customer would need three more recipes/containers before Quasarr
+    does anything useful.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_login_password, myjdownloader_account_credentials]
+  secrets_expressible_today:
+    - secret: admin_login_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      Quasarr's core function (bridging JDownloader to Radarr/Sonarr/Lidarr)
+      requires a working JDownloader instance connected to a "My
+      JDownloader" cloud account, and Quasarr's own setup wizard requires
+      the customer to type in their My JDownloader email/password during
+      first configuration. That is a third-party account credential with
+      no input channel in the current `/compose` mechanism (not a
+      root-password-derived secret, not a gateable UI login).
+    - >
+      JDownloader itself is a separate application not included in
+      Quasarr's official image/compose — it is not currently in the
+      catalogue, so even setting the blocking issue above aside, this
+      recipe alone gives a customer no working download path without a
+      second app they'd have to run themselves.
+    - >
+      Functional value additionally depends on the customer supplying
+      "valid hostnames" for JDownloader-only link sources (per upstream
+      docs, sourced from a community-maintained list) — configuration the
+      platform has no way to pre-supply, though this is a soft/optional
+      concern rather than a hard blocker like the two above.
+    - >
+      Unconfirmed whether the app's own `USER`/`PASS` env-var login
+      compares against a plaintext value only (breaking
+      `generated_from`'s hash projection) or accepts a pre-hashed value —
+      moot given the My JDownloader blocker above, but would need
+      verification before a real recipe attempt.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Quasarr is an actively maintained (releases every 1-3 days), MIT-licensed,
+  single-container web app with a real HTTP UI (port 8080, reverse-proxy
+  friendly) and no overlap with anything in the current 24-recipe
+  catalogue. However, its entire reason for existing — bridging JDownloader
+  into Radarr/Sonarr/Lidarr — requires the customer to link a My
+  JDownloader cloud account by typing its email and password into Quasarr's
+  setup wizard, a third-party credential the `/compose` mechanism has no
+  channel to supply today. Combined with the fact that JDownloader itself
+  isn't in the catalogue as a recipe, this app would ship as an empty shell
+  without either IF-1420/1312-adjacent work extending to arbitrary
+  third-party credentials, or a broader initiative to build out a
+  JDownloader + *arr-stack set of recipes first. Recommend `blocked_on_platform`,
+  revisit only alongside a decision to build the surrounding media-stack
+  recipes.

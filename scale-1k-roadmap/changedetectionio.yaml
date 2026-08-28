@@ -1,0 +1,84 @@
+slug: changedetectionio
+name: changedetection.io
+source_description: "Website change detection and monitoring tool with visual selection and notifications"
+
+upstream:
+  url: https://changedetection.io/
+  repo_url: https://github.com/dgtlmoon/changedetection.io
+  license: Apache-2.0
+  docker_image: dgtlmoon/changedetection.io (also published as ghcr.io/dgtlmoon/changedetection.io)
+  compose_file_url: https://raw.githubusercontent.com/dgtlmoon/changedetection.io/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root of the project's own GitHub repo
+    (github.com/dgtlmoon/changedetection.io/blob/master/docker-compose.yml).
+    This is a rolling reference to the default (`master`) branch, not
+    version-pinned to a release tag — the file has no `image:` tag pin
+    either (bare `ghcr.io/dgtlmoon/changedetection.io`, i.e. floating
+    `latest`). It is the only docker-compose file the project ships (no
+    separate GPU/CPU or sqlite/postgres variants); it defines the single
+    `changedetection` service plus commented-out guidance for optionally
+    wiring in a `sockpuppetbrowser`/Selenium container for JS-heavy sites,
+    which matches the "Playwright/browserless fetchers are optional
+    add-ons" note already in this file's usefulness_rationale.
+
+version_health:
+  latest_version: "0.55.8"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.55.8 published 2026-07-13 (~23 days before this analysis, 2026-08-05),
+    preceded by 0.55.7 (~2 months prior), 0.55.5 and 0.55.4 (~3 months
+    prior) — a steady roughly-monthly cadence on the numbered-release
+    track, plus a `:dev` image tag pushed as recently as 1 day ago showing
+    continuous upstream development between tagged releases. Repo is not
+    archived, has ~32.8k GitHub stars, and hundreds of open issues/PRs
+    actively triaged. This is an actively maintained project.
+
+catalogue_fit:
+  categories: [monitoring, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Uptime Kuma (already in the catalogue) monitors whether a service is
+    up or down; changedetection.io monitors the *content* of a page —
+    visual/text diffing, price-drop and restock alerts, keyword triggers,
+    and notifications via Discord/Slack/Telegram/email/webhook when a
+    tracked page changes. No existing recipe covers this content-change-
+    tracking use case, so it would be a genuinely new capability rather
+    than a duplicate of Uptime Kuma.
+  usefulness: medium
+  usefulness_rationale: >
+    Broadly appealing to non-technical customers (price tracking, restock
+    alerts, "tell me when this page changes") as well as technical users
+    (competitor/site monitoring), and it is a single lightweight container
+    with no external dependency required for the basic HTTP fetcher (the
+    Playwright/browserless fetchers for JS-heavy sites are optional
+    add-on services, not required to boot).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  changedetection.io ships with no authentication at all until the
+  customer manually opens the Settings tab and types a password into a
+  plain form field — there is no environment variable or startup flag to
+  set an initial admin password, and the app is fully open on its public
+  port (5000) until that manual step happens. This is the same shape as
+  Adminer/WUD: no login of its own to hash a customer secret into via
+  `generated_from`, so the correct fix is a mandatory Traefik
+  `basic_auth: true` gate on the public port, with the basic-auth password
+  itself projected from the customer's root password. With that gate this
+  is installable today as a single-container docker-compose recipe with no
+  other blockers. Upstream is actively maintained (release ~23 days ago,
+  dev builds within the last day), and it fills a real gap versus Uptime
+  Kuma (uptime monitoring) by covering content-change/price/restock
+  monitoring instead — recommend building now.

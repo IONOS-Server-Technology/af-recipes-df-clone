@@ -1,0 +1,102 @@
+slug: keeweb
+name: KeeWeb
+source_description: "Web-based KeePass-compatible password manager running in the browser"
+
+upstream:
+  url: https://keeweb.info/
+  repo_url: https://github.com/keeweb/keeweb
+  license: MIT
+  docker_image: ghcr.io/keeweb/keeweb
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    keeweb/keeweb repo (checked repo root on both the `master` branch and
+    the `docker/keeweb` branch, which hosts the Docker-specific README).
+    The official README (both the main-branch README's "Docker Compose"
+    section and the docker/keeweb branch's dedicated Docker README) only
+    embeds the compose YAML inline as a documentation snippet for the
+    user to copy into their own docker-compose.yml — it is not a file the
+    project publishes or versions itself, so there is nothing to link the
+    way Immich links a release-asset compose file. The embedded snippet
+    uses `ghcr.io/keeweb/keeweb:latest` (rolling tag; a versioned
+    `1.19.0` tag is also offered as an alternative in the same snippet).
+
+version_health:
+  latest_version: "v1.18.9"
+  latest_release_date: "2026-05-08"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Repo is not archived and there is no announced EOL, but the release
+    history is a long dormancy followed by a short revival burst, not a
+    steady cadence. Releases ran v1.18.0 (2021-05-08) through v1.18.7
+    (2021-07-18), then nothing for ~4.75 years, then a burst of two
+    releases in quick succession — v1.18.8 (2026-04-30) and v1.18.9
+    (2026-05-08) — with matching commit activity on master from
+    2026-04-30 through 2026-05-08 and no commits since. That is 3 months
+    of silence as of today (2026-08-05), right after the first real
+    activity in years. Too early to tell if this is a sustained revival or
+    a one-off burst; treat as sporadic until another release lands.
+    Separately, the published ghcr.io/keeweb/keeweb container image is
+    only tagged up to `1.19.0`/`latest`, which resolves to the same commit
+    as source tag v1.18.8 — the newest source release (v1.18.9) has not
+    been published as a container image at analysis time, so a recipe
+    pinning to a real image tag would actually be one release behind
+    upstream's latest tag.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [vaultwarden]
+  differentiation: >
+    Both are self-hosted password managers, so the category overlap is
+    direct. KeeWeb's angle is KeePass (.kdbx) format compatibility for
+    users migrating from desktop KeePass, and a fully client-side
+    encryption model with no server-side account system at all — the
+    server only ever sees an encrypted blob if one is even configured (see
+    installability notes). Vaultwarden is a full Bitwarden-compatible
+    server: multi-user, has native mobile/browser-extension clients, an
+    admin panel, and org/sharing features. For a typical customer wanting
+    "a password manager I can self-host," Vaultwarden is the more
+    complete and more actively maintained answer; KeeWeb mainly adds value
+    for someone specifically invested in the KeePass ecosystem.
+  usefulness: low
+  usefulness_rationale: >
+    Real differentiation is thin (KeePass-format niche) against an
+    existing, more capable, more actively maintained recipe in the same
+    category. It's also weakened by KeeWeb's own storage model: the
+    official Docker image just serves the static web app over
+    nginx — there is no bundled database/storage backend, so a database
+    saved without configuring an external WebDAV/Dropbox/Google
+    Drive/OneDrive target only persists in the browser's local storage,
+    tied to one device/browser profile. That undercuts the primary reason
+    someone self-hosts a password manager (cross-device sync), unless the
+    customer separately stands up and wires in their own WebDAV server —
+    which our recipe mechanism has no way to provision.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "App has no bundled persistent storage for the vault file (kdbx); usable cross-device sync requires a customer-configured WebDAV/Dropbox/Google Drive/OneDrive backend, none of which our /compose mechanism can provision or supply credentials for today. A recipe would either ship a KeeWeb instance whose saved vaults don't survive a container restart/browser change, or require the customer to wire up unrelated third-party storage entirely out-of-band."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  KeeWeb is mechanically installable today — single container, single HTTP
+  port, no login of its own, so a mandatory Traefik basic_auth gate (with
+  the password projected from the customer's root password) covers its
+  only first-boot secret, same pattern as n8n/Adminer/WUD. The real caveat
+  is functional, not mechanism-related: the official image has no bundled
+  persistent storage backend, so a vault saved without a customer-wired
+  external WebDAV/Dropbox/Google Drive/OneDrive target only lives in the
+  browser's local storage, tied to one device/browser profile — undercutting
+  cross-device sync, the main reason someone self-hosts a password manager.
+  That caveat, plus an unproven revival after a ~4.75-year release
+  dormancy, makes this a build-with-caveats rather than an unconditional
+  build. (It also overlaps with Vaultwarden in the same category — see
+  catalogue_fit — but that overlap is not itself a reason for the caveat.)

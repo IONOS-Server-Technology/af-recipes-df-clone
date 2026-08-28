@@ -1,0 +1,129 @@
+slug: apache-skywalking
+name: Apache SkyWalking
+source_description: "Open-source APM with distributed tracing, metrics, logs, and eBPF profiling"
+
+upstream:
+  url: https://skywalking.apache.org/
+  repo_url: https://github.com/apache/skywalking
+  license: Apache-2.0
+  docker_image: apache/skywalking-oap-server
+  compose_file_url: https://raw.githubusercontent.com/apache/skywalking/master/docker/docker-compose.yml
+  compose_file_notes: >
+    Official, project-maintained file at docker/docker-compose.yml in the
+    apache/skywalking repo, documented by its own docker/README.md as the
+    supported way to run the backend cluster locally (`docker compose
+    --profile elasticsearch up` or `--profile banyandb up`), covering OAP +
+    a storage backend + the Horizon UI. This is a rolling reference to the
+    default branch (master), not version-pinned: the linked raw URL always
+    reflects the current tip, and the services themselves default to
+    `:latest`-tagged images (ghcr.io/apache/skywalking/oap:latest,
+    ghcr.io/apache/skywalking-horizon-ui:latest), overridable via
+    docker/.env. Picked the `banyandb` profile as the reference variant
+    over `elasticsearch` since BanyanDB is the lighter, actively-promoted
+    default storage per version_health notes above; the file defines both
+    behind Compose profiles in the same document, so both are present at
+    this one URL regardless of which is treated as canonical.
+
+version_health:
+  latest_version: "10.4.0"
+  latest_release_date: "2026-04-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    10.4.0 shipped 2026-04-20, roughly 3.5 months before today (2026-08-05).
+    Recent cadence: 10.1.0 (2025-09-29) -> 10.2.0 (2025-11-?/2026-03,
+    reporting inconsistent across mirrors) -> 10.3.0 (2025-11-10) ->
+    10.4.0 (2026-04-20), i.e. a new minor roughly every 3-5 months, and a
+    10.5.0 changelog already exists in the "next" docs tree, meaning
+    development toward the following release is already underway. Sibling
+    sub-projects (Horizon UI, NodeJS agent, BanyanDB) also released within
+    the last 1-2 months of today's date. This is a healthy, genuinely
+    active top-level Apache project, not a candidate for EOL/dormant
+    flagging.
+
+catalogue_fit:
+  categories: [monitoring, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does distributed tracing /
+    APM. Uptime Kuma is the closest existing "monitoring" recipe but it is
+    external blackbox uptime/ping checking, not in-process trace/metric/log
+    collection from instrumented applications — a fundamentally different
+    use case (SkyWalking needs a customer to run language agents inside
+    their own separately-hosted services and point them at this instance).
+    That makes it a genuine, unfilled niche for teams running microservices
+    elsewhere and wanting a central APM backend, but it is also a much
+    narrower audience than our existing single-user consumer/prosumer
+    recipes (password managers, wikis, file sync) — this appeals mainly to
+    developers/SREs operating other software, not end users.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, unfilled gap and a well-known, credible open-source APM brand,
+    but the value only materializes for a customer who already has other
+    instrumented services to point at it — it has no standalone utility.
+    Combined with the operational weight below (multi-service stack, extra
+    non-HTTP public ports for agent ingestion), this is a heavier, more
+    niche addition than most of the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_basic_auth_password]
+  secrets_expressible_today:
+    - secret: ui_basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Not a single-HTTP-port app: the OAP server's whole purpose is
+      receiving trace/metric/log data pushed by language agents running
+      inside the customer's *other*, separately-hosted services (default
+      gRPC receiver on 11800, HTTP alternative on 12801). Those raw
+      TCP/gRPC ports must be reachable by external agents directly, not
+      just browsers routed through Traefik on 80/443 — this is a
+      structurally different exposure shape than every current recipe
+      (all single browser-facing HTTP port fronted by Traefik). Mechanically
+      possible to declare as extra public ports in metadata.yaml, but it is
+      a real deviation from the reverse-proxy-only pattern and needs a
+      product decision on whether AF wants to expose raw agent-ingestion
+      ports per customer VM.
+    - >
+      Multi-service stack: OAP server needs a real storage backend.
+      H2/embedded storage was permanently removed as of the 10.2.0 line
+      (2025) — the only supported backends now are BanyanDB, MySQL/
+      PostgreSQL, or Elasticsearch/OpenSearch. A single-node BanyanDB
+      instance is the lightest fit, but this is still a 3-container stack
+      (OAP + BanyanDB + UI) more comparable to Immich/anytype-server than
+      to the single-container recipes that make up most of the catalogue.
+    - >
+      The current UI (Horizon UI, the actively-developed replacement for
+      the now-archived skywalking-ui) ships with "no default account" —
+      at least one local user (with an argon2id password hash) or an LDAP
+      binding must be present in a mounted horizon.yaml before anyone can
+      sign in at all. There is no env-var login mechanism and no
+      customer-facing signup flow. This is expressible today only by
+      shipping a fixed, non-customer-chosen local-user hash baked into the
+      recipe and treating Traefik basic_auth as the real auth boundary
+      (same pattern already used for Adminer/n8n/WUD/hermes-agent) — the
+      Horizon UI's own login is not itself wired to ROOT_PASSWORD via
+      generated_from today, and Horizon UI's hash format/CLI has not been
+      verified compatible with af-core's generated_from argon2 output, so
+      this path needs verification even after IF-1420 lands.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Apache SkyWalking is an active, credible, Apache-governed APM project
+  with no equivalent in the current catalogue — a real gap for teams
+  running instrumented microservices elsewhere. It fails our "installable
+  today" bar for structural reasons beyond the usual secrets-input gap: it
+  is a 3-container stack (OAP + BanyanDB + Horizon UI) needing raw gRPC/
+  HTTP agent-ingestion ports exposed directly (not just a browser-facing
+  HTTP port behind Traefik), and its UI login has no supported customer
+  credential channel today (fixed local user + Traefik basic_auth as the
+  real gate is the only expressible path, and even that needs the
+  argon2-hash-format check against Horizon UI's own CLI). Recommend
+  blocked_on_platform: revisit only after a product decision on exposing
+  non-HTTP public ports per recipe, and after generated_from/basic_auth
+  (IF-1420/IF-1312) ship, given the audience is narrower (developers/SREs
+  with other services to monitor) than most of the current catalogue.

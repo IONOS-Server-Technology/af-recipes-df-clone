@@ -1,0 +1,98 @@
+slug: taxhacker
+name: TaxHacker
+source_description: "AI-powered accounting tool for processing receipts and invoices automatically"
+
+upstream:
+  url: https://taxhacker.app/
+  repo_url: https://github.com/vas3k/TaxHacker
+  license: MIT
+  docker_image: ghcr.io/vas3k/taxhacker
+  compose_file_url: https://raw.githubusercontent.com/vas3k/TaxHacker/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the repo's own README instructs `curl -O
+    https://raw.githubusercontent.com/vas3k/TaxHacker/main/docker-compose.yml`
+    as the quickest deployment method. Rolling reference to the `main`
+    branch (raw URL always tracks HEAD, not a pinned tag), pulling
+    ghcr.io/vas3k/taxhacker:latest. The repo also ships
+    docker-compose.build.yml (build-from-source for local dev) and
+    docker-compose.production.yml (variant) at root; docker-compose.yml
+    was chosen as it's the exact file the README's own quickstart command
+    fetches.
+
+version_health:
+  latest_version: "v0.8.5"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.8.5 shipped 2026-07-20, ~16 days before today (2026-08-05). Prior
+    releases show a dense, active cadence: v0.8.0/v0.8.2/v0.8.5 all landed
+    within a two-week window in early-to-mid July 2026, v0.7.0 in April
+    2026, v0.6.1 in March 2026. Repo was pushed to as recently as
+    2026-08-03 (2 days before today). 6.6k stars, 1.1k forks, 38 open
+    issues, not archived. Clearly active, no maintenance-only or EOL
+    signals.
+
+catalogue_fit:
+  categories: [productivity, finance, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue targets personal/small-business
+    accounting or receipt-and-invoice bookkeeping specifically. paperless-ngx
+    and paperless-ai cover generic document management/AI-tagging, not
+    structured accounting data (amounts, taxes, currencies, categorized
+    transactions, exports). TaxHacker fills a distinct niche: AI-assisted
+    expense/income tracking for freelancers and small businesses, with
+    multi-currency and multi-LLM-provider support.
+  usefulness: medium
+  usefulness_rationale: >
+    Solid niche fit and reasonably popular upstream (6.6k stars, active
+    cadence), but the core value proposition (AI receipt/invoice analysis)
+    depends on the customer bringing their own OpenAI/Google/Mistral API
+    key or running a local LLM — without one the app is just a plain
+    transaction ledger. That's configurable inside the app UI post-install
+    (not a deploy-time blocker, see installability below), but it does mean
+    the "AI-powered" headline feature isn't turnkey at first boot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_password, POSTGRES_PASSWORD, BETTER_AUTH_SECRET]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_password
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  TaxHacker is a small two-service stack (ghcr.io/vas3k/taxhacker web app on
+  port 7331, plus a required Postgres 17 database and an optional cron
+  sidecar for scheduled tasks) — structurally close to recipes/paperless-ngx
+  and recipes/n8n's Postgres-backed template, single public HTTP port, no
+  extra raw ports, reverse-proxy friendly. Its documented self-hosted mode
+  (`SELF_HOSTED_MODE=true`, the shipped default) explicitly disables the
+  app's own built-in authentication entirely, assuming the instance sits
+  behind a trusted network or its own reverse-proxy auth — upstream's own
+  docs describe exposing it publicly without a Traefik-style gate as an
+  unsupported "hack" requiring manual DB surgery to re-enable login. That
+  makes this exactly the no-native-login case the schema calls out: gate
+  the whole app behind a mandatory Traefik `basic_auth` credential
+  projected from the customer's root password, and leave
+  `SELF_HOSTED_MODE=true`/`DISABLE_SIGNUP=true` as shipped. Postgres
+  password and the BETTER_AUTH_SECRET signing key are generated
+  server-side with no customer input needed (upstream even auto-generates
+  and persists BETTER_AUTH_SECRET itself if left unset). The optional
+  OpenAI/Google Gemini/Mistral API key for AI document analysis has no
+  metadata parameter today, but upstream's own UI prompts for and stores
+  it post-login if omitted at deploy time, so it is not a first-boot
+  blocker — just a caveat that the flagship AI feature needs a follow-up
+  step from the customer. Upstream is actively maintained with a dense
+  release cadence and no EOL signals. Net: installable today, medium value
+  given the niche fit is real but the differentiator (AI) isn't fully
+  turnkey.

@@ -1,0 +1,86 @@
+slug: speedtest-tracker
+name: Speedtest Tracker
+source_description: "Self-hosted internet performance tracking application with automated speed tests"
+
+upstream:
+  url: https://speedtest-tracker.dev
+  repo_url: https://github.com/alexjustesen/speedtest-tracker
+  license: MIT
+  docker_image: lscr.io/linuxserver/speedtest-tracker
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose.yaml/.yml file is published.
+    docs.speedtest-tracker.dev's "Using Docker Compose" page
+    (getting-started/installation/using-docker-compose) only embeds inline
+    copy-paste YAML snippets (SQLite, MariaDB, MySQL, and Postgres variants)
+    directly in the docs markdown — there is no linked or downloadable file
+    behind them. The repo's own root-level compose.yaml
+    (github.com/alexjustesen/speedtest-tracker/blob/main/compose.yaml) is a
+    Laravel Sail local development environment (builds the app from source,
+    spins up pgsql/mailpit/apprise for testing) and is not the deployment
+    compose the docs point self-hosters to, so it was not adopted as a
+    substitute.
+
+version_health:
+  latest_version: v1.14.7
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released one day before this analysis (2026-08-05). Prior releases show a
+    steady monthly-or-faster cadence: v1.14.6 (2026-07-23), v1.14.4
+    (2026-06-14), v1.14.3 (2026-05-25), v1.14.2 (2026-05-21, a CVE fix
+    release). 884 commits, 5.9k stars, 37 open issues actively triaged. No
+    archival or EOL signal.
+
+catalogue_fit:
+  categories: [monitoring, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue's closest existing entry is Uptime Kuma, which monitors
+    service/endpoint availability. Speedtest Tracker instead runs scheduled
+    Ookla/Librespeed bandwidth tests and graphs download/upload/ping/jitter
+    history over time — a distinct metric (link performance vs. uptime) that
+    a customer running a home lab or small office would plausibly want
+    alongside, not instead of, uptime monitoring.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but well-understood self-hosted utility with a dedicated,
+    long-running upstream and a clean single-container Docker image. Value
+    is mostly for customers who care about tracking their own ISP's
+    performance over time, which is a narrower audience than general uptime
+    monitoring.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "ADMIN_PASSWORD (internal, app's own admin login)"
+    - "basic_auth gate credential (customer-facing)"
+  secrets_expressible_today:
+    - secret: basic_auth gate credential (customer-facing)
+      mechanism: traefik_basic_auth
+    - secret: ADMIN_PASSWORD (internal, app's own admin login)
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Speedtest Tracker is a single-container, actively maintained (weekly-to-
+  monthly releases) Laravel/Filament app behind an official LinuxServer.io
+  image, running fine with its default SQLite backend and a single HTTP
+  port — a straightforward Traefik target. Its own admin login
+  (ADMIN_EMAIL/ADMIN_PASSWORD) is set via a plaintext environment variable
+  at first boot, which the app hashes internally (Hash::make) before
+  storing — so `generated_from`, which only ever supplies a pre-computed
+  hash, cannot drive that field directly; feeding it a hash would double-
+  hash and lock the customer out. The workaround already used for n8n, WUD,
+  and Open WebUI applies cleanly here: generate ADMIN_EMAIL/ADMIN_PASSWORD
+  and APP_KEY randomly server-side (the customer never needs them) and put
+  the real customer-facing gate on a Traefik `basic_auth: true` in front of
+  the app, projecting the root-password hash via `generated_from`. That
+  makes it installable today with no platform changes needed. Recommend
+  build_now given the low mechanical risk, though usefulness is medium — a
+  niche but real ask for self-hosters tracking their own connection.

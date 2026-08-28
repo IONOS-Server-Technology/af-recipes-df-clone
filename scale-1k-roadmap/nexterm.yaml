@@ -1,0 +1,96 @@
+slug: nexterm
+name: Nexterm
+source_description: "Browser-based server management for SSH, VNC, and RDP connections"
+
+upstream:
+  url: https://nexterm.dev/
+  repo_url: https://github.com/gnmyt/Nexterm
+  license: MIT
+  docker_image: nexterm/aio
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml file exists anywhere in the
+    project. The repo root (github.com/gnmyt/Nexterm) has no
+    docker-compose file and no docker/, deploy/, or contrib/ directory —
+    only individual Dockerfiles (Dockerfile, Dockerfile.engine,
+    Dockerfile.server) and a packaging/ folder with systemd unit files and
+    nfpm specs, no compose. The docs site
+    (docs.nexterm.dev/installation) only embeds inline YAML snippets in
+    the page text for "All-In-One (Host Network - Recommended)" and a
+    "Split Deployment (Server + Engine)" variant — neither is a
+    downloadable/linkable file, both are copy-paste examples the user must
+    save themselves. No community-maintained compose file was identified
+    either.
+
+version_health:
+  latest_version: v1.2.2-BETA
+  latest_release_date: 2026-07-19
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.2.2-BETA published 2026-07-19, 17 days before today (2026-08-05).
+    Release history shows a steady multi-week cadence (v1.2.1-BETA on
+    2026-05-24, v1.2.0-BETA on 2026-01-01, v1.0.9-OPEN-PREVIEW on
+    2025-12-31, v1.0.8-OPEN-PREVIEW on 2025-12-29) with substantial features
+    landing each release (new C-based connectivity engine, CLI client,
+    permission system, API keys). Actively maintained, but the project has
+    never cut a 1.0/stable tag — every release since inception carries a
+    "-BETA" or "-OPEN-PREVIEW" suffix, so it is explicitly pre-stable by the
+    maintainer's own versioning.
+
+catalogue_fit:
+  categories: [infrastructure, remote-access]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    Directly overlaps with the existing (currently disabled) Guacamole
+    recipe on the core value prop: browser-based SSH/VNC/RDP access with no
+    client install. Nexterm differentiates with a broader "server
+    management platform" scope beyond protocol gateway — built-in SFTP file
+    browser, one-click Docker container deployment, Proxmox LXC/QEMU
+    management, host monitoring, snippets/scripts, and org-based
+    multi-tenant access control with 2FA/OIDC SSO. Guacamole is the leaner,
+    more mature (Apache top-level project) pure gateway. Nexterm would add
+    the devops/management layer on top of remote access that Guacamole
+    doesn't attempt, but it's still beta software from a single-maintainer
+    project versus an Apache project.
+  usefulness: medium
+  usefulness_rationale: >
+    Browser-based remote server access is a real customer need with no
+    *enabled* recipe currently covering it (Guacamole exists but is
+    disabled: false in the catalogue). Nexterm is more feature-rich than
+    Guacamole for the "manage my fleet of servers" use case, but its
+    pre-1.0/beta status and single-maintainer project profile are a real
+    risk for something customers will use to store SSH credentials and
+    reach production servers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ENCRYPTION_KEY, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Nexterm is a single-container Node.js app (official image nexterm/aio,
+  pin nexterm/aio:1.2.2-BETA) needing only a server-generated
+  ENCRYPTION_KEY and a persistent volume; the documented recommended
+  deployment uses network_mode: host, but a standard bridge-network mapping
+  of port 6989 works fine and is Traefik-compatible. Like several other
+  candidates seen in this batch, Nexterm has no env-var admin bootstrap: the
+  first visitor to reach the app hits an open "/register" first-time-setup
+  endpoint and picks their own admin username/password with no channel to
+  project the customer's root password into it, so that endpoint must sit
+  behind a Traefik basic_auth gate (root-password-derived) until the
+  customer completes real registration behind it — this makes it
+  installable_today under the current mechanism. It structurally overlaps
+  with the catalogue's existing (disabled) Guacamole recipe, and the
+  project itself is still pre-1.0/beta with every release tagged -BETA or
+  -OPEN-PREVIEW, but neither is a blocking installability issue. Recommend
+  build_now: installable_today is true with no blocking issues.

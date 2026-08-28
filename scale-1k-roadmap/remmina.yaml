@@ -1,0 +1,90 @@
+slug: remmina
+name: Remmina
+source_description: "Remmina is a multi-protocol remote desktop client for RDP, VNC, and SSH"
+
+upstream:
+  url: https://remmina.org/
+  repo_url: https://gitlab.com/Remmina/Remmina
+  license: GPL-2.0
+  docker_image: lscr.io/linuxserver/remmina
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Remmina itself (gitlab.com/Remmina/Remmina)
+    is a native GTK desktop remote-desktop client with no server component and no
+    Docker packaging of its own — its repo ships no compose file, Dockerfile, or
+    container docs. The only container image, linuxserver/remmina, is a
+    third-party "webtop" packaging maintained by linuxserver.io, not by the
+    Remmina project, so it does not qualify as an official compose file even
+    though linuxserver.io does publish a docker-compose.yml for it
+    (docs.linuxserver.io/images/docker-remmina/).
+
+version_health:
+  latest_version: "1.4.43"
+  latest_release_date: "2026-02-20"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Upstream (GitLab, mirrored read-only on GitHub under FreeRDP/Remmina)
+    is still cutting releases: 1.4.41 (2025-08-11), 1.4.42 (2026-02-14),
+    1.4.43 (2026-02-20) — but that's a ~6-month gap between 1.4.41 and
+    1.4.42 after a previously tighter cadence, and it is now ~5.5 months
+    since 1.4.43 as of 2026-08-05. Not archived or EOL, but slower than
+    the sub-monthly cadence Remmina kept through 2024. The only
+    third-party Docker packaging (linuxserver/remmina) currently ships
+    1.4.40dfsg-2ubuntu1 (a Debian-repackaged build), not the upstream
+    1.4.43 tag — it briefly carried a 1.4.43 tag ~2 months ago before
+    reverting, so the container image lags upstream by three point
+    releases.
+
+catalogue_fit:
+  categories: [remote-access, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    None beyond what guacamole already covers, and materially worse fit
+    for a hosted-recipe model. Remmina is a native GTK desktop
+    application, not a server product — it has no first-party server or
+    web mode. The only containerized path is linuxserver/remmina, a
+    "webtop"-style image that boots a full KasmVNC Linux desktop in the
+    browser and runs the Remmina GUI inside it, plus a passwordless sudo
+    terminal alongside it. That's a generic remote-desktop-in-a-box
+    workaround, not a purpose-built multi-user remote-access gateway.
+    guacamole already gives customers the same end capability (browser
+    access to RDP/VNC/SSH targets) as an actual clientless web gateway,
+    without handing out a full sudo Linux shell to get there.
+  usefulness: low
+  usefulness_rationale: >
+    Anyone who wants "reach RDP/VNC/SSH targets from a browser" is better
+    served by guacamole, which is designed for exactly that and is already
+    in the catalogue. Remmina-in-a-container only adds value for someone
+    who specifically wants Remmina's native UI/connection-profile format,
+    a narrow niche, at the cost of shipping a full desktop environment with
+    root-capable shell access as the delivery mechanism.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [web_desktop_access_password]
+  secrets_expressible_today:
+    - secret: web_desktop_access_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "linuxserver/remmina exposes a full Linux desktop with a passwordless sudo terminal behind whatever auth gates it, a materially larger attack surface than a normal single-purpose app; Traefik basic_auth (or the image's built-in CUSTOM_USER/PASSWORD) covers first-boot access but does not remove that risk."
+    - "The image's pinned tag (1.4.40dfsg-2ubuntu1) trails the current upstream release (1.4.43) by three point releases, so the recipe would ship a stale build from day one."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Remmina is a native desktop remote-desktop client, not a server app;
+  the only Docker packaging (linuxserver/remmina) works by running a full
+  browser-accessible Linux desktop (KasmVNC-based) with Remmina and a
+  root-capable sudo terminal inside it. It overlaps with guacamole, which
+  already covers the "reach RDP/VNC/SSH from a browser" use case as a
+  purpose-built gateway rather than a full sudo desktop workaround.
+  Mechanically it is installable today — a domain plus a Traefik
+  basic_auth gate covers the one first-boot secret — but two real caveats
+  remain: the delivery mechanism exposes a full Linux desktop with a
+  passwordless sudo terminal behind that auth gate, a materially larger
+  attack surface than a normal single-purpose app, and the only container
+  image is pinned three point releases behind current upstream. Recommend
+  building with those caveats flagged.

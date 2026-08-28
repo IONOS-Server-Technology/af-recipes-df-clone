@@ -1,0 +1,101 @@
+slug: nats
+name: NATS
+source_description: "Cloud-native messaging system with pub/sub, request-reply, and JetStream"
+
+upstream:
+  url: https://nats.io/
+  repo_url: https://github.com/nats-io/nats-server
+  license: Apache-2.0
+  docker_image: nats
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in NATS's own sources.
+    docs.nats.io's Docker page (docs.nats.io/running-a-nats-service/nats_docker)
+    and its docker-tutorial subpage give only a bare `docker run` invocation
+    against the official Docker Hub image (hub.docker.com/_/nats); the
+    project's own deployment docs otherwise point to Kubernetes/Helm
+    (StatefulSet + NATS Helm chart), not Docker Compose. The nats-io/nats-docker
+    repo builds the Docker Hub images themselves and contains no compose file.
+    Other nats-io repos do contain docker-compose.yml files (e.g.
+    nats-io/nats-surveyor's monitoring stack, nats-io/jetstream's clustering
+    demo), but these are compose files for auxiliary tooling/demos, not an
+    official "install NATS server" compose file, so none was adopted here.
+    Community compose files exist (e.g. veggiemonk/compose-nats,
+    bmcustodio/docker-compose-nats-cluster) but are not official and were
+    not used.
+
+version_health:
+  latest_version: "2.14.4"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.14.4 tagged 2026-07-30, less than a week before today (2026-08-05).
+    The project maintains two parallel lines in lockstep: 2.14.x (current)
+    and 2.12.x (LTS-style maintenance line) — 2.12.14 also shipped on
+    2026-07-30 alongside 2.14.4, and both lines had prior releases on
+    2026-06-29 (2.14.3 / 2.12.12), 2026-06-09 (2.12.11), and 2026-06-02
+    (2.14.2 / 2.12.10). That's releases in every recent month across both
+    branches. NATS is a CNCF-hosted project (incubating), not archived,
+    backed by Synadia. Clearly active.
+
+catalogue_fit:
+  categories: [messaging, infrastructure, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker of any kind. NATS is
+    general-purpose cloud-native messaging (pub/sub, request-reply, and
+    JetStream for persistent/replayable streaming — a lighter-weight
+    alternative to Kafka), aimed at connecting a customer's own
+    applications/microservices rather than IoT devices specifically. This
+    differs in target audience from the MQTT brokers (Mosquitto, EMQX)
+    also analyzed as gap candidates: NATS speaks its own client protocol
+    used from application code (Go/Node/Python/etc. client libraries), not
+    the IoT-oriented MQTT protocol.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful piece of infrastructure for a customer running their
+    own distributed apps/microservices and wanting a message bus without
+    standing up Kafka, but — like Mosquitto/EMQX — it has no browser-usable
+    surface at all; the entire point is other software connecting to it
+    via a client library, so the audience is narrow and technical (people
+    already writing their own services) rather than the general end-user
+    apps most of the catalogue targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "NATS client connection password"
+    - "monitoring_basic_auth_gate"
+  secrets_expressible_today:
+    - secret: NATS client connection password
+      mechanism: generated_from_root_password
+    - secret: monitoring_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  NATS is an actively-maintained (CNCF, Synadia-backed), Apache-2.0
+  licensed messaging system with no catalogue overlap — it would be the
+  first message-broker-style recipe. Unlike Mosquitto (blocked on
+  generated_from lacking pbkdf2 support) and EMQX (blocked on a
+  plaintext-only dashboard password plus a BSL license question), NATS's
+  own config format natively accepts a bcrypt-hashed password in its
+  authorization block (`nats server passwd` generates exactly this), which
+  is a direct match for `generated_from: "bcrypt:ROOT_PASSWORD"` — no
+  workaround needed. Confirmed against upstream docs: NATS ships with no
+  authentication enabled by default (anonymous access to publish/subscribe
+  on 4222) so a recipe must force this password, and the HTTP monitoring
+  endpoint on 8222 is unauthenticated by design and should sit behind a
+  Traefik basic_auth gate (also root-password-projected) rather than being
+  exposed directly. The main client port (4222, raw TCP) needs direct
+  non-HTTP exposure, the same accepted pattern already used by wg-easy and
+  Syncthing in this catalogue, not a structural blocker. Recommend
+  build_now — mechanically ready today; the main open question is whether
+  a technical, developer-facing message broker fits the catalogue's
+  broader end-user-app profile, which is a product-fit call rather than a
+  platform blocker.

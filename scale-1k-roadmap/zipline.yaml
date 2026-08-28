@@ -1,0 +1,97 @@
+slug: zipline
+name: Zipline
+source_description: "ShareX-compatible file and image upload server with a modern dashboard"
+
+upstream:
+  url: https://zipline.diced.sh/
+  repo_url: https://github.com/diced/zipline
+  license: MIT
+  docker_image: ghcr.io/diced/zipline
+  compose_file_url: https://raw.githubusercontent.com/diced/zipline/trunk/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root, referenced by the README's "recommended
+    way to run Zipline" section and by the docs' "Get Started with Docker"
+    guide. Rolling reference to the default branch (`trunk`, not `main` —
+    Zipline uses `trunk` as its primary branch), not pinned to a release
+    tag; it will track upstream changes rather than freeze at a version.
+    Only one variant is shipped (Postgres + app, `ghcr.io/diced/zipline:latest`
+    image) — no separate GPU/CPU or sqlite/postgres variants to choose
+    between. Matches the two-service Postgres shape already assumed in this
+    file's summary.
+
+version_health:
+  latest_version: "4.6.5"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.6.5 released 2026-07-28, 8 days before today (2026-08-05). Tagged
+    releases run roughly monthly through 2026: v4.6.4 (2026-07-06), v4.6.3
+    (2026-06-26), v4.6.2 (2026-06-03), v4.6.1 (2026-05-20), v4.6.0
+    (2026-05-11), v4.5.3 (2026-04-07), v4.5.2 (2026-03-29). GHCR also
+    publishes near-daily `trunk-<sha>` build tags (latest 2026-08-06),
+    confirming ongoing active development. Repo is not archived, releases
+    include regular security-advisory fixes (e.g. v4.6.4, v4.6.2, v4.6.1)
+    that are being triaged promptly. Clearly active.
+
+catalogue_fit:
+  categories: [file-sharing, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers ShareX-style screenshot/file
+    upload hosting. Immich is a photo/video library with albums and ML
+    search, aimed at personal media backup rather than generating quick
+    shareable links; Syncthing continuously syncs files between the
+    customer's own devices rather than serving public/shared upload links;
+    Opengist shares text/code snippets specifically, not arbitrary files
+    or images. Zipline's niche — a personal "screenshot/file drop" server
+    that ShareX, Flameshot, and similar tools upload directly to, returning
+    a shareable URL — is distinct from all of these.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular among a specific but sizeable audience (people replacing
+    imgur/Discord-CDN-style screenshot hosting with a self-hosted
+    ShareX-compatible endpoint), with a modern dashboard and URL shortener
+    features. Narrower appeal than a general-purpose consumer app like a
+    password manager or budgeting tool, but a clean, well-defined,
+    frequently-requested self-hosting use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CORE_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: CORE_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Zipline is a two-service stack (its own Node app plus a PostgreSQL
+  database, matching the n8n/paperless-ngx template) serving its dashboard
+  and upload API on a single HTTP port (3000) — fully Traefik-compatible.
+  It needs a `CORE_SECRET` cookie-signing key and a `POSTGRES_PASSWORD`
+  database password at boot, but both are patternless server-side secrets
+  nothing customer-facing ever needs to read, so af-api can generate them
+  internally with no input channel required (mechanism:
+  server_generated_no_customer_input for both). Confirmed against current
+  (v4) docs (zipline.diced.sh/docs/config/core) and the official
+  docker-compose (github.com/diced/zipline docker-compose.yml): on first
+  browser visit the customer is
+  redirected to a one-time setup page to create their own super-admin
+  username and password directly through the app's UI (the same
+  self-locking first-visit pattern already accepted for the shipped
+  Uptime Kuma and gap-analyzed Actual Budget recipes) — unlike an
+  open-ended self-registration app (e.g. An Otter Wiki), this setup path
+  closes itself off permanently once the first admin account is created,
+  so it does not need a Traefik basic_auth gate to avoid an indefinite
+  registration-race window. That clears the /compose constraint today
+  with zero blocking issues and no customer-supplied secret needed at
+  all — just the domain param. Release cadence is active (latest release
+  8 days old, near-daily trunk builds) with no maintenance-only or EOL
+  signal. Recommend building the recipe: it fills a real, currently-unfilled
+  niche in the catalogue with a well-maintained upstream project.

@@ -1,0 +1,102 @@
+slug: open-archiver
+name: Open Archiver
+source_description: "Compliance email archiving for Gmail, Microsoft 365, IMAP, and PST imports"
+
+upstream:
+  url: https://openarchiver.com/
+  repo_url: https://github.com/LogicLabs-OU/OpenArchiver
+  license: AGPL-3.0 (Community edition; a separate "Enterprise" tier gated behind a paid OA_LICENSE_KEY unlocks legal holds, retention-policy automation, SMTP journaling, and the enterprise audit-log service)
+  docker_image: logiclabshq/open-archiver
+  compose_file_url: https://raw.githubusercontent.com/LogicLabs-OU/OpenArchiver/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the README's own
+    "Installation" section (git clone + docker compose up -d) runs
+    directly, not a docs-page embed. Only one compose file exists in the
+    repo (no separate dev/prod, sqlite/postgres, or GPU/CPU variants), so
+    there was no variant choice to make. It's a rolling reference to the
+    default `main` branch and pulls `logiclabshq/open-archiver:latest`
+    (not a version-pinned tag or release asset), matching the project's
+    only-a-few-months-old release-tagging practice (no per-version
+    docker-compose.yml is published per GitHub release).
+
+version_health:
+  latest_version: "v0.5.2"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly monthly-to-biweekly tagged releases since the project's first
+    tag v0.3.1 on 2025-09-04 (v0.3.1 -> v0.3.2 -> v0.3.3 -> v0.3.4 -> v0.4.0
+    -> v0.4.1 -> v0.4.2 -> v0.5.0 -> v0.5.1 -> v0.5.2), i.e. 10 releases in
+    ~11 months. Latest v0.5.2 shipped 2026-07-27, 9 days before this
+    2026-08-05 analysis date. Untagged commit-hash images on Docker Hub run
+    through 2026-08-03, confirming continuous development between tags. No
+    archive notice, no EOL announcement; this is a young (~1 year old),
+    actively developed project, not dormant.
+
+catalogue_fit:
+  categories: [productivity, compliance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does mailbox-level
+    compliance archiving. Paperless-ngx (already in the catalogue) is
+    document/scan management, not email; Immich is photo management. Open
+    Archiver ingests from Gmail/Google Workspace, Microsoft 365, generic
+    IMAP, and PST/Mbox/EML file imports, stores messages as immutable
+    hash-verified .eml with an audit trail, and indexes them with
+    Meilisearch full-text search — a genuinely distinct SMB/compliance use
+    case (regulatory mail retention, eDiscovery, decommissioning a mailbox
+    without losing the record).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, non-overlapping value for a customer segment (SMBs with
+    regulatory/legal mail-retention obligations) we don't currently serve,
+    but it is a narrower, more specialized audience than general
+    productivity or dev-tool recipes, and the OSS edition's live-sync value
+    is capped without the customer completing OAuth setup themselves inside
+    the app after boot (see installability notes).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_SETUP_GATE, POSTGRES_PASSWORD, REDIS_PASSWORD, MEILI_MASTER_KEY, JWT_SECRET, ENCRYPTION_KEY]
+  secrets_expressible_today:
+    - secret: ADMIN_SETUP_GATE
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MEILI_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Open Archiver has no admin-account environment variable at all: on first
+  visit any client is redirected to an unauthenticated `/setup` page where
+  whoever gets there first creates the sole admin account, a real
+  first-visitor-wins race condition, not the "app ships one fixed default
+  password" case. That's structurally identical to the "no login yet,
+  needs gating" row in SCHEMA.md, so a permanent Traefik `basic_auth` gate
+  keyed to the customer's root password (same pattern as n8n/Open
+  WebUI/Immich) closes the race: only the customer can reach `/setup`, and
+  the real admin credentials they then choose there never need to pass
+  through our bootstrap mechanism at all. Every other required value
+  (Postgres/Redis/Meilisearch/JWT/encryption secrets) is a patternless
+  server-generated secret nothing customer-facing reads. Its 5-service
+  stack (app + Postgres + Valkey + Meilisearch + Apache Tika) mirrors
+  Paperless-ngx's shape and exposes a single web port (3000), so it's
+  Traefik-compatible with no raw-port needs. Gmail/M365 OAuth app
+  registration is needed only to configure an *ingestion source* after
+  login, inside the app's own UI — that's the customer's problem to solve
+  post-boot, not a bootstrap-time secret our mechanism has to carry, so it
+  doesn't block `installable_today`. Net: a real, non-overlapping
+  compliance-archiving niche, mechanically installable today with the
+  basic_auth gate and no blocking issues — build_now.

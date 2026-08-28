@@ -1,0 +1,124 @@
+slug: picoclaw
+name: PicoClaw
+source_description: "Ultra-lightweight Go AI assistant with native MCP support and 30+ LLM providers"
+
+upstream:
+  url: https://picoclaw.io/
+  repo_url: https://github.com/sipeed/picoclaw
+  license: MIT
+  docker_image: sipeed/picoclaw
+  compose_file_url: https://raw.githubusercontent.com/sipeed/picoclaw/main/docker/docker-compose.yml
+  compose_file_notes: >
+    Official, from the sipeed/picoclaw repo itself (docker/docker-compose.yml
+    at repo root). This is a rolling reference to the default branch (main),
+    not version-pinned — no tagged/release-asset copy of this file was
+    found. The repo ships two compose files under docker/:
+    docker-compose.yml and docker-compose.full.yml; picked docker-compose.yml
+    because it defines all three run modes documented in the README
+    (picoclaw-agent one-shot, gateway long-running bot, and launcher web
+    console + gateway on ports 18800/18790), matching the launcher-profile
+    deployment this recipe's installability analysis is built around.
+
+version_health:
+  latest_version: "v0.3.1"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.3.1 published 2026-07-03, 33 days before today (2026-08-05). Release
+    history shows a roughly monthly cadence through 2026: v0.2.6 (Apr 8),
+    v0.2.7 (Apr 22), v0.2.8 (Apr 30), v0.2.9 (May 29), v0.3.1 (Jul 3), with
+    nightly builds published in between (e.g. v0.3.1-nightly.20260702).
+    Docker Hub tags for sipeed/picoclaw confirm the same cadence, with
+    matching "-launcher" variant tags for every version. Repo is not
+    archived and shows ongoing commits — active development, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [openclaw, hermes-agent]
+  differentiation: >
+    Same "self-hosted AI agent with a messaging-bot gateway plus a web
+    console" shape as the two existing recipes openclaw and hermes-agent:
+    a long-running gateway that relays tasks through chat platforms
+    (Telegram, Discord, Matrix, IRC, WeCom, and others — 19+ channels
+    claimed), backed by a web launcher/dashboard, routed through 30+ LLM
+    providers via user-supplied API keys, with MCP server support recently
+    added (v0.2.8+). PicoClaw's actual pitch (ultra-lightweight, <10MB RAM,
+    runs on a $10 Raspberry Pi, sub-1s startup, written from scratch in Go)
+    is a genuine differentiator on constrained edge/embedded hardware, but
+    that specific value proposition mostly evaporates on an IONOS cloud VM
+    with GBs of RAM to spare — the resource floor a customer here cares
+    about is "does it run at all," which openclaw and hermes-agent already
+    clear. No feature (channel count, provider count, MCP support) is
+    exclusive to PicoClaw relative to the other two.
+  usefulness: low
+  usefulness_rationale: >
+    Active, MIT-licensed, monthly-shipping project, but its headline
+    selling point (extreme resource efficiency on tiny/embedded hardware)
+    is largely irrelevant in a cloud-VM hosting context, and the catalogue
+    already has two recipes (openclaw, hermes-agent) covering the same
+    "messaging-bot AI agent with web dashboard" niche with more mature
+    dashboards. A third entry adds redundancy without a use case a typical
+    IONOS customer would reach for over the existing two.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Confirmed against the upstream docker/docker-compose.yml and
+      web/backend/launcherconfig/config.go (sipeed/picoclaw @ main): the
+      launcher web console does have its own login, but the admin password
+      is set through an interactive first-run setup wizard in the browser,
+      not via any environment variable read at container start. The config
+      struct stores a `DashboardPasswordHash` (bcrypt) once a password has
+      been chosen, but there is no `PICOCLAW_DASHBOARD_PASSWORD` /
+      `..._HASH`-style env var to pre-seed it before first boot — the
+      legacy `PICOCLAW_LAUNCHER_TOKEN` env var that once served this
+      purpose was removed upstream (migrated once into the password-login
+      flow, then dropped). This is the same shape as Agent Zero and Adminer
+      in apps-gaps precedent: no channel exists today to project a
+      generated_from ROOT_PASSWORD hash into the app's own login, whether
+      because the comparison is plaintext or, as here, because there is no
+      env-var input at all for the hash.
+    - >
+      Workaround, same pattern as n8n/OpenClaw/WUD/Open WebUI/Immich/Agent
+      Zero: leave the launcher's first-run wizard unconfigured behind the
+      scenes and gate the single public port (18800) with Traefik
+      `basic_auth: true`, projecting the root-password hash there instead.
+      This also closes the unauthenticated-setup-wizard race window (anyone
+      hitting the URL before the customer completes first-run setup could
+      otherwise claim the admin account).
+    - >
+      LLM provider credentials (Anthropic/OpenAI/Gemini/DeepSeek/etc.) and
+      messaging-channel tokens (Telegram bot token, Discord webhook, etc.)
+      are configured post-provision through the web console's setup
+      wizards, not required as an env var at first boot — same deferred
+      pattern already shipped in openclaw and hermes-agent, not a blocker.
+    - >
+      The gateway's webhook listener (port 18790) binds to 127.0.0.1 by
+      default and is only exposed on 0.0.0.0 when `PICOCLAW_GATEWAY_HOST`
+      is set for the launcher profile; it does not need to be publicly
+      routed through Traefik — only the 18800 web console port does, so the
+      app is still reverse-proxy-compatible on a single public HTTP port.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PicoClaw is an active, MIT-licensed, monthly-shipping Go rewrite of the
+  same "messaging-bot AI agent with a web console" idea already covered by
+  openclaw and hermes-agent. It is mechanically installable today — gate
+  the single public web-console port (18800) with Traefik basic_auth
+  instead of driving the app's own first-run password wizard, which has no
+  env-var input channel for a projected root-password hash, closing the
+  unauthenticated-setup-wizard race window in the process. LLM provider
+  credentials and messaging-channel tokens are configured post-provision
+  through the web console, the same deferred pattern already shipped in
+  openclaw and hermes-agent, and the gateway's webhook listener does not
+  need to be publicly routed. Build now.

@@ -1,0 +1,117 @@
+slug: statistics-for-strava
+name: Statistics for Strava
+source_description: "Self-hosted Strava analytics dashboard with charts, heatmaps, and gear tracking"
+
+upstream:
+  url: https://dreeve.app/
+  repo_url: https://github.com/dreeveapp/dreeve
+  license: AGPL-3.0
+  docker_image: robiningelbrecht/dreeve
+  compose_file_url: https://docs.dreeve.app/getting-started/installation.md
+  compose_file_notes: >
+    No downloadable/standalone compose file exists anywhere in the
+    dreeveapp/dreeve repo or as a GitHub release asset. The repo root does
+    have a `docker-compose.yml`, but it's a dev/build harness (each service
+    uses `build:` against `docker/php-cli/Dockerfile` / `docker/app/Dockerfile`
+    to build the image from source, plus an on-demand `php-cli` profile
+    service and a commented-out `ollama` block) — not a deployment file for
+    the published `robiningelbrecht/dreeve` image, so it was not used. The
+    only official deployment compose is embedded directly in the project's
+    own docs at docs.dreeve.app ("Getting Started" > "Installation", backed
+    by the raw markdown source linked here): a two-service `app` + `daemon`
+    stack sharing volumes and an `.env` file, pulling `image:
+    robiningelbrecht/dreeve:latest` (with `ghcr.io/dreeveapp/dreeve:latest`
+    given as a commented alternate registry) — no GPU/CPU or sqlite/postgres
+    variants, just the one stack. This is a rolling reference to the
+    `:latest` tag and the current docs page content, not a version-pinned
+    snapshot; the docsify-rendered docs site has no per-version archived
+    copy of this page to link instead.
+
+version_health:
+  latest_version: v5.1.5
+  latest_release_date: 2026-08-05
+  release_cadence: active
+  eol_status: active
+  notes: >
+    "Statistics for Strava" no longer exists under that name. On 2026-07-19
+    the project rebranded to "Dreeve" (v5.0.0) and, per the release notes,
+    explicitly dropped Strava as a dependency ("No more Strava or any 3rd
+    party dependencies" — see the v5.0.0 announcement). The old GitHub slug
+    `robiningelbrecht/statistics-for-strava` now contains only a migration
+    stub (1 release, 4 stars, last push 2026-07-19) pointing at the new repo
+    `dreeveapp/dreeve` (2,006 stars, last push 2026-08-06). All ongoing
+    development is at the new repo/image (`robiningelbrecht/dreeve` on
+    Docker Hub, `ghcr.io/dreeveapp/dreeve` on GHCR). Release cadence is very
+    active: 30 releases in the 5 months prior to today (2026-08-05),
+    averaging roughly one every 4-5 days, with the latest release (v5.1.5)
+    landing on today's date itself. This is not ambiguity between two
+    competing projects with the same name (per SCHEMA.md guidance) — it is
+    one continuously-maintained project that renamed itself; the Hostinger
+    catalogue entry is simply pointing at a name the upstream has retired.
+
+catalogue_fit:
+  categories: [fitness, personal-analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers personal
+    fitness/activity tracking or analytics (categories in use today are ai,
+    automation, developer-tools, infrastructure, media, monitoring,
+    productivity, security). This would be a new category: a personal
+    dashboard for workout/activity data (charts, heatmaps, gear-wear
+    tracking) built from imported FIT/TCX/GPX files or a Strava account
+    sync.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to individual hobbyist customers (cyclists/runners) wanting a
+    private alternative to Strava's own dashboards, but it is a
+    single-user, personal-use tool rather than a team/business app, which
+    caps its addressable audience compared to most of the catalogue. Its
+    value is further reduced under our platform's constraints (see
+    installability) since the marquee "sync with Strava" feature isn't
+    deliverable — see summary.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD_HASH, APP_SECRET]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD_HASH
+      mechanism: generated_from_root_password
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The app's namesake feature — importing/syncing activities from a
+      customer's Strava account — requires IMPORT_MODE=stravaApi plus
+      customer-specific STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET/
+      STRAVA_REFRESH_TOKEN (a Strava OAuth app registration the customer
+      creates themselves). There is no channel today for a customer-supplied
+      external API key/OAuth credential, so this mode cannot be offered.
+      The only deliverable configuration is the default IMPORT_MODE=files,
+      where the customer manually drops FIT/TCX/GPX files into a watched
+      folder — mechanically fine, but it means the recipe could not actually
+      do what Hostinger's own description promises ("Strava analytics
+      dashboard"); it would ship as a generic personal workout-file
+      dashboard instead.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  The catalogue entry's name and description refer to a product that no
+  longer exists under that name: upstream rebranded "Statistics for Strava"
+  to "Dreeve" on 2026-07-19 (v5.0.0) and is actively maintained there
+  (releases every few days, latest v5.1.5 on 2026-08-05). Mechanically the
+  app is installable today: it's a single-image two-container
+  (app + daemon) docker-compose stack sharing an on-disk SQLite database, one
+  HTTP port (8080), and its admin login is a bcrypt password hash
+  (ADMIN_PASSWORD_HASH) that maps cleanly onto generated_from:
+  "bcrypt:ROOT_PASSWORD"; APP_SECRET is a random signing key we can generate
+  server-side. However, the feature the Hostinger description actually
+  advertises — syncing analytics from a customer's Strava account — needs a
+  customer-supplied Strava OAuth client ID/secret, which our platform has no
+  input channel for; only the manual file-import mode is deliverable.
+  Recommend build_with_caveats: worth building only if positioned honestly
+  as a self-hosted workout-file dashboard (FIT/TCX/GPX upload) rather than a
+  "Strava" integration, and using the current upstream name/image (Dreeve /
+  robiningelbrecht/dreeve), not the retired "Statistics for Strava" branding.

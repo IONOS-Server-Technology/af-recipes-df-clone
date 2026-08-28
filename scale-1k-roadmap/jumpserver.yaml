@@ -1,0 +1,99 @@
+slug: jumpserver
+name: JumpServer
+source_description: "Centralized privileged access gateway for SSH, RDP, and database sessions"
+
+upstream:
+  url: https://www.jumpserver.com/
+  repo_url: https://github.com/jumpserver/jumpserver
+  license: GPL-3.0
+  docker_image: jumpserver/jms_all
+  compose_file_url: null
+  compose_file_notes: >
+    No single official docker-compose.yaml/.yml exists. The project's own
+    installer (github.com/jumpserver/installer, linked from the main repo's
+    README quick_start.sh at
+    github.com/jumpserver/jumpserver/releases/latest/download/quick_start.sh)
+    ships a compose/ directory of ~25 service fragments (core.yml, koko.yml,
+    lion.yml, mysql.yml, redis.yml, network.yml, web.http.yml, etc.) that its
+    jmsctl.sh wrapper (scripts/gists/service.sh: get_docker_compose_cmd_line)
+    assembles at install time into a dynamic `docker compose -f a.yml -f
+    b.yml ...` invocation, with which fragments get included depending on
+    chosen DB engine (mysql/mariadb/postgresql), IPv6, HTTPS port, HA mode,
+    and optional ES/MinIO/Loki/OpenBao add-ons. There is no static merged
+    file the project publishes — jmsctl.sh generates the command line at
+    runtime from a config.txt the installer prompts for, so no single URL
+    (versioned or rolling) captures "the" compose file the way Immich's
+    docker-compose.yml does. github.com/jumpserver/installer defaults to its
+    master branch (rolling); the fragment set is versioned in step with
+    each jumpserver release via jmsctl.sh's own VERSION pin inside the
+    quick_start.sh tarball it downloads, not via a single file tag.
+
+version_health:
+  latest_version: "v4.10.18-lts"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest LTS point release (v4.10.18-lts) shipped 2026-07-28, 8 days before
+    this analysis (2026-08-05). The v4.10 LTS line has released roughly
+    monthly-to-quarterly through 2025-2026 (v4.10.12 2025-10-27, v4.10.13
+    2025-11-21, v4.10.14 2025-12-19, v4.10.15 2026-01-22, v4.10.16
+    2026-03-18, v4.10.17 2026-07-16, v4.10.18 2026-07-28). An older v3.10 LTS
+    line is still receiving parallel patches (v3.10.22 2026-07-24),
+    indicating genuine long-term-support practice rather than an abandoned
+    branch. Project is clearly active, 30k+ GitHub stars.
+
+catalogue_fit:
+  categories: [infrastructure, remote-access, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    Guacamole is a thin clientless remote-desktop gateway (VNC/RDP/SSH
+    browser proxy) with no user/asset governance layer. JumpServer is a
+    full Privileged Access Management (PAM) platform built on the same
+    browser-proxy idea (its Lion/KoKo/Chen components render RDP, SSH, and
+    DB sessions in-browser much like guacd does) but adds asset inventory,
+    RBAC, per-session approval workflows, and full session recording/audit
+    trails plus native database and Kubernetes endpoint access. A customer
+    who needs governance and audit over shared credentials, not just a
+    browser gateway, would pick JumpServer over Guacamole.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiation from the existing Guacamole recipe for
+    compliance-minded or team use cases, but it is a heavy, complex
+    enterprise product (official minimum spec is 4 vCPU / 8GB RAM for a
+    single all-in-one node, vs. Guacamole's 1GB) for a catalogue aimed at
+    self-hosted single-tenant convenience. That resource floor plus a
+    fixed, uncustomizable first-boot admin login (see below) caps the
+    near-term value versus effort.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SECRET_KEY
+    - BOOTSTRAP_TOKEN
+    - basic_auth gate credential
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: BOOTSTRAP_TOKEN
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  JumpServer is mechanically installable today: SECRET_KEY and
+  BOOTSTRAP_TOKEN are internal secrets the platform can generate randomly
+  server-side, and the jms_all all-in-one image's fixed admin/ChangeMe login
+  (the image ships no env var to set an initial admin password) can be
+  handled the same way Adminer-style no-login apps are — gate the whole app
+  behind Traefik basic_auth rather than exposing the unchangeable default
+  credential directly to the internet. It substantially overlaps
+  Guacamole's browser-remote-access niche while adding real PAM value
+  (asset/user governance, session audit, DB/K8s access), and at 4 vCPU/8GB
+  minimum it is far heavier than anything currently in the catalogue, but
+  neither of those bears on installability. Recommend build_now.

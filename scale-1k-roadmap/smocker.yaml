@@ -1,0 +1,94 @@
+slug: smocker
+name: Smocker
+source_description: "Open-source HTTP mock server and proxy with a live admin UI for API testing"
+
+upstream:
+  url: https://smocker.dev
+  repo_url: https://github.com/smocker-dev/smocker
+  license: MIT
+  docker_image: ghcr.io/smocker-dev/smocker
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere upstream — checked the
+    smocker-dev/smocker repo root and docker/, deploy/, and contrib/
+    directories (none present, and no mention of "compose" anywhere in
+    the repo), the README's Installation section, and smocker.dev. The
+    README's
+    "With Docker" section documents only a bare `docker run -d -p 8080:8080
+    -p 8081:8081 ghcr.io/smocker-dev/smocker` command; the alternative is a
+    manual binary deployment (`docker run`/tar.gz + `nohup ./smocker`), not
+    a compose file. No community-maintained compose file was found either.
+
+version_health:
+  latest_version: "v1.1.2-preview (latest tagged release; latest non-preview/stable tag is 1.0.0)"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.0.0 shipped 2025-03-22 and was quiet for over a year. Development then
+    resumed with v1.1.0-preview/v1.1.1-preview/v1.1.2-preview on
+    2026-07-18/2026-07-19 (a Go 1.26 + React 19 modernization, embedded-UI
+    self-contained binary, and official multi-arch GHCR image) — roughly 2.5
+    weeks before this analysis (2026-08-05). The `latest` and `1.0.0` Docker
+    tags on GHCR are still the March-2025 build; the actively-developed
+    1.1.x line is only published under `-preview` tags, so a recipe would
+    have to choose between pinning a 16-month-old stable tag or an unstable
+    preview tag.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers HTTP API mocking/stubbing or request-proxying
+    for integration testing; the closest developer-tools entries (Gitea,
+    Opengist, claude-code, gemini-cli) are unrelated (git hosting, gist
+    hosting, CLI agents). Smocker would be a genuinely new capability, not
+    an overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for teams that want a persistent, shared mock/stub server for API
+    integration testing rather than a per-CI-run throwaway container, but
+    it's a developer/QA infrastructure tool rather than an end-user-facing
+    app, which is a narrower fit for the catalogue's typical customer than
+    apps like Uptime Kuma or Vaultwarden.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_UI_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_UI_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Smocker needs two independently-public HTTP ports: 8080 (the mock
+      endpoint that test clients hit) and 8081 (the config/admin UI and
+      API used to register and manage mocks). Per
+      rfc/001-recipe-schema.md §4.3, a recipe may declare at most one
+      HTTP port that gets a Traefik router/domain; a second HTTP port has
+      no supported way to receive its own domain+TLS today. This is a
+      structural blocker independent of the auth question below.
+    - >
+      The 8081 config/admin port ships with no built-in authentication at
+      all (it can create, delete, and inspect mocks, and Smocker's proxy
+      mode can be pointed at arbitrary upstream hosts) — it must sit
+      behind a mandatory gate. `traefik_basic_auth` is the correct
+      mechanism, but it cannot be applied until the two-HTTP-port
+      limitation above is resolved, since basic_auth is applied per
+      Traefik router and only one port gets a router.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Smocker is a small, MIT-licensed, single-container HTTP mock/proxy server
+  with a genuinely new capability for the catalogue (no overlap with the 24
+  existing recipes) and shows renewed upstream activity as of July 2026
+  after over a year of dormancy. It is blocked from shipping today by a
+  platform limitation rather than a usefulness problem: it needs two
+  separate public HTTP ports (mock endpoint + unauthenticated admin UI),
+  and the current recipe mechanism only routes one HTTP port per recipe
+  through Traefik, so the admin UI has no way to get both a domain and the
+  basic_auth gate it requires. Revisit once multi-HTTP-port routing (or an
+  equivalent path-based split) is supported, or once a single-port
+  operating mode is confirmed viable upstream.

@@ -1,0 +1,79 @@
+slug: audiobookshelf
+name: Audiobookshelf
+source_description: "Self-hosted audiobook and podcast server with multi-user support"
+
+upstream:
+  url: https://www.audiobookshelf.org/
+  repo_url: https://github.com/advplyr/audiobookshelf
+  license: GPL-3.0
+  docker_image: ghcr.io/advplyr/audiobookshelf
+  compose_file_url: https://raw.githubusercontent.com/advplyr/audiobookshelf/master/docker-compose.yml
+  compose_file_notes: >
+    Official docker-compose.yml lives at the repo root
+    (github.com/advplyr/audiobookshelf/blob/master/docker-compose.yml) and
+    is linked to from the project's own install docs
+    (audiobookshelf.org/docs/category/installation). This is a rolling
+    reference to the default branch (master), not version-pinned — it
+    tracks whatever the current file content is, not a tagged release.
+    Only one variant is shipped (single service, ghcr.io image tagged
+    `:latest`, bind-mounted audiobooks/podcasts/metadata/config volumes,
+    port 13378->80); no GPU/CPU or sqlite/postgres split to choose between.
+
+version_health:
+  latest_version: "2.36.0"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (2.36.0) shipped 9 days before today (2026-08-05).
+    Release history shows a steady roughly-monthly cadence through 2025-2026
+    (2.31.0 on 2025-12-01, 2.32.0/2.32.1 in late December, 2.33.x in
+    March/April, 2.34.0 in April, 2.35.x in May, 2.36.0 in July). No archival
+    notice, no maintenance-only signal; single primary maintainer
+    (advplyr) but commit/release activity is continuous.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers audiobook/podcast library management. Immich
+    is the closest media recipe in the catalogue but targets photos/videos
+    only. Audiobookshelf fills a distinct, well-known self-hosted media
+    niche (audiobook + podcast streaming with per-user progress sync and a
+    mobile app ecosystem) with no functional overlap to the other 23
+    recipes.
+  usefulness: high
+  usefulness_rationale: >
+    Audiobookshelf is one of the most popular self-hosted apps in this
+    category (large, active community, frequent releases, well-documented
+    Docker deployment) and would be a genuinely new capability for the
+    catalogue rather than a duplicate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Audiobookshelf is a single-container, actively-maintained web app
+  (GPL-3.0, ghcr.io/advplyr/audiobookshelf, pinned tag 2.36.0) that listens
+  on one HTTP port (internally 80, requires websocket passthrough — no
+  issue for Traefik) and needs only bind-mounted volumes for
+  audiobooks/podcasts/metadata/config, all of which are server-side and
+  need no customer input. It has no built-in default admin credential and
+  no external API key requirement: on first visit the server presents its
+  own setup wizard (also exposed as a scriptable `POST /init` endpoint)
+  where the first visitor creates the root username and password directly
+  in the app, exactly like the existing n8n and Open WebUI recipes — so no
+  `generated_from` projection or Traefik `basic_auth` gate is needed to get
+  a working install. The one caveat worth noting for the recipe author is
+  the same "first visitor claims the root account" race window that n8n
+  and Open WebUI already accept unmitigated in this catalogue; not treated
+  as a blocker here for consistency with that precedent. Overall: no
+  overlap with existing recipes, real customer value, and installable
+  under the current `/compose` mechanism — recommend building it now.

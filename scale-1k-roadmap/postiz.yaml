@@ -1,0 +1,91 @@
+slug: postiz
+name: Postiz
+source_description: "Open-source social media scheduling platform with AI-powered content creation"
+
+upstream:
+  url: https://postiz.com
+  repo_url: https://github.com/gitroomhq/postiz-app
+  license: AGPL-3.0
+  docker_image: ghcr.io/gitroomhq/postiz-app
+  compose_file_url: https://raw.githubusercontent.com/gitroomhq/postiz-docker-compose/main/docker-compose.yaml
+  compose_file_notes: >
+    Official, but not in the main gitroomhq/postiz-app repo (which also
+    carries its own root-level docker-compose.yaml, materially identical
+    in shape). docs.postiz.com's Docker Compose install page explicitly
+    directs users away from any embedded/root-repo snapshot and says to
+    clone the dedicated gitroomhq/postiz-docker-compose repo instead,
+    calling it the canonical, kept-up-to-date source. This is a rolling
+    reference to that repo's main branch (no version-pinned tag/release
+    asset found) using the postiz-app image at :latest. Only one variant
+    is offered here (Postgres + Redis + full Temporal/Elasticsearch
+    stack, configured via env vars rather than separate compose files
+    per option) — the repo also has a docker-compose.dev.yaml, which is
+    the dev-mode counterpart, not an alternative production variant, so
+    the plain docker-compose.yaml was picked.
+
+version_health:
+  latest_version: "v2.23.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), v2.23.0 shipped yesterday. Upstream has
+    released on a near-weekly to monthly cadence throughout 2026, including
+    a run of dedicated security-fix releases (v2.21.2 through v2.21.9,
+    late March-June 2026, each addressing a named GHSA/PSA advisory) plus
+    a steady stream of feature releases (v2.21.10, v2.22.1, v2.23.0). No
+    signs of slowdown, archival, or maintenance-only status; this is one
+    of the more actively maintained candidates seen in this analysis.
+
+catalogue_fit:
+  categories: [productivity, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers social media scheduling and
+    publishing. n8n could theoretically be wired up to post to social
+    platforms via generic HTTP nodes, but that requires the customer to
+    build the automation themselves; Postiz ships a purpose-built calendar
+    UI, per-platform OAuth connectors (X, LinkedIn, Instagram, Facebook,
+    Reddit, Threads, Mastodon, Bluesky, TikTok, YouTube, and more), AI
+    content generation, and team collaboration out of the box. Genuinely
+    new workflow for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Social-media scheduling is a common self-hosting ask (self-hosted
+    Buffer/Hypefury alternative) and this is a well-known, actively
+    developed project in that space with no existing catalogue coverage.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Postiz is a well-known, actively maintained (release as recent as
+  yesterday, with a track record of prompt security patches) self-hosted
+  social-media scheduler under an AGPL-3.0 license, filling a
+  genuine gap: nothing in the current 24 recipes covers social publishing.
+  Mechanically it has no structural secret blocker — there's no external
+  API key or OAuth registration required just to boot the core app, and
+  the one login it has is customer self-service signup (first visitor
+  registers an account, same pattern already accepted for n8n and Gitea),
+  not something we need to project a password into. The real caveat is
+  operational weight: since v2.12.0 (well before the current v2.23.0),
+  Postiz's backend hard-requires a live Temporal cluster at startup for
+  scheduled-post workflows, so the upstream reference deployment ships not
+  just Postiz + Postgres + Redis but a full Temporal stack too — a second
+  dedicated Temporal Postgres, Elasticsearch as Temporal's visibility
+  store, Temporal UI, and Temporal admin-tools — seven containers total,
+  materially heavier than any current recipe (Elasticsearch alone
+  typically wants 1-2GB+ RAM) with stricter startup-ordering fragility
+  (Postiz exits immediately if Temporal/Elasticsearch aren't fully ready)
+  than n8n's or immich's dependency graphs. That operational weight is
+  worth scoping carefully during implementation (resource floor,
+  install/health-check sequencing around the Temporal dependency), but it
+  is not a blocking issue: there is no missing secret mechanism and no
+  installability blocker. Recommend build_now.

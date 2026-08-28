@@ -1,0 +1,125 @@
+slug: cryptpad
+name: CryptPad
+source_description: "End-to-end encrypted collaborative office suite with zero-knowledge storage"
+
+upstream:
+  url: https://cryptpad.org
+  repo_url: https://github.com/cryptpad/cryptpad
+  license: AGPL-3.0-or-later (core), separate commercial license available from the project for proprietary use
+  docker_image: cryptpad/cryptpad
+  compose_file_url: https://raw.githubusercontent.com/cryptpad/cryptpad/main/docker-compose.yml
+  compose_file_notes: >-
+    Official — this file lives at the repository root of the upstream
+    cryptpad/cryptpad repo itself (not a docs page or third-party mirror),
+    and is the one referenced by the admin guide's Docker installation
+    instructions (docs.cryptpad.org/en/admin_guide/installation.html). It
+    is a rolling reference to the default branch (`main`), not
+    version-pinned to a release tag: the file's own `image:` line points
+    at the floating `cryptpad/cryptpad:latest` tag rather than a specific
+    `cryptpad/version-X.x.z` tag, so both the compose file and the image it
+    pulls track upstream's latest published state rather than a fixed
+    point-in-time release. There is only one variant shipped (no
+    separate GPU/CPU or sqlite/postgres split) — the only optional
+    variation is an ONLYOFFICE integration toggled via a commented-out
+    CPAD_INSTALL_ONLYOFFICE env var, which this link captures as-is
+    (commented out, i.e. not enabled by default).
+
+version_health:
+  latest_version: "2026.5.1"
+  latest_release_date: "2026-05-26"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    2026.5.1 ("Spring fix release") shipped 2026-05-26, about 2.3 months
+    before this analysis (2026-08-05); the preceding feature release,
+    2026.5.0, landed 2026-05-13. The project runs on a roughly quarterly
+    seasonal release cadence (Winter 2026.2.0 on 2026-02-11, Spring 2026.5.0
+    on 2026-05-13, Autumn 2025.9.0 on 2025-10-22 the prior year) with fast
+    point-fix releases in between (2026.2.1, 2026.2.2, 2026.5.1). No summer
+    2026 release has landed yet as of this analysis, which is consistent
+    with the established seasonal rhythm (a "Summer" release would be
+    expected roughly Aug/Sep) rather than a slowdown signal. Not archived,
+    no EOL announcement; official Docker Hub image is actively republished
+    (last pushed ~2 months before this analysis).
+
+catalogue_fit:
+  categories: [productivity, office, security, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue provides real-time
+    collaborative document/spreadsheet/presentation editing, and nothing
+    provides zero-knowledge (server-blind) encrypted storage — the closest
+    conceptual neighbor, Vaultwarden, encrypts a password vault, not
+    general documents, and has no collaborative-editing surface at all.
+    CryptPad would be a genuinely new capability, not a duplicate of
+    anything already shipped.
+  usefulness: high
+  usefulness_rationale: >-
+    A self-hosted, E2E-encrypted alternative to Google Docs/Office 365 is a
+    clear, differentiated customer draw — privacy-conscious teams and
+    individuals specifically seek this out, and it needs no external
+    database or third-party account to be useful out of the box. Usefulness
+    is tempered only by the architectural fit issues below, which are about
+    how it plugs into our reverse-proxy model, not about the app's value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      CryptPad's security model mandates two distinct customer-facing
+      hostnames — a "main" domain (handles crypto key material) and a
+      separate "sandbox" domain (renders the UI under a restrictive CSP) —
+      configured via CPAD_MAIN_DOMAIN / CPAD_SANDBOX_DOMAIN. Upstream's own
+      admin guide states plainly that running production CryptPad without
+      this second domain "may put users' information at risk." Every
+      existing recipe in this catalogue provisions exactly one customer
+      domain (a single `type: domain` parameter, one Traefik router, one
+      TLS cert) for its single service; provisioning and certifying a
+      second, distinct public hostname per customer instance for a single
+      container is a capability the platform has never needed and doesn't
+      have today. A recipe author could try to paper over this with a
+      derived sub-hostname of the customer's one domain (e.g.
+      "sandbox.<APP_DOMAIN>"), but that still requires the platform's
+      DNS/TLS provisioning to issue and route a second hostname per
+      instance, not something a recipe file alone can express — this is a
+      platform gap, not a recipe-authoring choice.
+    - >-
+      CryptPad has no admin login of its own to project a root-password
+      hash into. Admin status is granted by manually pasting a specific
+      user's already-generated public signing key into config.js and
+      restarting the container — a value that does not exist until after a
+      human has already created an account through the running app's UI.
+      There is no equivalent of Vaultwarden's ADMIN_TOKEN to seed at boot.
+      This is not a hard blocker on its own (the admin console is optional;
+      CryptPad is fully usable for anonymous/registered users without ever
+      designating an admin), but it does mean no first-boot admin
+      credential can be wired up via generated_from — only the general
+      basic_auth access gate is expressible.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >-
+  CryptPad is an actively maintained (quarterly seasonal releases, latest
+  2026.5.1 in May 2026), single-container app with no external database and
+  no third-party API keys — mechanically simple to run, and it would fill a
+  genuine gap in the catalogue as the only E2E-encrypted collaborative
+  office suite. It does not fit our current single-domain-per-recipe
+  reverse-proxy model, however: CryptPad's own security guidance requires
+  two separate customer-facing hostnames (main + CSP-sandboxed UI domain),
+  and deploying it behind only one domain is explicitly called out upstream
+  as putting user data at risk — shipping that configuration anyway would
+  mean knowingly weakening the product's core selling point. Provisioning a
+  second domain/TLS cert per instance is a platform capability gap, not
+  something a recipe file can work around alone, so this is
+  blocked_on_platform rather than a simple secrets-mechanism issue.
+  Separately, its optional admin console has no first-boot credential
+  channel (admin status is granted via a public key that only exists after
+  a user account is created in the running app), though that alone would
+  not block a basic-usable deployment. Revisit once multi-domain
+  provisioning per recipe instance is supported.

@@ -1,0 +1,130 @@
+slug: metatrader-5
+name: MetaTrader 5
+source_description: "Browser-accessible MetaTrader 5 trading terminal for 24/7 forex and CFD trading"
+
+upstream:
+  url: https://www.metatrader5.com
+  repo_url: https://github.com/gmag11/MetaTrader5-Docker
+  license: "MetaTrader 5 itself is proprietary (MetaQuotes Software Corp., closed-source, free-to-use trading client). The community Docker wrapper (gmag11/MetaTrader5-Docker) is MIT, but its two runtime dependencies are copyleft: KasmVNC is GPLv2 and the LinuxServer.io base image is GPLv3 — bundling/redistributing the wrapper image carries those obligations even though MT5 itself is not open source."
+  docker_image: "gmag11/metatrader5_vnc:2.3 (unofficial third-party wrapper; MetaQuotes ships no official Docker image or Linux binary at all)"
+  compose_file_url: https://raw.githubusercontent.com/gmag11/MetaTrader5-Docker/master/docker-compose.yaml
+  compose_file_notes: >
+    MetaQuotes (MT5's actual maker) publishes no compose file at all — this
+    is the community wrapper's own repo-root file, the closest thing to
+    "official" that exists here (same gmag11/MetaTrader5-Docker repo already
+    cited as repo_url above), not a third-party template or aggregator.
+    Rolling reference to the default branch (`master`), not pinned to a
+    release tag — the repo has no compose-file-bearing release assets, only
+    git tags on source. The repo ships two variants at root:
+    `docker-compose.yaml` (bind-mounts `./config:/config`, for Linux Docker
+    hosts) and `docker-compose-windows.yaml` (named volume `mt5-config`,
+    for Windows Docker Desktop hosts where relative bind mounts are
+    awkward). Picked the Linux/bind-mount variant since af-recipes targets
+    Linux hosts. Both variants also `build: .` from the repo's Dockerfile
+    rather than only pulling the published `gmag11/metatrader5_vnc` image
+    tag referenced in `docker_image` above.
+
+version_health:
+  latest_version: "2.3 (gmag11/MetaTrader5-Docker wrapper, 2025-12-20)"
+  latest_release_date: "2025-12-20"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    ~7.5 months since the wrapper's last tagged release (2.3, 2025-12-20) as
+    of 2026-08-05. Full tag history: 1.0 (2023-10-15), 2.0 (2023-12-27), 2.1
+    (2024-05-29), 1.1 and 2.2 (both 2025-11-15), 2.3 (2025-12-20) — roughly
+    2-6 releases/year with uneven gaps, trending toward "slowing" rather
+    than "dormant"; repo is not archived and has open issues/PRs being
+    triaged. This assessment is for the third-party Docker wrapper, not
+    MetaTrader 5 itself: MetaQuotes has no Linux/Docker distribution of MT5
+    at all, so "eol_status" here really tracks whether the community
+    wrapper keeps up with upstream MT5/Wine changes, not whether MT5 the
+    product is alive (it is; MetaQuotes actively ships MT5 updates for
+    Windows/Mac/mobile, just never for Linux natively).
+
+catalogue_fit:
+  categories: [finance, remote-access]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [guacamole]
+  differentiation: >
+    MetaTrader 5 would be the catalogue's first finance/trading vertical
+    app — none of the 24 current recipes touch trading, brokerage, or
+    market-data workflows, so on category grounds alone it fills a gap. In
+    mechanism, though, it is not really its own app in Docker form: MT5 has
+    no Linux binary, so every "MetaTrader 5 Docker" project (gmag11's
+    included) is Wine running the Windows .exe, screen-scraped into a
+    browser via KasmVNC — i.e. a purpose-built instance of exactly what
+    Guacamole already does generically (browser access to a remote desktop
+    session). A customer wanting 24/7 MT5 gets a real, distinct outcome
+    (their trading terminal always on, EAs/copy-trading running
+    unattended) that Guacamole alone doesn't hand them out of the box, so
+    there is user-facing value beyond the remote-desktop overlap — but
+    architecturally this recipe is "Guacamole/noVNC + one specific
+    pre-installed Windows app," not a native web or API-driven service like
+    the rest of the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, identifiable demand (Hostinger lists it as a named template, and
+    community wrapper repos have hundreds of stars) from retail forex/CFD
+    traders wanting an always-on terminal without leaving a desktop
+    running. But it is a proprietary Windows app strapped to a VNC session
+    via an unofficial third-party wrapper, not a maintained open web
+    service — the fit is narrower and the operational risk (Wine
+    compatibility breaking on MT5/Windows updates outside anyone's control)
+    is higher than the median recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [vnc_login_username, vnc_login_password, mt5_broker_account_login]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The wrapper's web-access gate is controlled by two required env vars,
+      `CUSTOM_USER` and `PASSWORD`, consumed directly (in plaintext, PAM/
+      KasmVNC-style auth) by the container — there is no `type: password`
+      metadata parameter with a `generated_from` target, because the
+      consumer here is not an app-level hashed-password field but a raw
+      env var the VNC layer reads as cleartext. `generated_from` only ever
+      projects a *hash* of the root password; it cannot supply a plaintext
+      secret, so even the "gate credential" case this schema normally
+      handles via `generated_from` doesn't apply here.
+    - >
+      A Traefik `basic_auth: true` gate could stand in for the login
+      screen instead, but `CUSTOM_USER`/`PASSWORD` are two independent,
+      freely-named values (arbitrary username, not just a password), and
+      basic_auth's single root-password projection covers only one
+      credential slot — it cannot also supply an arbitrary customer-chosen
+      username to a second consumer inside the container.
+    - >
+      Even with the VNC gate solved, the trading terminal itself is
+      useless without the customer's actual MetaTrader broker account
+      login (account number + broker-issued password, sometimes plus a TOTP
+      code) entered inside the MT5 UI after boot — a third-party brokerage
+      credential with zero input channel in the current `/compose`
+      mechanism. This is the same "external account credential, no
+      channel" shape as an OAuth registration, just typed into a UI instead
+      of an env var.
+    - >
+      Port 8001 (RPyC API) is a raw TCP protocol, not HTTP — it cannot sit
+      behind Traefik/HTTPS the way the 3000 web-VNC port can, so even the
+      reverse-proxy-compatible part of this app is only partial.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  MetaTrader 5 would be the catalogue's first finance/trading app, and
+  there is genuine customer demand for an always-on browser trading
+  terminal. But MetaQuotes ships no Linux/Docker build at all; every
+  "MetaTrader 5 Docker" project, including the closest match to Hostinger's
+  listing (gmag11/MetaTrader5-Docker), is really a Guacamole-shaped
+  Wine-in-a-browser wrapper (Windows MT5 + KasmVNC), overlapping
+  structurally with recipes/guacamole rather than standing as a novel
+  service. It fails installability on three independent grounds: the VNC
+  gate needs a plaintext username+password pair with no `generated_from`
+  or `basic_auth` channel, the app itself needs the customer's real broker
+  account credentials with no input channel at all, and one of its two
+  ports is a raw TCP protocol that can't go behind Traefik. Not recommended
+  under the current mechanism; revisit only if the platform grows a
+  multi-credential, plaintext-capable provisioning channel — no version of
+  `generated_from`/`basic_auth` alone would close this gap.

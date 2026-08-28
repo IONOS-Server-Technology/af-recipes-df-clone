@@ -1,0 +1,130 @@
+slug: buzz
+name: Buzz
+source_description: "Self-hosted workspace where humans and AI agents share the same rooms"
+
+upstream:
+  url: https://buzz.xyz
+  repo_url: https://github.com/block/buzz
+  license: Apache-2.0
+  docker_image: ghcr.io/block/buzz:main
+  compose_file_url: https://github.com/block/buzz/blob/main/deploy/compose/compose.yml
+  compose_file_notes: >
+    Official production single-node/VPS bundle, documented at
+    deploy/compose/README.md and distinct from the repo-root
+    docker-compose.yml (which the README states is dev-only). The
+    production directory ships three variants: compose.yml (base,
+    linked here — Postgres/Redis/MinIO, no TLS termination),
+    compose.caddy.yml (adds Caddy for automatic Let's Encrypt TLS, layered
+    on top via `BUZZ_COMPOSE_TLS=true ./run.sh start`, which uses a
+    Compose `!reset` tag to drop the direct relay port), and
+    compose.dev.yml (development, not the one being recorded here). This
+    is a rolling reference to the default branch, not version-pinned: the
+    README's own versioning guidance says to track `ghcr.io/block/buzz:main`
+    for dev/testing but pin to a `sha-<7>` digest or semver tag for
+    production "once available" — i.e. the project itself has no
+    version-pinned release tag to link to yet, consistent with the
+    two-week-old, daily-churning upstream already noted in version_health.
+
+version_health:
+  latest_version: "v0.5.5"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely young and extremely fast-moving: launched publicly ~2 weeks
+    before today (2026-08-05), already at v0.5.5 with releases landing
+    almost daily throughout late July and into August 2026 (v0.4.23
+    2026-07-22 through v0.5.5 2026-08-05). Built by Block, Inc.
+    (formerly Square, Jack Dorsey's company) as an open-source project;
+    1.2k open PRs and 845 open issues confirm heavy active development,
+    not a side project. The relay component (the piece we'd self-host)
+    tracks its own `relay-v*` tag lineage independent of the desktop-app
+    versions quoted above — both lines are shipping continuously as of
+    today. No EOL or slowdown signal at all; if anything the opposite
+    risk applies (see recommendation): the on-disk format, env vars, and
+    deployment topology are still churning daily two weeks post-launch.
+
+catalogue_fit:
+  categories: [ai, collaboration, chat]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: [openclaw, hermes-agent]
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a shared chat/collab
+    workspace where multiple humans and multiple AI agents co-exist as
+    peers in the same rooms with individual cryptographic identities —
+    OpenClaw and Hermes Agent are single-agent runtimes reachable via
+    Telegram/a dashboard, not a multi-party room-based workspace. Buzz's
+    core value (agents-as-first-class-room-participants, git/code-review
+    events as signed protocol events) is genuinely new ground for us, but
+    it is a primarily native-client experience (Buzz Desktop, a Tauri
+    app) talking to a self-hosted relay over WebSocket — not a
+    browser-first product the way the rest of the catalogue is.
+  usefulness: medium
+  usefulness_rationale: >
+    Interesting and well-backed (Block/Jack Dorsey, Apache-2.0, high
+    velocity), but the self-hosted piece is "just" a relay — an infra
+    component end users don't interact with directly. The actual product
+    experience requires installing the separate Buzz Desktop app and
+    manually completing an out-of-band setup flow (generate a Nostr
+    keypair, register as relay owner, issue invite codes) that a customer
+    can't complete from our provisioning flow alone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [RELAY_OWNER_PUBKEY, BUZZ_RELAY_PRIVATE_KEY, BUZZ_GIT_HOOK_HMAC_SECRET, POSTGRES_PASSWORD, MINIO_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: BUZZ_RELAY_PRIVATE_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: BUZZ_GIT_HOOK_HMAC_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      RELAY_OWNER_PUBKEY is not a password we can hash-project and not a
+      value a Traefik gate can stand in for: it is the customer's own
+      Nostr public key, which only exists after the customer has
+      installed Buzz Desktop (or another Nostr-aware client) and
+      generated a keypair themselves, client-side. There is no channel
+      today for a customer to hand us an arbitrary value (a pubkey or
+      anything else) before/during `/compose` — this is structurally the
+      same "no input channel" gap as an external API key or OAuth
+      registration, just instantiated as a cryptographic identity instead
+      of a credential.
+    - >
+      Even granting RELAY_OWNER_PUBKEY could somehow be supplied, Buzz's
+      auth model (NIP-42/NIP-98 Schnorr signatures, membership managed via
+      a `buzz-admin` CLI or `POST /api/invites`) has no password-based
+      admin login at all to gate with `generated_from` or to protect with
+      a blanket Traefik `basic_auth` — the relay is meant to be reached
+      directly by Nostr-signing clients, and slapping HTTP basic auth in
+      front of a raw WebSocket relay protocol would break the client
+      handshake rather than secure it the way it does for a plain HTTP
+      admin UI.
+    - >
+      The real product surface (Buzz Desktop) is a separate native
+      client the customer installs on their own machine and points at
+      our relay's WebSocket URL — the self-hosted piece we could package
+      as a recipe is infrastructure the customer never opens a browser
+      tab to, unlike every other recipe in the catalogue.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Buzz is a well-funded (Block/Jack Dorsey), Apache-2.0, extremely active
+  new project with no direct equivalent in our 24-recipe catalogue — a
+  multi-party workspace where humans and AI agents share rooms as
+  cryptographically-identified peers. It is mechanically deployable via
+  Docker Compose (ghcr.io/block/buzz:main + Postgres/Redis/MinIO) and
+  reverse-proxy compatible on a single WebSocket port, but its owner
+  identity (RELAY_OWNER_PUBKEY) is a customer-generated Nostr keypair with
+  no input channel in `/compose` today, and its auth model has no
+  password field to project a root-password hash into nor an HTTP surface
+  that basic-auth can meaningfully gate. Recommend `blocked_on_platform`:
+  revisit only if/when the platform gains a generic "arbitrary
+  customer-supplied value" input channel, and even then treat the young,
+  daily-churning upstream (two weeks old, v0.4.x→v0.5.5 already) as a
+  reason to wait for it to stabilize before shipping a recipe on top of it.

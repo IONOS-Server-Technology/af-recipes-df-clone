@@ -1,0 +1,94 @@
+slug: tolgee
+name: Tolgee
+source_description: "Open-source localization platform for managing translations with in-context editing"
+
+upstream:
+  url: https://tolgee.io/
+  repo_url: https://github.com/tolgee/tolgee-platform
+  license: "Apache-2.0 core, with paid 'Tolgee EL' (Enterprise License) add-on features (e.g. advanced SSO, some AI features) — dual-licensed, not fully OSI-approved for the whole product"
+  docker_image: tolgee/tolgee:v3.216.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official downloadable docker-compose file exists. The project's own
+    self-hosting guide (docs.tolgee.io/platform/self_hosting/running_with_docker)
+    embeds several docker-compose.yml variants (single-container, embedded
+    Postgres, and external Postgres 17) as inline code blocks in the docs
+    page itself, not as linkable files. The tolgee-platform repo does have
+    a docker/docker-compose.yml, but it uses a relative volume path
+    (../build/db-data) that only resolves when run from within the repo
+    checkout — it's the project's own local build/dev harness, not a
+    self-hosting artifact, and isn't referenced from the self-hosting docs
+    or README. tolgee/docker-compose-content-delivery-example is a separate
+    official-org repo but documents an optional CDN add-on example, not the
+    base self-hosting setup, so it wasn't picked either.
+
+version_health:
+  latest_version: "v3.216.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.216.0 shipped 2026-08-03, 2 days before today (2026-08-05). Releases
+    are frequent and continuous: v3.214.0 on 2026-07-20, v3.214.1 on
+    2026-07-23, v3.215.0 on 2026-07-30, v3.216.0 on 2026-08-03 — roughly one
+    release every 3-7 days, sometimes faster (Docker Hub also lists tags
+    newer than v3.216.0 pushed within the last day or two of this check,
+    consistent with an actively, near-continuously developed project). No
+    gaps or slowdown visible; clearly active, not maintenance-only.
+
+catalogue_fit:
+  categories: [productivity, developer-tools, localization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Tolgee is a translation-management/localization platform (in-context
+    editing, AI-assisted translation, integrations for devs and
+    translators) — an open-source alternative to Crowdin/Phrase/Lokalise.
+    Nothing in the current 24-recipe catalogue covers software
+    localization or translation workflow management; the closest
+    conceptual neighbors (n8n for automation, Gitea for dev tooling) serve
+    a different job. Genuinely new ground for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to software teams/agencies that need to manage translations for
+    their own products and want to self-host rather than pay for
+    Crowdin/Phrase/Lokalise SaaS — a clear, recognizable use case. Medium
+    rather than high because the target audience (dev teams shipping
+    localized software) is narrower than general productivity or
+    infrastructure tools already in the catalogue, and the enterprise-only
+    feature gate (SSO, some AI capabilities) may push serious teams toward
+    paid tiers anyway.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Tolgee admin login (username/password) — app has its own built-in auth", "Traefik gate credential recommended in front of the app while using a fixed default admin login", "Tolgee JWT signing secret (TOLGEE_AUTHENTICATION_JWT_SECRET)"]
+  secrets_expressible_today:
+    - secret: "Traefik gate credential recommended in front of the app while using a fixed default admin login"
+      mechanism: traefik_basic_auth
+    - secret: "Tolgee JWT signing secret (TOLGEE_AUTHENTICATION_JWT_SECRET)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Tolgee's own admin login only accepts a plaintext initial password via TOLGEE_AUTHENTICATION_INITIAL_PASSWORD (or auto-generates a random one written to a file inside the container, /data/initial.pwd, with no customer-facing retrieval path). There is no INITIAL_PASSWORD_HASH-style option, so generated_from (which only ever carries a hash) cannot project the customer's root password into this field."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Tolgee is mechanically installable as a single-container docker-compose
+  app (embedded Postgres, one HTTP port 8080) fully compatible with our
+  Traefik reverse-proxy pattern, and the project is very actively
+  maintained (near-daily releases through early August 2026). It fills a
+  genuine gap — no localization/translation-management tool exists in the
+  current 24-recipe catalogue. The wrinkle is its own admin login:
+  TOLGEE_AUTHENTICATION_INITIAL_PASSWORD only accepts a plaintext value, so
+  our root-password-hash projection (generated_from) cannot set it
+  directly. The workable path is the same one the schema already sanctions
+  for apps with an unchangeable default credential: ship a fixed
+  TOLGEE_AUTHENTICATION_INITIAL_USERNAME/INITIAL_PASSWORD pair, put the
+  real auth boundary at a Traefik basic_auth gate keyed off the customer's
+  root-password hash, and let the customer change the Tolgee admin
+  password from inside the app after first login (the app's own account
+  settings support this). Recommend build_with_caveats: technically and
+  mechanically shippable today, but the fixed-default-credential-behind-a-gate
+  pattern should be called out explicitly in review since it's a slightly
+  unusual shape versus our other recipes.

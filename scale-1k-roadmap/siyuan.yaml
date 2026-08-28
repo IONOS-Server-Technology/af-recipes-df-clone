@@ -1,0 +1,95 @@
+slug: siyuan
+name: SiYuan
+source_description: "SiYuan is a privacy-first personal knowledge management system"
+
+upstream:
+  url: https://b3log.org/siyuan/en/index.html
+  repo_url: https://github.com/siyuan-note/siyuan
+  license: AGPL-3.0
+  docker_image: b3log/siyuan
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists, in the repo or docs. The
+    siyuan-note/siyuan repo root has no docker/deploy/contrib directory and
+    no compose file anywhere in the tree (confirmed via GitHub repo listing
+    for the master branch) — only a Dockerfile used to build the b3log/siyuan
+    image. The README's "Docker Compose" section and the official docs site
+    (b3log.org/siyuan/en/index.html) both describe Docker usage but only
+    embed an inline example snippet (a `main` service running b3log/siyuan,
+    port 6806:6806, workspace volume, PUID/PGID/TZ env vars) for users to
+    copy into their own docker-compose.yml — not a file the project itself
+    publishes or updates. Not adopting that inline snippet as if it were an
+    official downloadable file.
+
+version_health:
+  latest_version: "v3.7.3"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.7.3 (2026-07-21) is the latest stable tag, ~2 weeks before today
+    (2026-08-05). Stable releases have shipped roughly every 1-2 weeks all
+    year (v3.7.0 2026-06-30, v3.7.1 2026-07-04, v3.7.2 2026-07-14, v3.7.3
+    2026-07-21), and the alpha/rc channel is even faster — v3.7.4-alpha.1
+    through .6 and v3.8.0-alpha.1 through .3 all shipped between
+    2026-07-24 and 2026-08-06 (per the GitHub Releases API, confirmed
+    directly rather than via a scraped summary, which returned a stale
+    2024 date for the same tags). This is an unambiguously active,
+    fast-iterating upstream, not slowing or dormant.
+
+catalogue_fit:
+  categories: [productivity, knowledge-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >
+    SiYuan and anytype-server both target self-hosted personal knowledge
+    management, but anytype-server is a sync-only backend (three raw
+    any-sync ports plus MinIO) for Anytype's native desktop/mobile apps —
+    no web UI, not reverse-proxy-friendly, and currently shipped disabled
+    (`enabled: false`) in the catalogue. SiYuan is the opposite shape: a
+    single container serving a full block-based, Markdown-WYSIWYG note
+    editor with backlinks/block references over one HTTP port (6806),
+    usable entirely from a browser behind Traefik. It's also the same
+    space AFFiNE occupies (`apps-gaps/affine.yaml`, not yet built) —
+    self-hosted Notion/Obsidian-style workspaces — so if both were built
+    they'd be two competing options in one category, which per project
+    convention is acceptable and a later prioritization call, not a reason
+    to reject either.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted, privacy-first note-taking/PKM is a broad, recognizable
+    demand category (Notion/Obsidian alternative) with no shipped recipe
+    today — anytype-server covers only the sync-backend half of the same
+    idea. SiYuan is a real, complete, browser-usable app for it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SiYuan is a single-container, single-HTTP-port (6806) Docker app with an
+  active upstream (stable releases every 1-2 weeks, alpha/rc channel
+  shipping almost daily) and no direct overlap with anything currently
+  built — anytype-server covers only a headless sync backend for the same
+  general PKM idea. Its native login (`accessAuthCode`/`SIYUAN_ACCESS_AUTH_CODE`,
+  a single shared "lock screen" code with no per-user accounts) is a plain
+  string compared verbatim in the kernel (`kernel/model/session.go`), not
+  a hash-verified field, so `generated_from` cannot project a root-password
+  hash into it the way it does for Vaultwarden's `ADMIN_TOKEN`. However,
+  confirmed against the kernel source (`kernel/util/working.go`,
+  `kernel/model/session.go`), setting `SIYUAN_ACCESS_AUTH_CODE_BYPASS=true`
+  with no `SIYUAN_ACCESS_AUTH_CODE` set skips the lock screen entirely and
+  grants every request the administrator role with no auth check at all —
+  the exact "app with no login of its own" shape our Traefik `basic_auth`
+  gate mechanism was built for (same pattern as n8n, WUD, Open WebUI).
+  That makes SiYuan installable today: gate the whole app behind Traefik
+  `basic_auth` (credential projected from the customer's root password)
+  and run the kernel with its own auth bypassed, rather than trying to
+  route a hash through a field that only ever does plaintext comparison.

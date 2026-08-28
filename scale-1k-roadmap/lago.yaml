@@ -1,0 +1,105 @@
+slug: lago
+name: Lago
+source_description: Open-source metering and usage-based billing platform
+
+upstream:
+  url: https://getlago.com
+  repo_url: https://github.com/getlago/lago
+  license: AGPL-3.0
+  docker_image: getlago/api, getlago/front (plus getlago/postgres-partman, getlago/lago-gotenberg)
+  compose_file_url: https://raw.githubusercontent.com/getlago/lago/main/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the exact file the project's own README "Self-hosted
+    Quick start" instructs users to run (`git clone` the repo, then
+    `docker compose up` from repo root, which picks up this file by default).
+    It is a rolling reference to the default (main) branch, not pinned to a
+    release tag or a /releases/latest/download/ redirect — the file's
+    internal `getlago/api`/`getlago/front` image tags (currently v1.51.0)
+    are bumped in place by upstream as new versions ship, rather than the
+    URL itself changing. Only one variant exists at the repo root
+    (docker-compose.yml); a separate docker-compose.dev.yml in the same repo
+    is explicitly a local-development setup (adds a Traefik dev proxy,
+    Redpanda, Meilisearch, ClickHouse, ports named *_dev) and was not
+    considered — it is not what the README points self-hosters to.
+
+version_health:
+  latest_version: v1.51.0
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    9 days since latest release as of 2026-08-05; repo had 5 releases in the
+    3 months prior (v1.47.0 through v1.51.0), roughly one every 2-3 weeks.
+    Not archived, 10.3k stars, main branch pushed 2026-08-03. Clearly active,
+    well-maintained upstream.
+
+catalogue_fit:
+  categories: [finance, billing, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers billing/metering/invoicing
+    for usage-based SaaS products. This is a genuinely new category — appeals
+    to customers building their own SaaS/API product who want self-hosted
+    Stripe-Billing-style infrastructure rather than a general productivity or
+    infra tool.
+  usefulness: medium
+  usefulness_rationale: >
+    High differentiation (fills a real gap) but a narrower audience than most
+    of the catalogue — useful mainly to customers running their own metered
+    SaaS/API business, not general self-hosters.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Lago structurally needs two independently public-facing HTTP services,
+      not one: `api` (port 3000) and `front` (port 80). Verified against
+      upstream docker-compose.yml (github.com/getlago/lago, main branch):
+      `front`'s `API_URL` env var defaults to `${LAGO_API_URL:-http://localhost:3000}`
+      and is consumed client-side — the *browser*, not the front container,
+      calls the API directly at this public URL.
+    - >
+      Confirmed there is no upstream reverse-proxy workaround: fetched
+      getlago/lago-front's shipped nginx config
+      (nginx/nginx.conf on main) and it only serves the static SPA build
+      (location /assets/, location / -> index.html) — no location /api or
+      proxy_pass to the api service. The front container cannot be
+      configured to internally proxy API calls, so there is no single-domain
+      path; the browser must reach the api service on its own public
+      hostname.
+    - >
+      rfc/002-recipe-rules.md (lines 270-272) is explicit that a recipe may
+      declare at most one Traefik-routed port — the renderer emits exactly
+      one Traefik router per app and strips the host binding of every other
+      routed port, leaving a second routed port unreachable. No existing
+      recipe establishes a working precedent for two separate public web UIs
+      on two subdomains from one recipe (checked gitea: second port is raw
+      SSH, not HTTP; runtipi: port 80/443 are the same UI via http/https, not
+      two services; wud: only ever declares one public port) — this is a
+      genuine platform-mechanism gap, not something a single-domain recipe
+      can paper over.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Lago is an active, well-maintained (v1.51.0, released 2026-07-27, ~biweekly
+  cadence, 10.3k stars, AGPL-3.0) open-source usage-based billing platform
+  with no equivalent in the current catalogue — a genuinely new
+  billing/metering category customers building their own usage-based SaaS
+  would want. It has no fixed admin credential to project (an open in-app
+  signup wizard, like n8n's) and every other "secret" at boot (RSA key,
+  DB/Redis credentials) is server-generatable, so auth alone is not the
+  blocker. The blocker is structural: Lago's `front` (port 80) is a static
+  SPA whose browser-side JS talks directly to the `api` service (port 3000)
+  at its own public URL — verified against upstream docker-compose.yml and
+  lago-front's nginx config, which has no `/api` proxy_pass to fall back on.
+  That means Lago needs two independently public HTTP subdomains to boot a
+  working UI, but our recipe mechanism supports only one Traefik-routed port
+  per recipe (rfc/002-recipe-rules.md) with no existing multi-subdomain
+  precedent to lean on. Not installable today; revisit once multi-domain
+  Traefik routing per recipe exists, or if upstream ever ships a same-origin
+  proxy option for `front`. Recommend blocked_on_platform.

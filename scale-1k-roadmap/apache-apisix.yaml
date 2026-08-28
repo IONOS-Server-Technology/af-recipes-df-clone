@@ -1,0 +1,101 @@
+slug: apache-apisix
+name: Apache APISIX
+source_description: "Cloud-native API and AI gateway with dynamic routing, plugins, and observability"
+
+upstream:
+  url: https://apisix.apache.org
+  repo_url: https://github.com/apache/apisix
+  license: Apache-2.0
+  docker_image: apache/apisix
+  compose_file_url: https://raw.githubusercontent.com/apache/apisix-docker/master/example/docker-compose.yml
+  compose_file_notes: >-
+    Official APISIX docs (apisix.apache.org/docs/apisix/installation-guide/)
+    explicitly tell users to `git clone https://github.com/apache/apisix-docker`
+    and run docker-compose from its `example/` directory, so this sibling
+    apache/apisix-docker repo (maintained under the same apache org) is the
+    officially-documented source, not a third-party template. Picked
+    `example/docker-compose.yml` (the etcd-backed variant) over
+    `example/docker-compose-standalone.yml` (config-file-only, no etcd) since
+    it matches how the docs guide frames the default path; there's also an
+    arm64 variant and a separate compose/dashboard-compose.yaml for the UI.
+    The link is a rolling reference to the `master` branch, not a
+    version-pinned tag or release asset — the file itself pins the APISIX
+    image tag internally via an `APISIX_IMAGE_TAG` build arg defaulting to
+    `3.17.0-debian` (matching the current latest_version above), but that
+    default moves forward on master as new releases ship, and the etcd
+    image/version alongside it is not independently pinned to an APISIX
+    release the way a GitHub release asset would be.
+
+version_health:
+  latest_version: "3.17.0"
+  latest_release_date: "2026-06-15"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~1.6 months between 3.17.0 (2026-06-15) and today (2026-08-05).
+    Preceding releases (3.15.0 on 2026-02-05, 3.16.0 on 2026-04-07) landed on
+    a steady ~2-month cadence, and the official image publishes both
+    versioned (`3.17.0-debian`/`3.17.0-ubuntu`) and rolling `dev` tags.
+    Core apisix is under active, healthy development. The separate
+    companion UI project, apache/apisix-dashboard, is a different story: its
+    last independently published Docker Hub tag is `3.0.1` (image last
+    pushed 3+ years ago), and upstream's own docs say it should only be used
+    with APISIX 3.0 and is untested on newer/older lines. The dashboard repo
+    isn't archived — upstream has since folded it into the main APISIX
+    release process (built from a pinned git commit per release rather than
+    tagged independently) — but that means there is currently no officially
+    published, pre-built dashboard image compatible with 3.17.x on Docker
+    Hub, only a stale 3.0.1 one.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue is an API gateway / API
+    management product — this would be a genuinely new category (dynamic
+    request routing, rate limiting, auth plugins, canary/traffic-splitting,
+    observability) if it worked end-to-end. But the product's core value
+    proposition is customer-configured routing of arbitrary upstream
+    domains/paths through its own data-plane ports, which is a different
+    shape than every existing recipe: those are "one app, one subdomain,
+    fronted by our Traefik," while APISIX itself *is* a reverse proxy meant
+    to sit in that position for other services, not behind it.
+  usefulness: low
+  usefulness_rationale: >-
+    The category itself is defensible for a subset of technical customers
+    doing multi-backend API management, but the actual product is unusable
+    without a working control surface: there is no built-in web UI, only a
+    REST Admin API, and the one official web UI (apisix-dashboard) has no
+    current image compatible with a supportable APISIX version (see
+    version_health.notes). A typical AF customer landing on a "gateway" tile
+    with no browser-based way to configure a single route gets very little
+    value; usefulness would be medium-to-high if the dashboard situation
+    were resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_API_KEY]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No officially maintained, pre-built Docker image for a web UI exists for the current APISIX line: apache/apisix-dashboard's last Docker Hub tag (3.0.1) is 3+ years stale and explicitly documented by upstream as untested outside APISIX 3.0. Building a compatible dashboard from a pinned git commit is outside what af-create-recipe supports (official image + pinned tag only)."
+    - "Even ignoring the dashboard gap, the Admin API's own auth (X-API-KEY header checked by literal string equality against deployment.admin.admin_key.key) doesn't fit either supported secret-projection mechanism: generated_from only produces a usable login when the app hashes a customer-typed plaintext value itself to compare (as vaultwarden's ADMIN_TOKEN does) — APISIX does no such hashing, so a projected root-password hash can't double as a credential the customer can actually type in. And the admin_key isn't a fixed/unchangeable default we can gate behind Traefik basic_auth and ignore either — unlike Adminer, the Admin API *is* the entire product surface, so hiding it behind a gate without a way for the customer to also learn/use the real key leaves them locked out of the one thing the app does."
+    - "Structural mismatch with the recipe model: APISIX's raison d'etre is proxying arbitrary customer-configured upstream domains/paths through its own data-plane ports (9080/9443), which conflicts with the fixed one-app-one-subdomain-behind-Traefik shape every current recipe uses. Even a fully solved-credentials version of this recipe would need a different exposure model than the rest of the catalogue."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >-
+  Core Apache APISIX is a healthy, actively-released project (~2-month
+  release cadence, no EOL signal), but it isn't installable as an AF recipe
+  today and the blockers aren't the kind IF-1420/IF-1312 would fix. There is
+  no current, officially published web UI image compatible with a
+  supportable APISIX version (apisix-dashboard's Docker Hub tag is frozen at
+  3.0.1, 3+ years old), and the Admin API's plain string-equality API-key
+  auth doesn't map onto either supported secret-projection mechanism the way
+  a real password-based login does. On top of that, the product's whole
+  point — routing arbitrary customer-chosen domains/paths through its own
+  proxy ports — doesn't fit the one-app-one-subdomain-behind-Traefik shape
+  every existing recipe assumes. This is an upstream tooling and
+  architectural-fit problem, not a platform secrets-input gap, so
+  `not_recommended` rather than `blocked_on_platform`.

@@ -1,0 +1,110 @@
+slug: omero
+name: OMERO
+source_description: "Open-source image data management platform for scientific microscopy"
+
+upstream:
+  url: https://www.openmicroscopy.org/omero/
+  repo_url: https://github.com/ome/openmicroscopy
+  license: GPL-2.0 (OMERO.server); GPL-2.0 (OMERO.web) — Open Microscopy Environment, commercial licenses also available from Glencoe Software
+  docker_image: openmicroscopy/omero-server
+  compose_file_url: https://github.com/ome/docker-example-omero/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — hosted in the `ome` GitHub org (the same org that publishes
+    the openmicroscopy/omero-server and openmicroscopy/omero-web-standalone
+    images this compose file uses), and is the canonical example referenced
+    by OME's own installation walkthroughs/tutorials. It is a rolling
+    reference to the `master` branch, not a tagged/version-pinned release;
+    the images themselves are pinned to the OMERO 5 major-version tags
+    (`openmicroscopy/omero-server:5`, `openmicroscopy/omero-web-standalone:5`)
+    rather than to a specific point release, so upgrades track OMERO 5.x
+    rather than being frozen at a single version. Only one variant exists in
+    this repo (Postgres-backed server + web, no GPU/sqlite/dev variants) so
+    no selection was needed. Sibling repos in the same org
+    (docker-example-omero-grid, -readonly, -ldap, -websockets) provide
+    variant compose files for those specific configurations, but the base
+    docker-example-omero one matches this recipe's plain server+web setup.
+
+version_health:
+  latest_version: "OMERO.server 5.6.18 / OMERO.web 5.33.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    OMERO.server 5.6.18 shipped 2026-05-19 (~2.5 months before today,
+    2026-08-05); OMERO.web 5.33.0 shipped 2026-08-03 (2 days before today).
+    Prior server/web pairing (5.6.17 / 5.31.0-5.31.1) went out in February
+    2026. Both `openmicroscopy/omero-server` and `openmicroscopy/omero-web`
+    images on Docker Hub are updated in step with each release (omero-web
+    "latest" pushed 3 days ago as of this analysis). Steady, ongoing
+    cadence — actively maintained by the OME consortium, no EOL signal.
+
+catalogue_fit:
+  categories: [scientific-computing, image-management, research]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue serves scientific/research
+    image data management. Immich is the closest structural neighbor
+    (self-hosted media library with a web UI, Postgres-backed, single
+    admin account) but is built for personal photo/video libraries, not
+    the multi-user group/permission model, OME-XML metadata, and
+    microscopy-file-format (proprietary vendor formats via Bio-Formats)
+    handling that OMERO exists for. This would open a genuinely new
+    "scientific data management" category rather than compete with an
+    existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    OMERO is the standard self-hosted platform for microscopy image
+    management in academic/core-facility bioimaging — a real, specific
+    audience (universities, imaging cores, biotech labs) that has no other
+    catalogue option today. But it is a narrow vertical compared to
+    general-purpose recipes: unlike Immich (broadly useful to any customer
+    with photos), OMERO is only useful to someone who already has
+    microscopy data and workflows built around OME's ecosystem (Bio-Formats,
+    OMERO.insight/Fiji plugins), a much smaller slice of the general
+    self-hosting customer base this catalogue targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ROOTPASS, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      OMERO.server's admin ("root") account password is set at first boot
+      via the `ROOTPASS` environment variable, which the server consumes
+      as plaintext and hashes internally using its own scheme — there is
+      no way to hand it an already-hashed value the way Vaultwarden's
+      ADMIN_TOKEN accepts a bcrypt hash. `generated_from` only ever
+      projects a hash of the customer's server root password, never the
+      plaintext, so there is no channel today to get the customer's actual
+      chosen admin password into OMERO. Gating the whole app behind
+      Traefik `basic_auth` does not solve this either, since the customer
+      still needs a working OMERO login (root/admin account) to use the
+      product at all — an inert or unknown admin credential leaves the app
+      unusable, not just extra-gated.
+    - >
+      Full OMERO functionality (desktop OMERO.insight client, Fiji/ImageJ
+      plugin, most third-party integrations) depends on raw TCP ports
+      4063/4064 (the Ice protocol) in addition to the OMERO.web HTTP UI on
+      4080. Those raw ports have no path through our Traefik-only HTTP
+      ingress, so even if the admin-password blocker were resolved, a
+      recipe could only expose the web UI, not the full client ecosystem
+      OMERO is normally used with.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OMERO is an actively maintained, real gap in the catalogue — no existing
+  recipe touches scientific image/microscopy data management, and OMERO is
+  the de facto standard tool for that niche. It is mechanically close to
+  installable (official images for server/web, Postgres backend, HTTP web
+  UI compatible with Traefik) but is blocked today by the admin credential:
+  OMERO.server's `ROOTPASS` variable requires the customer's actual
+  plaintext admin password, which our `generated_from`/root-password-hash
+  mechanism cannot supply, and no basic-auth gate substitutes for a working
+  admin login the customer needs to actually use the product. Revisit once
+  a plaintext-carrying secret channel exists, and note the audience is a
+  narrow but real vertical (bioimaging labs) rather than a broad win.

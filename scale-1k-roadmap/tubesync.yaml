@@ -1,0 +1,79 @@
+slug: tubesync
+name: TubeSync
+source_description: "Automatically sync and download YouTube videos from channels and playlists"
+
+upstream:
+  url: https://github.com/meeb/tubesync
+  repo_url: https://github.com/meeb/tubesync
+  license: AGPL-3.0
+  docker_image: ghcr.io/meeb/tubesync
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    meeb/tubesync repo (root, or any docker/deploy/contrib directory) or on
+    any project docs site — the project has no separate docs site beyond
+    the GitHub README. The README's "Installation" / usage section only
+    embeds an inline compose snippet (a single `tubesync` service, image
+    ghcr.io/meeb/tubesync:latest, SQLite default, /config and /downloads
+    volumes, TZ/PUID/PGID env) as illustrative text, not a file the project
+    publishes or versions. No GPU/CPU, dev/prod, or sqlite/postgres
+    variants are offered — SQLite is the only documented setup. Since
+    there's no file to link (official or community), nothing is recorded
+    here beyond this note.
+
+version_health:
+  latest_version: "v0.18.3"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable v0.18.3 released 2026-08-03, two days before this analysis
+    (2026-08-05). Prior releases v0.18.2 (2026-07-04), v0.18.1 (2026-06-02),
+    v0.18.0 (2026-05-29), v0.17.4 (2026-05-24) show a steady ~monthly cadence
+    with pre-release RCs ahead of stable cuts. Single maintainer (@meeb) plus
+    active contributors (e.g. @tcely); no archival notice, no EOL
+    announcement.
+
+catalogue_fit:
+  categories: [media, downloader, pvr, self-hosted]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers YouTube channel/playlist sync-to-disk (a "PVR
+    for YouTube" built on yt-dlp + ffmpeg with a task scheduler and optional
+    Jellyfin/Plex library integration). Immich is the closest catalogue
+    neighbor by "media management" theme but serves a completely different
+    use case (personal photo/video backup and gallery, not scheduled
+    third-party video ingestion).
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, well-scoped niche (self-hosted YouTube archiving/PVR) with real
+    demand in the self-hosted community, but it's a narrower audience than
+    general-purpose infra or media-server tools, and downloading YouTube
+    content at scale carries YouTube ToS friction that is outside recipe
+    scope but worth the developer's awareness.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  TubeSync is a single-container (ghcr.io/meeb/tubesync), single-HTTP-port
+  (4848) web app with no schema-blocking dependency: its optional built-in
+  HTTP_USER/HTTP_PASS basic auth can simply be left unset and the app gated
+  behind a Traefik basic_auth mechanism instead, per SCHEMA.md's documented
+  (currently unmerged, IF-1312) MVP mechanism — no existing recipe in the
+  catalogue has shipped this gate yet, so it remains to-be-implemented
+  rather than a proven pattern. No external API key, OAuth flow, or extra
+  customer-chosen credential is required to boot — it just needs a domain,
+  a persistent volume for its config/downloads, and the auth gate. Upstream
+  is actively maintained (monthly releases, most recent four days before
+  this analysis) with no overlap in the current 24-recipe catalogue, making
+  it a reasonable build candidate.

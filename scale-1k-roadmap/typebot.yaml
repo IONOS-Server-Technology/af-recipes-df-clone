@@ -1,0 +1,100 @@
+slug: typebot
+name: Typebot
+source_description: "No-code chatbot builder for conversational forms and interactive flows"
+
+upstream:
+  url: https://typebot.io
+  repo_url: https://github.com/baptisteArno/typebot.io
+  license: "Functional Source License 1.1 (FSL-1.1-ALv2) — converts to Apache License 2.0 two years after each release; source-available, not OSI-approved while under FSL"
+  docker_image: baptistearno/typebot-builder
+  compose_file_url: https://raw.githubusercontent.com/baptisteArno/typebot.io/latest/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked directly from the self-hosting docs
+    (docs.typebot.io/self-hosting/deploy/docker, which redirects to
+    docs.typebot.com/self-hosting/deploy/docker) and present at the same
+    path in the repo root. It's a rolling reference to the `latest` branch
+    (not a version-pinned release tag) — the docs note the file "will pull
+    the latest stable Typebot images" by default and that `latest` can be
+    swapped for a specific version tag if pinning is desired. Only one
+    variant exists (Postgres + Redis + builder + viewer, single compose
+    file, no GPU/CPU or sqlite/postgres alternatives), so no selection was
+    needed.
+
+version_health:
+  latest_version: v3.17.2
+  latest_release_date: 2026-06-17
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.17.2 shipped 2026-06-17, ~7 weeks before today (2026-08-05). Prior
+    releases (v3.17.0/3.17.1 in May, v3.16.x in April, v3.15.x in January
+    2026) show a steady cadence of roughly one release every 1-4 weeks
+    through the past year, so a 7-week gap is within normal variance, not a
+    slowdown. Repo is not archived and continues active commit activity.
+
+catalogue_fit:
+  categories:
+    - automation
+    - productivity
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers no-code chatbot / conversational-form
+    building. n8n (automation) is a general workflow engine, not a
+    chat-widget/form builder; open-webui and ollama are LLM chat frontends,
+    not lead-gen or support-widget builders. Typebot would be a distinct
+    category: embeddable conversational forms and chat flows for a
+    customer's own site.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (lead-gen forms, support/FAQ bots, surveys)
+    with no catalogue overlap, but it's a narrower business tool than our
+    infra/productivity staples and the self-hosting setup (Postgres +
+    Redis + two web services + mandatory SMTP/OAuth) is heavier than most
+    of what a typical customer would want to operate themselves.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "builder admin login credential (SMTP magic-link OR OAuth provider: Google/GitHub/GitLab/Facebook/Azure AD/custom OIDC — no username+password option exists)"
+    - ENCRYPTION_SECRET
+    - POSTGRES_PASSWORD
+  secrets_expressible_today:
+    - secret: ENCRYPTION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Typebot's builder has no username/password login of its own — NextAuth
+      requires at least one configured provider: SMTP (email magic link) or
+      an OAuth/OIDC app (Google, GitHub, GitLab, Facebook, Azure AD, or
+      custom OIDC). Both require a customer- or operator-supplied external
+      credential (SMTP host/user/password, or an OAuth client id/secret from
+      a third-party console) that /compose has no channel to accept today.
+    - >
+      A Traefik basic_auth gate in front of the builder does not solve this:
+      it only blocks anonymous network access, but the customer still can't
+      complete the app's own first-login flow (which needs a working
+      email/OAuth provider) to create the admin account at all.
+    - >
+      This is a genuine "no plaintext/no arbitrary secret" gap rather than a
+      generated_from-algorithm gap (root-password projection only ever
+      supplies a password hash into a password-type field; Typebot has no
+      such field), so IF-1420 alone would not unblock it — it needs a new
+      channel for arbitrary operator-supplied config (SMTP creds or OAuth
+      registration), not a supported hashing algorithm.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Typebot is an actively maintained (latest v3.17.2, 2026-06-17), source-available
+  (FSL, not yet OSI-approved) no-code chatbot/conversational-form builder with no
+  overlap in the current 24-recipe catalogue. It's structurally a reverse-proxy-
+  friendly multi-container web app (Postgres + Redis + builder + viewer), but its
+  builder login mandatorily requires SMTP or an OAuth/OIDC provider — neither of
+  which has a customer-input channel in the current /compose mechanism, and a
+  Traefik basic_auth gate can't substitute since the app's own first-login flow
+  still needs a working provider. Blocked on platform support for a real
+  external-credential input channel, not on recipe authoring.

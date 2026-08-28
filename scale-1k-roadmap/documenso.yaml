@@ -1,0 +1,121 @@
+slug: documenso
+name: Documenso
+source_description: "Open-source document signing platform for digital signatures"
+
+upstream:
+  url: https://documenso.com
+  repo_url: https://github.com/documenso/documenso
+  license: "AGPL-3.0"
+  docker_image: "documenso/documenso, pin to a semver tag e.g. v2.16.0 — do not use :latest"
+  compose_file_url: "https://raw.githubusercontent.com/documenso/documenso/release/docker/production/compose.yml"
+  compose_file_notes: >
+    Official production compose file, linked directly from the "Docker
+    Compose" deployment guide at
+    docs.documenso.com/docs/self-hosting/deployment/docker-compose (the
+    docs literally give `curl -O
+    https://raw.githubusercontent.com/documenso/documenso/release/docker/production/compose.yml`
+    as the download command). This is a rolling reference to the `release`
+    branch, not pinned to a release tag — the docs themselves warn "the
+    compose.yml in the repository may be outdated; use it as a starting
+    point and verify against the documented env vars." The repo also ships
+    a separate quick-start compose (docker/quick-start/compose.yml, no
+    HTTPS/email/signing cert, bundles Postgres for local trial only); the
+    production variant was picked here since it is the one intended for
+    real deployments and matches what recipe installability analysis
+    assumes.
+
+version_health:
+  latest_version: "v2.16.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.16.0 published 2026-07-21, ~15 days before this analysis
+    (2026-08-05). Release history shows a steady near-monthly cadence:
+    v2.15.0 (also 2026-07-21), v2.14.0 (2026-06-28), v2.13.0 (2026-06-18),
+    v2.12.0 (2026-06-16), v2.11.0 (~2026-05-13), v2.10.x/v2.9.x/v2.8.x
+    trailing back at roughly monthly spacing. No archived flag, no
+    deprecation notice, active upstream org (documenso.com is a funded
+    commercial entity running the same OSS core as a hosted SaaS).
+
+catalogue_fit:
+  categories: [productivity, document-management, legal]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    E-signature / document-signing workflow (a "DocuSign alternative") is a
+    distinct category not covered by any of the current 24 recipes.
+    paperless-ngx and paperless-ai are document *archiving and OCR* tools —
+    they don't provide a signer workflow, audit trail, or certificate-based
+    digital signatures. Documenso would be a genuinely new capability for
+    the catalogue rather than a variant of something we already ship.
+  usefulness: high
+  usefulness_rationale: >
+    Digital signing is a common SMB/professional need with no existing
+    catalogue entry, and Documenso is an actively maintained, single-image,
+    Traefik-compatible web app — a good structural fit if not for the
+    email-relay blocker described below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - NEXTAUTH_SECRET
+    - NEXT_PRIVATE_ENCRYPTION_KEY
+    - NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY
+    - NEXT_PRIVATE_SIGNING_PASSPHRASE
+    - SMTP_CREDENTIALS
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: NEXT_PRIVATE_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: NEXT_PRIVATE_SIGNING_PASSPHRASE
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Documenso requires a working SMTP relay (NEXT_PRIVATE_SMTP_HOST,
+      NEXT_PRIVATE_SMTP_USERNAME, NEXT_PRIVATE_SMTP_PASSWORD, plus a
+      from-address) to send the signup email-verification message and, more
+      fundamentally, to send signature-request emails to signers — the core
+      workflow the app exists for. This is the customer's own external mail
+      provider's credentials, not something af-api derives or generates; it
+      has no projection mechanism today (not generated_from, not
+      basic_auth, not server-generatable).
+    - >
+      Admin access is not exposed via any env var or setup wizard at all —
+      upstream docs state every signup produces a regular user account and
+      "admin access must be granted directly in the database." This is
+      actually a non-issue for installability (core document-signing use
+      doesn't require an admin role, and no first-boot admin secret is
+      needed), noted here only so a reviewer isn't surprised there's no
+      ADMIN_TOKEN-style parameter to add.
+    - >
+      The .p12 signing certificate itself is not a blocker: upstream docs
+      confirm a self-signed cert + random passphrase can be generated
+      entirely server-side at install time (openssl req/pkcs12), with no
+      customer-visible value — this is mechanically identical to the
+      server_generated_no_customer_input secrets above and would be handled
+      the same way in install.sh, not a genuine third-party dependency like
+      SMTP.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Documenso is an actively maintained, single-image, Traefik-fit web app
+  that would fill a real gap in the catalogue (no existing e-signature
+  recipe). The blocker is narrow and specific: it needs a customer-supplied
+  external SMTP relay for signup verification and signature-request emails,
+  which is the app's core function and has no input channel under the
+  current /compose mechanism (not a root-password-hash projection, not a
+  basic_auth gate). Everything else at first boot — DB password, NextAuth
+  secret, encryption keys, and even the .p12 signing certificate passphrase
+  — can be generated entirely server-side. Recommend blocked_on_platform:
+  revisit once /compose gains a channel for customer-supplied third-party
+  credentials (e.g. an SMTP-relay input), which would likely unblock a
+  useful, differentiated recipe.

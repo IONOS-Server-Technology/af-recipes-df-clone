@@ -1,0 +1,127 @@
+slug: headroom
+name: Headroom
+source_description: "Open-source LLM context compression proxy reducing token usage by up to 95%"
+
+upstream:
+  url: https://headroomlabs-ai.github.io/headroom/
+  repo_url: https://github.com/headroomlabs-ai/headroom
+  license: Apache-2.0
+  docker_image: ghcr.io/headroomlabs-ai/headroom
+  compose_file_url: https://raw.githubusercontent.com/headroomlabs-ai/headroom/main/docker-compose.yml
+  compose_file_notes: >
+    Official, lives at the repo root. This is a rolling reference to the
+    default branch (raw.githubusercontent.com/.../main/...), not
+    version-pinned — the same file also exists unchanged at release tags
+    (confirmed identical content at the v0.34.0 tag), so a pinned variant
+    like .../v0.34.0/docker-compose.yml is available if a stable reference
+    is preferred later. The repo ships two compose variants: this one is
+    the "full memory stack" (proxy + Qdrant + Neo4j for the optional
+    semantic-memory feature) and builds the proxy image from source via
+    the repo's own Dockerfile rather than pulling the published
+    ghcr.io/headroomlabs-ai/headroom image. The other,
+    docker/docker-compose.native.yml, runs `cli`/`proxy` services directly
+    off the published ghcr.io/headroomlabs-ai/headroom:latest image (no
+    memory stack, no build step) but requires HEADROOM_HOST_HOME to be set
+    and mounts host credential directories (.claude/.codex/.gemini),
+    which fits a local dev/native-tool-wrapping workflow more than a
+    server deployment. Picked the root file since it's the one already
+    referenced in this candidate's installability notes (the "optional
+    Qdrant/Neo4j memory stack" callout above describes trimming this exact
+    file down to just the proxy service for a recipe).
+
+version_health:
+  latest_version: "v0.34.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.34.0 published 2026-08-05, the same day as today. PyPI release
+    history (headroom-ai) shows near-weekly shipping through 2026: v0.25.0
+    (Jun 12), v0.27.0 (Jun 22), v0.28.0 (Jun 29), v0.29.0/v0.30.0 (Jul 3),
+    v0.31.0 (Jul 9), v0.32.0 (Jul 17), v0.32.1 (Jul 19), v0.33.0 (Jul 29),
+    v0.34.0 (Aug 5). GitHub repo (65k+ stars, not archived) shows the same
+    cadence via release-please automation. Clearly active development.
+    The repo previously lived at github.com/chopratejas/headroom and was
+    transferred/renamed to the headroomlabs-ai org (old URL redirects to
+    the new one, confirmed via GitHub API) — use headroomlabs-ai/headroom
+    as canonical going forward.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers this niche. Headroom is not an LLM runtime or
+    chat UI (unlike ollama, open-webui) — it's a transparent HTTP proxy that
+    sits in front of a customer's own OpenAI/Anthropic-compatible API calls
+    and compresses tool outputs, logs, files, and RAG chunks before they
+    reach the model, cutting token spend without changing answers. It
+    complements rather than duplicates the catalogue's existing AI entries:
+    a customer already running claude-code, gemini-cli, openclaw, or
+    hermes-agent could point that tool's base-URL at a self-hosted Headroom
+    instance to cut their own LLM API bill. It has no web dashboard of its
+    own upstream (a third-party "headroom-gui" project exists but is a
+    separate, unofficial repo by a different author, not part of this
+    recipe candidate).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely novel niche (cost-reduction proxy) with no catalogue overlap
+    and an exploding star count, but it's a pure infrastructure/API proxy
+    with no browser UI of its own — value only materializes for a
+    technically-savvy customer who reconfigures an external tool's base URL
+    to point at it. That's a narrower audience than typical catalogue
+    recipes, capping usefulness at medium despite high technical interest.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The upstream LLM provider API key (Anthropic/OpenAI/etc.) is supplied
+      per-request by the client calling the proxy — Headroom forwards the
+      caller's own Authorization header upstream rather than storing a key
+      itself — so no external API key is required at first boot. This is
+      good news for installability: it removes what would otherwise be a
+      hard blocker (no channel exists today for an arbitrary customer API
+      key).
+    - >
+      The minimal proxy (`headroom proxy --port 8787`) has no database
+      dependency and no built-in authentication of its own, so it would sit
+      open on the internet unless gated — same pattern as n8n/OpenClaw/WUD:
+      front the single public port with Traefik `basic_auth: true`,
+      projecting the root-password hash there. The optional Qdrant/Neo4j
+      "memory stack" in upstream's docker-compose.yml is for an advanced
+      semantic-memory feature, not required for the core compression
+      proxy, and should be left out of a recipe to keep the footprint to a
+      single container.
+    - >
+      Docker image tagging is a genuine build concern, not a secrets
+      blocker: ghcr.io/headroomlabs-ai/headroom does not publish
+      matching semver tags for its PyPI/GitHub releases (v0.34.0, etc.) —
+      only rolling tags suffixed with a short git commit hash (e.g.
+      `slim-2954e37`, aliased to `main-slim`), which are reassigned on
+      every push (observed "published about 2 hours ago" at research time).
+      There is no stable, citable pinned tag to reference the way RFC-002
+      requires; a recipe would need to either pin to a specific commit-hash
+      tag (which will eventually roll off the registry) or build the image
+      from the pinned PyPI package (`pip install "headroom-ai[proxy]"==0.34.0`)
+      in a Dockerfile instead of consuming the upstream image directly.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Headroom is an active, fast-growing, genuinely novel addition to the
+  catalogue — a token-compression proxy with no overlap with existing AI
+  recipes — and is installable today: it needs no customer-supplied API key
+  at boot (that flows through per-request from the calling client) and can
+  be gated with the standard Traefik basic_auth pattern since it has no
+  login of its own. The open issue is packaging, not the secrets mechanism:
+  upstream does not publish stable semver-tagged Docker images, only rolling
+  commit-hash tags, so building this recipe means either accepting a tag
+  that will eventually roll off the registry or building a Dockerfile
+  ourselves pinned to a specific PyPI release. That unresolved image-pinning
+  problem is the reason for build_with_caveats rather than build_now.

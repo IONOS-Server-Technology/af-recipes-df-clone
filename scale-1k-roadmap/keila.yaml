@@ -1,0 +1,87 @@
+slug: keila
+name: Keila
+source_description: "Self-hosted newsletter platform with drag-and-drop editor and SMTP delivery"
+
+upstream:
+  url: https://www.keila.io/
+  repo_url: https://github.com/pentacent/keila
+  license: AGPL-3.0
+  docker_image: pentacent/keila
+  compose_file_url: https://raw.githubusercontent.com/pentacent/keila/master/ops/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo at ops/docker-compose.yml. The
+    README explicitly points to it ("use the sample Docker Compose config
+    in this repo"). This is a rolling reference to the default branch
+    (master), not pinned to a release tag — no versioned/release-asset
+    variant was found. Only one variant exists (single Keila service +
+    Postgres); the file itself carries the disclaimer that it is intended
+    for local testing only and is "NOT intended to be production ready."
+
+version_health:
+  latest_version: "0.30.2"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Not archived; single primary maintainer (wmnnd) but commits continue
+    past the 0.30.2 tag (e.g. bugfix commits on 2026-07-21 and 2026-08-01).
+    Release cadence has been roughly monthly through 2026 (0.18.0 on
+    2026-01-04 through 0.30.2 on 2026-06-26, ~40 days before today,
+    2026-08-05). No EOL announcement found.
+
+catalogue_fit:
+  categories: [productivity, marketing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover email newsletter / mailing-list
+    campaign management. Keila is a Mailchimp/Sendinblue-style tool
+    (drag-and-drop or MJML/HTML campaign editor, sign-up forms,
+    segmentation, unsubscribe handling) — a genuinely new category for the
+    catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (customer-owned newsletter/mailing list) with
+    no overlap in the current catalogue. Value is capped by the app's own
+    requirement for a customer-supplied external SMTP relay to send any
+    mail at all, which our recipe mechanism has no way to collect (see
+    blocking_issues).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - KEILA_PASSWORD (root admin account password)
+    - MAILER_SMTP_HOST / MAILER_SMTP_USER / MAILER_SMTP_PASSWORD / MAILER_SMTP_FROM_EMAIL (customer's own SMTP relay credentials)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      KEILA_PASSWORD (root admin login) is accepted by the app only as a
+      plaintext value (documented minimum: 10 characters) — Keila stores
+      and hashes it itself but gives no way to seed it from a pre-computed
+      hash. `generated_from` only ever projects a hash (argon2/bcrypt) into
+      an app parameter, so there is no channel to supply this plaintext
+      value. This is a genuine structural blocker, not an unsupported-algo
+      gap.
+    - >
+      Keila cannot send any mail — including its own transactional emails
+      (double opt-in, password reset) — without a working SMTP relay.
+      MAILER_SMTP_HOST/USER/PASSWORD/FROM_EMAIL are required at first boot
+      and must be the customer's own external mail-provider credentials
+      (or an AWS SES/Sendgrid/Mailgun/Postmark equivalent). This is an
+      arbitrary external credential with no input channel today, same
+      class of blocker as an external API key.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Keila is an active, actively-released (monthly cadence through 2026),
+  AGPL-3.0 self-hosted newsletter tool filling a category gap in the
+  current 24-recipe catalogue, with a single-port Phoenix/LiveView web UI
+  that is Traefik-compatible. It cannot ship today: the root admin
+  password only accepts a plaintext value (no hash-seeding path via
+  `generated_from`), and more fundamentally the app is non-functional
+  without a customer-supplied external SMTP relay, which the current
+  `/compose` mechanism has no channel to collect. Revisit once the
+  platform supports either plaintext secret projection or a generic
+  customer-supplied external-credential input.

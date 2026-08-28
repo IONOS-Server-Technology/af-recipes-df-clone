@@ -1,0 +1,114 @@
+slug: authorizer
+name: Authorizer
+source_description: "Open-source self-hosted authentication server with social login, MFA, and RBAC"
+
+upstream:
+  url: https://authorizer.dev/
+  repo_url: https://github.com/authorizerdev/authorizer
+  license: Apache-2.0
+  docker_image: quay.io/authorizer/authorizer
+  compose_file_url: https://docs.authorizer.dev/deployment/docker
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file is published anywhere in the
+    project (not in the authorizerdev/authorizer repo root/docker/deploy
+    dirs, and not as a release asset). The repo's own root-level
+    docker-compose.yaml (github.com/authorizerdev/authorizer/blob/main/
+    docker-compose.yaml) is a dev-only build harness (`build: .` from
+    source plus a local `.env` file), not something an end user deploys
+    from. The only end-user-facing compose examples are two YAML snippets
+    embedded directly in the official docs page linked above ("Docker
+    Compose" section: quay.io/authorizer/authorizer:latest with sqlite;
+    "Docker Compose with PostgreSQL and Redis" section: same image plus
+    postgres:15 and redis:7-alpine, --env=production) — both use the
+    rolling `:latest` image tag, not a pinned release. I picked the
+    Postgres+Redis production variant as the one to base a recipe on if
+    this ever gets built, since the docs explicitly label it for
+    production and the sqlite variant is dev-only per the docs' own
+    wording. Because this is a docs page, not a file, there's no
+    file-level pin/rolling distinction to track — only the `:latest` image
+    tag inside it, which is rolling.
+
+version_health:
+  latest_version: "2.3.0"
+  latest_release_date: "2026-06-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Last tagged *stable* (non-RC) release is 2.3.0, dated 2026-06-16 — about
+    seven weeks before today (2026-08-05). Since then the project has been
+    shipping near-daily release candidates toward 2.4.0 (rc.0 on 2026-07-11
+    through rc.14 on 2026-08-03, two days before today), so it is not
+    stalled — it's mid-cycle on the next stable cut. Commit activity and the
+    published ROADMAP_V2.md (phases through Q3 2027: rate limiting/bot
+    detection now, M2M/SAML/SCIM/OIDC-provider later, then passkeys/DPoP)
+    both indicate a well-funded, actively developed project, not
+    maintenance-only. Note this is a significant v1→v2 rewrite
+    (config moved from env vars to CLI flags only) — treat v1-era
+    documentation found elsewhere online as stale.
+
+catalogue_fit:
+  categories: [security, identity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [authentik]
+  differentiation: >
+    Authorizer is a developer-facing "auth backend" — an Auth0/Firebase-Auth
+    alternative meant to be embedded into a customer's own application via
+    OAuth2/OIDC client registration and SDKs, not a gateway that adds SSO in
+    front of existing web apps. Authentik (also flagged in this catalogue,
+    apps-gaps/authentik.yaml) is the closer fit for "single sign-on across
+    my other self-hosted apps"; Authorizer only makes sense for a customer
+    who is themselves building or running a custom application and needs
+    an auth/RBAC provider for it. Real but narrower audience than Authentik
+    within our current customer base.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for a developer-persona customer building their own app on top
+    of the AF, but most of our current 24 recipes are turnkey end-user
+    apps, not app-building platforms — so this serves a smaller slice of
+    the customer base than a general SSO/identity-broker recipe would, and
+    largely overlaps in intent (self-hosted identity) with the
+    already-analyzed Authentik gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_SECRET, JWT_SECRET, CLIENT_SECRET]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: CLIENT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Authorizer v2 is configured entirely via CLI flags (no persisted
+      admin-set password flow); `--admin-secret` is consumed by the
+      process as a **plaintext** value used directly for admin-panel
+      login — there is no hashed-secret input mode. Per SCHEMA.md,
+      `generated_from` only ever projects a hash of the customer's root
+      password, never the plaintext, so there is no channel to seed this
+      admin credential from the customer's own password. This is the
+      genuine plaintext-only case SCHEMA.md calls a structural blocker,
+      not just a missing-algorithm gap like Authentik's.
+    - >
+      A Traefik `basic_auth` gate in front of the whole origin is not a
+      substitute either: Authorizer's `/authorize`, `/oauth/token`, and
+      hosted login-page endpoints must stay reachable for end users of
+      whatever application the customer builds against it, so gating the
+      entire app behind an unrelated second basic-auth layer would break
+      its actual purpose (same reasoning as the Authentik analysis).
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Authorizer is an actively developed, Apache-2.0 self-hosted auth server,
+  but it targets a different job than "add login to my existing self-hosted
+  apps" — it's a backend for customers building their own applications, and
+  it overlaps conceptually with the already-flagged Authentik gap for the
+  identity/SSO niche. Mechanically it is a clean single-container app
+  (quay.io/authorizer/authorizer, port 8080, reverse-proxy compatible), but
+  it fails installability today for a harder reason than Authentik: its
+  admin bootstrap secret (`--admin-secret`) is consumed as plaintext with
+  no hashed-input mode, which SCHEMA.md treats as a genuine structural
+  blocker rather than a missing-algorithm gap. Recommend `blocked_on_platform`
+  and, given the medium (not high) usefulness versus Authentik's high, a
+  lower re-evaluation priority even once platform constraints loosen.

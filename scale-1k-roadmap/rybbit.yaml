@@ -1,0 +1,142 @@
+slug: rybbit
+name: Rybbit
+source_description: "Open-source privacy-first web analytics alternative to Google Analytics"
+
+upstream:
+  url: https://rybbit.com
+  repo_url: https://github.com/rybbit-io/rybbit
+  license: AGPL-3.0
+  docker_image: ghcr.io/rybbit-io/rybbit-backend:v2.8.0
+  compose_file_url: https://raw.githubusercontent.com/rybbit-io/rybbit/master/docker-compose.yml
+  compose_file_notes: >
+    Official, lives at the repo root. This is a rolling reference to the
+    default branch (`master`), not version-pinned — it uses
+    `${IMAGE_TAG:-latest}` for the backend/client images by default. A
+    sibling `docker-compose.cloud.yml` also exists in the same directory
+    but is rybbit.com's own hosted-cloud deployment config, not a
+    self-host variant; the plain `docker-compose.yml` is the one the
+    self-hosting docs (rybbit.com/docs/self-hosting) point operators to,
+    and is the single self-host variant upstream ships (bundles Caddy,
+    ClickHouse, Postgres, Redis, backend and client, matching the
+    two-container HTTP split and Caddy dependency already noted below
+    under `installability.blocking_issues`).
+
+version_health:
+  latest_version: "v2.8.0"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.8.0 was tagged 2026-07-27, ~10 days before today (2026-08-06).
+    Preceding tags from the releases feed: v2.2.3 (2025-12-12), v2.2.4
+    (2025-12-14), v2.3.0/v2.3.1 (2026-01-02), v2.4.0 (2026-02-11), v2.5.0
+    (2026-03-29), v2.6.0 (2026-05-14), v2.6.1 (2026-05-16), v2.7.0
+    (2026-07-07), v2.8.0 (2026-07-27) — a minor release roughly every 4-8
+    weeks with no gap longer than ~2 months over the last eight months.
+    `master` has commits as recently as 2026-08-02 (4 days ago). Repo is
+    not archived or marked maintenance-only; ~12.6k stars, ~2.5k commits,
+    active issue triage. Pinned container tags `v2.8.0` were confirmed
+    present on GHCR for both `rybbit-io/rybbit-backend` and
+    `rybbit-io/rybbit-client` (the shipped compose file otherwise defaults
+    to `:latest` via `${IMAGE_TAG:-latest}`, which a recipe would pin).
+    A commercially-operated cloud offering (rybbit.com) funds the project;
+    the self-hosted build carries no license key or feature gate that
+    surfaced in the docs.
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers website/product
+    analytics; Uptime Kuma is the nearest shape (dashboard + small backing
+    store) but measures availability, not visitor traffic. Rybbit is a
+    newer, notably polished cookie-free GA alternative with session
+    replay, funnels, retention and web-vitals reporting on top of plain
+    pageview counting — a fuller product-analytics feature set than the
+    lighter tools in this space, at the cost of a heavier stack
+    (Postgres + ClickHouse + Redis + two app containers).
+  usefulness: high
+  usefulness_rationale: >
+    Privacy-respecting, GDPR-friendly self-hosted analytics is a recurring
+    ask from anyone running a site they don't want to feed to Google, and
+    it pairs naturally with IONOS-hosted sites (the tracked site does not
+    have to live on the same server — only the tracking snippet points
+    here). Upstream is young but fast-moving and well maintained. Note the
+    catalogue already has competing gap analyses for the same niche
+    (`plausible-analytics`, `matomo`, `ackee`, `goatcounter`, `countly`);
+    per CLAUDE.md overlap between candidates is not itself a reason to
+    reject, but a human should pick which one or two actually get built.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BETTER_AUTH_SECRET
+    - POSTGRES_PASSWORD
+    - CLICKHOUSE_PASSWORD
+    - signup_gate_credential
+  secrets_expressible_today:
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CLICKHOUSE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No way to close the open-signup window. Rybbit has no admin env var
+      and no CLI seeding path — the documented first-boot flow is "browse
+      to https://<domain>/signup and create your admin account", after
+      which the operator is told to set DISABLE_SIGNUP=true and restart.
+      Until the customer does that, whoever reaches the domain first
+      becomes the instance owner. The catalogue's standard fix for that
+      race (a Traefik `basic_auth: true` gate on the public port) does not
+      work here: Rybbit is an analytics collector, so the very endpoints
+      anonymous website visitors must reach unauthenticated — the tracking
+      script and the event-ingest POSTs, both served under the backend's
+      `/api/*` prefix — sit behind the same port and would be 401'd by a
+      blanket gate, breaking the app's only function. Closing the race
+      needs path-scoped basic auth (gate the UI and `/signup`, leave the
+      ingest paths open), which the current per-port toggle cannot
+      express. Note this contradicts `apps-gaps/plausible-analytics.yaml`,
+      which reaches `build_now` by proposing exactly such a blanket gate
+      over an equally ingest-dependent app; a human should reconcile the
+      two — the same objection applies to any analytics recipe.
+    - >
+      Not a single-HTTP-port app out of the box. Upstream splits the web
+      surface across two containers — `rybbit-client` (Next.js UI, 3002)
+      and `rybbit-backend` (API + tracking ingest, 3001) — and requires
+      path-based routing (`/api/*` and `/.well-known/oauth*` to the
+      backend, everything else to the client), which upstream's own
+      bundled Caddy does. Our Traefik labels are injected per recipe
+      against one public port on `<slug>.<base_domain>`, so the split
+      cannot be expressed at the platform layer. This one is solvable
+      inside the recipe rather than on the platform: ship upstream's Caddy
+      as an in-recipe container listening plain HTTP on a single port
+      (replace the `{$DOMAIN_NAME}` site block with `:80`, drop the TLS
+      automation) and let Traefik front that. Listed here because it makes
+      the recipe structurally unlike anything currently in `recipes/` —
+      every existing entry proxies straight to the app container.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Rybbit is a healthy, fast-moving (v2.8.0 on 2026-07-27, commits four
+  days before this analysis) AGPL-3.0 privacy analytics platform with
+  official pinned GHCR images and a documented external-reverse-proxy
+  deployment mode, filling a category the current 24 recipes do not cover
+  at all. Its machine secrets are all fine for us — BETTER_AUTH_SECRET,
+  the Postgres password and the ClickHouse password are patternless values
+  nothing customer-facing reads, exactly what AF already generates
+  server-side. It fails `installable_today` on the admin account: Rybbit
+  only creates one through an open `/signup` page with no env or CLI
+  alternative, and the usual Traefik `basic_auth` gate cannot be used to
+  cover that window because a blanket gate would also block the anonymous
+  tracking-script and event-ingest requests the product exists to serve.
+  A secondary, recipe-level (not platform-level) wrinkle is the two-HTTP-
+  container path split, which needs an in-recipe Caddy to collapse onto
+  one port. Recommend revisiting once path-scoped basic auth exists, or a
+  mechanism that seeds a first admin from the root-password hash — the
+  product case for building it is strong, and this same gate-vs-ingest
+  conflict should be settled once for the whole analytics category.

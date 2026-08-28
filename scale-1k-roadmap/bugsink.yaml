@@ -1,0 +1,94 @@
+slug: bugsink
+name: BugSink
+source_description: "Self-hosted error tracking platform for application monitoring"
+
+upstream:
+  url: https://www.bugsink.com/
+  repo_url: https://github.com/bugsink/bugsink
+  license: "PolyForm Shield 1.0.0 (core app; permits any use except building a competing product); sentry/ subtree under BSD-3-Clause; ee/ directory under a separate proprietary EE license"
+  docker_image: bugsink/bugsink
+  compose_file_url: https://raw.githubusercontent.com/bugsink/bugsink/main/docker-compose-sample.yaml
+  compose_file_notes: >
+    Official — docker-compose-sample.yaml lives at the root of the
+    bugsink/bugsink repo itself (not a docs page or third-party site).
+    This is a rolling reference to the default branch (main), not a
+    version-pinned link: the URL always resolves to whatever's currently
+    on main, though the file's own `web` service image tag is pinned to
+    `bugsink/bugsink:2` (major-version float, not an exact release). Only
+    one variant is shipped — a single web container plus a Postgres
+    sidecar — so there was no GPU/CPU or sqlite/postgres choice to make.
+
+version_health:
+  latest_version: "2.5.0"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.5.0 shipped 2026-07-26 — 10 days before today (2026-08-05). Recent
+    history is dense: 2.4.0 (2026-07-10), 2.3.1 (2026-06-30),
+    2.3.0 (2026-06-23), 2.2.2 (2026-06-04), 2.2.1 (2026-05-22),
+    2.2.0 (2026-05-21), 2.1.3 (2026-05-02) — a new release roughly every
+    1-3 weeks with no gap. Clearly active development, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [error-tracking, apm, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does error tracking/APM.
+    Uptime Kuma is the closest by category (both are "developer
+    observability" tools) but it only does uptime/status-page monitoring
+    from the outside; BugSink ingests application-level exceptions and
+    stacktraces via the Sentry SDK protocol. It is a drop-in self-hosted
+    replacement for Sentry (point any existing Sentry SDK at it by
+    changing the DSN), which is a well-known, frequently-requested
+    self-hosting category with no equivalent in our catalogue today.
+  usefulness: high
+  usefulness_rationale: >
+    Error tracking is a top-tier self-hosting ask for anyone running their
+    own apps (the exact audience of an Application Factory customer), and
+    BugSink is meaningfully lighter than the alternative most people know
+    (Sentry self-hosted, which needs a dozen-plus containers including
+    Kafka/ClickHouse/Zookeeper) — a single web container plus Postgres.
+    Full Sentry-SDK compatibility means it slots into existing customer
+    codebases with just a DSN change, which lowers adoption friction
+    versus a bespoke logging tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_KEY, POSTGRES_PASSWORD, CREATE_SUPERUSER, basic_auth_password]
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CREATE_SUPERUSER
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Upstream's official docker-compose-sample.yaml is a clean two-service
+  stack — bugsink/bugsink (pinned e.g. "2" or "2.5.0") plus postgres:17-alpine
+  — on a single HTTP port (8000), with BEHIND_HTTPS_PROXY/BASE_URL knobs
+  already built for sitting behind a reverse proxy. Structurally closest
+  to recipes/n8n or recipes/paperless-ngx (single app container + Postgres
+  sidecar). SECRET_KEY and POSTGRES_PASSWORD are patternless internal
+  secrets nothing customer-facing reads, so both are trivially
+  server-generatable. The one wrinkle is CREATE_SUPERUSER=email:password —
+  the app only accepts this as a plaintext env var at container start (no
+  hash/generated_from-compatible path), so it cannot carry a projection of
+  the customer's actual root password. That is not a hard blocker,
+  though: per the schema's "fixed/default/hardcoded admin credential"
+  case, install.sh can bake in a fixed, non-customer-facing admin login
+  and the whole app can sit behind a Traefik basic_auth gate projected
+  from the customer's root-password hash (same pattern as n8n/WUD/Open
+  WebUI). That gate is the actual customer-facing auth boundary, so the
+  fixed internal superuser credential behind it is not a real exposure.
+  With an active release cadence, no catalogue overlap, and zero
+  unresolvable blocking issues, this is a strong build_now candidate.

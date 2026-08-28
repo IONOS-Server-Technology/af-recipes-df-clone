@@ -1,0 +1,115 @@
+slug: snipe-it
+name: Snipe-IT
+source_description: "Free open-source IT asset management for tracking hardware, licenses, and depreciation"
+
+upstream:
+  url: https://snipeitapp.com/
+  repo_url: https://github.com/grokability/snipe-it
+  license: AGPL-3.0
+  docker_image: snipe/snipe-it:v8.6.3
+  compose_file_url: https://raw.githubusercontent.com/grokability/snipe-it/master/docker-compose.yml
+  compose_file_notes: >
+    Official — the project's own docs (snipe-it.readme.io/docs/docker)
+    tell users to download this exact file ("curl
+    https://raw.githubusercontent.com/snipe/snipe-it/master/docker-compose.yml
+    --output docker-compose.yml", using the pre-rename `snipe` org name,
+    which still resolves/redirects to the current `grokability` org). It
+    is a rolling reference to the default (`master`) branch, not
+    version-pinned — the `app` service image tag is itself a build arg
+    (`${APP_VERSION:-latest}`), not a fixed release. Only one variant is
+    shipped (MariaDB-backed, single `app`+`db` service pair); there is no
+    separate dev/prod or sqlite/postgres split to choose between.
+
+version_health:
+  latest_version: "v8.6.3"
+  latest_release_date: "2026-06-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v8.6.3 shipped 2026-06-15, about 1.5 months before today (2026-08-05).
+    The project (upstream org renamed from `snipe` to `grokability` on
+    GitHub, though the Docker Hub namespace is still `snipe/snipe-it`) has
+    a tight, regular release cadence: v8.6.0 through v8.6.3 all shipped
+    within about 6 weeks (late May-mid June 2026), following v8.5.0 in May
+    2026 and v8.4.x in Feb-Apr 2026. This is a mature, actively maintained
+    project with frequent point releases (v8.6.3 was largely a security
+    and SCIM/LDAP fix release) — no signs of slowing, sporadic tagging, or
+    abandonment.
+
+catalogue_fit:
+  categories: [it-asset-management, productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Snipe-IT is an IT asset/license/depreciation tracker (hardware
+    inventory, software license seat counts, warranty and depreciation
+    schedules, checkin/checkout workflows, QR/barcode asset tags). Nothing
+    in the current 24-recipe catalogue covers this ground — Portainer and
+    Guacamole are infrastructure/remote-access tools, not asset-register
+    tools, and Paperless-ngx is document management, not equipment
+    tracking. This would be a genuinely new category for the catalogue,
+    appealing to SMB customers who need to track owned hardware, software
+    licenses, and warranties without a spreadsheet.
+  usefulness: high
+  usefulness_rationale: >
+    IT asset management is a well-understood, broadly-needed SMB workflow
+    (which laptop is assigned to whom, when does this license/warranty
+    expire) and Snipe-IT is the best-known open-source tool in that space,
+    with a polished web UI and an active, well-funded upstream. Clear
+    differentiation from the rest of the catalogue and a real audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, app_key, admin_account]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: app_key
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Snipe-IT has no unattended, env-var-driven install path. First boot
+      either redirects the browser to an interactive setup wizard
+      (collects site name plus a full admin identity: first/last name,
+      email, username, and password) or requires an operator to exec into
+      the container and run the interactive `php artisan app:install`
+      command. Neither has a documented non-interactive/env-var mode.
+    - >
+      The only scriptable admin-creation path is the rescue command `php
+      artisan snipeit:create-admin --first_name=... --last_name=...
+      --email=... --username=... --password=<plaintext>`. It requires the
+      admin password in **plaintext** (Snipe-IT hashes it itself via
+      Laravel's bcrypt on account creation) plus first/last name and
+      email — none of which our root-password-hash projection
+      (`generated_from`) can supply, since that mechanism only ever
+      carries a pre-computed hash of the customer's root password, never
+      the plaintext, and has no channel for arbitrary identity fields
+      (name/email/username) at all.
+    - >
+      A Traefik `basic_auth` gate does not substitute here: Snipe-IT does
+      have its own login, so leaving the app itself unconfigured behind a
+      gate would just mean the customer lands on the interactive setup
+      wizard once past the gate, with the same unattended-install problem.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Snipe-IT is a strong, high-value candidate — active upstream (tight
+  release cadence, v8.6.3 as of 2026-06-15), a genuinely new category for
+  the catalogue (IT asset/license/depreciation tracking, no overlap with
+  any of the current 24 recipes), a clean single-port web UI, and a
+  standard MySQL-backed multi-container shape (structurally similar to
+  Paperless-ngx). It is blocked on the platform today for one specific
+  reason: Snipe-IT's admin account can only be created through an
+  interactive setup wizard or an interactive/rescue artisan command that
+  both require a full identity (name, email, username) and, critically,
+  the admin password in **plaintext** rather than a hash — a hard
+  mismatch with the root-password-hash-only projection mechanism
+  (`generated_from`), and not something a Traefik basic_auth gate can work
+  around since the app has its own login. DB password and app key are
+  trivially server-generated with no customer input needed. Recommend
+  revisiting once there is either a customer-supplied-value input channel
+  or a documented way to seed Snipe-IT's admin account from a value AF can
+  actually produce (e.g. if Snipe-IT ever accepts a pre-hashed password on
+  install).

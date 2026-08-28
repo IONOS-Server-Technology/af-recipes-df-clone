@@ -1,0 +1,91 @@
+slug: mailtrain
+name: Mailtrain
+source_description: "Self-hosted newsletter platform for mass email campaigns and list management"
+
+upstream:
+  url: https://github.com/Mailtrain-org/mailtrain
+  repo_url: https://github.com/Mailtrain-org/mailtrain
+  license: GPL-3.0
+  docker_image: mailtrain/mailtrain
+  compose_file_url: https://raw.githubusercontent.com/Mailtrain-org/mailtrain/v2/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked directly from the "Deployment with Docker and
+    Docker compose" section of the v2 branch README (which instructs
+    `curl -O https://raw.githubusercontent.com/Mailtrain-org/mailtrain/v2/docker-compose.yml`).
+    This is a rolling reference to the v2 branch head, not pinned to a
+    release tag — the repo has no docker-compose-specific release asset,
+    and the v2 branch itself has had no commits since the same 2021
+    dormancy noted in version_health. Picked the plain root
+    docker-compose.yml (pulls the prebuilt mailtrain/mailtrain:latest
+    image from Docker Hub) over docker-compose-local.yml (builds the
+    image from source, for development) and docker-compose-develop.yml
+    (interactive dev stack with shell access) since it's the one the
+    README's main "Quick Start" Docker instructions point to. Note the
+    repo's default branch is `master`, which serves the deprecated v1
+    version of Mailtrain with its own separate docker-compose.yml — v2,
+    matching this analysis's version_health findings, only lives on the
+    `v2` branch.
+
+version_health:
+  latest_version: "v2.20210609.0"
+  latest_release_date: "2021-06-09"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    Latest tagged release is v2.20210609.0 from 2021-06-09 — over 5 years
+    before this analysis (2026-08-05). The official mailtrain/mailtrain
+    Docker Hub image's `latest` and `v2.20210609.0` tags were both last
+    pushed "about 5 years ago", matching the release date, so the image
+    has not been rebuilt since. The repo itself is not marked archived on
+    GitHub and still shows open issues/PRs (11 open issues, 103 open PRs
+    at time of research), but none appear to be merging — that pattern
+    (open contributions piling up, zero releases, frozen image) reads as
+    an unmaintained/abandoned project in practice rather than a merely
+    slow one, even though GitHub's own "archived" flag isn't set. Treating
+    as eol_status: archived given the evidence, not the label.
+
+catalogue_fit:
+  categories: [productivity, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers mass-email/newsletter campaign management
+    (list segmentation, campaign sending, subscriber management, RSS
+    campaigns) — this would be a genuinely new category for the
+    catalogue, not a duplicate of anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    The use case (self-hosted newsletter/mailing-list tool) is real and
+    distinct from anything currently in the catalogue, but the specific
+    project is stale enough (no release or image rebuild in 5+ years,
+    stalled PR queue) that shipping it now would mean putting an
+    effectively unmaintained mail-sending app — a category where security
+    patches and deliverability fixes matter — in front of customers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Mailtrain ships with a hardcoded default admin login (admin/test) with no supported env var to set it at first boot, and an open upstream bug (Mailtrain-org/mailtrain#1115) reports the admin password reverting to the default on every container restart even after being changed in the UI — the app cannot be trusted to hold a customer-set credential on its own. Per SCHEMA.md this is expressible as a Traefik basic_auth gate in front of the app (same pattern as Adminer), not a hard blocker by itself."
+    - "Also needs a three-container stack (Mailtrain app + MySQL/MariaDB + Redis) exposing three distinct ports (trusted UI 3000, sandbox/template-editor 3003, public subscriber-facing 3004) — only the trusted UI is reasonably put behind basic_auth; the public subscriber-facing endpoint (unsubscribe links, campaign tracking, web-view) must stay open to the internet without auth for the product to function, so a single blanket basic_auth gate does not cleanly cover the whole app the way it does for a single-port tool like Adminer."
+    - "Outbound mail delivery requires SMTP relay credentials (or a transactional-email API key) with no customer-supplied input channel today — same class of gap as any app needing an external API key."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Mailtrain fills a real gap (no newsletter/mass-email recipe exists today)
+  but the upstream project is effectively dormant — no release or Docker
+  image rebuild since June 2021, a stalled queue of 103 open PRs, and a
+  standing bug where the admin password resets to the hardcoded default on
+  every restart. Even setting maintenance status aside, the three-port
+  trusted/sandbox/public architecture means a single Traefik basic_auth
+  gate can't cover the app the way it does for single-port tools, since the
+  public subscriber-facing endpoint must stay open, and there's still no
+  input channel for the SMTP relay credentials it needs to actually send
+  mail. Recommend not_recommended: both the platform-mechanism gaps and the
+  upstream abandonment would need to be resolved before this is worth
+  building.

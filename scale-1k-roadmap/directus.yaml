@@ -1,0 +1,103 @@
+slug: directus
+name: Directus
+source_description: "Headless CMS that wraps databases with dynamic API and admin app"
+
+upstream:
+  url: https://directus.io
+  repo_url: https://github.com/directus/directus
+  license: "MSCL-1.0-GPL (Monospace Sustainable Core License v1.0, source-available, derived from the Fair Core License / former BSL). Converts to GPL-3.0 four years after each release. Free 'Core' tier for orgs under $5M annual revenue / 50 employees, no registration required; SSO, custom access-policy rules, and custom-LLM connections require a paid license key."
+  docker_image: "directus/directus"
+  compose_file_url: "https://directus.com/docs/self-hosted/docker-guide"
+  compose_file_notes: >
+    No standalone compose file is published as a downloadable asset. The
+    repo root docker-compose.yml
+    (github.com/directus/directus/blob/main/docker-compose.yml) is
+    explicitly marked "ONLY FOR DEBUGGING. THIS IS NOT INTENDED FOR
+    PRODUCTION USE" — it spins up throwaway database/Redis/S3/SMTP test
+    fixtures for the project's own test suite, not a Directus deployment,
+    and itself points readers to the docs guide for a real example. That
+    docs page ("Postgres, Redis, Directus, Local Files" example) is the
+    closest thing to an official compose file: an inline code block, not
+    a linked/downloadable file, using Postgres + Redis and a
+    directus/directus:REPLACE_WITH_VERSION image tag with an explicit
+    recommendation to pin to a specific version for production (i.e. no
+    rolling "latest" default) — the placeholder values (version, secret,
+    email, URL) must be filled in by the operator. Rolling reference to
+    the docs page content, not version-pinned to a release tag, since the
+    docs are updated in place rather than versioned per release.
+
+version_health:
+  latest_version: "12.2.0"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released 7 days before this analysis (2026-08-05) — active, roughly
+    monthly cadence (12.0.0 on 2026-06-10, 12.1.0/12.1.1 on 2026-07-01,
+    12.2.0 on 2026-07-29). Not remotely dormant or EOL. The notable event
+    is not release cadence but a license change: v12.0.0 (2026-06-10)
+    switched from the prior Business Source License to MSCL-1.0-GPL and
+    introduced active license-key enforcement for paid tiers.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 existing recipes cover a headless CMS / backend-as-a-service
+    (dynamic REST+GraphQL API generated over a customer's own database, plus an
+    admin app for schema and content management). Closest structural neighbors
+    are n8n and paperless-ngx (both Postgres-backed single web app), but neither
+    overlaps functionally — this would be a genuinely new category for the
+    catalogue (build custom apps/APIs on top of a database) rather than a
+    duplicate of automation, document management, or media tooling we already
+    ship.
+  usefulness: medium
+  usefulness_rationale: >
+    Headless CMS is a real, distinct customer need (app/API backends, content
+    modeling) with no current catalogue coverage, but the 2026-06 license
+    change (see blocking_issues) makes "medium" rather than "high" the honest
+    call until the legal question is resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, KEY, SECRET, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: KEY
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Licensing/legal risk, not a technical mechanism gap: MSCL-1.0-GPL's
+      "Competing Use" clause prohibits "making the Software available to any
+      party ... that competes with the Licensor's commercial offerings," and
+      the license text contains no carve-out for standard hosting providers or
+      resellers offering it to their own customers. IONOS Application Factory
+      packaging Directus as a one-click hosted recipe for third-party customers
+      is plausibly exactly the "Competing Use" the clause targets (it would
+      compete with Directus's own hosted/Cloud offering). This needs legal
+      sign-off before a recipe ships, independent of whether the Core tier is
+      technically free for the end customer.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Directus is mechanically installable under the current recipe mechanism —
+  its own admin login (ADMIN_EMAIL/ADMIN_PASSWORD) fits the generated_from
+  root-password projection exactly like Vaultwarden, and KEY/SECRET/DB_PASSWORD
+  are ordinary server-generated secrets the customer never needs to see. The
+  app itself is active and well-maintained (monthly releases). The blocker is
+  not technical: as of v12.0.0 (2026-06-10) Directus ships under MSCL-1.0-GPL,
+  a source-available license whose "Competing Use" restriction has no
+  hosting-provider carve-out and plausibly prohibits exactly the use case of
+  IONOS reselling it as a managed recipe to its own customers. Recommend
+  not_recommended pending explicit legal review of that clause against AF's
+  distribution model — flagging this as a real gap worth revisiting, not a
+  dead end, if legal clears it or if we instead offer only the free "Core"
+  tier under a documented revenue/headcount assumption.

@@ -1,0 +1,77 @@
+slug: dumbdo
+name: DumbDo
+source_description: "DumbDo is a stupidly simple, self-hosted to-do list that just works"
+
+upstream:
+  url: https://www.dumbware.io/DumbDo
+  repo_url: https://github.com/DumbWareio/DumbDo
+  license: GPL-3.0
+  docker_image: dumbwareio/dumbdo
+  compose_file_url: https://raw.githubusercontent.com/DumbWareio/DumbDo/main/docker-compose.yml
+  compose_file_notes: >
+    Official — a root-level docker-compose.yml in the DumbWareio/DumbDo
+    repo itself (single dumbdo service, no GPU/CPU or sqlite/postgres
+    variants). This is a rolling reference to the default branch (main),
+    not version-pinned: as noted in version_health, the repo has never cut
+    a GitHub Release or semver tag, so there is no release-asset URL to
+    point to instead — main is the only stable path available.
+
+version_health:
+  latest_version: "no tagged releases; image published under commit-sha tags plus a rolling :latest"
+  latest_release_date: "2025-12-30"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Repo has never used GitHub Releases or semver tags (`tags` API returns
+    empty) — Docker Hub tags are commit SHAs (e.g.
+    d4dff81e...) plus a rolling `latest`, last pushed 2025-12-30, about
+    7 months before today (2026-08-05). Repo itself is not archived, last
+    commit is that same 2025-12-30 push (a Dockerfile healthcheck +
+    page-title PR merge), created 2025-01-25, 180 stars, 16 open issues.
+    This is a small, single-purpose personal project with no formal
+    versioning discipline rather than a large actively-iterated product —
+    "active" but low-velocity, and there is no version number to pin a
+    recipe's `app_version` to.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are a personal to-do/task list — closest
+    neighbors (n8n, paperless-ngx, gitea) are workflow/document/dev tools,
+    not simple task tracking. DumbDo would add a lightweight personal
+    productivity option distinct from anything currently offered.
+  usefulness: low
+  usefulness_rationale: >
+    Genuinely novel category for the catalogue, but the app itself is
+    intentionally minimal (single JSON-file todo list, no accounts, no
+    sharing/collaboration) — a niche single-user convenience tool rather
+    than something most customers would specifically seek out a VPS
+    recipe for.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DumbDo is a single-container app (port 3000, one JSON-file volume) with no
+  built-in customer-facing login of its own to project a root-password hash
+  into: its only "auth" is an optional plaintext DUMBDO_PIN env var that the
+  server compares verbatim against user input, which cannot accept a
+  generated_from hash (the app does no hash comparison, only string
+  equality) and so has no expressible mechanism. The clean fix is the same
+  pattern as Adminer/n8n/WUD — leave DUMBDO_PIN unset and gate the whole app
+  behind a mandatory Traefik basic_auth:true, with that password projected
+  from the customer's root password. That keeps it mechanically installable
+  today with no blocking issues, so recommend build_now. The catalogue gap
+  is real (no to-do app currently exists) and release health is fine (not
+  EOL, recent commits); there's no formal version to pin, but that's a
+  version_health note, not an installability blocker.

@@ -1,0 +1,91 @@
+slug: tdarr
+name: Tdarr
+source_description: "Distributed media transcoding automation with FFmpeg and HandBrake"
+
+upstream:
+  url: https://tdarr.io/
+  repo_url: https://github.com/HaveAGitGat/Tdarr
+  license: "Custom (source-available, free for personal/non-commercial use — see upstream LICENSE)"
+  docker_image: ghcr.io/haveagitgat/tdarr
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml file exists as a standalone,
+    linkable artifact. The Tdarr GitHub repo (HaveAGitGat/Tdarr) has a
+    docker/ directory but it contains only Dockerfile.base, Dockerfile.final,
+    and a Makefile — no compose file. The project's own docs site
+    (docs.tdarr.io/docs/installation/docker/run-compose) documents Docker
+    Compose installation but only as an inline code block embedded in the
+    docs page text (covering both the combined server+internal-node
+    ghcr.io/haveagitgat/tdarr service and the separate
+    ghcr.io/haveagitgat/tdarr_node external-node service, with optional
+    NVIDIA GPU device reservations) — there is no downloadable/raw file
+    URL backing it, so there is nothing to link as an official compose
+    file per this issue's definition.
+
+version_health:
+  latest_version: "2.86.01"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.86.01 shipped 2026-08-05, the same day as this analysis. Preceding
+    releases landed roughly weekly to every few weeks through mid-2026
+    (2.85.01 2026-07-24, 2.84.01 2026-07-18, 2.83.01 2026-07-12, 2.82.02
+    2026-07-05, 2.82.01 2026-07-04, 2.81.01 2026-06-26), confirmed via
+    upstream commit history (Flatpak metadata bump commits accompany each
+    tagged release). This is an actively developed project — the maintainer
+    is also mid-way through a Rust rewrite (alpha/beta releases alongside
+    the stable NodeJS line, per GitHub issue #1387) — not dormant or EOL.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does automated media-library
+    transcoding/remuxing. Immich is a photo/video backup and library tool,
+    not a transcode pipeline; nothing else touches FFmpeg/HandBrake
+    automation. Tdarr would appeal to customers who host a media library
+    (Plex/Jellyfin elsewhere, or plain file storage on the VM) and want to
+    normalize codecs/containers, shrink storage footprint, or health-check
+    files on a schedule, plugin-driven and hands-off.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, standalone utility — unlike Tautulli/SyncLounge it does not
+    require pairing with a specific third-party media server to do
+    something useful; a customer can point it at any folder of video files
+    on the VM and get automated transcode/health-check jobs. Value is
+    highest for customers who also host a media server (Plex/Jellyfin/
+    Immich) or who dump raw recordings into the VM's storage, which is a
+    real but not universal audience. Transcoding is CPU/GPU-intensive, so
+    the resource floor and any hardware-acceleration story matter more
+    here than for most catalogue apps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [webui_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: webui_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Tdarr (ghcr.io/haveagitgat/tdarr, single web UI port 8265, plus an
+  internal server-node port 8266 that only needs to be reachable
+  server-to-node and not exposed publicly) is actively maintained with
+  weekly-cadence releases and no functional overlap in our current
+  catalogue. Its own authentication is off by default (`auth=false`) and,
+  even when enabled, is set up interactively via a first-run web UI prompt
+  rather than through any environment variable or config field we could
+  hash and project — so the only viable gate is fronting the deployment
+  with Traefik `basic_auth` using the customer's root-password hash, the
+  same no-built-in-login pattern documented for apps like n8n and WUD in
+  apps-gaps/SCHEMA.md. That makes it installable_today with no plaintext
+  or third-party credential blocker and no other blocking issues, so it's
+  build_now. A recipe should still make a deliberate call on the resource
+  floor and whether GPU passthrough is in scope, since Tdarr's value
+  proposition is CPU/GPU-heavy transcoding — but that's an implementation
+  detail for the recipe itself, not a reason to withhold the recommendation.

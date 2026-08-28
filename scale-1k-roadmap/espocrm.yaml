@@ -1,0 +1,111 @@
+slug: espocrm
+name: EspoCRM
+source_description: "Free open-source CRM for managing contacts, deals, and customer relationships"
+
+upstream:
+  url: https://www.espocrm.com/
+  repo_url: https://github.com/espocrm/espocrm
+  license: AGPL-3.0 (project switched from GPLv3 to AGPLv3 in Dec 2023; a paid EspoCRM Commercial License is also offered for orgs that don't want AGPL obligations)
+  docker_image: espocrm/espocrm
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone compose file is published anywhere in the official
+    espocrm org. The official docs page
+    (docs.espocrm.com/administration/docker/installation/, sourced from
+    github.com/espocrm/documentation) and the official image repo's README
+    (github.com/espocrm/espocrm-docker) both embed a docker-compose.yml
+    example inline in prose rather than linking/publishing a fetchable
+    file — there is no release asset or raw file URL to point to. Both
+    inline examples use `image: espocrm/espocrm` unpinned (implicit
+    `latest`), i.e. a rolling reference, not a version-pinned one. The
+    espocrm/espocrm-installer repo also ships a
+    installation-modes/letsencrypt/nginx/docker-compose.yml, but that's a
+    Traefik/Let's Encrypt convenience wrapper, not the canonical/default
+    example, so it wasn't picked. Since no copy-pasteable file exists,
+    recording null here rather than inventing a URL to the docs prose.
+
+version_health:
+  latest_version: "10.0.3"
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    18 days since the latest release as of 2026-08-05 — well within an active
+    cadence. Release history shows near-weekly patch releases (10.0.0 →
+    10.0.3 in 15 days during July 2026), plus a parallel 9.3.x maintenance
+    line still receiving security-only fixes (9.3.10 on 2026-07-02, CVE
+    patches roughly monthly through the 9.3 series). No archival notice, no
+    EOL announcement; upstream is clearly under active, well-resourced
+    development.
+
+catalogue_fit:
+  categories: [crm, business, sales]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover CRM/sales-pipeline use cases — the
+    closest adjacent categories are automation (n8n) and productivity/notes
+    (Anytype), neither of which is a substitute for contact/deal management.
+    EspoCRM would be the catalogue's first CRM offering, giving small
+    businesses a self-hosted alternative to Salesforce/HubSpot for contacts,
+    leads, opportunities, and basic sales-pipeline tracking.
+  usefulness: high
+  usefulness_rationale: >
+    CRM is a common ask for small-business self-hosters and currently has no
+    representation in the catalogue; EspoCRM is a mature, actively maintained,
+    genuinely free (AGPL) option in that space, so the demand case is strong
+    even though it's currently blocked mechanically (see installability).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ESPOCRM_ADMIN_PASSWORD
+    - ESPOCRM_DATABASE_PASSWORD
+    - MARIADB_ROOT_PASSWORD
+  secrets_expressible_today:
+    - secret: ESPOCRM_DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MARIADB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ESPOCRM_ADMIN_PASSWORD is consumed by the container's first-boot setup
+      script as the literal plaintext password used to create the "admin"
+      login (documented default: username admin / password "password", meant
+      to be overridden). It is not compared against a stored hash — EspoCRM's
+      installer takes the raw string and sets it as the account's password.
+      `generated_from` only ever projects a one-way hash of the customer's
+      root password, never the plaintext, so there is no channel today to
+      supply this value. This is the genuine-plaintext-requirement case the
+      schema calls out as a hard blocker, distinct from an unsupported hash
+      algorithm.
+    - >
+      Gating the app behind Traefik `basic_auth` instead doesn't resolve it:
+      EspoCRM's own admin login is the thing the customer actually needs to
+      reach to use the CRM (unlike Adminer/WUD-style tools with no native
+      auth), so hiding it behind a second, unrelated basic-auth layer while
+      leaving the internal ESPOCRM_ADMIN_PASSWORD as an unreachable
+      server-generated random string would leave the customer unable to ever
+      log in to the product they installed.
+    - >
+      Full stack also requires a MariaDB/MySQL service (no official
+      SQLite/embedded-DB path) plus a `espocrm-daemon` sidecar container
+      that shares the app's volumes to run scheduled jobs — not a blocker by
+      itself (n8n and paperless-ngx already carry a DB dependency in this
+      catalogue), just adds container count. An optional `espocrm-websocket`
+      service for real-time UI updates can be omitted from an MVP recipe
+      without losing core CRM functionality.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  EspoCRM is an active, well-maintained, AGPL-3.0 CRM with an official Docker
+  image and would fill a real gap — the catalogue currently has no CRM
+  recipe. It fails the "customer-supplied secret" test today, though: the
+  container's own installer needs the admin account password as plaintext,
+  and neither `generated_from` (hash-only) nor a Traefik `basic_auth` gate
+  (wrong login entirely) can deliver that. It's a strong `build_now`
+  candidate the moment the platform gains a plaintext-password input channel
+  (or EspoCRM adds a way to set the admin password via a pre-hashed value);
+  until then it's `blocked_on_platform`, not `not_recommended`.

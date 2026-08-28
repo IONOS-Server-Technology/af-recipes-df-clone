@@ -1,0 +1,76 @@
+slug: casdoor
+name: Casdoor
+source_description: "Open-source IAM platform with SSO, OAuth 2.0, OIDC, and SAML support"
+
+upstream:
+  url: https://casdoor.org
+  repo_url: https://github.com/casdoor/casdoor
+  license: Apache-2.0
+  docker_image: casbin/casdoor
+  compose_file_url: https://github.com/casdoor/casdoor/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — the project's own "Try with Docker" guide
+    (casdoor.ai/docs/basic/try-with-docker) links directly to this file, and
+    it also lives at the repo root. It's a rolling reference to the default
+    branch (`master`), not version-pinned to a release tag. Only one variant
+    exists at this path; note it builds the casdoor service from source via
+    `build:`/Dockerfile (target: STANDARD) rather than pulling the published
+    `casbin/casdoor` image, and pairs it with a MySQL 8.0.25 db service with a
+    hardcoded MYSQL_ROOT_PASSWORD (123456) intended for local/dev use.
+
+version_health:
+  latest_version: "v3.141.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active project — releases are cut multiple times a week (v3.119.0
+    through v3.141.0 all shipped in the ~19 days before 2026-08-05, per Docker
+    Hub tag history), with the latest release dated the day before today
+    (2026-08-05). No dormancy or EOL signal of any kind.
+
+catalogue_fit:
+  categories: [security, identity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No app in the current 24-recipe catalogue provides centralized IAM/SSO —
+    Vaultwarden is a password manager, not an identity provider, and nothing
+    else touches OAuth2/OIDC/SAML. Casdoor would let a customer stand up a
+    single sign-on / auth provider that fronts their other self-hosted apps
+    (including other AF recipes), which is a distinct capability rather than
+    a variant of anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for a customer running several self-hosted services who
+    wants unified login, but it's an infrastructure/plumbing app aimed at a
+    more technical audience than most of the catalogue, and value only
+    materializes once it's wired into other apps' auth — work outside the
+    scope of a single recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASSWORD, BASIC_AUTH gate credential]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Casdoor is a single-container (casbin/casdoor, MySQL-backed) web app exposing
+  one HTTP port (8000), so it's mechanically fine behind Traefik. Its catch is
+  the admin account: fresh installs ship a fixed built-in/admin/123 login that
+  the app only lets you change via the web UI after first sign-in or via a
+  plaintext init_data.json — there's no env-var/hash channel to project a
+  per-customer password into it, so `generated_from` doesn't apply. That's not
+  a hard blocker per the schema's fixed-default-password rule, though: gating
+  the whole app behind Traefik `basic_auth` (as with Adminer) makes the weak
+  default a non-issue, and the MySQL root password can simply be server-
+  generated with no customer input needed. Recommend build_now — it's
+  installable today with no blocking issues, and the upstream project is
+  extremely active.

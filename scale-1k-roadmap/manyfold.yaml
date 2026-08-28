@@ -1,0 +1,80 @@
+slug: manyfold
+name: Manyfold
+source_description: "Self-hosted digital asset manager for 3D printing model libraries"
+
+upstream:
+  url: https://manyfold.app
+  repo_url: https://github.com/manyfold3d/manyfold
+  license: AGPL-3.0
+  docker_image: ghcr.io/manyfold3d/manyfold
+  compose_file_url: https://raw.githubusercontent.com/manyfold3d/manyfold/main/docker-compose.example.yml
+  compose_file_notes: >
+    Official file at the repo root (docker-compose.example.yml), maintained
+    by the project itself. It is a rolling reference to the default
+    branch (main), not pinned to a release tag. The project ships two
+    documented variants on manyfold.app/get-started/docker: "Standard"
+    (separate Postgres + Redis services, more control/scalability) and
+    "Solo" (single all-in-one manyfold-solo image bundling DB and Redis,
+    simplest setup). This repo file is the Standard variant — it's the
+    one actually committed to the repo as a file (matches manyfold's own
+    production-recommended Postgres setup); the Solo variant is only
+    embedded inline in the docs page HTML, with no corresponding
+    standalone file in the repo to link to directly.
+
+version_health:
+  latest_version: "v0.147.1"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v0.147.1 published 2026-07-30, ~6 days before today
+    (2026-08-05); it was itself a fast-follow security patch for a Rails
+    CVE, one day after the v0.147.0 feature release (2026-07-29). Release
+    history through June-July 2026 shows multiple releases most months
+    (v0.143.0 through v0.147.1 across June-July alone), including new
+    features (plugin system, printing integrations, model remix linking).
+    Clearly active, well-maintained, single-organization project, not
+    dormant or archived.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes address 3D-printing asset/library
+    management (indexing STL/3MF/gcode files, thumbnails, tagging, print
+    job integrations with Octoprint/Klipper/PrusaLink). Immich is the
+    closest structural sibling (self-hosted asset manager with Postgres +
+    Redis, a web UI, per-user auth) but serves photos/videos, a distinct
+    audience and file-type domain from 3D model libraries.
+  usefulness: medium
+  usefulness_rationale: >
+    Serves a real, distinct niche (makers/print-farm operators managing
+    model libraries) not covered by any existing recipe, with an
+    actively maintained upstream and a clean single-HTTP-port web UI. Likely
+    narrower demand than general-purpose recipes (photo backup, monitoring,
+    password managers) but a good differentiator for a hobbyist/maker
+    audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Manyfold is a single-HTTP-port (3214) Rails web app backed by Postgres and
+  Redis — structurally very similar to n8n/paperless-ngx/Immich, and works
+  cleanly behind Traefik on <slug>.<base_domain>. Unlike apps needing
+  root-password projection, Manyfold's admin account is created entirely
+  through its own first-visit web setup wizard (the customer who opens the
+  app sets their own email, username, and password directly in the UI,
+  the same pattern already used for Immich and Uptime Kuma) — no
+  customer-supplied secret needs to reach the container at boot, and
+  multi-user/login is only enabled via the MULTIUSER flag if desired. With
+  no blocking installability issues, an active upstream (AGPL-3.0, official
+  ghcr.io image, frequent releases into July 2026), and no catalogue
+  overlap, this is a good build_now candidate.

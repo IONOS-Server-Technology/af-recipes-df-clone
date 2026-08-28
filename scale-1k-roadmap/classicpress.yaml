@@ -1,0 +1,105 @@
+slug: classicpress
+name: ClassicPress
+source_description: "WordPress fork without Gutenberg block editor, focused on stability"
+
+upstream:
+  url: https://www.classicpress.net
+  repo_url: https://github.com/ClassicPress/ClassicPress-release
+  license: GPL-2.0-or-later
+  docker_image: classicpress/classicpress (official, e.g. php8.3-apache)
+  compose_file_url: https://raw.githubusercontent.com/ClassicPress/docker-images/main/docker-compose.yml
+  compose_file_notes: >
+    Official — published in the ClassicPress org's own docker-images repo
+    (github.com/ClassicPress/docker-images), the same repo that builds and
+    publishes the classicpress/classicpress image itself. This is a rolling
+    reference to the default branch (main), not version-pinned to a
+    release tag: it points at php8.4-apache + mysql:8.0 currently, but the
+    file's content will change as the repo is updated (e.g. when the
+    default PHP tag bumps), so any downstream copy needs to be re-checked
+    periodically rather than treated as immutable. Only one variant is
+    offered — apache + MySQL — no fpm/nginx or sqlite alternative compose
+    file exists in the repo.
+
+version_health:
+  latest_version: "2.7.0"
+  latest_release_date: "2026-03-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.7.0 shipped 2026-03-25 (view transitions, object cache option, several
+    security fixes). Prior releases: 2.6.0 on 2025-12-10, 2.5.0 on
+    2025-09-04, 2.4.1 on 2025-03-14 — a roughly quarterly cadence over the
+    last ~18 months (one longer ~6 month gap between 2.4.1 and 2.5.0). As of
+    today (2026-08-05) it has been about 4.4 months since 2.7.0, slightly
+    longer than the typical ~3 month gap but well within the range already
+    seen in this project's own history, not a red flag on its own. The
+    official Docker image (classicpress/classicpress) was last rebuilt
+    2026-06-19 across all PHP variants (7.4-8.5), showing an actively
+    maintained build pipeline independent of core release cadence. No
+    archival notice, no EOL announcement; v2.0 was a 2023 hard fork of the
+    WordPress 6.2 codebase and development has continued independently
+    since.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose CMS or website
+    builder — the closest neighbors (Opengist for snippets, Bookstack-style
+    wikis are absent too) don't cover "run a full website/blog." ClassicPress
+    fills that gap while explicitly avoiding the Gutenberg block editor,
+    appealing to users/agencies who want the classic WordPress
+    TinyMCE-editing experience, lighter weight, and a smaller
+    plugin/theme-compatibility surface than mainline WordPress.
+  usefulness: high
+  usefulness_rationale: >
+    General-purpose website/CMS hosting is one of the most commonly
+    requested self-hosted use cases and the catalogue currently has no
+    entry for it at all. ClassicPress's WordPress-compatible plugin/theme
+    ecosystem plus "stability over novelty" positioning broadens appeal
+    beyond just Gutenberg-averse users.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - db_password
+    - admin_password
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: admin_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ClassicPress inherits WordPress's classic install flow: on first
+      visit, wp-admin/install.php presents a browser form where a human
+      picks the site title, admin username, admin password, and admin
+      email — there is no env var on the official classicpress/classicpress
+      image (built on the standard WORDPRESS_DB_HOST/USER/PASSWORD/NAME
+      config pattern from the official WordPress image) that pre-provisions
+      this account. This is not a structural blocker the way an external
+      API key would be — the admin credential can be entirely
+      server-generated and never customer-supplied, same pattern as
+      Gitea's GITEA_ADMIN_PASSWORD in this catalogue — but the base image
+      does not bundle wp-cli or any other non-interactive installer, so
+      install.sh would need to either vendor wp-cli into the container or
+      script a direct POST to install.php with the generated credentials.
+      That's real recipe-engineering work beyond typical env-var wiring,
+      not a missing input channel, so it doesn't block installable_today.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ClassicPress is an actively maintained (2.7.0, 2026-03-25; official Docker
+  image rebuilt as recently as 2026-06-19), GPL-2.0 WordPress fork that fills
+  a real gap — the catalogue has no general-purpose CMS/website builder
+  today. It's a single public HTTP port behind Traefik plus a MariaDB
+  sidecar, structurally close to the Gitea recipe (web app + DB + a
+  server-generated admin credential shown to the customer post-provision,
+  never customer-supplied). The one caveat is that automating the admin
+  account past WordPress's browser-based install wizard needs custom
+  scripting (wp-cli or a scripted install.php POST) since the base image
+  doesn't provide that out of the box — an engineering task, not a platform
+  blocker. Recommend build_now.

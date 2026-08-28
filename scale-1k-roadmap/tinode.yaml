@@ -1,0 +1,132 @@
+slug: tinode
+name: Tinode
+source_description: "Open-source instant messaging server with mobile and web clients and group chats"
+
+upstream:
+  url: https://tinode.co/
+  repo_url: https://github.com/tinode/chat
+  license: GPL-3.0 (backend server); Apache-2.0 (all client SDKs/apps)
+  docker_image: tinode/tinode-mysql (also published as tinode-postgres, tinode-mongodb, tinode-rethinkdb variants per database backend)
+  compose_file_url: https://raw.githubusercontent.com/tinode/chat/master/docker/docker-compose/single-instance.yml
+  compose_file_notes: >
+    Official — lives in the tinode/chat repo itself under
+    docker/docker-compose/, with its own README.md in that directory
+    documenting usage (docker-compose -f single-instance.yml up -d).
+    Not linked from the top-level README or INSTALL.md, but it is a
+    first-party file the project maintains and updates, not a
+    community fork. The link is a rolling reference to the `master`
+    branch (no version-pinned release-asset equivalent exists for this
+    file), so it will track whatever the default branch currently has.
+    Picked single-instance.yml (single Tinode server + exporter + one
+    db container) over cluster.yml (3-node cluster) since the single-
+    instance variant matches this recipe's one-app-container-plus-one-
+    db-container shape. Within single-instance, picked the MySQL
+    default (single-instance.yml alone, image tinode/tinode:latest)
+    over the PostgreSQL/MongoDB/RethinkDB variants, which require
+    layering an additional override file
+    (single-instance.postgres.yml / .mongodb.yml / .rethinkdb.yml) on
+    top of it — MySQL is what running single-instance.yml alone gives
+    you, with no override needed.
+
+version_health:
+  latest_version: "v0.25.3"
+  latest_release_date: "2026-07-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.25.3 shipped 2026-07-04, about a month before this analysis
+    (2026-08-05). Recent history shows a steady monthly-ish cadence:
+    v0.24.6 (2025-10-10), v0.24.7 (2025-11-07), v0.25.0 (2025-12-21),
+    v0.25.1 (2025-12-26), v0.25.2 (2026-03-03), v0.25.3 (2026-07-04).
+    The main branch had commits as recently as 2026-08-01. Matching Docker
+    Hub tags exist up to 0.25.3, pushed about a month ago. Clearly active,
+    not maintenance-only, archived, or EOL — though upstream itself
+    describes the project as "beta-quality: feature-complete and stable
+    but probably with a few bugs or missing features," which is a product-
+    maturity caveat distinct from release-cadence health.
+
+catalogue_fit:
+  categories: [communication, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers chat/messaging, so
+    this would open a new category rather than duplicate anything. Against
+    the other messaging candidates already analysed under apps-gaps/
+    (apps-gaps/matrix-synapse.yaml, apps-gaps/rocketchat.yaml,
+    apps-gaps/mattermost.yaml), Tinode is architecturally closer to
+    Rocket.Chat/Mattermost — a single self-contained server image with its
+    own bundled web client — than to Matrix Synapse, which needs a
+    separate client like Element. Structurally closest to recipes/n8n and
+    recipes/paperless-ngx (single app container + one dedicated database
+    container behind a single Traefik hostname).
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted chat/messaging is a recurring self-hosting request and
+    would be the first entry in a "communication" category. Tinode is
+    less well-known and less feature-complete than Rocket.Chat or Matrix
+    (upstream self-describes as beta-quality), and its web client is more
+    basic, so it is a reasonable but not standout option — usefulness is
+    capped at medium relative to the stronger Rocket.Chat/Synapse
+    candidates already in apps-gaps/, pending which of these the catalogue
+    actually prioritizes for the "communication" slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Tinode has no admin/root login of its own that can be provisioned
+      via config or environment variable at boot. Unlike Rocket.Chat's
+      `ADMIN_PASS` or Synapse's `register_new_matrix_user` script, there
+      is no first-run mechanism to seed a privileged account at all —
+      `root` access is granted post-deployment by directly editing the
+      database (pre-v0.18) or via the `tinode-db` init tool / manual
+      `tn-cli` commands run against an already-running server, none of
+      which take a customer-supplied value through `/compose`. There is
+      therefore no `type: password` parameter for `generated_from:
+      "<algo>:ROOT_PASSWORD"` to project into, and per SCHEMA.md's
+      decision table a missing provisioning channel entirely (not just a
+      plaintext-vs-hash mismatch) is a structural blocker.
+    - >
+      Tinode's default auth config (`docker/tinode/config.template` /
+      `server/tinode.conf`) has no toggle to disable open self-registration
+      — any visitor who reaches the deployed domain can create a new
+      account via the bundled web client or any Tinode mobile client.
+      Combined with the lack of an admin credential, this means whoever
+      reaches the domain first has no more or less access than the
+      customer — there is no privileged account to protect and no way to
+      close the door after boot.
+    - >
+      A Traefik `basic_auth: true` gate is not a workable substitute for
+      the same reason given in apps-gaps/rocketchat.yaml and
+      apps-gaps/mattermost.yaml: Tinode is inherently multi-user chat
+      software served over one HTTP port carrying both the web client and
+      the JSON/WebSocket (or gRPC) API every client — including the
+      customer's own contacts — connects through. A permanent basic-auth
+      gate over that port would block every other participant from ever
+      reaching the chat, not just protect an admin panel, and there is no
+      documented way to lift the gate for regular users while keeping any
+      admin surface protected.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Tinode is an actively developed (monthly-ish releases, v0.25.3 on
+  2026-07-04) GPL-3.0 instant-messaging server with its own bundled web
+  client, fitting cleanly behind a single Traefik hostname as one app
+  container plus one database container (MySQL/Postgres/MongoDB). It would
+  open a currently-empty "communication" category with no overlap against
+  the existing 24 recipes, but usefulness is only medium given upstream's
+  own beta-quality framing and the stronger Rocket.Chat/Synapse candidates
+  already in apps-gaps/. It is not installable today: Tinode has no
+  first-boot admin-provisioning channel at all (root access is granted
+  post-deployment via DB edits or CLI tools, not a config/env value),
+  self-registration cannot be disabled, and a Traefik basic-auth gate can't
+  substitute without blocking every legitimate chat participant on the same
+  port. Recommend `blocked_on_platform`, revisit alongside
+  apps-gaps/rocketchat.yaml and apps-gaps/matrix-synapse.yaml if the
+  platform ever gains a way to seed a first-boot admin credential for
+  chat-style apps.

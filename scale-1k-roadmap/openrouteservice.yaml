@@ -1,0 +1,112 @@
+slug: openrouteservice
+name: openrouteservice
+source_description: "Open-source routing API for directions, isochrones, and matrix calculations"
+
+upstream:
+  url: https://openrouteservice.org
+  repo_url: https://github.com/GIScience/openrouteservice
+  license: GPL-3.0 (repo declares GPL-3.0; docs also reference LGPL-3.0 for some client libraries — core service is GPL-3.0)
+  docker_image: heigit/openrouteservice
+  compose_file_url: https://raw.githubusercontent.com/GIScience/openrouteservice/main/docker-compose.yml
+  compose_file_notes: >
+    Official, repo-root docker-compose.yml, self-published by the project
+    (GIScience/HeiGIT) — its own header comment points to the docs page
+    https://giscience.github.io/openrouteservice/run-instance/running-with-docker
+    as the usage guide for this exact file. Rolling reference to the
+    default branch (main), not version-pinned; confirmed the same path
+    also resolves at the latest tag (v9.10.0) via
+    github.com/GIScience/openrouteservice/blob/v9.10.0/docker-compose.yml,
+    so a version-pinned raw link is available too if pinning is preferred
+    later. Only one variant is shipped — the file builds the ors-app image
+    from source by default (build: context/target, with image: local/...)
+    rather than pulling the published heigit/openrouteservice image; the
+    commented-out ors-config.env/volumes lines are optional configuration
+    toggles within the same file, not separate compose variants.
+
+version_health:
+  latest_version: v9.10.0
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via GitHub releases API (not recalled): v9.10.0 published
+    2026-07-28, 8 days before today (2026-08-05). Prior releases show a
+    steady ~monthly cadence over the last year: v9.9.0 (2026-04-29), v9.8.0
+    (2026-03-30), v9.7.1 (2026-02-27), v9.7.0 (2026-01-30), v9.6.0
+    (2025-12-17), v9.5.1 (2025-11-14), v9.5.0 (2025-10-31), v9.4.0
+    (2025-09-30). Repo is not archived. Maintained by HeiGIT (Heidelberg
+    Institute for Geoinformation Technology), an active academic/research
+    org. No signs of slowing or EOL.
+
+catalogue_fit:
+  categories: [geospatial, devtools, api]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers geospatial routing/directions/isochrone/matrix
+    calculation. This would be a genuinely new category for the catalogue —
+    useful to customers building location-based apps who want a
+    self-hosted alternative to Google/Mapbox/HERE routing APIs. Closest
+    conceptual sibling in spirit is n8n/Gitea-style "developer
+    infrastructure" rather than any current app.
+  usefulness: medium
+  usefulness_rationale: >
+    High value in principle (novel category, active upstream, genuine
+    self-host motivation — avoiding per-request routing API costs/quotas)
+    but usefulness out of the box is constrained by the OSM-extract problem
+    below: a generic recipe can only ship with one fixed, small default
+    region (the bundled Heidelberg test extract), which is not useful for
+    most customers' actual routing needs, and there is no mechanism today
+    for a customer to choose their own region at install time.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      openrouteservice has no login or auth of its own — the API is fully
+      open once reachable, so per SCHEMA.md this needs a mandatory Traefik
+      basic_auth gate (same pattern already accepted-as-interim for wud).
+      That gate credential is expressible today via generated_from/basic_auth,
+      so this alone would not block installable_today.
+    - >
+      Real-world usefulness depends on the app having a proper OSM data
+      extract (.pbf) for the customer's region of interest loaded at
+      startup, plus enough RAM/disk to build the routing graph from it
+      (default heap is 1-2GB, and can be much larger for big regions/many
+      profiles). The upstream image ships with only a small bundled
+      Heidelberg test extract by default. There is no channel today for a
+      customer to supply an arbitrary region/extract choice at install
+      time (not a password-shaped secret, but the same class of problem:
+      /compose has no field for a customer-chosen value). A recipe could
+      ship with one fixed default extract (e.g. all of Germany) baked in,
+      but that is a one-size-fits-nobody-perfectly compromise, not a real
+      per-customer configuration.
+    - >
+      Resource floor is meaningfully higher than most current recipes: JVM
+      heap (1-2GB by default, more for larger extracts) plus graph-build
+      time and disk for the routing graphs/elevation cache — worth
+      flagging for app_min_ram_mb/app_min_disk_mb sizing if this is ever
+      built.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  openrouteservice is an active, well-maintained, single-container
+  geospatial routing API (directions/isochrones/matrix) with no equivalent
+  in the current 24-recipe catalogue and a genuine self-host motivation.
+  It has no built-in login, so it needs a mandatory Traefik basic_auth
+  gate — mechanically expressible today via the existing generated_from/
+  basic_auth channel, so it is not structurally blocked. The real caveat is
+  that it ships no web UI (API-only) and its practical usefulness depends
+  on loading an OSM extract sized to the customer's actual region of
+  interest, which the current /compose mechanism cannot let a customer
+  choose at install time — a recipe would have to bake in one fixed
+  default extract, limiting who it's actually useful for out of the box.
+  Recommend build_with_caveats: technically installable now, but flag the
+  fixed-extract limitation and the elevated resource floor before
+  prioritizing it.

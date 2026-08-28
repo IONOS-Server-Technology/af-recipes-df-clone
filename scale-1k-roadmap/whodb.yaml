@@ -1,0 +1,79 @@
+slug: whodb
+name: WhoDB
+source_description: "Web-based database explorer for Postgres, MySQL, MongoDB, Redis and more"
+
+upstream:
+  url: https://whodb.com/
+  repo_url: https://github.com/clidey/whodb
+  license: Apache-2.0
+  docker_image: clidey/whodb
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose.yaml/.yml file is published by the
+    project. docs.whodb.com/installation shows a "Docker (Recommended)"
+    section with an inline docker-compose example (clidey/whodb:latest,
+    port 8080, WHODB_ENCRYPTION_KEY, whodb-data volume) embedded directly
+    in the docs page prose, not linked as a downloadable file or repo asset.
+    The GitHub repo (github.com/clidey/whodb) contains only
+    dev/docker-compose.yml and dev/docker-compose.screenshot.yaml, which
+    spin up e2e test databases (Postgres, MySQL, MongoDB, etc.) and a
+    screenshot-generation Postgres fixture for CI/local dev — neither runs
+    the WhoDB app container itself, so neither qualifies as an install
+    artifact. README.md's own docker instructions are a bare `docker run`
+    one-liner, deferring to the docs site for compose.
+
+version_health:
+  latest_version: "0.123.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly release cadence (0.116.0 through 0.123.0 across the
+    two months prior to 2026-08-05, latest tag only two days old as of
+    today). Clearly active development, not maintenance-only or dormant.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [adminer]
+  differentiation: >
+    Same niche as apps-gaps/adminer.yaml (Adminer): a generic browser-based
+    client for a customer's own database rather than a bundled app-specific
+    DB. WhoDB is the newer, actively-developed alternative — GoLang/React
+    stack, <50MB image, broader native support (Postgres, MySQL, MariaDB,
+    SQLite, MongoDB, Redis, Elasticsearch, ClickHouse vs. Adminer's
+    SQL-family focus), schema visualization graphs, and an MCP server for
+    AI assistants. Functionally it's a straight upgrade path over Adminer
+    rather than a distinct capability the catalogue lacks.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable for the same technical/developer audience Adminer targets —
+    self-hosters who run their own DB and want a management UI without
+    provisioning one by hand. Niche relative to the broader catalogue, and
+    largely redundant with Adminer if both ship; the case for adding it is
+    "better tool for the same job" rather than "new job."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  WhoDB is a single-container, single-HTTP-port (8080) Go/React app with no
+  built-in admin login of its own — like Adminer, its "login" is a
+  per-session database connection form the end user fills in interactively,
+  not a secret af-api needs to provision. That makes it directly
+  installable today behind a domain + Traefik basic_auth:true gate, with
+  the basic-auth password projected from the customer's root password via
+  generated_from (same pattern as n8n/WUD/Adminer). Upstream is actively
+  maintained with a weekly release cadence, so version health is a
+  non-issue. The main open question is prioritization, not mechanics: it
+  functionally overlaps with apps-gaps/adminer.yaml and the catalogue
+  likely only needs one generic DB-browser recipe, though nothing prevents
+  shipping both per this repo's stance on overlapping candidates.

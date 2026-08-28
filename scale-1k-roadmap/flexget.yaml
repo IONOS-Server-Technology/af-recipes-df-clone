@@ -1,0 +1,102 @@
+slug: flexget
+name: FlexGet
+source_description: "YAML-driven automation tool for downloading media from RSS, torrents, and Usenet"
+
+upstream:
+  url: https://flexget.com
+  repo_url: https://github.com/Flexget/Flexget
+  license: MIT
+  docker_image: flexget/flexget
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in the project's own
+    docs or repos. The project repo (github.com/Flexget/Flexget) has a
+    Dockerfile at its root but no docker-compose.yaml/.yml alongside it.
+    The official wiki's install page (flexget.com/Install, sourced from
+    github.com/Flexget/wiki, InstallWizard/Docker.md) does not provide a
+    compose file either — it only links to third-party Docker Hub images
+    (wiserain/flexget, cpoppema/docker-flexget, cptactionhank/flexget,
+    ksurl/flexget) built and maintained by unrelated individuals, and its
+    SynologyNAS/Docker.md sub-page walks through a bare `docker build`
+    from a hand-written Dockerfile, not `docker compose`. None of these
+    third-party images or instructions are adopted here since they are
+    not official.
+
+version_health:
+  latest_version: "3.20.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Core project releases roughly weekly (v3.19.30 2026-07-20, v3.19.31
+    2026-07-27, v3.19.32 2026-08-03, v3.20.0 2026-08-04, v3.20.1 2026-08-05 —
+    same day as this analysis). The separate `Flexget/webui` repo (the React
+    web UI FlexGet used to ship as its own project) is stale — last release
+    2023-08-19, last push 2024-01-03 — but the current Dockerfile on
+    `develop` bundles a web UI build step (`scripts/bundle_webui.py`) directly
+    into the main repo's image build, so the UI itself is not abandoned, just
+    no longer versioned as a standalone repo.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers RSS/torrent/Usenet
+    media-download automation (no Sonarr/Radarr/Prowlarr/NZBGet equivalent
+    present). FlexGet would be a genuinely new category for customers running
+    a self-hosted media pipeline, complementing rather than duplicating any
+    existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists among self-hosted media users, but FlexGet is a
+    config-file-driven automation engine, not a polished consumer app — the
+    web UI is a thin secondary interface bundled mainly for monitoring;
+    real usage requires hand-writing a YAML task config (RSS feeds, torrent
+    client wiring, series matching) that no customer-driven setup flow here
+    can generate. Value is real but the onboarding gap is large compared to
+    e.g. Vaultwarden or Uptime Kuma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WEBUI_ACCESS_GATE]
+  secrets_expressible_today:
+    - secret: WEBUI_ACCESS_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      FlexGet's own web UI login is set via the `flexget web passwd
+      <plaintext-password>` CLI command (hashed internally by FlexGet, not by
+      us), or a `web_server.web_ui` config block — there is no env var or
+      config field that accepts a pre-computed argon2/bcrypt hash, so
+      `generated_from: "<algo>:ROOT_PASSWORD"` cannot target it. Only route
+      available is gating the whole app behind Traefik `basic_auth` and
+      leaving FlexGet's own web UI login unset/default, per SCHEMA.md's
+      "no login of its own, gate it" case.
+    - >
+      The image ships with no default `config.yml` (ENTRYPOINT is the bare
+      `flexget` CLI, `VOLUME /config` is empty) — first boot requires a
+      task-free but valid YAML config plus `web_server: {web_ui: yes}` to
+      even start the daemon and serve the UI. install.sh can template a
+      minimal empty-tasks config, but the app is functionally useless to a
+      customer until they hand-author real `tasks:` YAML (RSS URLs, torrent
+      client connection, series/movie matching rules) — there is no input
+      channel for that today, and it isn't a "secret" so it doesn't block
+      installable_today, but it does mean the shipped app boots to an empty
+      shell.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  FlexGet is an actively maintained (weekly-release), MIT-licensed, single-
+  container app with an official Docker image and a bundled web UI reachable
+  on one HTTP port — mechanically it clears our reverse-proxy and Traefik
+  basic_auth gating bar and would not duplicate anything in the current
+  catalogue. The caveat is UX, not platform capability: FlexGet's own login
+  can't be hash-projected (only plaintext CLI-set), so it would ship gated
+  purely by Traefik basic_auth, and even then the app boots to an empty
+  automation engine that requires the customer to hand-write YAML task
+  config before it does anything useful — no on-ramp our setup flow can
+  generate. Buildable today, but expect low activation without a companion
+  onboarding doc or template task library.

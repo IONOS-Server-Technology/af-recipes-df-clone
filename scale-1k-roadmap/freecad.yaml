@@ -1,0 +1,88 @@
+slug: freecad
+name: FreeCAD
+source_description: "Browser-accessible parametric 3D CAD modeler for engineering and design"
+
+upstream:
+  url: https://www.freecad.org/
+  repo_url: https://github.com/FreeCAD/FreeCAD
+  license: LGPL-2.0-or-later
+  docker_image: lscr.io/linuxserver/freecad (community/LinuxServer.io KasmVNC webtop wrapper; no official image from the FreeCAD project itself, which does not ship Docker images or a browser UI on its own)
+  compose_file_url: null
+  compose_file_notes: >
+    No official compose file exists. The FreeCAD project's own repository
+    (github.com/FreeCAD/FreeCAD) has no Docker, docker-compose, or
+    containerization support at all — it only documents native
+    build/install instructions. The only docker-compose.yml that runs
+    FreeCAD in a browser is LinuxServer.io's community wrapper, documented
+    at docs.linuxserver.io/images/docker-freecad/ (rolling reference to the
+    `:latest` tag, not version-pinned) — but LinuxServer.io is not the
+    FreeCAD project, so per the "official only" rule this is not adopted
+    here even though it's the same image already recorded in docker_image
+    above.
+
+version_health:
+  latest_version: "1.1.3"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    FreeCAD 1.1.3 shipped 2026-07-25, about 11 days before this analysis
+    (2026-08-05); 1.1 itself released 2026-03-25 with several point releases
+    since. Weekly development builds continue in parallel. Actively
+    developed core project, no dormancy signal. The linuxserver/docker-freecad
+    wrapper (the actual thing this recipe would run) also tracks upstream
+    releases and has ongoing GitHub Actions activity, so both layers are
+    healthy.
+
+catalogue_fit:
+  categories: [productivity, engineering, design]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches CAD/engineering
+    design; this would be a genuinely new category. FreeCAD is a real,
+    well-known open-source 3D parametric modeler, so there is legitimate
+    customer demand for a "CAD workstation in a browser" VPS use case that
+    guacamole (generic remote-desktop gateway) only partially covers —
+    FreeCAD-via-LinuxServer ships the app pre-installed and ready, no
+    separate desktop/VM setup needed.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for hobbyists/engineers wanting a persistent, anywhere-
+    accessible CAD workstation, but it's a heavier, more niche single-user
+    tool (needs real CPU/RAM for a full desktop session, not just a service)
+    compared to the rest of the catalogue, and the "browser-accessible" part
+    is a third-party KasmVNC wrapper rather than a feature of FreeCAD itself.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  FreeCAD itself is an actively maintained, real open-source CAD tool with
+  no overlap in our current catalogue, but "browser-accessible" here means
+  wrapping it in LinuxServer.io's KasmVNC/Selkies webtop image, not a native
+  FreeCAD web feature. Corrected port research: 3000 (HTTP) and 3001 (HTTPS)
+  are the same desktop-GUI web interface exposed twice, not two required
+  services — Traefik should terminate TLS and front the single HTTP port
+  3000, the same one-HTTP-port shape as recipes/guacamole. The image's
+  separate websocket data channel (SELKIES_PORT/CUSTOM_WS_PORT, default
+  8082) is multiplexed over that same HTTP(S) connection via a standard
+  WebSocket upgrade — LinuxServer's own reverse-proxy guidance for this
+  webtop base image (SWAG/Apache examples) proxies everything through one
+  port with Upgrade-header handling, never exposing 8082 separately.
+  Traefik supports WebSocket upgrades on a normal HTTP router out of the
+  box, so no extra port or special routing is needed. The image ships with
+  no built-in auth by default (its optional CUSTOM_USER/PASSWORD env vars
+  are documented by LinuxServer as suitable only for a trusted local
+  network, not internet exposure), so it needs a mandatory Traefik
+  basic_auth gate — expressible today via generated_from projection of the
+  customer's root password, same pattern as Adminer/WUD/n8n. With the port
+  question resolved, this is a straightforward build_now.

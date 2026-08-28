@@ -1,0 +1,95 @@
+slug: qbittorrent
+name: qBittorrent
+source_description: "qBittorrent is a media BitTorrent client for automated downloads."
+
+upstream:
+  url: https://www.qbittorrent.org
+  repo_url: https://github.com/qbittorrent/qBittorrent
+  license: GPL-2.0
+  docker_image: linuxserver/qbittorrent (pin to a version tag, e.g. 5.2.3_v2.0.13-ls469 — do not follow upstream compose examples that use :latest)
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. qBittorrent is upstream a native
+    Qt/C++ desktop application (github.com/qbittorrent/qBittorrent) — the
+    repo root, its README, and qbittorrent.org contain no Dockerfile,
+    docker-compose file, or any Docker-related install instructions
+    whatsoever; the project does not publish or maintain a Docker image
+    itself. The image this recipe uses, linuxserver/qbittorrent, is a
+    community/third-party container (maintained by linuxserver.io, not by
+    the qBittorrent project) and any compose examples on linuxserver.io's
+    own docs are that third party's, not upstream qBittorrent's — per this
+    task's definition of "official," those are not adopted here.
+
+version_health:
+  latest_version: "5.2.3"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the latest stable release (5.2.3, 2026-07-07)
+    shipped under 4 weeks ago. The 5.2.x line has been landing on a tight
+    ~3-week cadence: 5.2.0 (2026-05-03) → 5.2.1 (2026-05-25) → 5.2.2
+    (2026-06-16) → 5.2.3 (2026-07-07). This is the reference/canonical
+    qBittorrent project (not a fork), actively maintained by upstream and
+    mirrored promptly by linuxserver.io's docker-qbittorrent image, which
+    already has a 5.2.3-based tag published. No EOL, archival, or
+    maintenance-only signals found.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No BitTorrent/download-client recipe exists in the current 24-recipe
+    catalogue today. qBittorrent's WebUI (port 8080 by default) is a single
+    HTTP endpoint and works behind Traefik the same way Syncthing's web UI
+    does, even though — like Syncthing — the app also needs a raw
+    non-HTTP port open for actual protocol traffic (inbound torrent peer
+    connections on 6881/tcp+udp). That precedent (Syncthing already ships
+    with public non-HTTP ports alongside its web UI) means the raw-port
+    requirement here is not a novel problem for the platform. Note: a
+    separate gap-analysis candidate for Deluge (`apps-gaps/deluge.yaml`)
+    covers the same "BitTorrent client with web UI" niche; per repo
+    convention, overlap between candidates is not itself a reason to reject
+    either — qBittorrent is evaluated here on its own merits.
+  usefulness: high
+  usefulness_rationale: >
+    BitTorrent clients are one of the most frequently requested categories
+    of self-hosted app, and qBittorrent is the single most popular
+    open-source client (larger install base and more active development
+    than Deluge or Transmission), with a strong, actively-maintained
+    upstream and a well-supported linuxserver.io image. Usefulness is not
+    capped by release-cadence concerns the way Deluge's is, since
+    qBittorrent ships frequent point releases. It would pair well with a
+    future media-automation grouping (Sonarr/Radarr-style *arr recipes,
+    which we also don't carry) but stands on its own as a complete,
+    high-demand app today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  qBittorrent (via the linuxserver/qbittorrent image) is a single-container
+  app with a web UI on one HTTP port plus a raw torrent-protocol port
+  (6881/tcp+udp) that must stay open regardless of Traefik — the same
+  pattern already accepted for Syncthing. The image has no environment
+  variable for setting WebUI credentials at all: it generates a random
+  temporary admin password on every startup and prints it to the container
+  log, to be changed manually via the web UI afterward. Since there is no
+  first-boot channel to project a customer password into the app's own
+  login, the fix is the same pattern used elsewhere in this catalogue for
+  apps with no configurable login of their own: a Traefik `basic_auth` gate
+  projected from the root-password hash in front of the app (IF-1312),
+  which also sidesteps the awkward log-scraping needed to retrieve
+  qBittorrent's own rotating temp password. With that gate this is
+  installable today, and — unlike Deluge — upstream's active, frequent
+  release cadence means routine security/point-release tracking should be
+  low-effort. Recommended as `build_now`.

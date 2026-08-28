@@ -1,0 +1,117 @@
+slug: shinyproxy
+name: ShinyProxy
+source_description: "Open-source server for hosting R Shiny, Dash, and Streamlit apps with auth"
+
+upstream:
+  url: https://www.shinyproxy.io
+  repo_url: https://github.com/openanalytics/shinyproxy
+  license: Apache-2.0
+  docker_image: "openanalytics/shinyproxy:3.2.4 (vendor-published, self-described 'official ShinyProxy Docker image'; Dockerfile in openanalytics/shinyproxy-docker)"
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in Open Analytics'
+    ShinyProxy tooling. The main openanalytics/shinyproxy repo ships only
+    a pom.xml/jar build, no compose or Dockerfile. The docs site
+    (shinyproxy.io/documentation/deployment/) documents Docker deployment
+    as a bare `docker run`/Dockerfile-based container on a host, plus
+    Docker Swarm, Kubernetes, and AWS ECS — and explicitly steers
+    production Docker/K8s users toward the separate "ShinyProxy Operator"
+    rather than a compose file. The companion
+    openanalytics/shinyproxy-config-examples repo (official, same org) has
+    a `02-containerized-docker-engine` example directory, but it contains
+    only a Dockerfile, README, and application.yml — still no
+    docker-compose.yaml/yml. No community compose file was adopted either,
+    per instructions, since none was found to even consider.
+
+version_health:
+  latest_version: "v3.2.4"
+  latest_release_date: "2026-04-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.2.4 shipped 2026-04-30, ~3.2 months before today (2026-08-05), and is
+    a security release rolling up dependency CVE fixes. Recent history:
+    3.2.3 (2026-01-15), 3.2.2 (2025-11-12), 3.2.1 (2025-10-28), 3.2.0
+    (2025-07-07) — four releases in the ~10 months to 3.2.4, so the current
+    cadence is healthy. Worth noting for context: there was a ~13-month
+    quiet stretch between 3.1.1 (2024-06-20) and 3.2.0 (2025-07-07), so the
+    project is not on a metronome; it moves in bursts. Repo is not archived
+    (last push 2026-05-15, 69 open issues actively triaged), and the
+    Docker Hub image was rebuilt as recently as 2026-08-02. Commercially
+    backed by Open Analytics (Belgium), who sell support/enterprise
+    services around it — no EOL or maintenance-only signal. Upstream is
+    steering Docker/Kubernetes users toward the "ShinyProxy Operator" for
+    production, but the plain containerised deployment is still documented
+    and the official image is still published per-release.
+
+catalogue_fit:
+  categories: [data-science, analytics, app-hosting, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue hosts a customer's own data
+    apps — ShinyProxy would be a new category. It is a Java/Spring Boot
+    front door that serves a catalogue page of Shiny/Dash/Streamlit apps
+    and spawns a fresh container per user session for each one, giving
+    per-session isolation and lifecycle management the customer would
+    otherwise hand-roll. Its container-orchestration angle brushes against
+    `portainer` (Docker management UI) and `runtipi` (self-hosting app
+    launcher), but neither serves R/Python analytical apps and neither is
+    a substitute. Single HTTP port (8080) with WebSocket traffic, which
+    Traefik proxies natively, so it fronts cleanly on
+    `shinyproxy.<base_domain>` like the rest of the catalogue — no raw
+    ports or extra protocols leave the host.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely valuable to R/Python data-science teams, and the best-known
+    open-source answer to Posit Connect for self-hosters — but the
+    addressable customer is narrow: ShinyProxy ships no content of its
+    own, so it only pays off for someone who already has (or will build)
+    containerised Shiny/Dash/Streamlit app images. Worse for our
+    mechanism, there is no channel to supply those app specs at
+    `/compose` time, so the recipe would land as a working ShinyProxy
+    serving only upstream's demo apps, with the real work — build/pull
+    your images, edit `/opt/shinyproxy/application.yml`, restart — done by
+    the customer over SSH afterwards. Also resource-hungry relative to
+    most recipes: a JVM (~238 MB image) plus one ~450 MB R container per
+    active session.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ShinyProxy is an actively maintained, Apache-2.0, commercially backed
+  project (v3.2.4, 2026-04-30, four releases in the preceding ~10 months)
+  with an official vendor-published Docker image and a single
+  reverse-proxy-friendly HTTP port (8080, WebSockets — fine behind
+  Traefik). It is installable today, but only in one shape: our recipe
+  would set `proxy.authentication: none` in the application.yml we author
+  and gate the whole app behind a Traefik `basic_auth` middleware fed from
+  the root-password projection. ShinyProxy's own `simple` auth is not
+  usable as the customer-facing login — it stores passwords as plaintext
+  in application.yml with no hash-accepting form, so `generated_from`
+  (which only ever emits a hash) cannot feed it, and its LDAP/OIDC/SAML
+  modes all need external registration with no input channel today. That
+  design choice costs ShinyProxy one of its headline features: with
+  `authentication: none` there are no per-user accounts, groups, or
+  admin panel, so the install is effectively single-tenant behind one
+  shared basic-auth credential. Two further caveats for whoever builds
+  it: the container needs `/var/run/docker.sock` mounted plus `group_add`
+  with the host's docker GID resolved at install time (root-equivalent
+  access, though `portainer`, `runtipi`, and `wud` already do this), with
+  `proxy.docker.internal-networking: true` and a shared
+  `container-network` so spawned app containers are reachable; and the
+  demo app image `openanalytics/shinyproxy-demo` publishes only a
+  `latest` tag (last pushed 2025-07-08), so satisfying the pinned-tag
+  rule means pinning it by digest. Recommend `build_now`: the mechanism
+  is fully installable today with no blocking issues, even though the
+  authentication tradeoff and bring-your-own-apps nature described above
+  are worth keeping in mind when scheduling build priority.

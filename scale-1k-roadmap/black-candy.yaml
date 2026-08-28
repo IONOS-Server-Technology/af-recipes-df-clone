@@ -1,0 +1,92 @@
+slug: black-candy
+name: Black Candy
+source_description: "Self-hosted music streaming server with web player and mobile apps"
+
+upstream:
+  url: https://blackcandy.org
+  repo_url: https://github.com/blackcandy-org/blackcandy
+  license: MIT
+  docker_image: ghcr.io/blackcandy-org/blackcandy:3.2.0
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose.yaml/.yml file exists anywhere in the
+    blackcandy-org/blackcandy repo (checked the full repo tree, root and
+    docker/deploy/contrib-style directories) or as a repo/release asset.
+    The README's "Example" section under Configuration embeds a
+    docker-compose.yml snippet inline in Markdown (single `app` service,
+    ghcr.io/blackcandy-org/blackcandy:latest image, SQLite/storage_data
+    volume), but this is prose documentation, not a file the project
+    publishes or updates as an artifact — there is nothing to link to
+    that the project itself maintains as a standalone compose file.
+
+version_health:
+  latest_version: "3.2.0"
+  latest_release_date: "2026-05-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.2.0 shipped 2026-05-07 (~3 months ago as of 2026-08-05), following
+    v3.1.0 (2025-06-18) and v3.0.0 (2024-05-31) — a roughly yearly major
+    cadence, but the org is also actively pushing an `edge` container image
+    (published within the last day per GHCR) and maintains a separate
+    companion mobile-app repo (blackcandy-org/app) with its own release
+    train, both signs of ongoing active development rather than
+    maintenance-only. No archival notice on the repo.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal music streaming —
+    Immich is the closest existing recipe but is photo/video-focused, not
+    audio. Black Candy gives a customer a self-hosted alternative to
+    Spotify/Apple Music for their own audio library (mp3/m4a/ogg/opus/flac/
+    wav), with official web player and mobile apps. Genuinely new category.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal music streaming has a real self-hoster audience (Plex/
+    Jellyfin/Navidrome-adjacent use case) and the official mobile apps make
+    it more approachable than most audio-server alternatives, but it's a
+    single-purpose niche tool next to broader-appeal recipes like
+    Vaultwarden or n8n, and competes with better-known alternatives
+    (Navidrome, Jellyfin) a customer might already expect.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, SECRET_KEY_BASE]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Black Candy seeds a single fixed admin account on first boot
+      (email admin@admin.com, password foobar) with no environment
+      variable or setup-flow input to set a different email/password at
+      launch — it's a hardcoded database seed, not config the customer can
+      project a value into. Per SCHEMA.md this is not a hard blocker on its
+      own: the fix is a mandatory Traefik basic_auth:true gate in front of
+      the app (same treatment as Adminer), with the gate's password
+      projected from the customer's root password via `generated_from`.
+      The in-app admin login stays at its default weak credential, but
+      that's no longer the customer-facing auth boundary once the gate is
+      in place.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Black Candy is a single-container, single-HTTP-port Rails app (SQLite by
+  default, no external DB service required) that is reverse-proxy-friendly
+  and fills a category gap — no music-streaming recipe exists in the
+  current catalogue. Its only installability wrinkle is a hardcoded default
+  admin account (admin@admin.com / foobar) with no way to set credentials
+  at boot; per the platform's existing pattern for apps with unchangeable
+  or no real login (Adminer, n8n), this is solved with a mandatory Traefik
+  basic_auth gate projected from the customer's root password, not treated
+  as a blocker. Upstream is actively maintained (latest release 3 months
+  ago, edge image updated within the last day, companion mobile-app repo
+  under active development) with no EOL signals. Recommend building the
+  recipe.

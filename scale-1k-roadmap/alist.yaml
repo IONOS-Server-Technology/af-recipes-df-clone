@@ -1,0 +1,92 @@
+slug: alist
+name: AList
+source_description: "Self-hosted file list and WebDAV server with support for 30+ storage backends"
+
+upstream:
+  url: https://alistgo.com/
+  repo_url: https://github.com/AlistGo/alist
+  license: AGPL-3.0
+  docker_image: xhofe/alist
+  compose_file_url: https://raw.githubusercontent.com/AlistGo/alist/main/docker-compose.yml
+  compose_file_notes: >
+    Official — AlistGo/alist ships docker-compose.yml at the repo root and
+    the same install docs page (alistgo.com/guide/install/docker.html)
+    embeds a near-identical compose block. Rolling reference, not
+    version-pinned: raw link tracks the `main` branch and the file itself
+    pins the image to the `xhofe/alist:latest` tag (the docs page shows
+    `xhofe/alist:beta` instead — two rolling tags for two different
+    channels, picked the repo's own `main`-branch file over the docs
+    embed per the "prefer a raw repo link" guidance). No GPU/CPU or
+    sqlite/postgres variants — AList only ships this one compose shape.
+
+version_health:
+  latest_version: "v3.63.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.63.0 released 2026-08-05 — today. Release history is dense and
+    regular: v3.62.0 (2026-07-14), v3.61.0 (2026-06-02), v3.60.0
+    (2026-04-20), v3.59.0 (2026-04-14), v3.58.0 (2026-03-16), v3.57.0
+    (2026-02-04), v3.56.0 (2026-01-04), v3.55.0 (2025-11-15) — roughly
+    monthly cadence, no gaps over 6 weeks. Repo is not archived (50k+
+    stars, active issue/PR traffic under the AlistGo org). Worth noting:
+    a community fork, OpenListTeam/OpenList, exists explicitly as a
+    "long-term governance" alternative born from trust concerns about the
+    original maintainer, but upstream AList itself has kept shipping
+    monthly releases straight through and up to today, so it reads as
+    active rather than at risk — the fork is a community signal to be
+    aware of, not evidence of upstream abandonment.
+
+catalogue_fit:
+  categories: [productivity, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does this: AList is a
+    unified file-browser/WebDAV front end over 30+ third-party storage
+    backends (S3-compatible buckets, Google Drive, OneDrive, various
+    Chinese cloud-storage providers, local disk, FTP/SFTP, WebDAV
+    upstreams, etc.), letting a customer browse and share files across
+    multiple accounts/providers from one URL and mount the same view as a
+    WebDAV share on any device. Syncthing (P2P sync) and OpenGist
+    (code-snippet sharing) are the closest catalogue neighbors but solve
+    different problems — neither aggregates external cloud accounts or
+    exposes WebDAV.
+  usefulness: high
+  usefulness_rationale: >
+    Genuinely popular, well-scoped tool (50k+ GitHub stars) that fills a
+    real gap: customers with files scattered across several cloud
+    providers get one browsable/shareable index and a WebDAV endpoint any
+    OS or app can mount, without needing a beefy backend service. Single
+    Go binary, one HTTP port, minimal resource footprint — an easy,
+    high-draw addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  AList is a single-container Go app (xhofe/alist, pinned e.g. v3.63.0)
+  serving its web UI and WebDAV endpoint on one HTTP port (5244), fully
+  Traefik-compatible. Its one wrinkle: the admin login has no
+  password-via-env-var support — on first boot AList creates a fixed
+  "admin" user with a random password, and the documented way to set a
+  known password is a post-start CLI call (`alist admin set <password>`)
+  run against the running container, not a boot-time environment variable.
+  That is still fully scriptable from install.sh after the container comes
+  up, so ADMIN_PASSWORD can be projected via
+  generated_from:"<algo>:ROOT_PASSWORD" and applied with a docker exec
+  step in the same way other recipes handle post-boot setup calls (see
+  apps-gaps/akaunting.yaml's AKAUNTING_SETUP flow for the same shape of
+  caveat). No external API keys, no OAuth, no second customer-chosen
+  credential — clears the /compose constraint with zero blocking issues.
+  Active, healthy release cadence (latest release is dated today) and a
+  real, currently-unfilled catalogue gap. Recommend build_now.

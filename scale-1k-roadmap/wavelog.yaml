@@ -1,0 +1,102 @@
+slug: wavelog
+name: Wavelog
+source_description: "Web-based amateur radio logging application for tracking contacts and awards"
+
+upstream:
+  url: https://www.wavelog.org/
+  repo_url: https://github.com/wavelog/wavelog
+  license: MIT
+  docker_image: ghcr.io/wavelog/wavelog
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    wavelog/wavelog repo (checked root and the /docker directory, which
+    only holds entrypoint.sh and writable-dirs) or as a release asset. The
+    only official compose configuration is embedded inline as a code
+    block within the docs page
+    docs.wavelog.org/getting-started/installation/docker/ (two services:
+    mariadb:11.8, version-pinned; ghcr.io/wavelog/wavelog:latest, rolling
+    to the latest release, not version-pinned). Not recorded as
+    compose_file_url since it is prose-embedded documentation, not a
+    fetchable file the project publishes and updates as an artifact.
+
+version_health:
+  latest_version: "3.0.2"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.0.2 released 2026-07-19, about 17 days before today (2026-08-05).
+    Release history is dense: 3.0.1 (2026-07-07), 3.0.0 (2026-06-26), 2.5.1
+    (2026-06-14), 2.5 (2026-06-06), 2.4.2 (2026-05-09), 2.4.1 (2026-04-08),
+    2.4 (2026-03-23), 2.3.1 (2026-03-13), 2.3 (2026-02-11) — roughly
+    monthly-to-biweekly releases with no gaps. Repo is not archived, has
+    ~500 GitHub stars, and was pushed to as recently as 2026-08-07 (two
+    days after "today"), so development is clearly ongoing and active, not
+    slowing.
+
+catalogue_fit:
+  categories: [hobby, niche]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Wavelog is a self-hosted amateur ("ham") radio contact logbook — QSO
+    logging, awards/DXCC tracking, contest support, and sync with
+    third-party ham services (eQSL, LotW, HRDlog, QRZ.com). Nothing in the
+    current 24-recipe catalogue touches this domain; it is a fork of
+    Cloudlog and the closest thing to a competitor would be Cloudlog
+    itself, which is not in the catalogue. This is a genuinely new,
+    narrow hobbyist category.
+  usefulness: low
+  usefulness_rationale: >
+    Amateur radio logging is a real but small, hobbyist-specific audience
+    compared to general infrastructure/productivity apps already in the
+    catalogue. It's a well-built, actively maintained app for that niche,
+    but the addressable customer base among Application Factory users is
+    likely small.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential (the /install wizard and the account-creation step inside it are reachable, unauthenticated, by anyone who hits the URL first; Wavelog has no env var to pre-seed an admin login)"
+    - MARIADB_PASSWORD
+  secrets_expressible_today:
+    - secret: MARIADB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Wavelog provisions its one admin account exclusively through the
+      web-based `/install` wizard: the first visitor to reach that URL
+      chooses the initial username and password directly in the browser.
+      There is no environment variable or config option to pre-seed an
+      admin login (confirmed against docs.wavelog.org's Docker install
+      guide, which documents `CI_ENV`, MariaDB env vars, and optional PHP
+      tuning vars, but nothing account-related). This is the same
+      open-self-registration-race pattern already ruled `blocked_on_platform`
+      for `apps-gaps/wanderer.yaml` and `apps-gaps/2fauth.yaml`: fronting
+      the app with Traefik `basic_auth` only moves the race one layer in
+      (whoever gets through the gate first still wins the one admin
+      account via `/install`), and today's mechanism has no second,
+      distinct credential channel beyond the single root-password
+      projection already spent on the gate.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Wavelog is an actively developed (releases roughly every 2-4 weeks, not
+  archived, MIT-licensed), single-purpose ham-radio logbook with an
+  official Docker image (ghcr.io/wavelog/wavelog) plus a MariaDB
+  container, exposing one HTTP port (8086->80) that is fully Traefik-
+  reverse-proxy compatible — structurally similar to n8n or Paperless-ngx
+  (app + database, single web port). It fills a real gap in the current
+  24-recipe catalogue (no ham-radio or niche-hobbyist logging tool exists
+  today) but fails the installability test on the same grounds as
+  `wanderer` and `2fauth`: the sole admin account is created by whoever
+  first completes the app's own `/install` wizard, with no env-var hook
+  and no way for a basic-auth gate to hand the customer an exclusive
+  second credential. Recommend `blocked_on_platform` — revisit if Wavelog
+  adds an env-var-driven admin bootstrap, or once the platform supports a
+  second customer-facing credential channel beyond root-password
+  projection. Usefulness is capped at low regardless, given the narrow
+  hobbyist audience.

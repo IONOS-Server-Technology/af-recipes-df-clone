@@ -1,0 +1,79 @@
+slug: cyberchef
+name: CyberChef
+source_description: "Web-based tool for encryption, encoding, compression, and data analysis operations"
+
+upstream:
+  url: https://gchq.github.io/CyberChef/
+  repo_url: https://github.com/gchq/CyberChef
+  license: Apache-2.0
+  docker_image: ghcr.io/gchq/cyberchef
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere in the gchq/CyberChef repo (root,
+    docker/, deploy/, contrib/) and the README's Docker section documents
+    only bare `docker run` commands: `docker build --tag cyberchef
+    --ulimit nofile=10000 .` + `docker run -it -p 8080:8080 cyberchef` for a
+    local build, or `docker run -it -p 8080:8080 ghcr.io/gchq/cyberchef:latest`
+    for the pre-built image. GCHQ ships no official compose file of any
+    kind (single-image, single-port app has no need for multi-service
+    orchestration), so there is nothing to adopt here.
+
+version_health:
+  latest_version: "11.3.0"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v11.3.0 (2026-07-24) is about 12 days old as of this analysis
+    (2026-08-05). Prior releases v11.2.0 (2026-06-17), v11.1.0
+    (2026-06-13), v11.0.0 (2026-04-28), v10.24.0 (2026-04-27) and v10.23.0
+    (2026-04-07) show a steady sub-two-month cadence going back years.
+    Maintained by GCHQ (UK) with a large contributor base, active CI
+    ("Master Build, Test & Deploy" workflow), no archival notice, no EOL
+    signal.
+
+catalogue_fit:
+  categories: [security, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes offer a general-purpose data
+    encoding/encryption/analysis workbench. CyberChef ("The Cyber Swiss
+    Army Knife") gives a customer a browser-based tool for Base64/hex/URL
+    encoding, AES/DES/Blowfish encryption, hashing, compression,
+    timestamp/IP/X.509 parsing, and 500+ chainable "recipe" operations —
+    useful to developers, security analysts and support staff alike, and
+    distinct from the automation (n8n), password-manager (Vaultwarden) or
+    dev-tooling (Gitea, Opengist) recipes already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    A genuinely popular, well-known standalone tool (widely used in
+    security/dev communities) that broadens the catalogue beyond
+    self-hosted services into a utility app, but it's a single-purpose
+    "swiss army knife" rather than a daily-driver app most customers would
+    install as their primary reason to use the AF — self-hosting it mainly
+    saves a trip to the public gchq.github.io instance for users who want
+    a private/offline copy.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  CyberChef is a single-container, single-HTTP-port (8080) static web app
+  (nginx-unprivileged serving a pre-built JS bundle) with an official,
+  actively-maintained multi-arch image at ghcr.io/gchq/cyberchef and a
+  healthy sub-bimonthly release cadence. It has no login, no server-side
+  state, and no backend data store of its own — every operation runs
+  client-side in the browser on data the customer pastes in, exactly like
+  the unauthenticated public instance GCHQ itself hosts at
+  gchq.github.io/CyberChef — so unlike Adminer/WUD there is no meaningful
+  attack surface to gate with a mandatory Traefik basic_auth: it exposes no
+  API, no credentials, and no persisted customer data. That makes it
+  directly installable today with just the domain parameter and no secrets
+  at all. No overlap with the existing 24 recipes; recommend building it.

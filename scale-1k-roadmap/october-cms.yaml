@@ -1,0 +1,113 @@
+slug: october-cms
+name: October CMS
+source_description: "Laravel-based PHP CMS for building flexible websites and web applications"
+
+upstream:
+  url: https://octobercms.com/
+  repo_url: https://github.com/octobercms/october
+  license: MIT
+  docker_image: null  # see notes below — octobercms/october exists but is unsuitable
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official docker-compose file exists. The project's own
+    Docker docs (octobercms.com/docker-dev-image) point at a separate repo,
+    github.com/octobercms/docker, for the "Development Setup" (real-project)
+    path; that repo ships docker-compose.base.yml and docker-compose.ssl.yml
+    (github.com/octobercms/docker/blob/master/docker-compose.base.yml, a
+    rolling reference to the default branch, unpinned), but these are
+    explicitly templates consumed by the repo's `october-setup`/`launcher`
+    CLI scripts, not a file meant to be copied and run with `docker compose
+    up` directly — the launcher merges the base file with a generated
+    per-site containers/<name>.yml at runtime and builds the web service
+    from a local Dockerfile rather than pinning a published image tag. This
+    is consistent with the blocking_issues already recorded below: there is
+    no official, directly-usable, versioned compose file, only a
+    scaffolding tool that builds one dynamically.
+
+version_health:
+  latest_version: "4.3.0"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    4.3.0 shipped 2026-07-19, ~2.5 weeks before today (2026-08-05). Recent
+    cadence is steady: 4.2.0 "Modernization Release" on 2026-03-30, 4.1.0 on
+    2026-01-04 (with several 4.1.x patch releases through January), 4.0.0
+    "Stable Release" on 2025-09-21, and a parallel 3.7.x line (3.7.13,
+    2026-01-21) still receiving updates for sites not yet on v4. Repo is not
+    archived (11k+ stars, active issue/PR activity), no EOL announcement.
+    Reads as actively developed, not dormant or maintenance-only.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website CMS —
+    closest neighbors (Gitea, Opengist) are developer/source-control tools,
+    not content management for a public-facing site. October CMS occupies
+    the same broad "build a website/web app without hand-coding" gap as the
+    other PHP-CMS apps-gaps candidates (apps-gaps/drupal.yaml,
+    apps-gaps/joomla.yaml, apps-gaps/classicpress.yaml, apps-gaps/grav.yaml),
+    differentiated mainly by being Laravel-based with a visual page-builder
+    (Twin/AJAX framework) aimed more at developers building custom
+    web-app-like sites than at blog/brochure-site users.
+  usefulness: medium
+  usefulness_rationale: >
+    CMS/website-builder is a commonly requested self-hosting category, but
+    October CMS is a smaller, more developer-oriented niche than Drupal,
+    Joomla, or WordPress-family tools — its pitch ("build flexible
+    websites and web applications" with a Laravel dev workflow) targets
+    people comfortable writing Twig/PHP components, not the broader
+    blog/small-business audience the bigger CMSes serve. Real but narrower
+    pull than the top-tier CMS candidates already in apps-gaps.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OCTOBER_ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: OCTOBER_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No maintained, production-suitable official Docker image exists to
+      pin. The only image published under the `octobercms` Docker Hub
+      organization, `octobercms/october`, has a single `latest` tag with no
+      versioned tags at all (confirmed via the Docker Hub API — one tag,
+      last pushed 2026-03-18, no `4.3.0`/`4.x` variants ever published).
+      October CMS's own site documents this image as explicitly for trying
+      the app out, not for real use: "This method is intended for trying
+      out October CMS. For building real projects, use the Development
+      Setup method" (octobercms.com/docker-dev-image) — i.e. clone the repo
+      and run Composer directly on a server, not a container. The one
+      third-party community image found, `aspendigital/octobercms`, is
+      stale (newest tags from 2021, PHP 7.1–7.4 era) and not usable either.
+      This mirrors the blocker already documented for Moodle
+      (apps-gaps/moodle.yaml) and Flarum (apps-gaps/flarum.yaml): no
+      current, pinned, production-appropriate image to build a recipe on
+      without maintaining a bespoke Dockerfile ourselves.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  October CMS is actively maintained (4.3.0 released 2.5 weeks before this
+  analysis, steady release cadence, MIT-licensed) and would add a real,
+  if narrower-than-Drupal/Joomla, CMS/website-builder gap to the catalogue.
+  Unlike Drupal or Flarum, the admin-account problem here is actually
+  solvable: October's own `october:migrate` seeds a default backend admin
+  and `php artisan october:passwd <user> <password>` sets a plaintext
+  password non-interactively, so a server-generated (not root-password-
+  derived) admin credential clears the /compose constraint the same way
+  Gitea's and Joomla's admin accounts do. The real blocker is upstream
+  packaging: October CMS ships no production-suitable official Docker
+  image — the only `octobercms/october` image has one unversioned `latest`
+  tag and is explicitly documented by the project as a try-it-out/demo
+  image only, and the sole community alternative is five years stale.
+  Building a recipe today would mean maintaining our own Dockerfile against
+  a moving Laravel/PHP/Composer target with no upstream image to anchor a
+  pinned tag to — the same category of gap already flagged for Moodle.
+  Recommend not_recommended for now; revisit if October CMS or a
+  trustworthy third party ships a maintained, versioned production image.

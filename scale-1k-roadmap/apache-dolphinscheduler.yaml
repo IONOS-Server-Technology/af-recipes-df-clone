@@ -1,0 +1,93 @@
+slug: apache-dolphinscheduler
+name: Apache DolphinScheduler
+source_description: "Visual workflow orchestration platform for big data and ETL pipelines"
+
+upstream:
+  url: https://dolphinscheduler.apache.org/
+  repo_url: https://github.com/apache/dolphinscheduler
+  license: Apache-2.0
+  docker_image: apache/dolphinscheduler-api (full stack) / apache/dolphinscheduler-standalone-server (single-container, upstream explicitly marks this "not for production use")
+  compose_file_url: https://raw.githubusercontent.com/apache/dolphinscheduler/3.4.2/deploy/docker/docker-compose.yml
+  compose_file_notes: >-
+    Official docs (docs/docs/en/guide/start/docker.md) tell users to get
+    docker-compose.yaml from the download page's source-package tarball,
+    under deploy/docker/ — the same file lives in the GitHub repo at that
+    path. Picked the version-pinned tag matching the recorded
+    latest_version (3.4.2) rather than the rolling `dev` branch copy
+    (github.com/apache/dolphinscheduler/blob/dev/deploy/docker/docker-compose.yml),
+    since docs explicitly warn to "make sure you get the right version."
+    Only one variant is shipped (Bitnami PostgreSQL + ZooKeeper +
+    api/alert/master/worker services via compose `profiles`), matching the
+    multi-service stack already described in `summary` — no GPU/CPU or
+    dev/prod split to choose between.
+
+version_health:
+  latest_version: "3.4.2"
+  latest_release_date: "2026-05-30"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    3.4.2 (2026-05-30) is the latest GA tag, about 2 months before today
+    (2026-08-05) — roughly quarterly cadence over the last three years
+    (3.4.0 Jan 2026, 3.4.1 Mar 2026, 3.4.2 May 2026, 3.3.2 Oct 2025, 3.3.1
+    Aug 2025). Repo pushed 2026-07-30 (6 days ago), a `dev` tag rebuilt the
+    same day, 14.4k GitHub stars, 127 open issues actively triaged. Apache
+    top-level project (graduated from incubation in 2021), no archival or
+    EOL signal.
+
+catalogue_fit:
+  categories: [automation, data]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    n8n (already in the catalogue) is general-purpose SaaS/API workflow
+    automation with a drag-and-drop node canvas; DolphinScheduler is a
+    DAG-based batch-job scheduler aimed at big-data/ETL pipelines (Shell,
+    Python, SQL, Spark, Flink, Hive task types, cron-based dependency
+    scheduling, backfill/retry semantics). Different audience and problem
+    shape from anything in the current 24 recipes — closest conceptually is
+    still n8n, but no functional overlap.
+  usefulness: low
+  usefulness_rationale: >-
+    DolphinScheduler can run plain Shell/Python tasks standalone, so it
+    isn't worthless without external infra, but its headline value — Spark/
+    Flink/Hive/data-lake job orchestration — only materializes once a
+    customer already runs that big-data stack elsewhere and points workers
+    at it, which is a narrow, specialized audience compared to the
+    general-purpose/consumer-facing tools already in the catalogue (VPN,
+    photos, ad-block, notes, forms). Same pattern as apache-amoro: real
+    software, small addressable customer base for a single-VM recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Upstream's own recommended docker-compose stack is multi-service: Bitnami
+  PostgreSQL, Bitnami ZooKeeper, plus dolphinscheduler-api, -alert, -master
+  and -worker containers all sharing one bridge network — a heavier
+  footprint than most of the catalogue (comparable to immich/anytype-server
+  in service count, but with a bigger combined RAM ask given master+worker+
+  Spark-class task execution). A `standalone-server` single-container image
+  exists and bundles everything with an embedded DB/registry, but upstream
+  explicitly documents it as "not for production use," so it isn't a sound
+  basis for a customer-facing recipe. The web UI (single HTTP port 12345,
+  path /dolphinscheduler/ui) is otherwise Traefik-compatible; the internal
+  Netty RPC port (25333) is container-to-container only and would not be
+  exposed publicly. Login is a fixed, non-configurable default
+  (admin/dolphinscheduler123) — the password hash is a literal MD5 value
+  baked into the schema-init SQL INSERT, not read from any env var or
+  config at boot, so `generated_from` has no injection point at all (not
+  even an unsupported-algorithm case — there is no runtime hook to write
+  through). Per the fixed-default-credential precedent (Adminer, Amoro),
+  this is not a hard blocker: gate the whole app behind a mandatory Traefik
+  `basic_auth` credential projected from the customer's root password, and
+  leave the app's own default login alone. Mechanically installable on that
+  basis with no blocking issues, so recommend build_now.

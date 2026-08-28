@@ -1,0 +1,123 @@
+slug: marimo
+name: Marimo
+source_description: "Open-source reactive Python notebook with SQL support and reproducible execution"
+
+upstream:
+  url: https://marimo.io
+  repo_url: https://github.com/marimo-team/marimo
+  license: Apache-2.0
+  docker_image: ghcr.io/marimo-team/marimo
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere official. The marimo-team/marimo
+    repo's docker/ directory ships only a Dockerfile and a README
+    documenting `docker build` + `docker run -p 8080:8080` (three image
+    variants: marimo-slim, marimo-data, marimo-sql); neither of the
+    project's Docker docs pages
+    (docs.marimo.io/guides/deploying/deploying_docker/ and
+    .../prebuilt_containers/) mention or link a compose file either — both
+    are docker-run-only. marimo-team/marimohub is a separate self-hosting
+    platform project (supports many compute backends: Docker, Kubernetes,
+    Podman, Modal, E2B, Cloudflare Containers, etc.) rather than a compose
+    file for running marimo itself, so it was not adopted as if official.
+
+version_health:
+  latest_version: "0.23.16"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.23.16 shipped 2026-07-31, 5 days before today (2026-08-05). Release
+    history is a steady roughly-weekly cadence across the 0.23.x line
+    (0.23.14, 0.23.15, 0.23.16 all landing within the prior month), no gaps
+    of concern. 22.2k GitHub stars, actively developed by marimo-team (a
+    funded startup behind the project), heavy recent feature work (AI
+    copilot integration, WASM/Pyodide bumps, SQL data-source discovery).
+    No archival, deprecation, or EOL signal whatsoever — this is a
+    healthy, fast-moving OSS project. One packaging note: the prebuilt
+    ghcr.io/marimo-team/marimo image tags lag the PyPI/GitHub release by
+    roughly a week or two (latest published container tag seen was
+    0.23.15-sql, ~13 days old, one release behind 0.23.16) — pin to
+    whatever the newest published container tag is at recipe-build time,
+    not necessarily the newest GitHub release tag.
+
+catalogue_fit:
+  categories: [developer-tools, data-science]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue offers a notebook/coding
+    environment. The closest analogues are two other not-yet-built gap
+    candidates: apps-gaps/jupyter-notebook.yaml and
+    apps-gaps/jupyterlab.yaml (both recommended build_now, still unbuilt),
+    and the built code-server recipe (general-purpose browser IDE, not a
+    notebook). Marimo is a real alternative to Jupyter rather than a
+    duplicate of it: notebooks are stored as plain, git-diffable .py files
+    (not Jupyter's JSON .ipynb), execution is reactive (changing one cell
+    automatically re-runs every dependent cell, eliminating Jupyter's
+    stale-hidden-state class of bugs), and it ships built-in SQL cells
+    against DataFrames/databases plus a "run as script" / "deploy as app"
+    mode absent from classic Jupyter. If the catalogue ends up shipping
+    both Jupyter and Marimo they would coexist as differentiated options
+    for the same broad "Python notebook" audience, similar to how the
+    catalogue already carries multiple note-taking or media apps per
+    CLAUDE.md's no-single-recipe-per-category stance — this is not a
+    reason to reject either on its own.
+  usefulness: high
+  usefulness_rationale: >
+    Reactive, git-friendly Python notebooks with built-in SQL are a
+    distinctive, actively-requested niche (reproducibility and avoiding
+    Jupyter's out-of-order-execution foot-guns are a recurring complaint
+    in the data/ML community). Single official container, no external
+    DB/cache dependency required to be useful, low resource footprint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Marimo's own built-in login (the `--token-password` flag on `marimo
+      edit`/`run`) only accepts a plaintext secret compared directly
+      against what the visitor supplies — there is no hashed-password
+      input mode analogous to Jupyter's/code-server's
+      `--PasswordIdentityProvider.hashed_password` / `HASHED_PASSWORD`.
+      `generated_from` only ever projects a hash of the customer's root
+      password, never the plaintext, so it cannot feed this flag. Upstream
+      docs are explicit that this built-in token is not meant for
+      production/shared deployments anyway ("marimo does not provide a
+      built-in authentication/authorization system... add your own through
+      ASGI middleware") — the correct fix is `--no-token` to disable it
+      and put the app behind a mandatory Traefik `basic_auth` gate instead,
+      same shape as many-notes and WUD. This is a build-time recipe
+      decision, not a platform blocker: `traefik_basic_auth` fully covers
+      it, so it does not block `installable_today`.
+    - >
+      `marimo edit` (the interactive editor, as opposed to `marimo run` on
+      a single fixed notebook) opens a file browser rooted at whatever
+      directory the container is launched in and lets the customer create/
+      edit arbitrary `.py` notebook files, persisted to a bind-mounted
+      volume — structurally identical in shape to code-server's workspace
+      volume, not a blocker, just worth calling out for whoever plans the
+      recipe (needs a `/opt/marimo/notebooks`-style volume, same pattern
+      as code-server).
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Marimo is an actively maintained (weekly release cadence, 22.2k stars,
+  no EOL signal), single-official-container Python notebook tool that
+  would open a genuinely new category in the catalogue — no existing
+  recipe offers a notebook/data-analysis environment, and Marimo's
+  reactive-execution + git-friendly-.py-file + built-in-SQL model
+  meaningfully differentiates it from classic Jupyter (itself still just a
+  gap candidate, not a built recipe). Its own token-based login is
+  plaintext-only and explicitly not production-hardened per upstream docs,
+  so it cannot use `generated_from` the way Jupyter/code-server can;
+  disabling it (`--no-token`) and fronting the app with Traefik
+  `basic_auth` (customer root-password hash) closes that gap cleanly with
+  a mechanism the platform already supports. No blocking issues remain.
+  Recommend build_now.

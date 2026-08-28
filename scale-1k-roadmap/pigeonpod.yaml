@@ -1,0 +1,83 @@
+slug: pigeonpod
+name: PigeonPod
+source_description: "Self-hosted podcast feed generator for YouTube and Bilibili channels"
+
+upstream:
+  url: https://pigeonpod.cloud/
+  repo_url: https://github.com/aizhimou/pigeon-pod
+  license: GPL-3.0
+  docker_image: ghcr.io/aizhimou/pigeon-pod
+  compose_file_url: https://raw.githubusercontent.com/aizhimou/pigeon-pod/main/docker-compose.yml
+  compose_file_notes: >
+    Official — only docker-compose file in the repo, at repo root
+    (docker-compose.yml). This is a rolling reference to the default
+    branch (main), not version-pinned: GitHub found no releases.yaml
+    or tagged-release compose asset to point to instead, and the raw
+    URL always tracks whatever is on main at fetch time. There is only
+    one variant (single service, SQLite, no GPU/CPU or dev/prod split),
+    so no picking was needed. Note the file itself uses `build: .` /
+    `image: pigeon-pod:latest` rather than the published
+    ghcr.io/aizhimou/pigeon-pod image recorded above in `docker_image`
+    — a build-from-source default, not a discrepancy we're resolving
+    here.
+
+version_health:
+  latest_version: "1.30.0"
+  latest_release_date: "2026-06-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Ten tagged releases between 2026-02-15 and 2026-06-05 (roughly every
+    2-3 weeks), then no tag in the ~2 months since (as of 2026-08-05).
+    That gap is longer than the project's own established cadence but not
+    yet long enough, for a young/small project, to call dormant — repo is
+    not archived, 13 open issues are still being triaged, and there is no
+    EOL announcement. Worth re-checking cadence on a future pass if the
+    silence continues past ~4-5 months.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes turns a YouTube/Bilibili channel into
+    a private podcast RSS feed. Immich (photos/videos) and the media
+    recipes we do have are storage/library tools, not feed-generation
+    tools consuming an external video platform. PigeonPod fills a distinct,
+    narrow niche: listen to YouTube/Bilibili content in any podcast app.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to a specific personal-use audience (podcast-app listeners who
+    want YouTube/Bilibili audio) but is not broad-appeal infrastructure.
+    Its core value depends on the customer obtaining and entering their
+    own Google Cloud YouTube Data API v3 key after install, which is real
+    setup friction even though it doesn't block the recipe from installing.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PigeonPod is a single-container, single-HTTP-port (8080) Spring
+  Boot/React app with SQLite storage, so it fits our reverse-proxy model
+  cleanly. Its own admin login ships with a fixed, non-configurable
+  default (root / Root@123) — there is no documented env var to inject a
+  customer-specific credential or hash at boot, so `generated_from` can't
+  target it. Per the SCHEMA's guidance on fixed/unchangeable default
+  credentials, the fix is a Traefik basic_auth:true gate in front of the
+  app (same pattern as n8n/Adminer), with that gate's password projected
+  from the customer's root password via `generated_from` — that becomes
+  the real auth boundary, making the app's own weak default a non-issue.
+  Separately, PigeonPod needs a customer-supplied YouTube Data API v3 key
+  to actually sync channels, but that's entered by the customer directly
+  in the app's own Settings UI after login, not something af-api needs to
+  inject at install time — so it's a usability caveat, not an
+  installability blocker. Recommend build_now: mechanically installable
+  today with no blocking issues.

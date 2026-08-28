@@ -1,0 +1,92 @@
+slug: explo
+name: Explo
+source_description: "Turns ListenBrainz recommendations into playlists in your music library"
+
+upstream:
+  url: https://github.com/LumePart/Explo
+  repo_url: https://github.com/LumePart/Explo
+  license: MIT
+  docker_image: ghcr.io/lumepart/explo:v1.1.3
+  compose_file_url: https://raw.githubusercontent.com/LumePart/Explo/main/docker-compose.yaml
+  compose_file_notes: >
+    Official — the only docker-compose file in the repo, at repo root
+    (github.com/LumePart/Explo/blob/main/docker-compose.yaml). It's a
+    rolling reference to the default branch (raw.githubusercontent.com/.../main/...),
+    not version-pinned: the file itself pulls image
+    ghcr.io/lumepart/explo:latest rather than a tagged release. No
+    variants exist (no GPU/CPU, dev/prod, or db-backend split) — this is
+    the single compose file the project ships.
+
+version_health:
+  latest_version: v1.1.3
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.1.3 published 2026-07-23, 13 days before today (2026-08-05).
+    Commit history on main shows daily activity through 2026-07-23 from
+    multiple contributors (LumePart, dammitjeff, 0xv1n) — fixes, feature
+    work, and PR merges. Six releases in the last ~14 months (v1.0.0 through
+    v1.1.3). Clearly active, not dormant or archived.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches self-hosted music
+    discovery/automation. Explo is a "Discover Weekly" clone: it pulls
+    weekly ListenBrainz recommendations, downloads the tracks (via YouTube
+    or Soulseek/slskd), tags them, and pushes a playlist into an existing
+    Navidrome/Jellyfin/Emby/Plex/Subsonic/MPD library. It's a genuinely
+    distinct niche, not a rehash of an existing recipe.
+  usefulness: low
+  usefulness_rationale: >
+    Useful only to a customer who already runs a compatible self-hosted
+    music server (none of which are in our catalogue) AND has an existing
+    ListenBrainz account with listening history. It's an add-on to
+    infrastructure we don't provide, not a standalone app — narrow
+    intersection of prerequisites limits its draw as a catalogue entry on
+    its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - UI_PASSWORD
+    - LISTENBRAINZ_USER_TOKEN
+    - SYSTEM_USERNAME/SYSTEM_PASSWORD or API_KEY (credentials for the
+      customer's existing Navidrome/Jellyfin/Emby/Plex/Subsonic/MPD server)
+  secrets_expressible_today:
+    - secret: UI_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "LISTENBRAINZ_USER_TOKEN is a plaintext personal API token from the
+      customer's ListenBrainz account (listenbrainz.org/profile) — required
+      for both discovery modes (playlist and API). No customer-supplied
+      value can reach /compose today, and this isn't a hashable admin
+      password so generated_from can never cover it."
+    - "SYSTEM_USERNAME/SYSTEM_PASSWORD (or API_KEY for Jellyfin/Emby/Plex)
+      are plaintext credentials for an external, customer-operated music
+      server that isn't part of the AF catalogue at all — a second,
+      independent external-credential requirement with no input channel."
+    - "Even if a single external-API-key channel is built, Explo needs at
+      least two independent external credentials (ListenBrainz token +
+      target media-server auth) plus optionally YOUTUBE_API_KEY/
+      SLSKD_API_KEY for download sources — a one-secret mechanism wouldn't
+      fully unblock it."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Explo is an actively maintained (latest release 2026-07-23), MIT-licensed,
+  single-container Go app with a web UI behind one HTTP port — mechanically
+  reverse-proxy-friendly. But it functions purely as glue between a
+  ListenBrainz account and an already-running, separately-hosted music
+  server (Navidrome/Jellyfin/Emby/Plex/Subsonic/MPD), none of which are in
+  our catalogue. It needs at least two plaintext external credentials
+  (ListenBrainz user token, target media-server auth) that have no
+  projection mechanism today, and even a future generic-API-key channel
+  wouldn't cover both — it needs a platform input channel that supports at
+  least two independent external credentials before it can ship as a
+  recipe.

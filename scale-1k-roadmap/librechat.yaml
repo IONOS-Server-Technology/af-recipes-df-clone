@@ -1,0 +1,102 @@
+slug: librechat
+name: LibreChat
+source_description: "LibreChat is an AI chat interface with RAG support for multi-provider LLM use"
+
+upstream:
+  url: https://librechat.ai
+  repo_url: https://github.com/danny-avila/LibreChat
+  license: MIT
+  docker_image: ghcr.io/danny-avila/librechat
+  compose_file_url: https://raw.githubusercontent.com/danny-avila/LibreChat/main/docker-compose.yml
+  compose_file_notes: >-
+    Official file, maintained at the repo root. The project's own docs
+    (librechat.ai/docs local/docker install page) tell users to clone the
+    repo and run `docker compose` against this default file, pulling
+    prebuilt images rather than pinning a version — so this is a rolling
+    reference to the `main` branch, not a version-pinned link. The repo
+    also ships several sibling variants at root: docker-compose.override.yml.example
+    (optional customization layer, e.g. mounting librechat.yaml), deploy-compose.yml
+    (a production variant), and docker-compose.langfuse-fanout.yml /
+    deploy-compose.langfuse-fanout.yml (Langfuse observability add-ons).
+    docker-compose.yml is the one the install docs point to as the base
+    setup, so that's the variant recorded here.
+
+version_health:
+  latest_version: "v0.8.7"
+  latest_release_date: "2026-06-24"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v0.8.7 published 2026-06-24, ~6 weeks before today (2026-08-05).
+    Preceding tags (v0.8.6 rc1/stable, v0.8.5, v0.8.4) shipped at a roughly
+    monthly cadence through 2026, alongside a parallel `chart-x.y.z` Helm
+    release track. Repo is not archived, has 41.7k stars, 4,870+ commits on
+    main, and currently has 328 open PRs / 339 open issues — clearly active,
+    ongoing development.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, anythingllm]
+  differentiation: >-
+    Same "self-hosted chat frontend for any LLM provider" core as
+    open-webui, and the same "chat + RAG + agents" pitch as anythingllm
+    (which is only a gap-analysis candidate, not yet a recipe), but
+    LibreChat goes further on both axes at once: built-in RAG via a
+    dedicated pgvector-backed rag_api service (not just an Ollama pairing),
+    a code interpreter and artifact/canvas rendering, MCP server
+    integration, agents that can author their own skills, multi-user
+    accounts with email/password plus optional OAuth/SAML/LDAP SSO, and a
+    separate bundled admin panel for user/config management. It is the most
+    feature-complete of the three, at the cost of being the heaviest stack
+    (five containers: api, admin-panel, mongodb, meilisearch, vectordb
+    (pgvector), plus rag_api) versus open-webui's two and anythingllm's one.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely more capable than open-webui (RAG, agents, MCP, multi-user
+    SSO, admin panel) and slightly more mature/actively maintained than
+    anythingllm, but it lands in the same "self-hosted multi-provider AI
+    chat" niche the catalogue already covers with open-webui, so the case
+    for adding it rests on those extra capabilities rather than filling a
+    gap. The five-service footprint (vs. open-webui's two) also raises the
+    resource floor and operational surface for what is, from a customer's
+    first-look perspective, the same category of app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, JWT_REFRESH_SECRET, CREDS_KEY, CREDS_IV, ADMIN_PANEL_SESSION_SECRET]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_REFRESH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: CREDS_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: CREDS_IV
+      mechanism: server_generated_no_customer_input
+    - secret: ADMIN_PANEL_SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  LibreChat is active and well-maintained (monthly releases, 41.7k stars, no
+  EOL signal) and is installable today with no customer-supplied secret at
+  all: the required env vars (JWT_SECRET, JWT_REFRESH_SECRET, CREDS_KEY,
+  CREDS_IV, ADMIN_PANEL_SESSION_SECRET) are all patternless strings the
+  platform can generate server-side, and account creation happens through
+  LibreChat's own first-visit registration/login screen (ALLOW_REGISTRATION
+  defaults to true) — the same self-serve pattern already used by
+  uptime-kuma and immich, needing neither root-password projection nor a
+  Traefik basic_auth gate. Actually using it productively requires an LLM
+  provider API key (OpenAI, Anthropic, etc.), but that is configured
+  post-provision through the app's own Endpoints settings UI, the same
+  deferred pattern already shipped for openclaw and hermes-agent, so it is
+  not a first-boot blocker. It overlaps meaningfully with open-webui
+  (already a shipping recipe) and anythingllm (a separate gap candidate),
+  covering the same "chat with any LLM provider" ground with extra RAG/
+  agents/MCP/SSO capability, at the cost of a five-container stack instead
+  of open-webui's two — but with no blocking installability issue, it is
+  build_now.

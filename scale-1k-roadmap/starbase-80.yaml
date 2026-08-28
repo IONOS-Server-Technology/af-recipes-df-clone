@@ -1,0 +1,94 @@
+slug: starbase-80
+name: Starbase 80
+source_description: "Lightweight static server homepage for Docker containers and services"
+
+upstream:
+  url: https://github.com/notclickable-jordan/starbase-80
+  repo_url: https://github.com/notclickable-jordan/starbase-80
+  license: MIT
+  docker_image: jordanroher/starbase-80:1.6.6
+  compose_file_url: https://raw.githubusercontent.com/notclickable-jordan/starbase-80/main/compose.yml
+  compose_file_notes: >
+    Official — compose.yml lives at the repo root and is documented in the
+    README's Docker setup instructions. This is a rolling reference to the
+    default branch (main), not pinned to a release tag or digest; there is
+    no versioned/release-asset variant to prefer instead. Only one variant
+    is shipped (single `homepage` service, image jordanroher/starbase-80,
+    bind-mounting a local config.json and icons/ directory) — no GPU/CPU
+    or dev/prod split.
+
+version_health:
+  latest_version: "1.6.6"
+  latest_release_date: "2026-07-15"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    No GitHub Releases are published for this repo at all ("There aren't any
+    releases here") — versioning is tracked only via Docker Hub tags and a
+    "Bump version to X" commit/PR. 1.6.6 and 1.6.5 both landed 2026-07-15
+    (PR #68, merged same day as this analysis's 3-week lookback point,
+    about 3 weeks before 2026-08-05), following 1.6.4 which shipped
+    roughly 11 months earlier. Commit history shows real but irregular
+    activity: a cluster in Jul 2026, then gaps of months back through
+    2025 (Aug, Jul, Jun-Apr 2025). 555 stars, 24 forks, no archived flag,
+    no deprecation notice — small hobby project maintained by one person,
+    alive but with long quiet stretches between bursts of work.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Starbase 80 is a startpage/link-launcher dashboard — a static HTML
+    page of categorized bookmarks/icons rendered from a single config.json,
+    with zero client-side JavaScript and no live status pinging, Docker
+    integration, or widgets. None of the 24 shipped recipes fill this
+    "front door" role (uptime-kuma monitors uptime with alerting, portainer
+    manages containers — neither is a landing page). Its actual feature
+    set is intentionally minimal: no live widgets, no Docker/API
+    auto-discovery, and configuration is only editable by bind-mounting a
+    replacement config.json and restarting the container — there is no
+    in-app settings UI. (For context, other apps-gaps candidates —
+    dashy, homepage, heimdall, flame, glance, homarr — target the same
+    startpage/dashboard niche with more built-in live-data features; that
+    overlap is a later prioritization question, not a reason to judge
+    Starbase 80 itself differently.)
+  usefulness: medium
+  usefulness_rationale: >
+    On its own merits, Starbase 80 fills a genuine "front door" gap the
+    current catalogue lacks: a landing page linking out to a customer's
+    other self-hosted services. Its usefulness is capped by its own
+    feature set rather than by any comparison to other apps — it is
+    fully static with no live status checks, no Docker/API integration,
+    and no in-app config editor, so any customization requires editing
+    a JSON file and restarting the container rather than clicking through
+    a UI.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Starbase 80 is a single-container, MIT-licensed static homepage app with
+  an official multi-arch Docker image (jordanroher/starbase-80:1.6.6), one
+  HTTP port (4173 internally, mapped to 80), and no built-in login — so it
+  is mechanically installable today by gating it behind Traefik basic_auth
+  on the customer's root-password hash, the same pattern used for
+  Dashy/Heimdall/Adminer. On its own merits it fills a real "landing page"
+  gap the catalogue currently lacks, though its feature set is thin: fully
+  static with no live status checks, no Docker/API auto-discovery, and
+  configuration only changeable by bind-mounting a new config.json and
+  restarting the container — there is no in-app config UI. Release health
+  is also modest: the upstream is maintained by a single person, ships no
+  formal GitHub Releases (only Docker Hub tags via "Bump version" PRs),
+  and has irregular commit activity with multi-month gaps between bursts,
+  but it remains active with no deprecation or archival signal.
+  build_now: installable_today is true with no blocking issues, so it is
+  ready to build.

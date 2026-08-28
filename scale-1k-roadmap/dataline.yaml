@@ -1,0 +1,83 @@
+slug: dataline
+name: Dataline
+source_description: "AI-powered SQL chat interface for exploring and visualizing any database"
+
+upstream:
+  url: https://dataline.app
+  repo_url: https://github.com/RamiAwar/dataline
+  license: GPL-3.0
+  docker_image: ramiawar/dataline
+  compose_file_url: null
+  compose_file_notes: >
+    The repo has a root docker-compose.yml
+    (https://github.com/RamiAwar/dataline/blob/main/docker-compose.yml,
+    rolling reference to the default branch, not version-pinned), but it's
+    a dev-environment file, not a deployment artifact: both services use
+    `build:` (backend from repo root, frontend from ./frontend) instead of
+    the published ramiawar/dataline image, mounts live source directories
+    for hot-reload, and runs uvicorn with --reload. The README's own
+    install/upgrade instructions use only `docker run
+    ramiawar/dataline:latest` with a named volume — no docker-compose.yml
+    is mentioned there at all. Treating the dev compose file as the
+    official deployment recipe would be wrong, so recording null here
+    rather than that URL.
+
+version_health:
+  latest_version: "v1.2.0"
+  latest_release_date: "2025-05-29"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    v1.2.0 (2025-05-29) is both the latest tagged release and the last
+    commit on main (commit history shows nothing after 2025-05-29) — about
+    14 months of zero activity as of 2026-08-05. Repo is not archived, has
+    12 open issues, and no visible maintainer replies on the most recent
+    ones. Not declared EOL, but effectively unmaintained: this reads as
+    dormant rather than merely slowing.
+
+catalogue_fit:
+  categories: [ai, database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes lets a customer chat with their own
+    database in natural language and get back SQL, tables, and charts.
+    open-webui is the closest analog (browser AI chat, BYOK-style LLM
+    config) but it's a general-purpose LLM chat frontend with no notion of
+    connecting to or querying a database; Dataline is purpose-built for
+    that one workflow (Postgres/MySQL/SQLite/MSSQL/Snowflake/CSV/Excel).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated and appealing to technical users/analysts who
+    self-host a database and want a natural-language query/viz layer on
+    top of it, but it's a single-user tool, needs the customer to bring
+    their own OpenAI key before the AI features do anything useful, and
+    upstream has gone quiet for over a year — all of which cap it below
+    "high".
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dataline is a single-container, single-HTTP-port (7377) app with no
+  mandatory login of its own — its optional AUTH_USERNAME/AUTH_PASSWORD env
+  vars are plaintext-credential based (not a hash `generated_from` could
+  project) and are off by default, meaning the app is wide open unless
+  gated externally. That makes the Adminer/n8n pattern the right fit here:
+  leave DataLine's own auth unset and put a Traefik basic_auth:true gate in
+  front, with the basic-auth password projected from the customer's root
+  password via `generated_from`. The AI chat feature itself needs an
+  OpenAI API key, but that's entered by the customer through Dataline's own
+  settings UI after first login — a bring-your-own-key setup step, not a
+  first-boot secret af-api needs to provision, so it's not a structural
+  blocker. The one real caveat is upstream health: no commit or release in
+  ~14 months (last activity 2025-05-29) with unanswered open issues — worth
+  building, but flag the dormant cadence to whoever picks this up.

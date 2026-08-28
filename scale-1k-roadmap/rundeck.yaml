@@ -1,0 +1,116 @@
+slug: rundeck
+name: Rundeck
+source_description: "Open-source runbook automation for self-service ops and workflow orchestration"
+
+upstream:
+  url: https://www.rundeck.com/
+  repo_url: https://github.com/rundeck/rundeck
+  license: Apache-2.0 (Rundeck Open Source / Community); PagerDuty also sells a closed-source "Runbook Automation Self-Hosted" edition on top of the same codebase — SSO, ACL editor UI and the `RUNDECK_SECURITY_DBLOGIN_*` admin-bootstrap variables are Enterprise-only
+  docker_image: rundeck/rundeck
+  compose_file_url: https://raw.githubusercontent.com/rundeck/docker-zoo/master/postgres/docker-compose.yml
+  compose_file_notes: >-
+    Rundeck ships no docker-compose file in the main rundeck/rundeck repo
+    itself; its docker/official/README.md instead directs readers to a
+    sibling official repo under the same rundeck GitHub org,
+    github.com/rundeck/docker-zoo, "for configuration examples in Docker
+    Compose". Docker Zoo ships one compose file per exhibit (basic, mysql,
+    mysql8, oraclexe, sqlserver, percona-xtradb, postgres, ldap variants,
+    cloud, simple-cluster, runner, config, monitoring, kubernetes); picked
+    the `postgres` variant since it matches this recipe's own external
+    Postgres design (the others swap in a different external DB, add
+    LDAP/cluster/k8s topology, or are Pro-only). This is a rolling
+    default-branch reference: the URL points at `master`, not a tagged
+    release, and the file's own default image is
+    `rundeck/rundeck:SNAPSHOT` (overridable via the exhibit's `.env.dist`
+    to a real version like the 6.1.0 pinned in this recipe) — so both the
+    compose file content and the image tag it resolves to can drift and
+    should be re-diffed on future checks rather than assumed stable.
+
+version_health:
+  latest_version: "6.1.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    6.1.0 shipped 2026-08-03, three days before today (2026-08-06), with
+    6.0.1 (2026-07-15) and 6.0.0 (2026-06-29) immediately before it — a
+    steady ~monthly GA cadence going back at least a year (5.20.1 2026-05-18,
+    5.20.0 2026-04-02, 5.19.0 2026-02-03, 5.18.0 2025-12-16, 5.17.0
+    2025-11-03, 5.16.0 2025-10-06, 5.15.0 2025-09-02), plus tagged rc builds
+    between each. Repo is not archived, last push 2026-08-05 (yesterday),
+    6.3k stars, 692 open issues actively triaged, Docker Hub tags rebuilt
+    continuously. PagerDuty acquired Rundeck in 2020 and now fronts it as
+    "Rundeck by PagerDuty"; despite the commercial Self-Hosted edition
+    alongside it, the OSS line is still receiving monthly GA releases and
+    there is no EOL or maintenance-only announcement for the community
+    edition. One tagging oddity to be aware of when pinning: Docker Hub
+    carries a `7.0.1` tag published 2026-04-09, i.e. *before* 6.0.0, with no
+    matching GitHub release — it belongs to PagerDuty's separate commercial
+    version line, not the OSS one. Pin `6.1.0`, not `7.x`.
+
+catalogue_fit:
+  categories: [automation, devops, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes does operational job execution against
+    a fleet of servers. n8n (automation) is a drag-and-drop canvas for wiring
+    SaaS APIs together; Rundeck is an ops runbook engine — define a job as
+    shell/script steps, target a set of nodes over SSH (or the local node),
+    schedule it with cron, and hand a scoped "run this button" to someone
+    who has no shell access, with per-job ACLs and a full execution/audit
+    log. That self-service-delegation plus node-inventory model is the part
+    n8n has no equivalent for. It is also distinct from the Jenkins and
+    Kestra candidates analyzed separately: Jenkins is a build/CI pipeline
+    server, Kestra a DAG data-pipeline scheduler, Rundeck an ops-task
+    runner. Single HTTP port (4440), works behind Traefik with
+    `RUNDECK_GRAILS_URL` set to the public https URL and
+    `RUNDECK_SERVER_FORWARDED=true`.
+  usefulness: medium
+  usefulness_rationale: >-
+    Well-known, long-lived tool with a real audience (ops/SRE teams
+    standardizing manual procedures), and it fills a genuine catalogue gap.
+    Capped at medium rather than high because its core value — delegating
+    jobs across many managed nodes — mostly materializes for a customer who
+    already runs a server fleet; on a single AF-provisioned VM it degrades
+    to "a nicer cron with an audit trail". The resource floor is the other
+    drag: upstream's own minimum is 8 GB RAM / 4 GB JVM heap / 2 vCPU, far
+    above every current recipe (n8n asks 2 GB), so it does not fit the
+    entry-level VM sizes most of the catalogue targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [RUNDECK_ADMIN_PASSWORD, RUNDECK_DATABASE_PASSWORD]
+  secrets_expressible_today:
+    - secret: RUNDECK_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: RUNDECK_DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Rundeck is an actively maintained (monthly GA releases, latest 6.1.0 on
+  2026-08-03), Apache-2.0, single-web-port, Postgres-backed ops runbook
+  engine that fills a real gap — no current recipe does scheduled/delegated
+  job execution across servers with ACLs and an audit log. It is installable
+  under today's mechanism: the community edition has no admin-password env
+  var (`RUNDECK_SECURITY_DBLOGIN_ADMINPASSWORD` is Enterprise-only) and
+  otherwise boots with the fixed default admin/admin, but its Jetty
+  `realm.properties` file accepts a pre-computed bcrypt hash
+  (`admin: BCRYPT:<hash>,user,admin`), so install.sh can render that file
+  from `generated_from: "bcrypt:ROOT_PASSWORD"` and give the customer a
+  working login on first boot — the same shape as the Jenkins candidate, and
+  no Traefik basic_auth gate is needed since Rundeck has its own login. This
+  is build_now: no blocking installability issue exists today, so install.sh
+  should verify at build time that upstream's bcrypt support accepts the
+  salt revision `generated_from` emits (only `$2a$` works, not `$2y$`), and
+  size the recipe's VM to the 8 GB RAM / 4 GB heap JVM floor rather than the
+  catalogue's entry-level default — both routine implementation details, not
+  reasons to hold back the recommendation. Everything else is routine — pin
+  `rundeck/rundeck:6.1.0`, add Postgres with a server-generated password
+  (the bundled H2 database is explicitly not production-safe), bind-mount
+  `/home/rundeck/server/config/realm.properties` and the data/ssh dirs, and
+  point `RUNDECK_GRAILS_URL` at the Traefik hostname.

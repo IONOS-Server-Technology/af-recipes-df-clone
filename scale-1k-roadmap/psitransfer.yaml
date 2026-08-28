@@ -1,0 +1,120 @@
+slug: psitransfer
+name: PsiTransfer
+source_description: "Lightweight self-hosted file sharing with expiring links and no accounts"
+
+upstream:
+  url: https://github.com/psi-4ward/psitransfer
+  repo_url: https://github.com/psi-4ward/psitransfer
+  license: "BSD-2-Clause"
+  docker_image: psitrax/psitransfer:v2.4.4
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere upstream. The repo root
+    (psi-4ward/psitransfer) has no docker-compose.yaml/.yml and no docker/,
+    deploy/, or contrib/ directory containing one. docs/deployment-docker.md
+    — the project's own Docker deployment doc — documents only a bare
+    `docker run -d -v $PWD/data:/data -p 3000:3000 psitrax/psitransfer`
+    command (plus an env-var variant), with no mention of Compose. The
+    README has no installation section referencing compose either. Not
+    adopting any third-party/community compose file as if it were official.
+
+version_health:
+  latest_version: "v2.4.4"
+  latest_release_date: "2026-06-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.4.4 was tagged 2026-06-02, 64 days before today (2026-08-05). The
+    matching Docker Hub tag psitrax/psitransfer:v2.4.4 was pushed the same
+    day. Recent cadence is healthy: six releases in six months
+    (v2.3.1 2025-12-26, v2.3.2 2025-12-30, v2.4.0 2026-01-31, v2.4.1
+    2026-02-14, v2.4.2 2026-04-13, v2.4.3 2026-04-14, v2.4.4 2026-06-02),
+    including security-hardening notes on v2.4.3 and a path-traversal fix
+    on v2.3.1. That said, the project's longer history is bursty rather
+    than steady: v2.1.2 (2022-11-14) to v2.2.0 (2024-04-05) is a ~17-month
+    gap, and v2.2.0 to v2.3.0 (2025-06-04) is another ~14-month gap. A
+    single maintainer (psi-4ward) appears to revive the project in
+    concentrated bursts after long dormant stretches rather than shipping
+    on a predictable cadence. Current state reads as active, but the
+    history argues for treating "active" as provisional — another
+    multi-year gap after this burst would not be a surprise.
+
+catalogue_fit:
+  categories: [productivity, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers this niche. Syncthing
+    is continuous P2P folder sync between devices you control, not
+    link-based one-off sharing with an outside recipient. PrivateBin and
+    OpenGist share text/code snippets, not arbitrary large files.
+    PsiTransfer is a WeTransfer/Dropbox-Transfer alternative: upload one or
+    more files, get a bucket URL, hand that URL to someone outside your
+    org who does not have (and should not need) any credential for your
+    server, and the bucket expires after a configurable retention window
+    or one-time download.
+  usefulness: medium
+  usefulness_rationale: >
+    Ad-hoc large-file handoff to an external party without a third-party
+    SaaS is a genuine, distinct self-hosting want, and no current recipe
+    covers it. It is a narrower single-purpose appliance than most of the
+    catalogue, though (no accounts, no admin surface beyond an optional
+    stats page), which caps demand relative to broader productivity tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PSITRANSFER_UPLOAD_PASS, PSITRANSFER_ADMIN_PASS]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      PSITRANSFER_ADMIN_PASS and PSITRANSFER_UPLOAD_PASS are compared as
+      plaintext against the literal `x-passwd` header the browser sends
+      (`req.get('x-passwd') !== config.adminPass` in
+      lib/endpoints.js — confirmed by reading the upstream source). There
+      is no hashing support at all, so `generated_from` — which only ever
+      carries a hash of the root password, never the plaintext — has no
+      way to produce a value this app will accept. This is the "genuine
+      requirement for the plaintext password" case SCHEMA.md calls a hard
+      structural blocker, not the softer "unsupported hash algorithm"
+      case.
+    - >
+      Traefik `basic_auth` is not a substitute here the way it is for
+      Adminer or n8n: it gates the whole public port, and PsiTransfer's
+      entire value proposition is handing an unauthenticated download URL
+      to a recipient who has no relationship with the customer's server.
+      Gating the domain behind basic auth would block every recipient from
+      opening their download link — the same conflict noted for PrivateBin
+      in apps-gaps/privatebin.yaml, but arguably worse here because
+      PsiTransfer's default retention windows (up to 8 weeks) mean links
+      are expected to stay externally reachable for a while.
+    - >
+      Both passwords are optional and ship disabled by default
+      (`adminPass: false`, `uploadPass: false`), so leaving them unset (the
+      only mechanically installable option today, since neither can be
+      projected and basic_auth can't be scoped to just the upload path) is
+      not a benign no-op: it deploys a fully open, unauthenticated public
+      file-upload endpoint with no channel to lock it down. That's a real
+      abuse surface (anonymous hosting of arbitrary or illegal content on
+      the customer's server) beyond the usual "no secrets needed" case.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PsiTransfer is a single-container Node app (official image
+  psitrax/psitransfer, pin v2.4.4) on one HTTP port (3000) with a single
+  data volume and no database — structurally as simple as Uptime Kuma or
+  PrivateBin, and it would add genuine differentiation as the only
+  external-link file-transfer tool in the catalogue. Upstream is currently
+  active (six releases in the last six months) though historically prone
+  to multi-year dormant stretches between bursts. It is blocked today,
+  however, on a structural mismatch rather than a missing platform
+  feature we can just wait out: its admin/upload passwords require the
+  literal plaintext (no hashing), which `generated_from` cannot supply, and
+  Traefik `basic_auth` can't substitute without breaking the app's core
+  unauthenticated-recipient download flow. Left with neither password set —
+  the only combination installable under current mechanics — it ships an
+  open anonymous upload endpoint. Recommend `blocked_on_platform`: worth
+  revisiting only if a plaintext (not hash) customer-secret projection
+  channel, or a path-scoped auth gate that can protect uploads while
+  leaving download links public, becomes available.

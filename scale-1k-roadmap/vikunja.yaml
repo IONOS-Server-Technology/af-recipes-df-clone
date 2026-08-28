@@ -1,0 +1,86 @@
+slug: vikunja
+name: Vikunja
+source_description: "Vikunja is an open-source, self-hostable to-do app with multiple views and collaboration"
+
+upstream:
+  url: https://vikunja.io/
+  repo_url: https://github.com/go-vikunja/vikunja
+  license: AGPL-3.0-or-later
+  docker_image: vikunja/vikunja
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose.yaml/.yml file exists anywhere
+    in the go-vikunja/vikunja repo (checked root, contrib/, and
+    examples/ via the GitHub contents API — examples/ holds only plugin
+    example code) or as a release asset. The project's own docs
+    (vikunja.io/docs/full-docker-example/) instead embed several
+    docker-compose snippets inline in the documentation page itself —
+    variants for no-proxy/Traefik 2/Caddy v2/Synology, crossed with
+    Postgres/MySQL/SQLite/ParadeDB database backends — with no single
+    canonical file and no direct link to a raw/release-asset copy of any
+    of them. Since there's no one official file to point to (only
+    inline, multi-variant doc examples), recording compose_file_url as
+    null rather than picking one inline variant and presenting it as
+    "the" official compose file.
+
+version_health:
+  latest_version: "2.5.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (2.5.0) was tagged 2026-08-04, one day before today
+    (2026-08-05); it's a security fix release (a share link could act as
+    another user). Prior releases show a steady quarterly-ish cadence:
+    2.4.0 (2026-07-19), 2.3.0 (2026-04-09), 2.2.2 (2026-03-23), 2.2.0
+    (2026-03-20), 2.1.0 (2026-02-27), 2.0.0 (2026-02-25). Docker Hub tags
+    track releases closely (2.5.0 pushed 3 days ago at fetch time). No
+    archival, maintenance-only, or EOL signal — actively developed.
+
+catalogue_fit:
+  categories: [productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers to-do/task management.
+    Anytype (note-taking/knowledge base) is the closest conceptual
+    neighbor but serves a different use case (freeform notes vs.
+    structured task lists, Kanban, Gantt, and team task collaboration).
+    Vikunja fills a genuinely open productivity category.
+
+  usefulness: high
+  usefulness_rationale: >
+    To-do/task management is a mainstream, broad-appeal self-hosting
+    category (a self-hosted Todoist/Trello-style alternative) with active
+    upstream development, multiple client apps (web, mobile, CalDAV), and
+    no existing catalogue entry covering it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Vikunja is a single-binary, single-container app (bundled API + frontend)
+  that runs fine on its default bundled SQLite storage — no external
+  database service required, matching the uptime-kuma/vaultwarden
+  single-container pattern, and reachable behind Traefik on one HTTP port
+  (3456 by default). It ships with no default user or admin credential:
+  instead, self-registration is enabled by default and stays open
+  indefinitely (VIKUNJA_SERVICE_ENABLEREGISTRATION defaults to true) —
+  unlike Actual Budget or Uptime Kuma's one-time first-visit setup wizard,
+  this would leave an open, unauthenticated registration form on the
+  public internet if shipped as-is. The fix is the same pattern used for
+  Adminer: front the whole app with a Traefik basic_auth:true gate, with
+  the gate password projected from the customer's root password via
+  `generated_from`, so only the customer can reach the registration/login
+  screen at all. That clears the current /compose constraint cleanly.
+  Recommend building the recipe now, with the basic-auth gate treated as
+  a required (not optional) part of the recipe given the app's open
+  self-registration default.

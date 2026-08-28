@@ -1,0 +1,96 @@
+slug: linkace
+name: LinkAce
+source_description: "Self-hosted bookmark archive with link monitoring, archiving, tags, and REST API"
+
+upstream:
+  url: https://www.linkace.org/
+  repo_url: https://github.com/Kovah/LinkAce
+  license: GPL-3.0
+  docker_image: linkace/linkace
+  compose_file_url: https://raw.githubusercontent.com/Kovah/LinkAce/2.x/docker-compose.production.yml
+  compose_file_notes: >
+    Official file, explicitly linked (as "docker-compose.yml") from the
+    "Stable Setup" section of the project's own docs at
+    linkace.org/docs/v2/setup/setup-with-docker/, which describes this as
+    the supported Docker Compose path (app + MariaDB + Meilisearch + Redis).
+    The docs link points at the `2.x` branch, a rolling reference to the
+    current major-version line rather than a pinned tag — the docs page
+    itself has no per-release link. A version-pinned alternative exists as
+    a release asset, `linkace-v2.6.1-docker.zip` at
+    github.com/Kovah/LinkAce/releases/download/v2.6.1/linkace-v2.6.1-docker.zip
+    (zip bundling this same compose file plus a matching .env), but that's
+    a zip archive rather than a directly fetchable compose file, so the raw
+    `2.x` branch file was chosen as the recorded URL. Only one variant is
+    offered for production (no GPU/CPU or sqlite/postgres split at this
+    tier) — there's a separate root-level `docker-compose.yml` in the repo,
+    but that one builds LinkAce from source for local development
+    (bind-mounts the repo, dev Dockerfile) and is not the one the docs
+    recommend for self-hosting.
+
+version_health:
+  latest_version: v2.6.1
+  latest_release_date: 2026-08-03
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.6.1 published 2026-08-03, 2 days before today (2026-08-05) — a
+    security patch (SSRF, CSV-injection, stored-XSS fixes) on top of v2.6.0
+    (merged ~2026-07-02). Recent PRs (SSO auto-redirect merged 2026-07-27,
+    Polish i18n) show ongoing feature work, not just dependabot churn. No
+    signs of maintenance-only or archival.
+
+catalogue_fit:
+  categories: [bookmarks, productivity, knowledge-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers bookmark/link archiving. Closest catalogue
+    neighbors (Paperless-ngx for documents, Anytype for notes) organize
+    different content types. LinkAce adds link-specific features: automatic
+    web-archive snapshots (Wayback/Archive.org + local archive.org-style
+    capture), broken-link monitoring, tagging/lists, and a REST API for
+    browser-extension/bookmarklet capture.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted bookmark managers are a recognizable, if niche, self-hoster
+    need with no direct competitor in our current 24-recipe catalogue.
+    Usefulness is "medium" rather than "high" because it targets a narrower
+    audience (link hoarders/researchers) than category-defining tools like
+    Immich or n8n, and multiple free alternatives (Linkding, Shiori) exist
+    outside our catalogue too.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, DB_PASSWORD, REDIS_PASSWORD, MEILI_MASTER_KEY, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MEILI_MASTER_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LinkAce is a Laravel app (MariaDB + Redis + Meilisearch + app, one public
+  HTTP port 80/443, Traefik-friendly) with active upstream development
+  (latest release 2 days old) and no overlap in our catalogue. Unlike
+  Vaultwarden-style recipes, LinkAce has no env-var-driven admin bootstrap —
+  the first visitor to the app runs an interactive setup wizard (or
+  `php artisan registeruser --admin`) to create the initial admin account
+  with an arbitrary username/email/password, so `generated_from:
+  ROOT_PASSWORD` cannot be projected into it directly. The correct fix is
+  the same one used for other no-native-gate apps: put the whole app behind
+  a Traefik basic_auth gate (root-password-derived) so the setup wizard is
+  never exposed to the open internet, then let the customer create whatever
+  admin account they like behind that gate. APP_KEY, DB_PASSWORD,
+  REDIS_PASSWORD, and MEILI_MASTER_KEY are all server-generated secrets the
+  customer never needs to see. No blocking issues; recommend building a
+  recipe now.

@@ -1,0 +1,89 @@
+slug: bludit
+name: Bludit
+source_description: "Simple flat-file CMS for blogs and small sites without a database"
+
+upstream:
+  url: https://www.bludit.com/
+  repo_url: https://github.com/bludit/bludit
+  license: MIT
+  docker_image: bludit/docker
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The official bludit/docker
+    repo (github.com/bludit/docker) contains only a Dockerfile, a
+    docker-entrypoint.sh, and Kubernetes manifests under kubernetes/ — no
+    docker-compose.yaml/.yml anywhere in the repo. Both the repo's README
+    and the official docs installation guide
+    (docs.bludit.com/en/getting-started/installation-guide) document only
+    a bare `docker run --name bludit -p 8000:80 -d bludit/docker:latest`
+    command, with no compose alternative offered.
+
+version_health:
+  latest_version: "v3.22.0"
+  latest_release_date: "2026-05-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.22.0 released 2026-05-11 — about 3 months before today (2026-08-05).
+    Prior releases show a dense, regular monthly-or-tighter cadence through
+    2026: v3.21.1 (2026-05-01), v3.21.0 (2026-04-26), v3.20.0 (2026-04-11),
+    v3.19.0 (2026-03-22), v3.18.4 (2026-03-17), v3.18.2 (2026-03-08),
+    v3.18.1 (2026-03-02), v3.18.0 (2026-02-28), v3.17.2 (2026-02-07). No gap
+    over ~5 weeks anywhere in that history, and several releases are
+    security fixes (RCE via file upload, auth bypass, path traversal),
+    which is a good sign the maintainers are actively responding to
+    reports. Repo is not archived. Clearly active, not maintenance-only.
+    Caveat: the official bludit/docker image's newest tag is 3.20.0 (last
+    pushed ~4 months ago), so the packaged image is currently 2 releases
+    (~1 month, but including two security-fix releases: v3.21.0's path
+    traversal fix and v3.22.0's session-invalidation fix) behind upstream's
+    current v3.22.0.
+
+catalogue_fit:
+  categories: [cms, blogging, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a general-purpose
+    website/blog CMS — the catalogue leans monitoring, security, dev-tools,
+    automation, and media (Gitea/OpenGist are code-focused, not content
+    publishing). Bludit fills a genuine content-management gap: a
+    lightweight, database-free blog/small-site CMS for customers who want
+    a simple public website without running MySQL/Postgres.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, broadly-understood self-hosting use case (blog/small site) with
+    no catalogue overlap and a very light footprint (single PHP container,
+    no DB) that's cheap to run. Usefulness is medium rather than high
+    because flat-file blogging CMSes are a smaller niche next to WordPress-
+    class tools, and the packaged Docker image lagging upstream is a real
+    quality caveat for a customer-facing recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Bludit is an active, non-EOL, single-container flat-file PHP CMS
+  (bludit/docker, official image, no external database) exposing one HTTP
+  port and fully reverse-proxy compatible behind Traefik — mechanically
+  a good fit for the catalogue. Like Baikal and An Otter Wiki, it has no
+  environment variable to pre-set an admin account; instead it exposes an
+  unauthenticated install wizard on first HTTP hit where the visitor picks
+  the admin username/password directly. That wizard must be gated with a
+  Traefik basic_auth credential projected from the customer's root
+  password (same pattern as those recipes) so a stranger can't claim the
+  admin account before the customer does; the customer can then disable or
+  keep the gate as they prefer. That clears the /compose constraint today
+  with zero hard blocking issues, hence build_now. The official Docker
+  image lagging ~2 releases behind upstream (currently 3.20.0 vs. the
+  3.22.0 upstream release, missing at least one security fix) is a
+  quality caveat worth tracking post-build, not a blocker.

@@ -1,0 +1,106 @@
+slug: tandoor-recipes
+name: Tandoor Recipes
+source_description: "Self-hosted recipe manager with meal planning and shopping lists"
+
+upstream:
+  url: https://tandoor.dev
+  repo_url: https://github.com/TandoorRecipes/recipes
+  license: "AGPL-3.0 with Commons Clause (no-selling) exception"
+  docker_image: vabene1111/recipes
+  compose_file_url: https://raw.githubusercontent.com/TandoorRecipes/recipes/develop/docs/install/docker/plain/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked from the project's own docs.tandoor.dev
+    installation page (docs/install/docker section), which instructs
+    `wget`-ing this exact raw URL. It is a rolling reference to the
+    `develop` branch default, not version-pinned to a release tag. The
+    docs ship four reverse-proxy variants under docs/install/docker/
+    (plain, traefik, jwilder nginx-proxy, apache); the "plain" variant
+    (bare nginx on port 80, no bundled reverse-proxy config) was chosen
+    as the closest match to a self-contained two-service (web+postgres)
+    reference, matching this file's own `docker_image`/two-service
+    description above — the other three bundle a specific reverse-proxy
+    stack this catalogue doesn't need.
+
+version_health:
+  latest_version: "2.6.13"
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.6.13 shipped 2026-07-05, ~1 month before today (2026-08-05). The
+    2.6.x line has been released in a dense, active cadence: 2.6.0-2.6.9
+    landed across March-April 2026 (several same-week patch releases),
+    2.6.10/2.6.11 followed in June, and 2.6.12/2.6.13 in late June/early
+    July. 8,840+ commits on develop, 8,460 stars, 827 forks, 326 open
+    issues — clearly active, no maintenance-only, archived, or EOL
+    signals.
+
+catalogue_fit:
+  categories: [productivity, household]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers recipe/meal-planning
+    management (paperless-ngx/paperless-ai are general document management,
+    not food-specific). Tandoor is a mature, feature-rich recipe manager
+    (recipe import by URL/OCR, meal planner, shopping lists, nutrition
+    info, AI-assisted recipe parsing) with one of the largest communities
+    in this niche. This is the fourth candidate through gap analysis
+    covering closely-related ground — see apps-gaps/mealie.yaml (near-
+    identical Hostinger description, also build_now), apps-gaps/grocy.yaml
+    (build_now) and apps-gaps/kitchenowl.yaml (build_now) — so if the
+    catalogue only ships one recipe/household app, Tandoor competes
+    directly with those on features and community size rather than filling
+    distinct ground; per CLAUDE.md this overlap is not itself a reason to
+    reject Tandoor, just a prioritization input.
+  usefulness: high
+  usefulness_rationale: >
+    Larger, more actively developed community than Mealie, Grocy, or
+    KitchenOwl (8.4k stars, dense multi-release-per-month cadence, AI
+    recipe-import features), with broad appeal for households and hobby
+    cooks. Structurally simple to host (single web container bundling
+    nginx, one Postgres backend, no extra raw ports), so the value is high
+    even though it lands in an increasingly crowded niche within this
+    catalogue's gap-analysis backlog.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_password, POSTGRES_PASSWORD, SECRET_KEY]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_password
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Tandoor is a two-service stack (vabene1111/recipes web container, which
+  bundles nginx on port 80 in front of gunicorn, plus a required Postgres
+  database) — structurally close to recipes/paperless-ngx and
+  recipes/n8n's Postgres-backed template, and reverse-proxy friendly with
+  no extra raw ports. Its own login has no admin env var at all: signup is
+  closed by default (ENABLE_SIGNUP=0), and the documented ways to create
+  the first account are either temporarily opening public signup (first
+  registrant becomes the superuser) or exec-ing into the running container
+  to run Django's interactive `createsuperuser`, which takes a plaintext
+  password we have no channel to supply. Since there's no hash-accepting
+  field, `generated_from` can't target this app directly. The workable
+  path — the same one used for apps-gaps/kitchenowl.yaml, which has an
+  identical "first visitor claims the owner slot" problem — is to enable
+  signup (ENABLE_SIGNUP=1) but gate the whole app behind a mandatory
+  Traefik `basic_auth` credential projected from the customer's root
+  password, so only the customer can reach the signup form and claim the
+  first (superuser) account; Postgres password and Django's SECRET_KEY are
+  generated server-side with no customer input needed. That makes this
+  installable today. Upstream is actively maintained with a dense release
+  cadence and no EOL signals. The main open question is catalogue
+  prioritization, not mechanics: this is the fourth candidate in the
+  recipe/household-management niche to clear gap analysis (after Mealie,
+  Grocy, and KitchenOwl), so a human reviewer should decide how many of
+  these four are actually worth building rather than treating overlap as
+  a rejection reason.

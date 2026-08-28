@@ -1,0 +1,108 @@
+slug: dokuwiki
+name: DokuWiki
+source_description: "Lightweight file-based wiki platform for documentation and knowledge bases"
+
+upstream:
+  url: https://www.dokuwiki.org/
+  repo_url: https://github.com/dokuwiki/dokuwiki
+  license: GPL-2.0
+  docker_image: dokuwiki/dokuwiki
+  compose_file_url: https://raw.githubusercontent.com/dokuwiki/docker/main/docker-compose.yml
+  compose_file_notes: >
+    Official — found in the dokuwiki/docker repo (GitHub org "dokuwiki",
+    description "The official Docker image for DokuWiki"), the same repo
+    that builds the dokuwiki/dokuwiki image already recorded above. The
+    Docker Hub page for dokuwiki/dokuwiki explicitly says "An example
+    docker-compose file is included in the repository," linking here.
+    This is a rolling reference to the default branch (main), not
+    version-pinned to a release tag — the file itself pins the image tag
+    inside it instead (see below). Only one compose file is shipped (no
+    separate GPU/CPU or sqlite/postgres variants, consistent with
+    DokuWiki's no-external-database design already noted in
+    catalogue_fit/summary above): a single `dokuwiki` service using image
+    `dokuwiki/dokuwiki:stable` (comments note `master`, date-based, or
+    codename tags as alternatives), user 1000:1000, port 8080:8080, a
+    `PHP_TIMEZONE` env var (with commented-out `PHP_MEMORYLIMIT` /
+    `PHP_UPLOADLIMIT`), and a single `./storage:/storage` volume — no
+    database service, matching the flat-file storage model.
+
+version_health:
+  latest_version: "2026-07-14a \"Mort\" [57.1]"
+  latest_release_date: "2026-07-22"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest point release 2026-07-22 (14 days before today, 2026-08-05),
+    on top of base release 2026-07-14. DokuWiki ships infrequent,
+    date-stamped major releases roughly once a year with a handful of
+    lettered point releases (bugfix/security) trickling out afterward:
+    2025-05-14 "Librarian" (with .a/.b point releases through
+    2025-09-09), 2024-02-06 "Kaos" (through 2024-08-05), 2023-04-04
+    "Jack Jackrum". That's a ~12-14 month cadence between majors, so
+    "slowing" rather than "active" is the honest read of the pace, but
+    the project is clearly not dormant or abandoned — the 2026-07-14
+    release landed on schedule, the official Docker image
+    (dokuwiki/dokuwiki) was pushed 4 days before today's date, and the
+    project explicitly previewed native Markdown support as upcoming
+    work. Repo is not archived, issues/PRs are actively triaged.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a wiki/knowledge-base
+    tool, so DokuWiki would fill the same gap flagged in the separate
+    an-otter-wiki gap analysis (apps-gaps/an-otter-wiki.yaml) — that
+    file should be read alongside this one, since both target the exact
+    same "self-hosted wiki" slot and only one would be worth building.
+    Compared to An Otter Wiki, DokuWiki is the older, far more
+    established project (20+ years, huge plugin/template ecosystem,
+    no external DB — plain-text files instead of git-backed pages) but
+    has a much slower release cadence and an install flow with the same
+    open-registration-window risk.
+  usefulness: medium
+  usefulness_rationale: >
+    Wikis are a common self-hosting ask and DokuWiki is a well-known,
+    single-container, no-database implementation, which keeps it simple
+    to run behind Traefik. Usefulness is capped at medium rather than
+    high because it would be a second recipe competing for the exact
+    same "wiki" catalogue slot as An Otter Wiki, which is more actively
+    released and already analyzed — shipping both would be redundant
+    unless there's a specific reason customers want DokuWiki's plugin
+    ecosystem or plain-text storage over An Otter Wiki's git-backed
+    Markdown model.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DokuWiki is a single-container PHP/Apache app (official image
+  dokuwiki/dokuwiki, pinned e.g. 2026-07-14a) serving its UI on one HTTP
+  port (8080), storing all wiki content as flat files in a single
+  /storage volume with no external database — fully Traefik-compatible.
+  It has no env-var-driven admin bootstrap: the official image's own
+  documentation says "on first run, use DokuWiki's installer to
+  configure the wiki as usual" through the web UI, and explicitly notes
+  the image "is meant to be used with a reverse proxy that handles SSL
+  termination and authentication" — i.e. upstream itself expects the
+  operator to add the auth gate DokuWiki doesn't provide during install.
+  That mirrors An Otter Wiki's situation: without a gate, anyone who
+  reaches the domain before the customer completes the install wizard
+  could claim the first-admin slot. A Traefik basic_auth:true gate
+  (password projected from the customer's root password via
+  generated_from, same pattern as Adminer/n8n/WUD/An Otter Wiki) clears
+  that at first boot with zero hard blocking issues, so this is
+  installable_today with no blocking issues — hence build_now. It
+  overlaps with the wiki niche already covered by the separate An
+  Otter Wiki gap analysis; which of the two (if either) is worth
+  building first is a later prioritization call, not a downgrade of
+  this recommendation.

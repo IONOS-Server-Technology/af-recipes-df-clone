@@ -1,0 +1,98 @@
+slug: apache-gravitino
+name: Apache Gravitino
+source_description: "Open-source metadata lake unifying Iceberg, Hive, and JDBC catalogs in one API"
+
+upstream:
+  url: https://gravitino.apache.org
+  repo_url: https://github.com/apache/gravitino
+  license: Apache-2.0
+  docker_image: apache/gravitino
+  compose_file_url: https://github.com/apache/gravitino-playground/blob/main/docker-compose.yaml
+  compose_file_notes: >-
+    Official — the apache/gravitino README's "Quick Start" section names
+    "Gravitino Playground (Recommended)" as the docker-compose path and
+    links to this sibling Apache repo (apache/gravitino-playground), so
+    this is the project's own designated compose entry point, not a
+    third-party template. Rolling reference to the default branch (main),
+    not version-pinned to a tag/release. Caveat: this is not a
+    Gravitino-only compose file — it's a full demo stack that also brings
+    up Hive, Ranger, Trino, and MySQL/metastore containers alongside the
+    gravitino service itself (image apache/gravitino:${GRAVITINO_IMAGE_TAG}),
+    since the playground's purpose is showing Gravitino federating those
+    backing systems. There is no separate official standalone-Gravitino
+    compose file in the main apache/gravitino repo itself.
+
+version_health:
+  latest_version: "1.3.0"
+  latest_release_date: "2026-06-29"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~1.2 months between 1.3.0 (2026-06-29) and today (2026-08-05). Prior
+    releases landed at a healthy clip: 1.2.1 (2026-05-12), 1.1.1
+    (2026-04-01), 1.2.0 (2026-03-13), 1.1.0 (2025-12-16), 1.0.1
+    (2025-11-19), 1.0.0 (2025-09-30) — roughly monthly-to-quarterly, no
+    gaps. Gravitino graduated from Apache Incubator to a full Apache
+    Top-Level Project on 2025-06-03, which is a maturity signal, not a
+    slowdown; the release rate has if anything increased since graduation.
+    No archival, EOL, or maintenance-mode signal anywhere.
+
+catalogue_fit:
+  categories: [data-infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue touches data-lake/metadata
+    management — this would open a new category. Gravitino is a metadata
+    catalog service that unifies Iceberg, Hive, and JDBC-backed catalogs
+    (plus newer additions like ClickHouse and Glue) behind one API and a
+    web UI, aimed at customers building or federating a data
+    lakehouse/warehouse. It doesn't compete with anything we ship today
+    (n8n, Immich, Vaultwarden, etc. are all end-user or ops tools, not data
+    infrastructure).
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely novel category with no internal competition, and the 1.2.0
+    web UI redesign makes it usable without hand-editing REST calls. But
+    the audience is narrow and technical (data engineers already running
+    or building a lakehouse) compared to the mass-market tools that make
+    up most of the catalogue, and the product's core value — federating
+    catalogs across Hive/Iceberg/JDBC/etc. — only pays off once a customer
+    also has those backing systems (a Hive metastore, an S3-backed Iceberg
+    warehouse, an external JDBC source) to point it at, which a fresh AF
+    install doesn't provide out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Apache Gravitino is a healthy, actively-released project (graduated to
+  Apache TLP mid-2025, monthly-to-quarterly releases with no gaps) and is
+  mechanically installable today: its default "simple" auth mode requires
+  no login at all (falls back to an anonymous user), so the recipe can
+  gate the whole app behind Traefik basic_auth exactly like Adminer — no
+  external secret or plaintext-password channel is needed. Note that the
+  alternative built-in "basic" auth mode requires setting
+  GRAVITINO_INITIAL_ADMIN_PASSWORD to a plaintext value before first
+  startup (server hashes it internally but only accepts plaintext input),
+  which would NOT be expressible via generated_from; the recipe should
+  stick to simple-mode-plus-basic_auth-gate and avoid basic mode entirely.
+  There are no blocking issues, so this is build_now. Two things worth
+  documenting but not blocking: the server ships with an embedded H2 store
+  by default, which upstream explicitly says not to rely on for production
+  durability (acceptable for a single-tenant AF instance); and the
+  secondary Iceberg REST port (9001) is meant to be consumed directly by
+  external query engines (Spark, Trino) rather than browsed, which doesn't
+  fit neatly behind a single Traefik subdomain the way the Web UI/API port
+  (8090) does — core catalog-management functionality works fine through
+  8090 alone, but customers wanting the Iceberg REST catalog protocol
+  itself would need a raw port exposed outside the standard one-app-one-
+  subdomain shape.

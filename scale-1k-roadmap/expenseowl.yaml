@@ -1,0 +1,76 @@
+slug: expenseowl
+name: ExpenseOwl
+source_description: "Lightweight self-hosted personal expense tracker with dashboard and CSV import"
+
+upstream:
+  url: https://github.com/tanq16/expenseowl
+  repo_url: https://github.com/tanq16/expenseowl
+  license: MIT
+  docker_image: tanq16/expenseowl
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose.yaml/.yml file exists anywhere in the tanq16/expenseowl
+    repo (confirmed via a recursive tree listing of main) or as a downloadable
+    release asset — the repo only ships a Dockerfile and a
+    community-contributed Kubernetes spec under kubernetes/. The project's
+    README "Installation" section embeds a compose YAML snippet inline
+    (single expenseowl service, image tanq16/expenseowl:main, a port mapping,
+    and a data volume) as documentation, but does not publish it as a
+    standalone file, so there is nothing to link to as an official
+    compose_file_url per this task's criteria.
+
+version_health:
+  latest_version: "v4.1"
+  latest_release_date: "2025-10-02"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    v4.1 (2025-10-02) is the latest tag and also the most recent commit on
+    main — about 10 months with no release or commit activity as of
+    2026-08-05. Release cadence up through mid-2025 was fairly steady
+    (roughly monthly, v3.13 through v4.1 across March-October 2025), then
+    stopped abruptly. Single maintainer (tanq16), no archival notice on the
+    repo and issues appear to still be open, so this reads as a
+    single-developer side project that has gone quiet rather than a
+    formally archived/EOL project. Worth re-checking before a recipe ships.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal finance/expense tracking — this
+    would be a new category for the catalogue. It's a single small Go
+    binary with a JSON-file (or optional Postgres) backend, no other
+    services required, which fits our single-container web-app pattern
+    well (closest structural match: recipes/uptime-kuma/, recipes/vaultwarden/).
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuine gap (no budgeting/expense app in the catalogue today)
+    and is trivially cheap to run, but it's a niche personal-use tool with
+    a small single-maintainer upstream and no built-in authentication,
+    which raises the deployment bar (see installability below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIALS]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIALS
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ExpenseOwl is a small, single-container Go app (tanq16/expenseowl) with a
+  web dashboard, CSV import, and no external dependencies — needs only a
+  domain and a data volume to boot. It ships with no authentication of its
+  own ("deploy carefully", upstream recommends fronting it with Authelia or
+  a reverse proxy), so it maps cleanly onto the Traefik basic_auth gate
+  mechanism (IF-1312) and is mechanically installable today once that
+  lands, so this is a build_now candidate. Worth noting for later
+  scheduling: the project has had no commits or releases in the ~10 months
+  since v4.1 (2025-10-02), so a freshness check closer to build time is
+  worthwhile, given it's still a small active-looking single-maintainer
+  repo with no archival notice.

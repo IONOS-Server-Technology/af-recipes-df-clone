@@ -1,0 +1,94 @@
+slug: new-api
+name: New API
+source_description: "New API is an LLM gateway and AI asset management system for multiple providers"
+
+upstream:
+  url: https://github.com/QuantumNous/new-api
+  repo_url: https://github.com/QuantumNous/new-api
+  license: AGPL-3.0, with an additional attribution clause (modified versions must keep the author-attribution notice and a visible link to the original project); a commercial license is offered for organizations whose policy forbids AGPLv3.
+  docker_image: calciumion/new-api
+  compose_file_url: https://raw.githubusercontent.com/QuantumNous/new-api/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the repo's own root-level docker-compose.yml, which the
+    README's recommended "Docker Compose (Recommended)" install method
+    directly instructs users to clone and run (`docker-compose up -d`).
+    This is a rolling reference to the default branch (main), not
+    version-pinned to a release tag. The file ships one primary variant
+    (new-api + Redis + PostgreSQL, with an image pinned to `:latest`) with
+    MySQL and ClickHouse services fully commented out as opt-in
+    alternatives switched on via inline instructions in the file's header
+    comment — PostgreSQL is the default/uncommented path, so that's the
+    variant recorded here rather than a separate file per backend.
+
+version_health:
+  latest_version: "v1.0.0-rc.23"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.0.0-rc.23 published 2026-08-01, four days before today (2026-08-05).
+    Preceding releases (rc.22 on ~2026-07-26, rc.21 on ~2026-07-11, rc.20 on
+    ~2026-07-07) show a sustained roughly-weekly-to-biweekly cadence. Repo is
+    not archived, has 44.5k stars, 6,193+ commits, and 691 open issues /
+    514 open PRs at time of research — clearly under active development.
+    Note the project has moved organizations: it originated as
+    Calcium-Ion/new-api (a fork of One API) and now lives at
+    QuantumNous/new-api; the Docker image namespace (calciumion/new-api) has
+    not been renamed to match and remains current/actively pushed.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Distinct niche from every AI-category recipe currently in the
+    catalogue. open-webui and ollama are chat-UI/local-inference tools for
+    talking to models directly; hermes-agent and openclaw are autonomous
+    agent runtimes. New API is neither — it's an LLM gateway/proxy and cost
+    dashboard: a single admin panel that aggregates multiple upstream
+    providers (OpenAI, Anthropic, Gemini, and many others) behind one
+    OpenAI/Claude/Gemini-compatible endpoint, with per-key quotas, usage
+    billing, load balancing across channels, and multi-user token
+    management. A customer running several self-hosted AI tools (or giving
+    a team shared, metered access to paid provider keys) would use this to
+    centralize and meter that access — a capability nothing else in the
+    catalogue provides today.
+  usefulness: high
+  usefulness_rationale: >
+    Very popular (44.5k stars) and actively maintained, filling a real gap
+    (centralized multi-provider LLM key/billing management) that no
+    existing recipe addresses, with a single HTTP web UI that fronts
+    cleanly behind Traefik.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential, SESSION_SECRET, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+    - secret: SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  New API is an active, well-adopted (44.5k stars) LLM gateway/billing
+  dashboard that centralizes multiple AI-provider API keys behind one
+  compatible endpoint with per-key quotas and usage accounting — a genuine
+  gap in the current 24-recipe catalogue, which has no comparable
+  multi-provider proxy/metering tool. It ships no customer-settable
+  admin-password env var at all: confirmed against
+  model/main.go::createRootAccountIfNeed, first boot hardcodes username
+  root / password 123456 with no override, the same "fixed default
+  credential the app gives no way to change" case SCHEMA.md says is
+  installable by making Traefik basic_auth the real auth boundary in front
+  of it. With that gate, plus server-generated SESSION_SECRET and Postgres
+  password, the app is installable today with no blockers. Provider API
+  keys (OpenAI/Anthropic/etc.) are added per-channel through the admin UI
+  after provisioning, not required as an env var at first boot — same
+  deferred pattern already used for openclaw/hermes-agent/agent-zero, not a
+  blocker here either.

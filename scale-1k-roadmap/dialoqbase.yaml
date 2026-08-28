@@ -1,0 +1,89 @@
+slug: dialoqbase
+name: Dialoqbase
+source_description: "Self-hosted chatbot builder with knowledge base and multi-provider LLM support"
+
+upstream:
+  url: https://dialoqbase.n4ze3m.com/
+  repo_url: https://github.com/n4ze3m/dialoqbase
+  license: MIT
+  docker_image: docker.io/n4z3m/dialoqbase:v1.11.5
+  compose_file_url: https://raw.githubusercontent.com/n4ze3m/dialoqbase/main/docker/docker-compose.yml
+  compose_file_notes: >
+    Official — the README's "Installation" section instructs cloning the
+    repo, cd'ing into `docker/`, and running `docker-compose up -d` against
+    this exact file (dialoqbase + ankane/pgvector Postgres + Redis +
+    SearXNG). This is a rolling reference to the default branch (`main`),
+    not version-pinned — it also pulls `n4z3m/dialoqbase:latest` rather than
+    a tagged release. There's only one variant shipped (no GPU/CPU or
+    sqlite/postgres split). Since the upstream repo is archived and
+    read-only (see version_health notes above), this file is now frozen in
+    practice even though the URL itself isn't pinned to a tag.
+
+version_health:
+  latest_version: v1.11.5
+  latest_release_date: 2026-06-29
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    Upstream repo (n4ze3m/dialoqbase) was archived by the owner on 2026-07-08
+    — about 4 weeks before today (2026-08-05) — and is now read-only. The
+    maintainer's own README describes the project as "a side project" that
+    "is not ready for production" and "may contain bugs and security
+    issues." Release history before archival was fairly active (releases
+    roughly monthly), so this is a hard stop, not a slow fade: v1.11.5 itself
+    was a security fix (unauthenticated path traversal in
+    `GET /api/v1/view/*`) with an explicit recommendation to rotate
+    `DB_SECRET_KEY` post-upgrade, and there will be no further fixes.
+    Ambiguity check: found two forks (elr9/dialoqbase-server,
+    Cyberdeep/dialoqbase-1) that surface in search; both are plain forks of
+    n4ze3m/dialoqbase with no evidence of independent active maintenance or
+    a community takeover, not a separate active upstream to consider
+    instead.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Dialoqbase is a chatbot-builder (Chatbase-style): customers create named
+    bots backed by ingested knowledge sources (PDF, URL, GitHub repo, sitemap,
+    YouTube, Word docs) and can embed a widget, on top of a multi-provider
+    LLM backend (OpenAI, Anthropic, Google, Fireworks, or local Ollama/
+    LocalAI). open-webui is a general chat frontend for local models. There
+    would be real differentiation (build-a-bot vs. chat-with-a-model) if the
+    project were alive.
+  usefulness: low
+  usefulness_rationale: >
+    The feature gap is real, but shipping a recipe on top of an archived,
+    admittedly-not-production-ready upstream with an unpatched-forever CVE
+    history is exactly the risk this catalogue should avoid regardless of
+    differentiation.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_SECRET_KEY, basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: DB_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Upstream repository archived 2026-07-08 (read-only, no further security fixes) — v1.11.5 itself was a security patch, so this is not a project to build a recipe on regardless of the mechanism question."
+    - "Admin login has a fixed 'admin/admin' default with no env var to set it at deploy time (only changeable manually after first login) — not a hard blocker per se (Traefik basic_auth can gate it), but compounds the risk given no upstream fixes will ever land for that flow."
+    - "Multi-service stack (dialoqbase app + Postgres/pgvector + Redis + SearXNG) needing 4 containers just to reach first boot, for a feature set that's moot given the archival."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Dialoqbase (n4ze3m/dialoqbase) is a Postgres/Redis/SearXNG-backed chatbot
+  builder that would mechanically fit our recipe mechanism today — its only
+  first-boot secrets are a server-generatable JWT key and a fixed default
+  admin login that Traefik basic_auth can gate. It is not recommended anyway:
+  the upstream repo was archived on 2026-07-08, about four weeks before this
+  analysis, ending development for good and cutting off any future fix for a
+  known unauthenticated path-traversal CVE class already found in v1.11.4/
+  v1.11.5. Building on a dead, admittedly-not-production-ready upstream would
+  ship un-patchable risk into the catalogue for a feature gap (chatbot
+  builder vs. open-webui's chat frontend) that's no longer worth taking on
+  this codebase.

@@ -1,0 +1,112 @@
+slug: triliumnext-notes
+name: TriliumNext Notes
+source_description: "Self-hosted personal knowledge base with hierarchical note organization and scripting"
+
+upstream:
+  url: https://triliumnotes.org/
+  repo_url: https://github.com/TriliumNext/Trilium
+  license: AGPL-3.0
+  docker_image: triliumnext/trilium
+  compose_file_url: https://raw.githubusercontent.com/TriliumNext/Trilium/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (github.com/TriliumNext/Trilium/blob/master/docker-compose.yml),
+    linked directly by the official docs' installation page
+    (docs.triliumnotes.org/user-guide/setup/server/installation/docker), which
+    tells users to `wget` this exact raw URL. Rolling reference to the
+    `master` branch, not version-pinned to a release tag; the file itself
+    pins the image to `triliumnext/trilium:latest` and comments that users
+    should swap in a specific tag to avoid unintended updates. The repo also
+    ships a second variant, `docker-compose.rootless.yml`, for rootless
+    Docker; the docs explicitly recommend the standard (rootful)
+    docker-compose.yml picked here for most users and position rootless as
+    an advanced opt-in alternative ("if you're unsure, stick to the
+    'rootful' Docker image").
+
+version_health:
+  latest_version: "v0.104.1"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.104.1 released 2026-07-25, 11 days before today (2026-08-05); v0.104.0
+    (described upstream as the largest release in the project's history,
+    focused on security and interoperability) shipped a week earlier on
+    2026-07-18. GitHub release history shows a dense, regular cadence through
+    2026: v0.103.0 (2026-05-13), v0.102.2 (2026-04-05), v0.102.1 (2026-03-08),
+    v0.102.0 (2026-03-01), v0.101.x (Dec 2025-Jan 2026), v0.100.0
+    (2025-12-05) — releases roughly every 3-5 weeks with no long gaps.
+    Naming note: the original repo TriliumNext/Notes was archived on
+    2025-06-24 with development consolidated into the current, actively
+    developed TriliumNext/Trilium (itself a community continuation of the
+    original zadam/trilium, which had gone unmaintained). The Hostinger
+    catalogue slug and description refer to this lineage; the live, active
+    project today is TriliumNext/Trilium. Clearly active, not archived or
+    EOL.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a note-taking / personal
+    knowledge base app. It is conceptually adjacent to gap-analysis
+    candidates already documented elsewhere (memos.yaml — quick-capture
+    notes; affine.yaml — docs/whiteboard workspace; an-otter-wiki.yaml —
+    Git-backed team wiki) but distinct in shape from all three: Trilium is a
+    single-user, hierarchical outliner/knowledge-graph tool with built-in
+    scripting (JS notes that can automate the knowledge base itself),
+    encrypted notes, and a note-relation/attribute system closer to a
+    personal "second brain" (Notion/Roam-style) than a quick-memo feed, a
+    team wiki, or a multi-block workspace app.
+  usefulness: high
+  usefulness_rationale: >
+    Popular, actively developed, single-container app (SQLite-backed, no
+    external DB) filling a genuinely unaddressed product category —
+    self-hosted personal knowledge management/note-taking — with broad
+    appeal beyond developers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Confirmed against the upstream docker-compose.yml, official docs, and
+      web search on initial setup: there is no environment variable to
+      preset the instance password. The app boots with no password set, and
+      the first visitor to the public URL is shown a one-time setup wizard
+      where they choose the instance's single password — which also doubles
+      as the data-encryption key. Whoever completes that wizard first owns
+      the instance. There is no `type: password` parameter on the app's own
+      login for `generated_from: "<algo>:ROOT_PASSWORD"` to target, since the
+      credential is chosen client-side through the wizard, not injected via
+      env var.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger reaches the setup wizard first"
+      version of this race, but per the precedent set in
+      apps-gaps/2fauth.yaml, apps-gaps/activepieces.yaml, and
+      apps-gaps/memos.yaml, today's basic_auth mechanism has no channel to
+      also hand the customer a *second*, distinct credential for the
+      in-app setup wizard beyond the single root-password projection
+      already used for the gate itself — so gating alone does not fully
+      resolve the underlying provisioning gap under the platform's current
+      automated `/compose` model.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  TriliumNext Notes is an active, single-container note-taking/personal
+  knowledge-base app (triliumnext/trilium, pinned e.g. v0.104.1, SQLite by
+  default, one HTTP port, Traefik-compatible) that would fill a genuine,
+  currently-unaddressed gap in the catalogue's productivity lineup — nothing
+  today covers hierarchical/scriptable note-taking. It fails today's
+  installability test for the same structural reason already documented for
+  2FAuth, Activepieces, and Memos: there is no env var to preset the
+  instance's sole password, so provisioning relies on a first-visitor setup
+  wizard that neither `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate
+  alone can safely hand to the customer under the current `/compose`
+  mechanism. Revisit once upstream adds an env-var-driven initial-password
+  flow, or the platform gains a second customer-facing credential channel
+  beyond root-password projection.

@@ -1,0 +1,87 @@
+slug: vert
+name: VERT
+source_description: "VERT is an open-source, fully local file converter that runs in the browser"
+
+upstream:
+  url: https://vert.sh
+  repo_url: https://github.com/VERT-sh/VERT
+  license: AGPL-3.0
+  docker_image: ghcr.io/vert-sh/vert:sha-e1c83ba
+  compose_file_url: https://github.com/VERT-sh/VERT/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the project's own docs/DOCKER.md links directly to
+    "/docker-compose.yml" as the file to use for `docker compose up`. It is
+    a rolling reference to the default (`main`) branch, not version-pinned:
+    it builds from local `.` context with the `latest` tag as fallback,
+    and there is only one variant (no GPU/CPU or dev/prod split) — it
+    matches the single commit-sha-tagged image already recorded above,
+    consistent with upstream having no tagged releases (see
+    version_health).
+
+version_health:
+  latest_version: "no tagged releases — GitHub Releases page is empty; only rolling commit-sha container tags exist (e.g. sha-e1c83ba)"
+  latest_release_date: "2026-07-01 (date of the sha-e1c83ba commit/image, ~1 month before today, 2026-08-05)"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The project has never cut a formal GitHub Release or semver tag — it
+    ships continuously via a commit-sha-tagged container image (also a
+    floating `latest`/`main` tag). Commit history shows activity roughly
+    every few weeks (July 1, June 24, June 2, April 1, Feb 24 2026 in the
+    visible log), which is active but noticeably less regular than a
+    scheduled-release project. No archival notice, no EOL announcement.
+    Because there is no semver tag, "current stable" here means "most
+    recent commit-sha image" rather than a vetted release — worth flagging
+    to a human reviewer as a weaker version-pinning story than typical.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a file-format converter.
+    VERT converts images, audio, and documents to other formats entirely
+    client-side in the browser via WebAssembly — the server just serves a
+    static/SSR frontend, so the customer's files never leave their own
+    device for those formats. Video conversion is the one exception: it
+    needs a separate "vertd" daemon (GPU-accelerated, falls back to CPU)
+    that does process files server-side, and is optional/omittable from a
+    first recipe pass.
+  usefulness: medium
+  usefulness_rationale: >
+    A privacy-respecting file converter is a genuinely different capability
+    from anything self-hosted here today, and the core app is a trivial
+    single-container static/SSR frontend with no database — very cheap to
+    run. Rated medium rather than high because the tool has no accounts, no
+    persisted state, and no admin surface of its own, so the value-add over
+    just using the free public vert.sh instance is narrower than for apps
+    that store customer data (Vaultwarden, Immich, Paperless) — the main
+    reason to self-host it is data locality/compliance, not extra features.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No formal versioned release exists upstream (see version_health) — only commit-sha container tags. A recipe would have to pin to a commit-sha tag rather than a semver tag, which is a weaker upgrade/rollback story than every other recipe in the catalogue and worth a human decision before treating this as build_now."
+    - "PUB_HOSTNAME, PUB_VERTD_URL, and other PUB_* config values documented by upstream are baked in at image build time (per docs/DOCKER.md), not read at container runtime — the recipe's build/publish pipeline, not /compose, would need to produce a per-domain image if per-customer PUB_HOSTNAME correctness matters. This doesn't block installability (the app functions fine at any domain even with a mismatched PUB_HOSTNAME) but is a real customization gap versus the pattern of an env-driven APP_DOMAIN parameter."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  VERT needs no customer-supplied secret at all — no login, no admin
+  surface, just a domain — so it clears the installability bar cleanly
+  once a container tag is picked. The catch is upstream itself: there is
+  no tagged release, only rolling commit-sha images, and per-domain config
+  (PUB_HOSTNAME) is baked in at image build time rather than read from an
+  env var at runtime. It fills a real, currently-empty niche (client-side
+  file conversion, zero overlap with the existing 24 recipes) and is cheap
+  to run as a single static-frontend container, but the lack of any
+  versioned release and the build-time-only config make it a
+  build_with_caveats rather than a straightforward build_now — worth a
+  human decision on whether commit-sha pinning is acceptable before
+  scheduling a real af-create-recipe pass. (Video conversion via the
+  separate GPU-oriented "vertd" daemon should be scoped out of a first
+  recipe; the browser-side WASM conversion path covers images/audio/docs
+  without it.)

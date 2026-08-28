@@ -1,0 +1,142 @@
+slug: shelfmark
+name: Shelfmark
+source_description: "Self-hosted book and audiobook search platform with multi-source discovery"
+
+upstream:
+  url: https://github.com/calibrain/shelfmark
+  repo_url: https://github.com/calibrain/shelfmark
+  license: MIT
+  docker_image: ghcr.io/calibrain/shelfmark
+  compose_file_url: https://raw.githubusercontent.com/calibrain/shelfmark/main/compose/docker-compose.yml
+  compose_file_notes: >
+    Official — the project's own README quickstart instructs
+    `curl -O https://raw.githubusercontent.com/calibrain/shelfmark/main/compose/docker-compose.yml`
+    then `docker compose up -d`. This is a rolling reference to the default
+    `main` branch (not pinned to a release tag), and the image inside it
+    floats on the `:latest` tag rather than the v1.3.5 pin recorded above.
+    The `compose/` directory ships four variants —
+    `docker-compose.yml` (standard), `docker-compose.lite.yml`,
+    `docker-compose.tor.yml`, and `docker-compose.wireguard.yml` — the
+    standard variant was picked because it matches the recipe shape
+    described in `summary` (no NET_ADMIN/NET_RAW capabilities, single
+    image, no VPN/Tor sidecar), whereas the Tor and WireGuard variants add
+    privileged networking this analysis explicitly says to avoid.
+
+version_health:
+  latest_version: "v1.3.5"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: maintenance-only
+  notes: >
+    v1.3.5 shipped 2026-07-31, 5 days before today (2026-08-05), and the
+    default branch had commits as recently as 2026-08-05. Release history is
+    dense and regular: v1.3.0 (2026-05-12), v1.3.1 (2026-06-15), v1.3.2
+    (2026-06-17), v1.3.3 (2026-07-08), v1.3.4 (2026-07-21), v1.3.5
+    (2026-07-31), on top of ~30 releases since v0.1.x in August 2025 — so by
+    shipping activity this is one of the most active candidates analysed.
+    The repo is NOT archived (3.6k stars, GitHub `archived: false`).
+    `eol_status` is nevertheless recorded as maintenance-only because
+    upstream says so itself, twice, in its own readme: a note reading "This
+    project is in a stable state as of May 2026 but is not under active
+    maintenance", and a Project Scope section declaring the core feature set
+    complete, development limited to "stability, bug fixes,
+    quality-of-life improvements", and out-of-scope feature requests
+    closed on sight. The observable activity is largely dependabot bumps
+    plus merged outside contributions, which is consistent with
+    maintenance-only rather than contradicting it.
+    A community fork, https://github.com/NemesisHubris/litfinder (LitFinder),
+    advertised itself as "actively maintained ... as the upstream project is
+    no longer under active maintenance", but as of 2026-08-06 that URL
+    returns 404 and the repo no longer appears in that owner's public repo
+    list (only a NemesisHubris/LitFinder-Custom-Sources remains), so the
+    fork looks to have been removed or renamed. Either way
+    calibrain/shelfmark remains the canonical upstream, is the one
+    Hostinger catalogues, and is the one publishing the official image, so
+    no fork is a candidate recipe base today.
+    Name ambiguity: several unrelated GitHub repos are also called Shelfmark
+    (IsmaelHMelville/Libros-shelfmark, alexhb1/Shelfmark, and a
+    sourceforge.net/projects/shelfmark.mirror mirror). All were ruled out —
+    calibrain/shelfmark is the one matching Hostinger's description and its
+    own catalogue page (hostinger.com/applications/shelfmark).
+
+catalogue_fit:
+  categories: [media, ebooks, self-hosting]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches books or audiobooks;
+    the nearest neighbours by shape are Immich (self-hosted media library
+    with browser UI) and Paperless-ngx (document ingest + search), and
+    neither searches external release sources or brokers downloads.
+    Shelfmark is also explicitly not a library manager — it is the discovery
+    and acquisition front-end that hands files off to Calibre-Web,
+    Audiobookshelf, Grimmory or similar, so it would complement rather than
+    duplicate the Calibre-Web and Audiobookshelf candidates already analysed
+    in this directory (neither of which has shipped as a recipe either).
+  usefulness: medium
+  usefulness_rationale: >
+    Popular and well-built (3.6k stars, frequent releases, polished UI,
+    multi-user request workflow, OIDC support), and it fills an empty
+    catalogue category. Usefulness is held at medium rather than high for
+    two reasons: it is only useful in combination with a library app the
+    customer must run separately (on its own it downloads files into a
+    folder), and its practical value depends on the customer configuring
+    external sources — see the legal/policy caveat in `blocking_issues`,
+    which is the dominant consideration for whether this belongs in an
+    IONOS-branded catalogue at all.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    # AUTH_METHOD defaults to `none` — a fresh instance has NO authentication
+    # at all, and the built-in local login can only be enabled after an admin
+    # account is created interactively in the UI/onboarding wizard. There is
+    # no env var to seed a username or password, so nothing but a
+    # proxy-level gate can protect the instance at first boot.
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      NOT a mechanism blocker, but a policy/legal one that a human must
+      decide before any recipe work starts: Shelfmark's purpose is
+      searching and downloading books from shadow-library and P2P sources
+      (its `AA_*` / Direct Download settings target Anna's Archive-style
+      mirrors, alongside torrent, Usenet and IRC clients). Upstream's own
+      readme carries a disclaimer pushing copyright compliance onto the
+      user. Shipping this as an official IONOS Application Factory recipe
+      would put the brand behind a copyright-circumvention tool; that is a
+      legal/product call, not an engineering one, and it should be answered
+      before the app is queued for `af-create-recipe`.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Shelfmark (ghcr.io/calibrain/shelfmark, pin v1.3.5 — the tag is published
+  and resolvable on GHCR, as is the `shelfmark-lite` variant) is a
+  single-container MIT-licensed Python/Flask app on one HTTP port (8084,
+  configurable via FLASK_PORT) with a SQLite store inside its `/config`
+  volume and a `/books` output volume — structurally the same shape as
+  recipes/uptime-kuma and recipes/vaultwarden, no external database, no
+  privileged capabilities in the standard image (the Tor and WireGuard
+  variants need NET_ADMIN/NET_RAW and should simply not be used). Upstream
+  documents root-path reverse-proxy deployment with websocket/Socket.IO
+  passthrough and exposes an unauthenticated `/api/health` endpoint, so
+  Traefik fronting and health-check wiring are both straightforward. Every
+  external credential it can use — Hardcover, Google Books, Prowlarr,
+  qBittorrent, SABnzbd, AA donator key, SMTP — is optional and settable in
+  the app's own UI after install, so none of them touch the /compose
+  constraint. What it does need at first boot is a gate: AUTH_METHOD
+  defaults to `none` and there is no env var to seed a local admin, so
+  without a Traefik `basic_auth` credential projected from the customer's
+  root password the instance would sit fully open on the internet — that
+  mechanism exists (IF-1312), so this is installable_today. The reason this
+  is build_with_caveats rather than build_now is not technical: it is
+  primarily a shadow-library/torrent download front-end, and putting an
+  IONOS-branded recipe behind that needs an explicit legal/product sign-off
+  (if that sign-off is refused, the correct outcome is not_recommended).
+  Secondary caveat: upstream self-declares the project stable but "not
+  under active maintenance" with a closed feature scope, even though
+  releases are still landing weekly.

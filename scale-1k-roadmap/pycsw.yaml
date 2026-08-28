@@ -1,0 +1,87 @@
+slug: pycsw
+name: pycsw
+source_description: "OGC-certified CSW catalogue server for publishing geospatial metadata"
+
+upstream:
+  url: https://pycsw.org/
+  repo_url: https://github.com/geopython/pycsw
+  license: MIT
+  docker_image: geopython/pycsw
+  compose_file_url: https://raw.githubusercontent.com/geopython/pycsw/master/docker/compose/docker-compose.yml
+  compose_file_notes: >
+    Official: docs/docker.rst ("Docker Compose" section) explicitly documents
+    running this file (from the docker/compose directory) via
+    `PYCSW_DOCKER_IMAGE=latest docker compose up`. It is a rolling reference
+    to the default (master) branch, not pinned to a release tag — the raw
+    URL always reflects whatever is on master, and the pycsw image tag is
+    itself supplied at invocation time via the PYCSW_DOCKER_IMAGE env var
+    rather than baked into the file. Picked docker-compose.yml (single
+    pycsw instance + PostGIS db) over the sibling
+    docker-compose.scale.yml, which is the same stack but adds a `deploy:
+    replicas: 5` block and a 8000-8004 port range for horizontal scaling —
+    not relevant for a single-instance recipe.
+
+version_health:
+  latest_version: "2.6.2 (tagged release); 3.0.0-beta3 (pre-release image on Docker Hub)"
+  latest_release_date: "2025-02-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Last formally tagged GitHub release is 2.6.2 (2025-02-22), about 18
+    months before today (2026-08-05). But the project is not dormant: it's
+    mid-way through a 3.0 rewrite (OGC API - Records support), with beta
+    images published to Docker Hub (3.0.0-beta2 ~7 months ago,
+    3.0.0-beta3 ~3 months ago, `latest` rebuilt ~7 days ago) and master-branch
+    commits as recent as 2026-07-30. It's an official OSGeo project (since
+    2015) and an OGC Reference Implementation. Read this as "slow on tagged
+    stable releases, active in trunk/beta" rather than stalled — but it also
+    means there is currently no stable tag newer than a 2.6.x line frozen for
+    18 months, and the natural pin (3.0.0-betaN) is explicitly pre-release.
+
+catalogue_fit:
+  categories: [geospatial, data-management, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches geospatial/GIS metadata. pycsw
+    is a CSW/OGC API - Records catalogue server: it lets an org publish and
+    search geospatial dataset metadata (used by GIS clients like QGIS,
+    ArcGIS, or SDI portals), a genuinely different niche from monitoring,
+    productivity, dev-tools, or media apps we already have.
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow audience (GIS/spatial-data-infrastructure users), and
+    it's not a human-facing web app in the way most of the catalogue is — it
+    serves XML (CSW) and JSON/HTML (OGC API - Records) to other software,
+    not a dashboard end users click around in. Likely low volume for a
+    general self-hosting customer base.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No stable, non-prerelease Docker tag newer than the 2.6.x line exists
+      right now (2.6.1/2.6.2 vs. 3.0.0-betaN) — pinning to a beta tag for a
+      shipping recipe is a real concern independent of the auth story above.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  pycsw is a single-container, single-HTTP-port (8000) Python app with no
+  built-in login of its own for its read path — GetCapabilities/GetRecords
+  are open by design, and its write path (CSW Transactions) is disabled by
+  default and, when enabled, gated by an IP allowlist rather than any
+  customer-supplied credential. That means there's no `generated_from`
+  target, but a Traefik basic_auth:true gate (customer root-password
+  projected) in front of the whole app is the appropriate mechanism, same
+  pattern as Adminer/n8n — mechanically installable today. The remaining
+  caveat is the version pin: the only sane image to pin right now is a
+  pre-release 3.0.0-beta tag, since the stable 2.6.x line has been frozen
+  for ~18 months with no newer stable tag. Recommend build_with_caveats:
+  mechanically installable today, but revisit the version pin once 3.0.0
+  stable ships.

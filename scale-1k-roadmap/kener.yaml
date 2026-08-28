@@ -1,0 +1,93 @@
+slug: kener
+name: Kener
+source_description: "Open-source status page and uptime monitoring platform with incident management"
+
+upstream:
+  url: https://kener.ing
+  repo_url: https://github.com/rajnandan1/kener
+  license: MIT
+  docker_image: rajnandan1/kener:v4.1.2
+  compose_file_url: https://raw.githubusercontent.com/rajnandan1/kener/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the README's own
+    install instructions point to ("Uses docker-compose.yml (includes
+    Redis + Kener)"). This is a rolling reference to the `main` default
+    branch, not version-pinned to a release tag; it also pulls
+    `rajnandan1/kener:latest` rather than a pinned image tag, so both the
+    compose file's contents and the image it deploys can drift independently
+    of any specific release. The repo ships two other compose variants at
+    root: `docker-compose.status.yml` (same stack, mounted under a `/status`
+    base path instead of root — a routing variant, not a different
+    deployment target) and `docker-compose.dev.yml` (builds the image from
+    local source instead of pulling from a registry, for local development).
+    Picked `docker-compose.yml` since it is the default, root-path,
+    published-image variant the README leads with.
+
+version_health:
+  latest_version: "v4.1.2"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.1.2 tagged 2026-07-13, ~23 days before today (2026-08-05). Three
+    releases landed in the prior month (v4.1.0 2026-06-13, v4.1.1 2026-06-19,
+    v4.1.2 2026-07-13), and Docker Hub shows continuous image builds against
+    `main` as recently as 2026-08-03 (two days before this analysis, tags
+    like `main-with-docs-880080c`). Clearly active development, not
+    maintenance-only or dormant.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Kener and uptime-kuma both cover self-hosted uptime monitoring with a
+    public status page, and the catalogue's existing uptime-kuma recipe is
+    currently shipped with `enabled: false` — so today no status-page/
+    monitoring app is actually live for customers. Kener leans further into
+    the "status page" half of that pairing: incident timelines, scheduled
+    maintenance windows, embeddable widgets, and 21-language i18n, versus
+    uptime-kuma's more monitoring-dashboard-first design. The tradeoff is
+    architecture: Kener mandates Redis (BullMQ-backed scheduler/queues) as a
+    second container and optionally Postgres/MySQL, where uptime-kuma is a
+    single container with an embedded SQLite database — a heavier footprint
+    for materially the same core job, from a much smaller project (~4.9k
+    GitHub stars vs. uptime-kuma's much larger, more established user base).
+  usefulness: medium
+  usefulness_rationale: >
+    The category itself is genuinely valuable and effectively empty today
+    (uptime-kuma present but disabled), so Kener isn't purely redundant.
+    But it isn't a clear upgrade either — it duplicates uptime-kuma's core
+    self-service monitoring/status-page job at a higher resource cost
+    (mandatory Redis sidecar) from a smaller, newer project. Worth weighing
+    against simply re-enabling uptime-kuma before adding a second, heavier
+    entrant in the same niche.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [KENER_SECRET_KEY, SETUP_WIZARD_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: KENER_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: SETUP_WIZARD_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kener is a single-HTTP-port (3000) Node.js/SvelteKit app, Traefik-friendly,
+  requiring a mandatory Redis sidecar and defaulting to embedded SQLite (no
+  external Postgres/MySQL needed). Mechanically it is installable today: the
+  app's session/CSRF secret (KENER_SECRET_KEY) can be generated server-side
+  with no customer input, and its first-run setup wizard — which lets
+  whoever visits first choose the admin email/password, with no env var to
+  pre-seed it — can be closed off the same way AFFiNE and Adminer are, with
+  a mandatory Traefik basic_auth gate projected from the customer's root
+  password protecting the app until they claim the admin account themselves.
+  Upstream is actively developed (three releases in the last month, continuous
+  image builds). No blocking installability issues exist, so this is
+  build_now; it happens to overlap with the catalogue's existing (but
+  disabled) uptime-kuma recipe in the monitoring/status-page niche, but that
+  overlap is a fact about fit, not a reason to downgrade the recommendation.

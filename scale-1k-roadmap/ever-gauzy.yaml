@@ -1,0 +1,112 @@
+slug: ever-gauzy
+name: Ever Gauzy
+source_description: "Open-source ERP, CRM, HRM, ATS, and project management in one platform"
+
+upstream:
+  url: https://gauzy.co
+  repo_url: https://github.com/ever-co/ever-gauzy
+  license: "AGPL-3.0 (core); vendor also offers separately-licensed Community/Small-Business/Enterprise editions on top of the same repo"
+  docker_image: ghcr.io/ever-co/gauzy-api, ghcr.io/ever-co/gauzy-webapp (no single official image — API and webapp ship as separate images, built from the `develop` branch)
+  compose_file_url: https://raw.githubusercontent.com/ever-co/ever-gauzy/develop/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo root. This is a rolling reference
+    to the `develop` branch, not version-pinned — the project does not tag
+    stable release branches (see version_health notes on its fast-moving
+    semantic-release scheme), so there is no pinned-tag equivalent to link
+    to instead. This file `include:`s a second official file in the same
+    repo, docker-compose.infra.yml, which supplies Postgres/Redis/OpenSearch/
+    MinIO. The repo ships three other official compose variants which were
+    not chosen: docker-compose.demo.yml (seeds demo data, prebuilt images,
+    intended for evaluation not real deployment), docker-compose.build.yml
+    (builds images from source locally instead of pulling ghcr.io images,
+    "extremely long process" per the README), and docker-compose.infra.yml
+    (infra services only, no api/webapp — meant to be combined with one of
+    the others, which docker-compose.yml already does via `include:`).
+    docker-compose.yml is the one the README's "Quick Start > production"
+    section points to and the only one using prebuilt ghcr.io images without
+    demo seeding, matching this recipe's real-deployment use case.
+
+version_health:
+  latest_version: "v111.19.7 (semantic-release tag, 2026-08-05)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely high release frequency — 10+ tagged releases on 2026-08-05 alone
+    (v111.18.8 through v111.19.7), all same-day, via automated semantic-release
+    CI. 27k+ commits on develop, 414 open issues, 40 open PRs, active
+    Slack/Discord/Gitter community. This is as far from dormant/EOL as a
+    project gets; no maintenance concerns. The version scheme itself is a
+    caveat for recipe pinning, not for project health: `latest` moves
+    multiple times per day, so any recipe would need to pin a specific SHA/tag
+    and accept it going stale fast, or track `ghcr.io/ever-co/gauzy-api:latest`
+    and accept unpinned upstream churn (against our own pin-a-stable-tag
+    convention).
+
+catalogue_fit:
+  categories: [business, crm, hr, project-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover ERP/CRM/HRM/ATS/project-management —
+    closest existing recipes are automation (n8n) and dev-tooling (gitea,
+    opengist), not business/back-office software. Ever Gauzy would be a
+    genuinely new category for the catalogue: time tracking, invoicing,
+    payroll estimation, applicant tracking, and project management in one
+    self-hosted stack, aimed at small businesses/agencies who'd otherwise pay
+    for Deel/BambooHR/monday.com-style SaaS.
+  usefulness: high
+  usefulness_rationale: >
+    Business-suite software is a strong self-host value proposition (recurring
+    SaaS fees avoided) and nothing comparable exists in the catalogue today.
+    Demand risk is the main unknown — this is a broad, complex platform (not
+    a single-purpose tool), so onboarding/first-run complexity is higher than
+    our typical recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GAUZY_BASIC_AUTH_GATE
+  secrets_expressible_today:
+    - secret: GAUZY_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Ever Gauzy seeds a fixed superadmin account on first API start
+      (admin@ever.co / admin) with no environment variable to override the
+      seeded email/password — confirmed against the project's own
+      configuration docs, which list no DEMO_SUPER_ADMIN_EMAIL/PASSWORD-style
+      override. Per SCHEMA.md's guidance this is not itself a hard blocker:
+      a Traefik basic_auth gate (root-password-derived) in front of the whole
+      app is the correct auth boundary, since the fixed internal credential is
+      no longer customer-facing risk once external access requires the gate
+      first.
+    - >
+      No single official Docker image — the stack is API + webapp (two
+      separate ghcr.io images) plus Postgres and (recommended) Redis, a
+      4-service compose stack similar in shape to recipes/anytype-server or
+      recipes/immich rather than a single-container app.
+    - >
+      Upstream ships no stable numbered release track for its images; images
+      are built continuously off `develop` and tagged via semantic-release
+      multiple times a day. Pinning "a current stable tag" (our usual
+      convention) is awkward here — there isn't really a slow-moving stable
+      line to pin to, only a fast-moving one.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Ever Gauzy is a large, genuinely active (borderline hyperactive) open-source
+  ERP/CRM/HRM/ATS/PM suite with no equivalent in our current 24-recipe
+  catalogue — real differentiation and plausible customer demand. It clears
+  the installability bar: the app's fixed default superadmin credential can
+  sit behind a Traefik basic_auth gate derived from the customer's root
+  password, same pattern as our other no-customer-login apps, so nothing here
+  needs IF-1420/1312 to land beyond what they already cover. The caveats are
+  operational rather than mechanism-blocking: it's a 4-service stack (API,
+  webapp, Postgres, Redis) rather than one container, and upstream's tagging
+  scheme (10+ releases/day off `develop`, no slow "stable" line) makes normal
+  version pinning uncomfortable and will need a documented policy (e.g. pin by
+  date/SHA and accept scheduled re-pins) rather than "pick the current stable
+  tag" as usual.

@@ -1,0 +1,148 @@
+slug: snac2
+name: Snac2
+source_description: "Minimalist ActivityPub server in portable C for joining the Fediverse"
+
+upstream:
+  url: https://codeberg.org/grunfink/snac2
+  repo_url: https://codeberg.org/grunfink/snac2
+  license: MIT
+  docker_image: null  # no official published image; the shipped docker-compose.yml builds the image from source (Dockerfile in-repo) rather than pulling a pinned tag from a registry
+  compose_file_url: https://codeberg.org/grunfink/snac2/raw/branch/master/docker-compose.yaml
+  compose_file_notes: >
+    Official, at the repo root, README-referenced ("A docker-compose file
+    is provided for development and testing. To start snac with an nginx
+    HTTPS frontend, run: docker-compose build && docker-compose up").
+    Rolling reference to the default branch (master), not pinned to a
+    release tag — the URL always resolves to whatever is currently on
+    master. Single variant only: it builds the `snac` service from the
+    in-repo Dockerfile (no pre-built registry image, consistent with
+    docker_image above) plus an nginx-alpine-ssl sidecar for HTTPS
+    termination; there is no separate prod/dev or sqlite/postgres split
+    to choose between.
+
+version_health:
+  latest_version: "2.93"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    41 days since the latest tag (2.93, 2026-06-26) as of today (2026-08-05).
+    Tag history shows a steady near-monthly cadence: 2.92 (2026-05-13), 2.91
+    (2026-03-23), 2.90 (2026-02-17), 2.89 (2026-01-22), 2.88 (2026-01-13),
+    2.87 (2026-01-06), 2.86 (2026-01-05), 2.85 (2025-12-04), 2.84
+    (2025-10-27) — 93 tags total, 4,400+ commits. Genuinely active
+    single-maintainer project, no signs of maintenance-only mode or
+    abandonment.
+
+catalogue_fit:
+  categories: [social, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers federated social
+    networking / microblogging. Snac2's pitch is extreme minimalism: no
+    database (flat-file storage), only OpenSSL + curl as dependencies, no
+    JavaScript in the UI, cookie-free, single static binary — a much
+    lighter-weight "run your own fediverse presence" option than Mastodon
+    or even the Rust/`.NET` alternatives already covered in sibling
+    gap-analyses (apps-gaps/mitra.yaml, apps-gaps/iceshrimp.yaml), both
+    also flagged blocked_on_platform for the same class of admin-account
+    provisioning gap seen here.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuine niche appeal for hobbyists wanting a personal, low-resource
+    Fediverse account without Mastodon's Ruby/Rails+Sidekiq+Postgres+Redis
+    footprint. Capped at medium rather than high: it's a much smaller/less
+    recognized brand than Mastodon, Mastodon-API compatibility only covers
+    read-side client apps (snac2 has no built-in signup flow at all), and
+    — see installability below — the account it does create hands its
+    password to the server operator via stdout rather than accepting one
+    we can project.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin_user_password
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Snac2 gives no way — in any form, hash or plaintext — to set an
+      account's password to a chosen value at creation time. Verified
+      against upstream source: `adduser()` (utils.c:290-388) takes only a
+      uid and unconditionally calls `new_password()` (utils.c:278-286),
+      which generates a random password internally, stores its hash, and
+      prints the plaintext to stdout exactly once ("User password is %s",
+      utils.c:377). `resetpwd()` (utils.c:391+) behaves identically. The
+      only code path that accepts an operator-chosen password is the
+      authenticated web UI's `passwd1`/`passwd2` fields on the user admin
+      page (html.c:6062-6066) — reachable only after already logging in
+      with the generated password. So the credential the customer needs
+      is server-generated and customer-facing, which fits none of our
+      three mechanisms.
+    - >
+      `generated_from_root_password` has no target. The mechanism projects
+      a hash onto a `type: password` metadata parameter that the app reads
+      at boot from env or config (the Gitea recipe's
+      `GITEA_ADMIN_PASSWORD` is the shape that works). Snac2 reads no such
+      parameter: the credential lives only as the `passwd` field inside
+      `<basedir>/user/<uid>/user.json`, written solely by adduser/resetpwd/
+      web-UI, and nothing in the server ever consults the environment for
+      it. Two separate platform gaps would have to close: (a) a write path
+      for the projected hash into user.json (recipe-side post-processing,
+      or upstream accepting a pre-hashed credential), and (b) snac2's
+      bespoke hash format added to `generated_from`'s algorithm list —
+      it is `<nonce>:sha1hex("<nonce>:<uid>:<plaintext>")` (snac.c:144-161),
+      not argon2 or bcrypt. Per SCHEMA.md that second item is the
+      extensible-algo case rather than a hard no, since af-api holds the
+      plaintext root password and could compute this form itself.
+    - >
+      A Traefik `basic_auth: true` gate does not substitute: snac2 has its
+      own real password-based web login (it's not a no-login app), so
+      gating the domain with basic auth would add an extra password in
+      front of an account whose own credential the customer still has no
+      way to learn or choose — same reasoning as apps-gaps/mitra.yaml.
+    - >
+      `server_generated_no_customer_input` does not fit either, because
+      the customer genuinely needs this credential — it is their login to
+      their own Fediverse account, not an internal DB/JWT secret nothing
+      customer-facing reads. The one partial mitigation is that the
+      generated password is printed to container stdout, so a customer
+      with root on the box could recover it from `docker logs`; that is
+      an out-of-band manual retrieval, not one of the supported
+      mechanisms, and a poor first-run experience to ship.
+    - >
+      Note for completeness: the other one-time setup step, `snac init`,
+      is NOT a blocker. It prompts for address, port, host name, URL
+      prefix and an optional admin email (utils.c:171-221) — all
+      non-secret and all derivable from APP_DOMAIN — and upstream's own
+      `examples/docker-entrypoint.sh` already drives it unattended by
+      piping answers on stdin. `snac adduser <basedir> <uid>` is likewise
+      non-interactive when the uid is passed as an argument
+      (main.c: `user = GET_ARGV(); return adduser(user);`; the "Username:"
+      prompt at utils.c:301-304 fires only when uid is omitted), and the
+      same upstream entrypoint runs it unattended. install.sh could
+      therefore provision the account fine — it just cannot control what
+      password that account ends up with.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Snac2 is an actively maintained (near-monthly tags, latest 41 days old),
+  extremely lightweight ActivityPub server with no overlap in the current
+  24-recipe catalogue and a real differentiation angle (flat-file storage,
+  minimal dependencies, far lighter than Mastodon). It's reverse-proxy
+  friendly (single HTTP port, no raw protocols) and would open a new
+  social/fediverse category alongside the already-analyzed Mitra and
+  Iceshrimp.NET candidates. Provisioning itself automates fine — both
+  `snac init` and `snac adduser <basedir> <uid>` run unattended, as
+  upstream's own docker-entrypoint.sh demonstrates — but the resulting
+  account's password is always generated by the server and printed once
+  to stdout, and no code path accepts a caller-supplied password or hash.
+  That credential is customer-facing, so it fits none of our three
+  mechanisms: nothing for `generated_from` to target, a basic-auth gate
+  doesn't replace snac2's own login, and it isn't a
+  never-seen-by-the-customer server secret. Recommend
+  `blocked_on_platform`: revisit if upstream accepts a preset credential
+  at account creation, or if the platform gains both a write path into
+  `user.json` and snac2's salted-SHA-1 hash format in `generated_from`.

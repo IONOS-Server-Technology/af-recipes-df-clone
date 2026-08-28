@@ -1,0 +1,97 @@
+slug: coai
+name: Coai
+source_description: "Multi-provider AI platform with user management, quotas, and usage billing"
+
+upstream:
+  url: https://www.coai.dev/
+  repo_url: https://github.com/coaidev/coai
+  license: Apache-2.0
+  docker_image: programzmh/chatnio
+  compose_file_url: https://raw.githubusercontent.com/coaidev/coai/main/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives at the repo root (coaidev/coai) and is the file the
+    README's docker-compose install instructions point at (git clone the
+    repo, then `docker-compose up -d`). This is a rolling reference to the
+    default branch, not version-pinned: the raw link always resolves to
+    whatever is on `main`, and the file itself pins no tags — it pulls
+    `mysql:latest`, `redis:latest`, and `programzmh/chatnio` (untagged,
+    i.e. "latest"). The repo ships two other variants at the same root:
+    docker-compose.stable.yaml (pins mysql:5.7.44, redis:8.2.1, and the
+    chatnio image at the `:stable` tag instead of latest) and
+    docker-compose.watch.yaml (identical to the default plus a Watchtower
+    sidecar for auto-updates). Picked the plain docker-compose.yaml over
+    these because it's the one the README's own instructions reference by
+    default; docker-compose.stable.yaml is the safer choice if a
+    version-pinned base is wanted, but it is not what upstream leads with.
+
+version_health:
+  latest_version: "4.25.0 (Docker image tag; latest GitHub release tag is v4.0.0)"
+  latest_release_date: "2026-03-12"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Repo (coaidev/coai, formerly "ChatNio", 9.3k stars) is not dormant but
+    tags releases inconsistently. Last formal GitHub release/tag is v4.0.0
+    (2025-10-23, ~9.5 months before today 2026-08-05). However commit
+    history continues past that: a burst of "sora adapter"/video-generation
+    commits in Nov 2025, a docs update 2026-01-23, and the most recent
+    commit "chore: atomic write" on 2026-03-12 (~5 months ago). The Docker
+    Hub image (programzmh/chatnio) is versioned independently of git tags —
+    tag 4.24.2 pushed ~9 months ago, 4.25.0 (also "latest") pushed ~5 months
+    ago, matching the March 2026 commit. Net: active but bursty, with no
+    commits or image pushes visible in the last ~5 months as of today.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >
+    Open WebUI (bundled with Ollama) is a single-tenant chat UI for
+    self-hosted local models. Coai is positioned differently: a
+    multi-tenant gateway in front of 35+ external LLM providers (OpenAI,
+    Claude, Gemini, etc.) with a built-in admin backend for per-user quotas,
+    credit/subscription billing, and usage analytics. A customer wanting to
+    resell or meter AI access across a team gets that out of the box here;
+    Open WebUI has no billing/quota layer at all. Real differentiation, not
+    a duplicate, if there is demand for the billing/multi-tenant angle.
+  usefulness: medium
+  usefulness_rationale: >
+    Multi-tenant billing/quota management for LLM access is a niche but
+    real need (agencies/resellers metering AI usage for clients). Value is
+    capped by the fact that the app itself contributes no AI capability —
+    it only proxies external provider API keys the customer must supply
+    manually post-deploy, and by an upstream release process that looks
+    thin/inconsistent (see version_health).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "MYSQL_ROOT_PASSWORD / MYSQL_PASSWORD"
+    - SECRET
+    - basic_auth gate credential
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD / MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Coai (upstream "ChatNio") is a self-contained docker-compose stack
+  (app + MySQL + Redis) behind one HTTP port, so it is mechanically
+  installable today: internal DB/JWT secrets can be server-generated, and
+  its admin login ships a hardcoded default (root / chatnio123456) with no
+  env-var override, which per SCHEMA.md is handled by gating the app behind
+  a Traefik basic_auth front door rather than treating the fixed credential
+  as a blocker. The app needs no external API key to boot — those are
+  entered by the tenant admin after deploy — so there's no structural
+  secrets-channel blocker, and with no other blocking issues this is
+  build_now. Upstream release cadence is bursty (last formal release tag
+  is ~9.5 months old, no visible commit or image update in ~5 months) —
+  worth keeping an eye on at actual recipe-authoring time, but that's a
+  version_health observation, not an installability blocker.

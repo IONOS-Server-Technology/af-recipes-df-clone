@@ -1,0 +1,122 @@
+slug: mbin
+name: Mbin
+source_description: "Self-hosted federated link aggregator and discussion platform on ActivityPub"
+
+upstream:
+  url: https://joinmbin.org
+  repo_url: https://github.com/MbinOrg/mbin
+  license: AGPL-3.0
+  docker_image: ghcr.io/mbinorg/mbin
+  compose_file_url: https://raw.githubusercontent.com/MbinOrg/mbin/main/compose.yaml
+  compose_file_notes: >
+    Official compose file, at the root of the MbinOrg/mbin repo. This is a
+    rolling reference to the default branch (`main`), not version-pinned —
+    docs.joinmbin.org's Docker install guide has users `git clone` the repo
+    and run `docker compose up -d` directly against this file, with the app
+    image itself defaulting to `ghcr.io/mbinorg/mbin:latest` unless the user
+    creates a `compose.override.yaml` to pin a release tag (the docs' own
+    example: `v1.8.2`). Only one variant is shipped for production use
+    (`compose.yaml`); a separate `compose.dev.yaml` exists for local
+    development and was not used since it targets a different use case.
+
+version_health:
+  latest_version: "v1.10.1"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.10.1 published 2026-08-04, one day before today (2026-08-05) — a
+    security-fix patch on top of v1.10.0 (2026-06-15). Release history shows
+    a steady cadence of minor releases roughly every 2-3 months, each
+    preceded by rc builds (v1.10.0-rc1 2026-04-16, -rc2 2026-05-07, then
+    v1.10.0 stable 2026-06-15; v1.9.0-rc1 2025-11-16 through v1.9.0 stable
+    2025-12-14; v1.9.1 2026-02-09; v1.8.4 2025-09-07). 4,500+ commits on
+    main, 115 open issues, 22 open PRs, not archived. Clearly active,
+    community-maintained fork of the discontinued kbin project.
+
+catalogue_fit:
+  categories: [social, community, federation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No app in the current 24-recipe catalogue covers federated
+    social/discussion software. Mbin is a decentralized content aggregator,
+    voting, discussion, and microblogging platform on ActivityPub (fork of
+    the discontinued kbin project), interoperating with Lemmy, Mastodon,
+    Pleroma, and PeerTube. Functionally this is the same niche already
+    covered by the `lemmy` gap-analysis (Reddit-style federated link
+    aggregation/discussion) — the two projects are close substitutes for a
+    customer's "run my own federated community forum" use case, not
+    independent additions. Per CLAUDE.md, overlap alone is not a rejection
+    reason; this is noted for the later prioritization call, not as a
+    disqualifier here.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a real gap in the catalogue (no existing recipe covers it) and has
+    an active upstream, but the audience — customers willing to run and
+    moderate a public federated community instance — is narrower than the
+    general productivity/infra tools already shipped, and is largely the
+    same audience already served by the (also unbuilt) `lemmy` candidate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, POSTGRES_PASSWORD, RABBITMQ_PASSWORD, MERCURE_JWT_SECRET, APP_SECRET]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: RABBITMQ_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MERCURE_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Mbin has no web-based setup wizard and no self-registration path to an
+      admin account. Per upstream docs (docs.joinmbin.org
+      admin/running-mbin/first_setup and admin/running-mbin/cli), the only
+      way to create the first (or any) admin user is the console command
+      `php bin/console mbin:user:create <username> <email> <password>
+      --admin`, and the only way to change a password afterwards is
+      `php bin/console mbin:user:password <username> <password>`. Both
+      commands take the password as a plaintext CLI argument — there is no
+      config field, env var, or command flag that accepts a pre-hashed
+      value. This is the genuine-plaintext-requirement case from
+      SCHEMA.md's decision table (not merely an unsupported hash
+      algorithm): `generated_from: "<algo>:ROOT_PASSWORD"` only ever
+      carries a hash of the customer's root password, and there is no
+      destination in Mbin that accepts a hash for its own login.
+    - >
+      A Traefik `basic_auth` gate does not substitute, for the same reason
+      documented in the `friendica` and `mastodon` gap analyses: Mbin has
+      its own required login for actually using the app (posting, voting,
+      moderating, admin panel), so an outer basic-auth perimeter still
+      leaves the customer without a usable Mbin admin credential
+      underneath.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mbin is an actively maintained (v1.10.1, released one day before this
+  analysis) fork of the discontinued kbin project, filling a real gap in
+  the catalogue — no existing recipe covers federated link
+  aggregation/discussion. Mechanically it fits our model well: the official
+  compose stack (php app with a built-in Caddy front end, a messenger
+  worker, RabbitMQ+amqproxy, Postgres, and Valkey) already collapses to one
+  public HTTP port with the built-in reverse-proxy auto-HTTPS disabled, the
+  same pattern our Traefik setup already handles for other single-domain
+  apps, and every internal service credential (Postgres, RabbitMQ, Mercure
+  JWT, Symfony APP_SECRET) is an ordinary server-generated secret with no
+  customer-facing exposure. The blocker is account bootstrap: Mbin has no
+  web setup wizard, and its only admin-creation path
+  (`mbin:user:create ... --admin` / `mbin:user:password`) takes a plaintext
+  password as a CLI argument with no hash-accepting alternative, so
+  `generated_from` (which only ever carries a hash) has nowhere to project
+  into, and a Traefik `basic_auth` gate doesn't substitute since Mbin has
+  its own required login for real use. It also functionally overlaps with
+  the already-analyzed (and likewise unbuilt) `lemmy` candidate — same
+  federated-aggregator niche, competing rather than complementary. Recommend
+  `blocked_on_platform`: worth revisiting if a customer-facing path to set
+  an app-native plaintext admin password (not just a hash) is ever added to
+  the platform.

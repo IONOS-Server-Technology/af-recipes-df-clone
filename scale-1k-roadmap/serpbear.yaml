@@ -1,0 +1,142 @@
+slug: serpbear
+name: SerpBear
+source_description: "Self-hosted SEO rank tracker for Google, Bing, and other search engines"
+
+upstream:
+  url: https://docs.serpbear.com/
+  repo_url: https://github.com/towfiqi/serpbear
+  license: MIT
+  docker_image: towfiqi/serpbear (pin `3.1.0`; upstream's own compose example uses `:latest`, which RFC-002 forbids)
+  compose_file_url: https://github.com/towfiqi/serpbear/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official file, lives at the repo root (not under a docker/ or deploy/
+    subdirectory). It is a rolling reference to the default `master`
+    branch, not a tagged/pinned release — the same file docs.serpbear.com's
+    "Running with Docker" deployment page walks through inline. Only one
+    variant exists (single `app` service, SQLite via a named volume, no
+    GPU/CPU or sqlite/postgres split), and it pulls `towfiqi/serpbear:latest`,
+    matching the `:latest`-usage already noted on `docker_image` above.
+
+version_health:
+  latest_version: "3.1.0"
+  latest_release_date: "2026-03-27"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Release history is bursty rather than steady, driven by a single
+    maintainer (towfiqi): 0.x/1.x through early 2024, v2.0.0-v2.0.2 in March
+    2024, v2.0.4-v2.0.6 in November 2024, v2.0.7 on 2025-02-23, then a
+    13-month silence until v3.0.0 on 2026-03-01 and v3.1.0 on 2026-03-27.
+    v3.1.0 is the newest release as of today (2026-08-06), i.e. 132 days
+    (~4.3 months) old, and the matching Docker Hub tag `3.1.0` was pushed
+    2026-03-27 — the `latest` tag points at the same build and has not moved
+    since. `main` is quieter still but not dead: the last commits landed
+    2026-05-13/14, 84 days (~2.8 months) ago, after a cluster of activity in
+    March. Repo is not archived, carries no deprecation or EOL notice,
+    ~6-7k stars, ~265k total image pulls. Treat as active-but-thin: the
+    project is alive and the v3 line is recent, but a recipe should expect
+    long stretches with no upstream fix and a bus factor of one. A second,
+    softer risk is that SerpBear's value depends on third-party SERP
+    scraping services staying usable — upstream's own README already marks
+    three of its integrations (scrapingrobot.com, scrapingant.com,
+    spaceserp.com) as "Doesn't work Anymore", so integration rot outpaces
+    the release cadence.
+
+catalogue_fit:
+  categories: [marketing, monitoring, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches SEO or marketing
+    analytics. The nearest neighbour, uptime-kuma, watches whether a site is
+    reachable; SerpBear watches where that site ranks in search results for
+    chosen keywords — adjacent audience, entirely different job. It is a
+    single Next.js container on one HTTP port (3000) with SQLite in one data
+    volume, structurally the same shape as recipes/uptime-kuma/ and
+    recipes/vaultwarden/, and it takes its public URL from an env var
+    (NEXT_PUBLIC_APP_URL) that is derivable from APP_DOMAIN, so it sits
+    cleanly behind Traefik on serpbear.<base_domain> with no raw ports or
+    extra protocols.
+  usefulness: medium
+  usefulness_rationale: >
+    Rank tracking is a real, recurring cost for anyone running a site
+    commercially (hosted equivalents start around $30-100/month), and it
+    fits IONOS's website-owner customer base better than most homelab apps
+    in the gap list. The catch is that SerpBear itself does no scraping: the
+    customer must bring a paid third-party SERP API account or their own
+    proxy IPs before a single keyword position appears, so an
+    out-of-the-box install is an empty dashboard rather than a working
+    product. Also note the Hostinger description oversells it — SerpBear
+    tracks Google (plus Google Ads/Search Console integrations), not Bing or
+    "other search engines"; scraper choice does not change that.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - PASSWORD
+    - SECRET
+    - APIKEY
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: APIKEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      SerpBear's own login cannot be wired to the customer's root password.
+      pages/api/login.ts compares the submitted password to the PASSWORD env
+      var as a literal string — no hashing, no pre-hashed input form — and
+      `generated_from: "<algo>:ROOT_PASSWORD"` only ever carries a hash, so
+      projecting it would set the account password to a hash string the
+      customer never sees. Per the schema's fixed-default-credential
+      rule this is not a hard blocker: leave SerpBear's documented default
+      pair (USER_NAME=admin, PASSWORD=0123456789) in place and make the
+      Traefik `basic_auth: true` gate — projected from the root-password
+      hash — the real customer-facing auth boundary. Recipe docs must then
+      state plainly that the inner login is a known public default.
+    - >
+      Not blocking installation, but blocking usefulness: keyword position
+      checks need either a third-party SERP scraper API key (serper.dev,
+      serpapi.com, SearchApi.io, valueserp.com, HasData, ...) or a list of
+      the customer's own proxy IPs. Both are arbitrary customer-supplied
+      values with no `/compose` input channel. They are, however, entered in
+      the running app's own Settings screen rather than as env vars, so the
+      customer can supply them post-install through the web UI without any
+      platform change — the same shape as the optional OPENAI_API_KEY note
+      in apps-gaps/karakeep.yaml, except here the app tracks nothing at all
+      until it is done. Upstream's only free option (scrapingrobot.com) is
+      marked dead in its own README, so in practice this means a paid
+      account.
+    - >
+      Also post-install-only and optional: Google Search Console integration
+      (SEARCH_CONSOLE_CLIENT_EMAIL / SEARCH_CONSOLE_PRIVATE_KEY) and Google
+      Ads keyword-volume data need service-account credentials, and email
+      alerts need customer SMTP details. None are needed to boot; none have
+      an input channel today.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SerpBear is a mechanically easy recipe — one official MIT-licensed image
+  (`towfiqi/serpbear`, pin `3.1.0`), one HTTP port (3000), one SQLite data
+  volume, public URL derived from APP_DOMAIN — and it opens an SEO/marketing
+  category the current 24 recipes do not cover at all. Its two boot secrets
+  that nobody reads (SECRET for JWT signing, APIKEY for its own API) are
+  server-generatable; its admin login is a plaintext PASSWORD comparison
+  that `generated_from` cannot fill, so the Gotify pattern applies: keep the
+  documented default admin credential and put a root-password-projected
+  Traefik `basic_auth` gate in front as the actual auth boundary. That makes
+  it installable today. Two caveats keep it out of build_now: the delivered
+  instance tracks nothing until the customer pastes a paid third-party SERP
+  scraper API key or proxy list into the in-app Settings screen (doable via
+  the UI, no platform change needed, but it is manual work with a recurring
+  external cost), and upstream is thin — single maintainer, 13-month release
+  gap before the March 2026 v3 line, newest release 132 days old, last
+  commit 84 days old, and three of its scraper integrations already marked
+  broken in its own README. Worth building if a marketing/SEO slot is wanted,
+  with explicit documentation of the default inner login and the required
+  external scraper account.

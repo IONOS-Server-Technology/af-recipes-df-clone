@@ -1,0 +1,101 @@
+slug: letta
+name: Letta
+source_description: "Open-source framework for building stateful AI agents with persistent memory"
+
+upstream:
+  url: https://www.letta.com
+  repo_url: https://github.com/letta-ai/letta
+  license: Apache-2.0
+  docker_image: letta/letta
+  compose_file_url: https://github.com/letta-ai/letta/blob/main/compose.yaml
+  compose_file_notes: >
+    Official: compose.yaml lives at the root of the letta-ai/letta repo
+    itself (three services — letta_db on pgvector/pgvector:pg17, letta_server
+    on letta/letta, and an nginx reverse proxy), and it matches the legacy
+    Dockerized/Postgres-backed server product analyzed in this file
+    (docker_image: letta/letta). It is a rolling reference to the default
+    branch, not version-pinned to a release tag — no
+    /releases/.../download/compose.yaml-style asset is published, and the
+    repo's release pages don't attach a compose file. Chose this over the
+    other compose variants in the same repo (dev-compose.yaml,
+    development.compose.yml, docker-compose-vllm.yaml) because those are
+    explicitly for local development or vLLM-backed setups, not the
+    standard production self-host path. Caveat: as of this writing the
+    project's own docs site (docs.letta.com) and the README no longer
+    document this compose file at all — both now say "self-hosting an API
+    server is now done via the App Server" and the Docker deployment guide
+    states the Docker image "is no longer an actively maintained or
+    supported Letta product surface," showing only a bare `docker run`
+    command. The compose.yaml file is still present and current in the
+    repo (last touched on the default branch), so it is recorded as
+    official, but a reviewer should weigh this alongside the
+    maintenance-only framing already captured in version_health.
+
+version_health:
+  latest_version: "v0.16.8"
+  latest_release_date: "2026-05-14"
+  release_cadence: slowing
+  eol_status: maintenance-only
+  notes: >
+    letta-ai/letta shipped roughly monthly releases from v0.15.0 (2026-11-25)
+    through v0.16.7 (2026-03-31), then only one more release, v0.16.8
+    (2026-05-14) — about 2.9 months with no follow-up as of today
+    (2026-08-05). More importantly, the repo's own README now states this
+    is "the legacy Letta server" and that "active development has moved to
+    the Letta Agent repo" (letta-ai/letta-code), with self-hosting an API
+    server "now done via the App Server". The repo is not archived (still
+    24k+ stars, open issues/PRs get triaged) but upstream itself frames the
+    exact product matching Hostinger's description — a self-hosted,
+    Dockerized stateful-agent API server — as superseded. Treat as
+    maintenance-only rather than actively developed, even though the
+    release cadence alone would look merely "slowing".
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, hermes-agent, ollama, n8n]
+  differentiation: >
+    Letta is a backend framework/API server for building custom agents with
+    persistent, structured long-term memory (memory blocks, archival
+    memory) plus an ADE (Agent Development Environment) web UI for
+    inspecting/debugging that agent state — it targets developers writing
+    against the Letta SDK/REST API, not end users chatting with a
+    pre-built agent. That's distinct from open-webui (consumer chat
+    frontend over local models) and hermes-agent (turnkey messaging-app
+    agent), but it's a narrower, more technical audience than either.
+  usefulness: low
+  usefulness_rationale: >
+    Mechanically installable, but low general usefulness for our hosting
+    customer base: it's a developer framework consumed mainly through an
+    SDK/API rather than a ready-to-use app, and the specific self-hosted
+    server product it would package is the one upstream itself has
+    deprecated in favor of a different architecture (see version_health).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["ADE/API access gate", "Postgres password (internal, app-to-db only)"]
+  secrets_expressible_today:
+    - secret: "ADE/API access gate"
+      mechanism: traefik_basic_auth
+    - secret: "Postgres password (internal, app-to-db only)"
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Name/product ambiguity: 'Letta' today spans two divergent products under the same GitHub org — the legacy letta-ai/letta server (Dockerized, Postgres-backed, matches Hostinger's description, analyzed here) and the newer 'Letta Code'/App Server product (active development, CLI/coding-agent oriented, no documented docker-compose). This analysis targets the legacy server since it's the one that matches the catalogue description and ships an official Docker image; a reviewer should confirm that's the intended candidate."
+    - "ADE/API access gate: Letta has no customer-facing login form of its own unless SECURE=true is set; the API is open by default. This is gateable via Traefik basic_auth (see secrets_expressible_today) rather than a native login."
+    - "The app needs an LLM provider credential (e.g. OPENAI_API_KEY, or an OLLAMA_BASE_URL pointing at a reachable Ollama instance) to actually create/run agents. This is not required for the container to boot and is configured by the customer inside the ADE web UI after first login (same deferred-config pattern already shipped for hermes-agent's OPENROUTER_API_KEY), so it does not block installable_today, but it does mean the app is non-functional out of the box until the customer does that manual step themselves."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Letta is mechanically installable under the current mechanism — no
+  hard blocker exists (the LLM key gap is deferred to post-provision
+  self-service like hermes-agent, and the missing native login is
+  gateable via Traefik basic_auth) — but real caveats remain: the
+  candidate name spans two divergent upstream products and a reviewer
+  must confirm the legacy Dockerized server (analyzed here) rather than
+  the newer non-Dockerized "Letta Code"/App Server is the intended
+  target, and the app ships open by default with no native login until
+  the customer both sets SECURE=true/relies on the Traefik basic-auth
+  gate and supplies an LLM provider credential after first boot before
+  it's functional. Recommended to build with those caveats addressed.

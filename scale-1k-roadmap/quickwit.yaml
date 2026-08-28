@@ -1,0 +1,87 @@
+slug: quickwit
+name: Quickwit
+source_description: "Cloud-native search engine for logs, traces, and observability data at scale"
+
+upstream:
+  url: https://quickwit.io
+  repo_url: https://github.com/quickwit-oss/quickwit
+  license: Apache-2.0
+  docker_image: quickwit/quickwit:0.9.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists, for Quickwit itself, anywhere
+    in the project. The repo root docker-compose.yml is dev/integration-test
+    infra only (localstack, postgres, pulsar, kafka, azurite, fake-gcs-server,
+    grafana/jaeger/prometheus/otel-collector monitoring profiles) — it never
+    defines a `quickwit` service, so it does not run the app at all. The
+    docs' Installation page (docs/get-started/installation.md) documents only
+    bare `docker run quickwit/quickwit ...` commands for the Docker install
+    path, with no compose file linked. Three docs/get-started/tutorials/*.md
+    pages (Jaeger trace analytics, Prometheus metrics, Grafana trace
+    analytics) embed inline `docker-compose.yaml` snippets to illustrate a
+    specific integration setup, but these are illustrative code blocks in
+    prose, not a file the project hosts/links/versions — same shape as the
+    pygeoapi finding (docs-embedded snippets, not a shipped file). No
+    community-maintained compose file was substituted in its place either.
+
+version_health:
+  latest_version: "v0.9.0 (stable)"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.9.0 tagged 2026-07-25 (about 11 days before today, 2026-08-05), after
+    a run of nine release candidates (rc2 through rc10) between 2026-07-19
+    and 2026-07-25. Commits to `main` continue right up to today's date
+    (e.g. "split search failures in outcome metrics", 2026-08-06), and an
+    `edge` Docker tag is rebuilt every few days. No archival or
+    maintenance-only signal. Datadog acquired Quickwit, Inc. in January
+    2025; despite that, the OSS repo has kept shipping numbered releases and
+    daily-ish commits through today, so the acquisition has not (yet)
+    stalled the open-source project — worth re-checking on any future pass,
+    since acquirers sometimes wind OSS development down well after an
+    initial "nothing changes" period.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Quickwit is a specialized log/trace/observability search engine
+    (an Elasticsearch-alternative query layer, not a general document
+    or file search tool) with no equivalent in the current 24-recipe
+    catalogue — nothing here indexes or full-text-searches log/trace data.
+    It targets a developer/SRE audience running their own services on or
+    alongside the AF VM who want to query structured logs and traces
+    without standing up an Elasticsearch/OpenSearch cluster.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability, but niche relative to the rest of the
+    catalogue's more general self-hosted-app audience: it's a query engine
+    that needs the customer to separately ship logs/traces into it (via
+    OTLP, syslog-ng, Kafka, etc.) to be worth running at all — comparable in
+    shape to how Pulse needs external infra to point at. A customer who
+    installs it with nothing feeding it gets an empty search UI.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Quickwit is a single-container, single-HTTP-port (7280) app with an
+  Apache-2.0 license, an actively maintained upstream (numbered release
+  11 days ago, commits through today, no acquisition-driven slowdown
+  visible yet), and a pinnable Docker Hub tag (quickwit/quickwit:0.9.0). It
+  runs standalone against local disk storage — no S3/object-store or
+  external metastore is required to boot — and serves both its REST API and
+  a browsable search web UI on the same port, with no built-in
+  authentication of its own, so it is installable today behind a Traefik
+  `basic_auth` gate exactly like WUD or Open WebUI. Recommend build_now:
+  mechanically installable today with no blocking issues.

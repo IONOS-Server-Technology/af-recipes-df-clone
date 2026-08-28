@@ -1,0 +1,100 @@
+slug: prowlarr
+name: Prowlarr
+source_description: "Centralized indexer manager for Usenet and torrent trackers integration"
+
+upstream:
+  url: https://prowlarr.com
+  repo_url: https://github.com/Prowlarr/Prowlarr
+  license: GPL-3.0
+  docker_image: linuxserver/prowlarr (pin to a version tag, e.g. 2.5.2.5491-ls156 — do not follow upstream examples that use :latest)
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Prowlarr's own repo
+    (github.com/Prowlarr/Prowlarr) ships no compose file at root or
+    under any docker/deploy/contrib directory, and its README only
+    badge-links to wiki.servarr.com/prowlarr/installation/docker for
+    Docker install guidance. That Servarr wiki page documents docker
+    run only. Its linked wiki.servarr.com/docker-guide page includes a
+    multi-service compose snippet but explicitly disclaims it as "not
+    a complete working example" and defers to a third-party
+    (trash-guides.info) guide for actual compose setup. Separately,
+    docs.linuxserver.io/images/docker-prowlarr publishes a full,
+    working docker-compose example, but the linuxserver/prowlarr image
+    it documents is a third-party community-maintained image, not
+    published by the Prowlarr/Servarr project itself, so it isn't
+    adopted here as official.
+
+version_health:
+  latest_version: "2.5.2.5491 (stable); 2.6.1.5509 exists on the develop/pre-release channel"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag 2.5.2.5491 shipped 2026-07-22, about 2 weeks
+    before today (2026-08-05). The develop/pre-release channel is
+    moving faster still: 2.5.2.5483 (2026-07-19), 2.6.0.5494
+    (2026-07-26), 2.6.1.5509 (2026-08-02) — only 3 days before today.
+    The linuxserver/prowlarr image tracks this closely, with its own
+    stable and develop tags rebuilt within the last day of this
+    research. Prowlarr is part of the same Servarr organization as
+    Sonarr/Radarr/Lidarr and shows the identical continuous-delivery
+    cadence. Repo is not archived, no EOL notice, actively triaged.
+    Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches indexer
+    management for media automation. Prowlarr is the official Servarr
+    successor to Jackett: rather than proxying tracker queries
+    one-at-a-time, it centrally manages indexer configuration and
+    pushes it out to connected Sonarr/Radarr/Lidarr/Readarr instances
+    via their APIs, and also offers its own manual search UI across
+    all configured indexers. Like Jackett/Bazarr/Lidarr, none of its
+    downstream consumers (Sonarr, Radarr, Lidarr, a download client)
+    exist as AF recipes today, so a standalone Prowlarr install has no
+    "*arr" app to sync indexers to — its main headline feature
+    (fan-out indexer sync) is inert in isolation, though its manual
+    search view still gives a customer some immediate, self-contained
+    utility (unlike Jackett, which is a pure query-translation backend
+    with zero UI value on its own).
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, actively used tool and the modern replacement for
+    Jackett in the self-hosted media-automation community. Slightly
+    more standalone value than Jackett (built-in manual search UI) but
+    still fundamentally a piece of a larger automation pipeline that
+    doesn't exist in our catalogue yet (no Sonarr/Radarr/Lidarr, no
+    download client). Recommend evaluating alongside Sonarr/Radarr/
+    Lidarr/Bazarr as a bundled "media automation stack" decision rather
+    than shipping in isolation.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Prowlarr is a single-container app (linuxserver/prowlarr, port 9696,
+  no separate database service — config and its internal SQLite DB
+  live in /config) that is mechanically as simple to deploy as
+  Lidarr/uptime-kuma, and reverse-proxy compatible behind Traefik on
+  prowlarr.<base_domain>. Like the rest of the Servarr family
+  (Sonarr/Radarr/Lidarr), authentication is configured through the
+  app's own first-run wizard (choose "Forms" auth, set
+  username/password interactively in-browser) rather than an
+  environment variable, so no generated_from projection or Traefik
+  basic_auth gate is required to avoid an open-by-default install.
+  installable_today is true with zero blocking issues, so
+  recommendation is build_now. Its core value (centralized indexer
+  sync to Sonarr/Radarr/Lidarr) depends on Servarr apps that don't
+  exist as AF recipes yet, so it would land as a usable standalone
+  search/indexer tool with its headline fan-out feature dormant until
+  a customer wires up those apps themselves — but that's a
+  prioritization/scheduling consideration, not a mechanical blocker.

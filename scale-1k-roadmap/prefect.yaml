@@ -1,0 +1,138 @@
+slug: prefect
+name: Prefect
+source_description: "Prefect is a workflow orchestration platform for building and scaling data pipelines"
+
+upstream:
+  url: https://www.prefect.io/
+  repo_url: https://github.com/PrefectHQ/prefect
+  license: Apache-2.0
+  docker_image: prefecthq/prefect
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Checked the PrefectHQ/prefect
+    GitHub repo root, examples/, and docs/ directories (only a Dockerfile
+    and Dockerfile.sqlite-builder are present, no docker-compose.yml or
+    .yaml anywhere) and the official self-hosting guide
+    (docs.prefect.io/v3/how-to-guides/self-hosted/server-docker), which
+    documents only a bare `docker run -p 4200:4200 -d --rm
+    prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0`
+    command with no compose example. No other official docs page (deploy
+    guide, manage/server) references docker-compose either. This matches
+    `recipe_type_guess: docker-compose` at the recipe level (a compose
+    file is buildable from the single-container image and documented run
+    command), but there is no upstream-authored compose file to point to.
+
+version_health:
+  latest_version: "3.8.1"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.8.1 shipped 2026-07-30, less than a week before today (2026-08-05);
+    3.8.0 landed just a week before that (2026-07-23), and 3.7.x point
+    releases shipped roughly weekly through June-July 2026 (confirmed via
+    GitHub releases API). Dev pre-releases are cut almost daily. This is
+    an unusually active project even by our catalogue's standards. On
+    2026-07-13 Prefect announced it is acquiring Dagster Labs (a
+    competing orchestrator), consolidating the two leading
+    successors-to-Airflow under the Prefect name — a strong positive
+    signal for the project's health and market position, not a distress
+    signal (both products continue as independently maintained, the
+    acquirer is Prefect itself). No indication of maintenance-only mode,
+    archival, or EOL.
+
+catalogue_fit:
+  categories: [automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Superficial category overlap with n8n only ("workflow orchestration"),
+    but a different audience and a structurally different product. n8n
+    (and the rejected activepieces candidate, apps-gaps/activepieces.yaml)
+    are no-code/low-code tools: a non-developer builds and runs an entire
+    automation visually in the browser, and the web UI IS the product.
+    Prefect is a Python orchestration control-plane for data/ML
+    engineers: workflows ("flows") are Python code the customer writes and
+    deploys themselves via the `prefect` CLI/SDK from their own
+    development environment; the self-hosted server's web UI is a
+    monitoring/scheduling dashboard (run history, logs, work-pool and
+    deployment management), not an authoring canvas. A customer cannot
+    build a working pipeline through the UI alone the way they can in
+    n8n. This makes it a genuinely different capability (bring-your-own-
+    code pipeline orchestration for technical/data teams) rather than a
+    duplicate of n8n's no-code automation niche, but it also means the
+    self-hosted server alone is only half the product — running actual
+    flows additionally requires the customer to run a Prefect *worker*
+    (polling the server's work pool) and to have written and deployed
+    Python flow code from outside the VM, none of which the recipe
+    mechanism provisions.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability not covered by any of the 24 existing
+    recipes, and Prefect is a legitimate, well-known, actively developed
+    project (its own health signals are strong). But the value it delivers
+    out-of-the-box is narrower than most catalogue entries: a customer
+    gets an orchestration dashboard with nothing running yet, and needs
+    outside developer effort (their own Python code, `prefect deploy`,
+    and a running worker process) before it does anything useful. That's
+    a fine value proposition for a technical customer who already knows
+    Prefect and wants a managed control-plane, but it's a much thinner
+    "works immediately after signup" experience than n8n or Activepieces,
+    capping usefulness at medium rather than high for a general AF
+    audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_gate_credential]
+  secrets_expressible_today:
+    - secret: ui_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The self-hosted server (`prefect server start`, the official
+      `prefecthq/prefect` image, single port 4200 for both UI and API)
+      ships with NO authentication enabled by default — anyone who
+      reaches the URL has full read/write access to all flow runs,
+      deployments, and (via the UI's "blocks" feature) any stored
+      credentials/secrets. Confirmed via upstream docs
+      (docs.prefect.io/v3/advanced/security-settings): opt-in auth is a
+      single shared Basic Auth string, `PREFECT_SERVER_API_AUTH_STRING`,
+      in plaintext `user:pass` form compared directly by the server — not
+      a hash, so `generated_from` (which only ever emits a hash) cannot
+      target it. That said, this is not a structural blocker the way
+      Postgres's plaintext-only `POSTGRES_PASSWORD` is
+      (apps-gaps/postgresql.yaml): since the server has no auth at all by
+      default, a Traefik `basic_auth: true` gate in front of the whole
+      app (leaving `PREFECT_SERVER_API_AUTH_STRING` unset) is a complete,
+      supported substitute — same pattern as n8n and Adminer use for
+      apps with no login of their own.
+    - >
+      Even with the UI gated, the recipe would deliver a dashboard with
+      no workers and no deployed flows — not a blocker on the
+      installability schema's terms (no external API key/OAuth/second
+      customer credential is needed to boot the container), but worth
+      flagging: this is the only catalogue candidate so far where
+      "installable today" and "does something useful out of the box" are
+      this far apart. Not a mechanism-channel gap, just a product-shape
+      caveat for whoever prioritizes it.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Prefect is healthy and actively developed (weekly releases, and a
+  just-announced acquisition of rival Dagster that consolidates rather
+  than threatens its position), ships an official single-container image
+  with a single HTTP port and no mandatory database, and is mechanically
+  installable today by gating its otherwise-unauthenticated web UI behind
+  Traefik `basic_auth` — no external secrets or API keys required at
+  first boot. It doesn't duplicate n8n despite the shared "workflow
+  orchestration" label: Prefect targets developers who bring their own
+  Python code, while n8n is a no-code tool where the UI builds the
+  automation. The catch is that a freshly-booted Prefect recipe is just a
+  monitoring dashboard with nothing running until the customer separately
+  writes flow code and runs a worker from outside the VM — a thinner
+  immediate payoff than most of the catalogue. Recommend
+  build_with_caveats: worth building for the distinct developer/data-team
+  niche it fills, but set expectations that it's a control-plane, not a
+  turnkey automation product.

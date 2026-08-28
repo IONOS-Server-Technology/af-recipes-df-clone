@@ -1,0 +1,106 @@
+slug: multi-scrobbler
+name: Multi-Scrobbler
+source_description: "Self-hosted scrobbler tracking plays from Plex, Jellyfin, Spotify, and more"
+
+upstream:
+  url: https://foxxmd.github.io/multi-scrobbler/
+  repo_url: https://github.com/FoxxMD/multi-scrobbler
+  license: MIT
+  docker_image: foxxmd/multi-scrobbler
+  compose_file_url: https://raw.githubusercontent.com/FoxxMD/multi-scrobbler/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (github.com/FoxxMD/multi-scrobbler/blob/master/docker-compose.yml),
+    also embedded/described in the docs' Docker installation page
+    (docs.multi-scrobbler.app/installation). This is a rolling reference to
+    the default branch (`master`), not version-pinned — the repo has no
+    release-asset compose file, so there is no `/releases/latest/download/...`
+    equivalent to use instead. The repo ships a second file,
+    `docker-compose.dev.yml`, for local development; the root
+    `docker-compose.yml` is the production variant and is the one this
+    points to.
+
+version_health:
+  latest_version: "0.15.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.15.0 released 2026-07-30, less than a week before today (2026-08-05).
+    Release history through 2026 is dense: 0.13.2 (2026-05-05), 0.13.3
+    (2026-05-06), 0.14.0-beta.1 (2026-05-14), 0.14.0-beta.2/beta.3
+    (2026-05-28/30), 0.14.0 (2026-06-01), 0.14.1 (2026-06-03), 0.14.2
+    (2026-07-08), 0.15.0-RC1 (2026-07-28), 0.15.0 (2026-07-30) — multiple
+    releases most months. Repo is not archived, single maintainer (FoxxMD)
+    is clearly still actively shipping features (Apple Music source landed
+    in 0.15.0). Clearly active.
+
+catalogue_fit:
+  categories: [media, integration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers music-listen tracking or
+    scrobbling. Immich (photos) and Paperless-ngx/Paperless-AI (documents)
+    are the only other "personal media archive" recipes and don't overlap
+    in domain. Multi-Scrobbler's actual value proposition is as a hub that
+    watches Plex/Jellyfin/Spotify/etc. listening activity and forwards it to
+    a scrobble target (Last.fm, ListenBrainz, or a self-hosted Maloja), so
+    it's most useful to a customer who already has a media server or
+    streaming account and wants unified listening history/stats.
+  usefulness: medium
+  usefulness_rationale: >
+    Single-purpose, well-scoped, single-container Node/TS app with an active
+    niche audience (self-hosted media-server + music-stats enthusiasts). Not
+    a general-purpose catalogue staple, and its usefulness is entirely
+    contingent on the customer separately obtaining third-party API
+    credentials for at least one source and one client — see
+    installability below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [dashboard_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: dashboard_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Confirmed against upstream's shipped docker-compose.yml and
+      configuration docs (docs.multi-scrobbler.app): the web dashboard on
+      port 9078 has no login of its own — it is open to anyone who reaches
+      the URL. A Traefik `basic_auth: true` gate closes that hole and is
+      fully expressible today via root-password projection, so this part
+      alone is not a blocker.
+    - >
+      However, Multi-Scrobbler does nothing useful with zero configuration:
+      every source (Spotify, Jellyfin, Plex, Apple Music, etc.) and every
+      client (Last.fm, ListenBrainz, Libre.fm, Maloja, etc.) requires its
+      own third-party credential — a Spotify OAuth app's client
+      ID/secret, a Last.fm API key, a Jellyfin/Plex API token, a
+      ListenBrainz user token, or (for the self-hosted Maloja path) a
+      Maloja API key. All of these are external accounts/keys the customer
+      would create outside our platform, and several (Spotify, Last.fm) are
+      completed via an OAuth redirect callback served from the dashboard
+      itself (`BASE_URL`-driven). None of this is a hash of the customer's
+      root password and none of it is server-generatable — there is no
+      input channel today for any of it, matching the "external API
+      key/OAuth" no-go rows in apps-gaps/SCHEMA.md.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Multi-Scrobbler is an active, actively-developed, single-container app
+  (MIT licensed, one web port, Traefik-compatible) that would be a genuine,
+  non-overlapping addition to the catalogue for self-hosted media-server
+  users who want unified scrobbling/listening stats. The dashboard itself
+  has no built-in login, but a Traefik basic_auth gate fully covers that
+  with today's root-password projection, so the container is mechanically
+  safe to boot and expose. It is nonetheless not installable today: every
+  source and client it supports requires a customer-obtained third-party
+  API key or OAuth registration (Spotify, Last.fm, ListenBrainz,
+  Jellyfin/Plex tokens, etc.), and none of that has an input channel under
+  the current root-password-projection/basic_auth-only mechanism —
+  matching the "external API key/OAuth" no-go case in apps-gaps/SCHEMA.md.
+  Recommend `blocked_on_platform` — revisit once the platform gains a
+  customer-supplied arbitrary-value input channel beyond root-password
+  projection.

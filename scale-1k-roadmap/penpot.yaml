@@ -1,0 +1,77 @@
+slug: penpot
+name: Penpot
+source_description: "Penpot is an open-source design platform for UI/UX collaboration"
+
+upstream:
+  url: https://penpot.app
+  repo_url: https://github.com/penpot/penpot
+  license: MPL-2.0
+  docker_image: penpotapp/frontend (plus penpotapp/backend, penpotapp/exporter, penpotapp/mcp — official images on Docker Hub under the `penpotapp` org)
+  compose_file_url: https://raw.githubusercontent.com/penpot/penpot/main/docker/images/docker-compose.yaml
+  compose_file_notes: >
+    Official — linked directly from Penpot's own self-hosting docs
+    (help.penpot.app/technical-guide/getting-started/docker/), which give
+    this exact raw.githubusercontent.com URL for `wget`/`curl` installs.
+    It is a rolling reference to the `main` branch, not pinned to a
+    release tag, so it tracks whatever is latest on `main` rather than a
+    specific version. Only one variant is published (single compose file
+    covering frontend + backend + exporter + Postgres + Valkey/Redis for
+    a self-contained Postgres-backed stack); the docs' Traefik example
+    section links the same file on the `develop` branch as an alternative,
+    but `main` is the one the primary install instructions point to.
+
+version_health:
+  latest_version: "2.17"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest minor release (2.17 "The Universal") shipped 2026-07-08, about 4
+    weeks before this analysis (today 2026-08-05). Prior minors (2.16, 2.15,
+    2.14, ...) show a steady ~monthly cadence with patch releases (e.g.
+    2.16.0 -> 2.16.1 -> 2.16.2) in between. Actively maintained by a
+    commercial-backed team (Kaleidos); no signs of slowdown or archival.
+
+catalogue_fit:
+  categories: [design, developer-tools, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover design/UI-prototyping or
+    Figma-style real-time visual collaboration. Penpot would be a genuinely
+    new category for the catalogue (open-source Figma alternative), useful
+    to customers running small design/product teams who want to keep design
+    files off third-party SaaS.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real gap (no design tool in the catalogue) and is one of the
+    most visible "self-hosted SaaS alternative" projects in this space,
+    which tends to drive organic customer demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Penpot has no single "root"/admin credential of its own to project a
+  password hash into: it uses open self-registration where the *first*
+  account to sign up becomes the instance admin. Left open on a public
+  domain, any internet visitor could race the real customer to that first
+  signup, so the whole app needs a Traefik basic_auth gate (projected from
+  the customer's root password) in front of it — same pattern already used
+  for n8n, WUD, and Open WebUI. Once gated, the customer signs themselves up
+  as admin through Penpot's normal UI; no other external secret (no OAuth,
+  no third-party API key) is required at first boot. The official stack is
+  a standard multi-container Docker Compose app (frontend + backend +
+  exporter + mcp + Postgres + Valkey) with a single public HTTP port,
+  structurally similar to recipes/anytype-server and recipes/immich, and is
+  actively maintained with a steady monthly release cadence. Recommend
+  building now — it fills a real gap (no design/prototyping tool in the
+  catalogue today) with no platform blockers.

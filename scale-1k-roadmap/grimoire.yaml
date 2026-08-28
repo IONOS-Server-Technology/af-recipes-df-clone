@@ -1,0 +1,112 @@
+slug: grimoire
+name: Grimoire
+source_description: "Self-hosted bookmark manager with auto metadata extraction and full-text search"
+
+upstream:
+  url: https://github.com/goniszewski/grimoire
+  repo_url: https://github.com/goniszewski/grimoire
+  license: MIT
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/goniszewski/grimoire/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the README's own
+    "docker compose up -d" install instructions point at. It is a rolling
+    reference to the default branch (main), not version-pinned: there is
+    no release-tagged or release-asset variant, consistent with the
+    project not publishing a pinned image (see blocking_issues below) —
+    the service block itself does `build: .` from the repo's own
+    Dockerfile rather than pulling any tag. Only one variant is offered
+    (single service, SQLite-backed by DATA_DIR under the mounted volume);
+    the optional commented-out `ollama` block for local AI processing is
+    not a separate shipped variant, just an inline opt-in add-on.
+
+version_health:
+  latest_version: "1.0.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v1.0.1 released 2026-08-03 — 2 days before today (2026-08-05). But this
+    number is misleading in isolation: v1.0.0 (2026-07-20) is a "complete
+    rewrite — a fresh start for the project" per the README, and the
+    previous stable line (v0.5.0, SvelteKit + PocketBase, multi-user web
+    login) shipped 2025-02-21 — a 17-month gap with no releases at all
+    before the rewrite landed. So the honest read is: dormant for ~17
+    months, then a burst of 2 releases in the last 2 weeks as a brand-new
+    single-user, local-first architecture. Repo is not archived (~2.8k
+    stars, 11 open issues, active TypeScript commits). Whether "active"
+    or "sporadic" is the right label is a judgment call; sporadic is used
+    here because two releases inside a fresh 2-week window is too short a
+    track record to call a resumed cadence "active" yet.
+
+catalogue_fit:
+  categories: [productivity, bookmarks]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a bookmark manager —
+    this would be a genuinely new category if the app were a good fit.
+    It is not, as of the current release line (see installability):
+    v1.0.x is explicitly designed as a single-user, loopback-only local
+    tool ("not a supported mode" for network exposure per its own docs),
+    not a multi-tenant web app a customer signs into over a domain the
+    way every other recipe in the catalogue works.
+  usefulness: low
+  usefulness_rationale: >
+    A bookmark manager is a plausible customer want, but the specific
+    upstream project that matches Hostinger's catalogue slug just
+    rewrote itself out of the shape that made it viable as a hosted
+    recipe (removed its own multi-user login) two weeks before this
+    analysis. Recommend revisiting in a future sweep once the new
+    architecture stabilizes and/or the project reintroduces multi-user
+    auth or a maintained public image — not now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official, pinned, current-version Docker image exists. The
+      Docker Hub repo goniszewski/grimoire is frozen on tags from the
+      pre-rewrite v0.4.x/v0.5.0-pre.1 line, last pushed over a year ago;
+      the upstream docker-compose.yml for the current v1.0.x code builds
+      the image locally from its own Dockerfile at deploy time rather
+      than pulling a published tag. There is nothing to pin per the
+      'never :latest, pick a stable published tag' rule."
+    - "v1.0.x (the only actively released line) has no built-in login,
+      signup, or user-account system at all — it is architected as a
+      single local user talking to a loopback-bound daemon (HOST
+      defaults to 127.0.0.1; the README states public network exposure
+      is not a supported mode). Fronting it with Traefik basic_auth
+      would technically satisfy the /compose secret-projection
+      constraint (same pattern as Adminer), but it would be gating an
+      app that was never designed to be reached over a network in the
+      first place, not adding auth in front of a normal web app."
+    - "The old multi-user, web-login architecture (v0.4.x/v0.5.0,
+      SvelteKit + PocketBase) that would have been a clean
+      generated_from candidate is now abandoned upstream (last release
+      2025-02-21, no further commits on that line) and its image is the
+      same frozen Docker Hub tag noted above — not a viable pin either."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Grimoire is a real gap in the 24-recipe catalogue (no bookmark manager
+  today) but the specific upstream project is in the middle of disqualifying
+  itself: two weeks ago it shipped a "complete rewrite" (v1.0.0, then
+  v1.0.1 on 2026-08-03) that turned it from a multi-user web app with its
+  own login into a single-user, loopback-only local tool with no auth and
+  no supported network-exposure mode — and no official Docker image has
+  been published for that new architecture at all (Docker Hub is frozen on
+  the abandoned v0.4.x/v0.5.0-pre.1 line, over a year stale). Neither the
+  old architecture (abandoned, stale image) nor the new one (no image, no
+  login, not meant to be networked) gives us something installable today.
+  Traefik basic_auth could technically gate the new version's exposed port,
+  but doing so would be securing an app that explicitly says it isn't meant
+  to run this way, not filling a real customer need. Recommend
+  not_recommended for now; revisit if upstream either publishes a
+  current-version image or reintroduces multi-user auth suited to hosted
+  deployment.

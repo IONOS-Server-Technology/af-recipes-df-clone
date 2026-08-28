@@ -1,0 +1,124 @@
+slug: wintercms
+name: WinterCMS
+source_description: "Laravel-based open-source CMS with plugin system and theming engine"
+
+upstream:
+  url: https://wintercms.com
+  repo_url: https://github.com/wintercms/winter
+  license: MIT
+  docker_image: wintercms/winter:1.2.11
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists. WinterCMS's own docs
+    (wintercms.com/docs, section on the Docker image) and the image's
+    dedicated source repo (github.com/wintercms/docker, which hosts the
+    Dockerfile/entrypoint.sh behind the wintercms/winter and
+    ghcr.io/wintercms/winter images) only document a bare `docker run`
+    command (e.g. `docker run --name winter -p 8000:8000
+    ghcr.io/wintercms/winter:latest`, optionally with `-v` volume mounts
+    for /winter/plugins, /winter/storage, /winter/themes and an
+    ADMIN_PASSWORD env var) — no compose file is shipped or linked
+    anywhere in the official docs, README, or repo tree. Several
+    community-maintained docker-compose examples exist (e.g.
+    github.com/mik-p/docker-wintercms, github.com/zaxbux/docker-wintercms)
+    but none are official and none are adopted here.
+
+version_health:
+  latest_version: "v1.2.12"
+  latest_release_date: "2026-02-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Using 2026-08-05 as the analysis date per the task brief. As of that
+    date the latest published release is v1.2.12 (2026-02-20), ~5.5 months
+    earlier — but that gap is mostly a lull rather than dormancy: v1.2.8
+    (2025-06-25) → v1.2.9 (2025-10-15, ~3.7mo) → v1.2.10 (2026-02-04,
+    ~3.7mo) → v1.2.11 (2026-02-18, 2wk later) → v1.2.12 (2026-02-20, 2 days
+    later), the last three landing in a tight burst alongside simultaneous
+    security-patch backports to the older v1.1.12 and v1.0.477
+    maintenance lines the same day. The GitHub API (live, not
+    date-bounded) also shows a v1.2.13 published 2026-08-07 — after this
+    analysis's reference date, so not counted as "latest" here, but it
+    confirms the project kept shipping right around the analysis window
+    rather than going quiet. Repo is not archived, ~1.5k stars, active
+    issue/PR traffic. Reads as actively maintained, not dormant. Separately:
+    the official `wintercms/winter` Docker image on Docker Hub only has
+    versioned tags up to `1.2.11` (pushed 2026-03-13) plus a floating `1.2`
+    tag last pushed the same date — the image build lags the CMS release
+    train by one to two point releases and the `1.2` floating tag hasn't
+    been refreshed for v1.2.12/v1.2.13 either. Worth pinning to `1.2.11`
+    (most recent tag that actually exists) and revisiting the pin
+    periodically, but not a currency red flag on its own.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website
+    CMS/page-builder — the closest neighbors (Gitea, Opengist) are
+    developer/source-control tools, not content management for a
+    public-facing site. WinterCMS occupies the same "build a website
+    without hand-coding a framework app" niche already scouted for other
+    PHP-CMS apps-gaps candidates (apps-gaps/october-cms.yaml,
+    apps-gaps/drupal.yaml, apps-gaps/joomla.yaml,
+    apps-gaps/classicpress.yaml, apps-gaps/grav.yaml, apps-gaps/ghost.yaml).
+    It is directly relevant to apps-gaps/october-cms.yaml specifically:
+    WinterCMS began in 2021 as a community fork/continuation of October CMS
+    after October's core went partially closed-source, and it targets the
+    identical audience (Laravel-comfortable developers building
+    component-driven sites, not blog/brochure-site end users via a
+    drag-and-drop builder). October CMS was marked `not_recommended` in
+    this apps-gaps set purely because it has no maintained, versioned,
+    production-suitable Docker image (its only `octobercms/october` image
+    is an explicitly-labeled try-it-out demo with one unversioned `latest`
+    tag). WinterCMS is the practical way to cover that same niche today:
+    it ships an official, actively-built, versioned production image
+    (`wintercms/winter`, FrankenPHP-based) that October CMS lacks.
+  usefulness: medium
+  usefulness_rationale: >
+    CMS/website-builder is a commonly requested self-hosting category and
+    nothing in the current 24-recipe catalogue addresses it, so there is
+    real differentiation value. But WinterCMS's own pitch — a Laravel
+    developer framework with a CMS layer on top, aimed at building custom
+    "web applications" via Twig components rather than a
+    point-and-click site builder — is a narrower, more technical audience
+    than the mainstream CMS incumbents (WordPress-family, Drupal, Joomla)
+    would reach. Same medium-usefulness call already made for October CMS
+    for the same audience reasoning; WinterCMS's edge is that it is
+    actually buildable today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  WinterCMS is a single-container Laravel/PHP app (official `wintercms/winter`
+  image, FrankenPHP-based, port 8000 by default or 80/443 via `SERVER_NAME`)
+  that ships with a bundled SQLite database out of the box — no external DB
+  sidecar or DB password secret required at all, which makes this simpler to
+  provision than most of the CMS-family apps-gaps candidates. It exposes one
+  HTTP port and sits cleanly behind Traefik the same way Gitea/n8n do. The
+  only secret at first boot is the backend `admin` account's password
+  (`ADMIN_PASSWORD` env var, consumed as plaintext by the image's bootstrap
+  script and hashed internally by Winter itself, so it cannot carry a
+  `generated_from` root-password hash) — but the same pattern already
+  accepted for Gitea's and October CMS's admin passwords applies: a fully
+  server-generated random value with no customer input needed at compose
+  time, surfaced to the customer after provisioning the same way any other
+  auto_generate credential is. That clears the /compose constraint with zero
+  blocking issues. Version health is fine (actively maintained, MIT
+  license, not dormant) though the official Docker image build lags one to
+  two point releases behind the upstream CMS release train. The main
+  strategic reason to build this one is that it is the practical, buildable
+  version of the Laravel-developer-CMS niche already scouted and blocked in
+  apps-gaps/october-cms.yaml — October has the same audience appeal but no
+  usable production image, while WinterCMS (its actively-maintained fork)
+  does. Recommend build_now.

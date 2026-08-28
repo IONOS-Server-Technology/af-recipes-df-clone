@@ -1,0 +1,113 @@
+slug: archivesspace
+name: ArchivesSpace
+source_description: "Open-source archives information management for manuscripts and digital objects"
+
+upstream:
+  url: https://archivesspace.org
+  repo_url: https://github.com/archivesspace/archivesspace
+  license: Educational Community License 2.0 (ECL-2.0)
+  docker_image: archivesspace/archivesspace
+  compose_file_url: https://raw.githubusercontent.com/archivesspace/archivesspace/v4.2.1/docker-compose-prod.yml
+  compose_file_notes: >
+    Official, from the project's own repo root (not a third-party template):
+    docs.archivesspace.org/administration/docker directs users to download
+    the versioned archivesspace-docker-${VERSION}.zip bundle from the
+    GitHub release Assets and use the docker-compose.yml inside it. Traced
+    the release build process (.github/workflows/release.yml running
+    `./build/run build-docker-conf-package`, defined in build/build.xml)
+    to confirm that packaged file is the repo's root-level
+    docker-compose-prod.yml, renamed to docker-compose.yml when zipped —
+    verified byte-for-byte identical by downloading and diffing both. This
+    is one of several docker-compose-* variants at repo root
+    (docker-compose.yml, docker-compose-release.yml, docker-compose-dev.yml,
+    docker-compose-dev-full.yml, docker-compose-docs.yml,
+    docker-compose-fake-smtp.yml); docker-compose-release.yml is a
+    separate build-from-source workflow (its own header comment says
+    `docker-compose -f docker-compose-release.yml build` / `up`) and is not
+    what the official docs' pre-built-image deployment path uses.
+    Linked here as version-pinned to the v4.2.1 tag (matching
+    version_health.latest_version above) rather than the rolling
+    master-branch reference, so this URL keeps pointing at the exact
+    compose file that shipped with the version this analysis was written
+    against. It defines the four-container stack (app + MySQL 8 + Solr +
+    nginx proxy) referenced in the summary below.
+
+version_health:
+  latest_version: "v4.2.1"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.2.1 released 2026-07-13 (about 3 weeks before today, 2026-08-05) as a
+    patch fixing regressions introduced in 4.2.0 (large linked-record
+    failures, embedded-Derby startup failure). 4.2.0-RC1 shipped 2026-05
+    and 4.0.0 (which added official Docker support) landed earlier in the
+    same release line. Steady, recent cadence with an active GitHub org and
+    ongoing tech-docs updates — no sign of slowing or abandonment.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes targets archival/manuscript
+    collection management — Paperless-ngx (document digitization/OCR for
+    personal document archiving) and Gitea (source-code hosting) are the
+    closest by "document-ish" theme but serve entirely different users
+    (archivists/librarians managing finding aids, accessioning, and
+    digital-object metadata under DACS/EAD/MARC standards) and workflows.
+    This would be a genuinely new catalogue category.
+  usefulness: medium
+  usefulness_rationale: >
+    Archival collection management is a real, if niche, institutional
+    use case (libraries, museums, universities, historical societies) with
+    no comparable open-source alternative at this maturity — ArchivesSpace
+    is the de-facto standard tool in that space, actively used by
+    hundreds of institutions. Demand among typical AF customers (SMBs,
+    developers, homelab users) is likely lower than for general-purpose
+    recipes, but it's a credible niche differentiator.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      ArchivesSpace ships with a fixed default staff-interface login of
+      admin/admin. The only supported way to change it is interactively,
+      by exec'ing into the running app container and running
+      `scripts/password-reset.sh` — there is no environment variable, .env
+      value, or setup wizard that accepts a new admin password (plaintext
+      or hashed) at container startup (confirmed against
+      docs.archivesspace.org/administration/docker and the shipped
+      docker-compose-release.yml, whose only per-deployment inputs are
+      MySQL root/user passwords and NGINX_PORT). This matches the
+      "fixed/default admin credential the app itself gives no way to
+      change [via env]" case in SCHEMA.md — not a hard blocker, since it
+      resolves the same way airsonic-advanced.yaml did: gate the whole
+      public interface behind a mandatory Traefik `basic_auth`, treating
+      that as the real customer-facing auth boundary and leaving the
+      in-app admin/admin login as an internal detail the customer is
+      instructed (but not technically forced) to change post-install.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ArchivesSpace is an actively maintained (v4.2.1, July 2026), officially
+  Docker-supported four-container stack (app + MySQL + Solr + nginx,
+  structurally closer to n8n/paperless-ngx than a single-container app)
+  serving a real but narrow niche — institutional archival/manuscript
+  collection management — that nothing in the current 24-recipe catalogue
+  covers. It clears the installability bar only via a mandatory Traefik
+  basic_auth gate, since the app's own admin/admin default has no
+  env-driven way to receive a customer-derived credential at boot,
+  identical to the airsonic-advanced precedent. Recommend building with
+  the mandatory basic_auth gate documented as the customer-facing caveat,
+  since the in-app admin/admin default has no env-driven override.

@@ -1,0 +1,115 @@
+slug: mysql
+name: MySQL
+source_description: "Fast, reliable open-source relational database for web and app workloads"
+
+upstream:
+  url: https://www.mysql.com/
+  repo_url: https://github.com/mysql/mysql-server
+  license: GPL-2.0 (with commercial dual-licensing for enterprise features)
+  docker_image: mysql
+  compose_file_url: null
+  compose_file_notes: >
+    No official deployable docker-compose.yaml/.yml exists. The Docker Hub
+    official-image page for `mysql` (sourced from docker-library/docs, a
+    Docker-Official-Images-program repo, not the MySQL/Oracle project
+    itself) only embeds an inline docker-compose snippet directly in its
+    README prose ("Use root/example as user/password credentials", a
+    single `db` service with `MYSQL_ROOT_PASSWORD: example`, explicitly
+    captioned "just an example, not intended to be a production
+    configuration") — there is no standalone file to link to. The
+    docker-library/mysql repo itself (which builds the image) has no
+    `examples/` directory or compose file anywhere in its tree (checked
+    8.4, 9.7, and innovation version dirs). dev.mysql.com's own docs and
+    blog archive likewise have no dedicated official compose file, only
+    third-party blog tutorials. Same structural situation as MariaDB
+    (apps-gaps/mariadb.yaml) — a raw-protocol RDBMS engine shipped as a
+    Docker Official Image with only an inline non-production snippet, no
+    project-published compose artifact.
+
+version_health:
+  latest_version: "9.7.2 (current LTS line, oraclelinux9-based); 8.4.11 (previous LTS); 26.7.0 (Innovation track, not for production)"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    9.7.2 (LTS) released 2026-07-28, about 8 days before today (2026-08-05)
+    — a very fresh release, well inside a normal cadence. Oracle now ships
+    two parallel tracks: "Innovation" (currently versioned 26.x, calendar-
+    style numbering, latest features, not recommended for production) and
+    "LTS" (9.x, the stable/supported line customers should actually run),
+    plus a still-maintained previous LTS (8.4.x). This is the official
+    Oracle/MySQL Team-maintained Docker Hub image, actively updated within
+    the last two weeks.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea, guacamole, immich, n8n, paperless-ngx, runtipi]
+  differentiation: >
+    None of the listed recipes actually bundle MySQL — on inspection they
+    all run their own internal Postgres instance (or a Postgres-based fork,
+    in Immich's case), not MySQL/MariaDB, purely as private storage on the
+    bridge network. So there's no literal engine duplication. A standalone
+    MySQL recipe would target a different use case than any of those: a
+    customer running their own external app (e.g. WordPress, a legacy PHP
+    app, a BI tool) that specifically needs a MySQL-protocol backend to
+    connect to. That's a real, distinct need in principle, but see
+    `blocking_issues` — it requires exactly the exposure shape our own
+    rules forbid.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Useful in principle to technical customers who want a managed
+    MySQL-compatible backend for something they run themselves, but it's a
+    developer/power-user tool with zero UI, and its only useful exposure
+    shape (a public 3306) is one our own recipe rules already reject on
+    security grounds. Same structural class as MariaDB
+    (apps-gaps/mariadb.yaml) — effectively the same analysis applies,
+    since both are raw-protocol RDBMS engines with no application-layer
+    presence to gate behind Traefik.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today:
+    - secret: root_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The only useful shape for a standalone MySQL recipe is a publicly
+      reachable MySQL-protocol port so an external customer app can
+      connect to it. Publishing host port 3306 is exactly what RFC-002's
+      `no-public-db-port` rule forbids (rfc/002-recipe-rules.md:220-226) —
+      3306 is explicitly on the forbidden-host-port list. There is no
+      alternate exposure path today: Traefik only routes HTTP, and MySQL
+      speaks a raw binary protocol, so it cannot be fronted the way our
+      web-UI recipes are (no `basic_auth`, no subdomain routing).
+    - >
+      Even setting the port rule aside, the root password can only be
+      projected via `MYSQL_ROOT_PASSWORD` (plaintext env var, which
+      `generated_from` does not produce) or `MYSQL_ROOT_PASSWORD_HASH`
+      (a `caching_sha2_password`-style hash, not `argon2`/`bcrypt`) —
+      neither matches the currently supported `generated_from` algorithm
+      list. This half of the problem is `blocked_on_platform`-shaped (a
+      new supported hash algo could fix it), but it's moot given the
+      public-port blocker above, which is a hard structural mismatch, not
+      a platform gap.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  MySQL is an actively maintained, healthy upstream project (LTS 9.7.2
+  released just over a week before this analysis), but a standalone MySQL
+  recipe has no viable shape in the current catalogue. Its only useful
+  exposure — a public, customer-reachable 3306 — is explicitly forbidden by
+  our own `no-public-db-port` rule, and it has no web UI to gate behind
+  Traefik/basic_auth the way our other no-login apps do. None of the
+  existing 24 recipes actually run MySQL internally (they use Postgres), so
+  there's no literal duplication, but that also means there's no
+  "internal-only, never publicly exposed" niche for it to fill either. This
+  isn't primarily a platform gap waiting on IF-1420/1312; it's the same
+  structural mismatch documented for MariaDB (apps-gaps/mariadb.yaml)
+  between what the app needs (a raw internet-facing DB port) and what our
+  security rules and Traefik-only routing model support. Recommend
+  not_recommended.

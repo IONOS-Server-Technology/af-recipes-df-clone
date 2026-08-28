@@ -1,0 +1,127 @@
+slug: lightrag
+name: LightRAG
+source_description: "Simple and fast graph-based RAG framework with dual-level knowledge retrieval"
+
+upstream:
+  url: https://github.com/HKUDS/LightRAG
+  repo_url: https://github.com/HKUDS/LightRAG
+  license: MIT
+  docker_image: ghcr.io/hkuds/lightrag
+  compose_file_url: https://raw.githubusercontent.com/HKUDS/LightRAG/main/docker-compose.yml
+  compose_file_notes: >-
+    Official file, at the repo root. README's "Launching the LightRAG Server
+    with Docker Compose" section runs it directly via `docker compose up`,
+    and docs/DockerDeployment.md confirms `docker compose up -d` as the
+    standard start command. This is a rolling reference to the default
+    (main) branch, not version-pinned to a release tag — HKUDS/LightRAG
+    does not publish this file as a versioned release asset. It's the only
+    static, checked-in compose variant; the repo also documents an
+    interactive `make env-*` wizard that generates a
+    `docker-compose.final.yml` (plus an example
+    `docker-compose.override.yml` snippet for GPU-based vLLM
+    embedding/reranking) but those are generated/example artifacts, not
+    files shipped in the repo, so the root docker-compose.yml is the correct
+    one to track.
+
+version_health:
+  latest_version: "v1.5.5"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v1.5.5 shipped 2026-07-31, just 5 days before today (2026-08-05).
+    PyPI/release history shows a tight, near-weekly cadence through 2026
+    (v1.5.0 on 2026-06-03, v1.5.1 06-09, v1.5.2 06-11, v1.5.3 06-14, v1.5.4
+    06-24, v1.5.5rc1 07-13, v1.5.5 07-31), on top of a steady monthly-ish
+    cadence back through 2025 (1.0.x from Nov 2024, 1.1-1.2.x early 2025,
+    1.3.x through mid-2025, 1.4.x from Sep 2025). The `ghcr.io/hkuds/lightrag`
+    image publishes matching versioned tags (not just `latest`), including
+    the current `v1.5.5`. No archival or slowdown signal — this is one of
+    the more actively maintained candidates seen in this batch.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Neither open-webui nor bare ollama does document ingestion or knowledge-
+    graph construction — open-webui is a chat frontend, ollama is just an
+    inference runtime with no UI at all. LightRAG's actual value is the
+    ingestion pipeline: upload documents, build a dual-level (entity +
+    relationship) knowledge graph plus vector index over them, then query
+    with graph-aware retrieval, and visually explore the resulting graph.
+    That "turn a document pile into a queryable knowledge graph" capability
+    doesn't exist anywhere in the current 24-recipe catalogue.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely new capability (document-grounded graph RAG) rather than a
+    repackaging of open-webui/ollama, so there's a real reason a customer
+    would pick it over what's already offered. Held to medium rather than
+    high because it is a developer/technical-user tool (no first-run
+    wizard, config is entirely env-var driven — see below) rather than a
+    turnkey consumer app, and because a fully local, good-quality deployment
+    requires bundling Ollama, which raises the resource floor and answer
+    quality ceiling considerably versus a cloud-LLM-backed deployment.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [gate credential for the web UI/API (Traefik basic_auth)]
+  secrets_expressible_today:
+    - secret: gate credential for the web UI/API (Traefik basic_auth)
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      LightRAG cannot answer a single query without a working LLM_BINDING
+      (openai, azure_openai, bedrock, gemini, ollama, ...) plus matching
+      EMBEDDING_BINDING — these, and any associated *_BINDING_API_KEY, are
+      set via environment variables read at container start. Unlike
+      AnythingLLM (apps-gaps/anythingllm.yaml), there is no in-UI first-run
+      wizard to configure this after boot — upstream docs are explicit that
+      the .env must be populated with LLM/embedding config before the
+      server starts, and there's no account-creation flow in the WebUI
+      either.
+    - >-
+      If the recipe pointed LLM_BINDING/EMBEDDING_BINDING at an external
+      provider (OpenAI, Azure OpenAI, Bedrock, Gemini), the required
+      LLM_BINDING_API_KEY / EMBEDDING_BINDING_API_KEY are external API keys
+      with no customer-input channel today — this alone would make the
+      recipe not installable as designed.
+    - >-
+      The escape hatch precedented by our own open-webui recipe is to
+      hardcode LLM_BINDING=ollama / EMBEDDING_BINDING=ollama against a
+      bundled Ollama sidecar with a pre-pulled default model, so no external
+      key or customer secret is needed for the LLM at all (server-generated,
+      no customer input, like open-webui + ollama today). That removes the
+      hard blocker, but it is a real design decision, not a trivial default:
+      it turns this into a 2-3 service stack (LightRAG + Ollama [+ a
+      lightweight KV/vector store if not using the built-in file-based
+      NanoVectorDB/JsonKVStorage/NetworkXStorage defaults]), pushes the RAM
+      floor up to roughly open-webui's territory (~8GB+ for a usable local
+      model), and yields materially weaker retrieval/answer quality than a
+      cloud-LLM-backed deployment — acceptable for a "local-only, no data
+      leaves the server" positioning, but a real quality/resource trade-off
+      to surface to the customer, not a free lunch.
+    - >-
+      By default the server has no built-in login (LIGHTRAG_API_KEY /
+      AUTH_ACCOUNTS+TOKEN_SECRET are opt-in), and upstream's own docs warn
+      that on 0.0.0.0 "every endpoint is public" without them — so the
+      WebUI/API must sit behind a mandatory Traefik basic_auth gate the same
+      way n8n/WUD/Open WebUI do, not be left open.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  LightRAG is under genuinely active development (latest tag 5 days old) and
+  fills a real gap — document-to-knowledge-graph RAG — that nothing in the
+  current 24-recipe catalogue covers. It clears the auth bar cleanly: no
+  built-in login, so a mandatory Traefik basic_auth gate (root-password
+  projected) is enough, the same pattern already used for n8n/Open WebUI.
+  The catch is the LLM dependency: LightRAG cannot function at all without a
+  configured LLM+embedding backend, that config is env-var-only with no
+  in-UI setup wizard (unlike AnythingLLM), and pointing it at any external
+  provider would need an API key we have no channel to collect today. The
+  only installable-today path is bundling a local Ollama backend the way
+  open-webui already does, which works but meaningfully raises the resource
+  floor and lowers answer quality versus a cloud-backed deployment — hence
+  build_with_caveats rather than a clean build_now.

@@ -1,0 +1,96 @@
+slug: trino
+name: Trino
+source_description: "Distributed SQL query engine for federated analytics across data sources"
+
+upstream:
+  url: https://trino.io/
+  repo_url: https://github.com/trinodb/trino
+  license: Apache-2.0
+  docker_image: trinodb/trino:483
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The trino.io docs
+    (installation/containers.html) only document a single-container
+    `docker run` command plus Kubernetes/Helm as the orchestration
+    alternative — no docker-compose is mentioned. The trinodb/trino repo's
+    core/docker/ directory (where the Dockerfile lives) contains only
+    Dockerfile, README.md, build.sh, container-test.sh, and default/etc/ —
+    no docker-compose.yaml/.yml at root or under docker/deploy/contrib
+    either. Only community-maintained compose files exist (e.g.
+    bitsondatadev/trino-getting-started, findinpath/trino-docker-compose-cluster);
+    these are not adopted here since they are not upstream-published.
+
+version_health:
+  latest_version: "483"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), release 483 (2026-07-18) shipped about 2.5
+    weeks ago. Recent cadence is a steady ~monthly-to-six-week cycle:
+    482 (2026-06-25) → 483 (2026-07-18, ~3 weeks) and 480 (2026-03-24) →
+    481 (2026-05-12, ~7 weeks) → 482 (2026-06-25, ~6 weeks). Repo is not
+    archived, has a large active contributor base (Trino Software
+    Foundation, formerly PrestoSQL), ongoing issue triage and PR merges.
+    No EOL, archival, or maintenance-only signals found.
+
+catalogue_fit:
+  categories: [data, analytics, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Trino is a distributed SQL query engine for federated analytics —
+    query Postgres, MySQL, Kafka, object storage (S3/Iceberg/Delta/Hive),
+    and dozens of other sources through one ANSI-SQL interface, joining
+    across them in a single query. Nothing in the current 24-recipe
+    catalogue touches this space; the closest neighbors (n8n, paperless-ngx)
+    are fixed-purpose apps with their own data model, not a generic query
+    federation layer a customer would point at their own existing data
+    sources. Genuinely new ground — a data-engineering/analytics offering
+    distinct from anything currently shipped.
+  usefulness: medium
+  usefulness_rationale: >
+    Trino is a well-known, widely deployed engine (the query layer behind
+    many Presto-lineage analytics stacks) with real pull for a technical
+    audience building analytics over heterogeneous data. Capped at medium
+    rather than high because: (1) the official single-container "testing"
+    mode is explicitly documented by upstream as not a production
+    deployment path — a real Trino install is a coordinator + worker
+    cluster, which is a heavier operational commitment than most of our
+    single-container recipes; (2) it ships with zero useful catalogs
+    configured out of the box (only the built-in `tpch`/`memory` sample
+    catalogs) — a customer gets a working SQL engine with nothing to query
+    until they hand-edit catalog config files inside the container, which
+    is a real but non-trivial post-install step outside our
+    parameter/env-var model; (3) the target audience (data engineers
+    federating multiple data sources) is narrower than the general-purpose
+    productivity/infra tools already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Trino is active and well-maintained (steady ~monthly releases, no EOL
+  signals) and fills a real gap — no query-federation/analytics engine
+  exists in the current catalogue. Mechanically it is installable today:
+  the official trinodb/trino image runs standalone in a single container
+  on port 8080 with sane defaults and, critically, ships with no
+  authentication configured by default (Web UI accepts any username with
+  no password when the server has no authenticator configured), so a
+  mandatory Traefik basic_auth gate is the correct and sufficient fit —
+  there is no app-native login to project a root-password hash into.
+  Recommended `build_now`: installability has no blocking issues — the
+  image runs standalone with sane defaults and the Traefik gate fully
+  covers the only secret required at first boot. Upstream's own framing
+  of single-container mode as a testing/demo configuration, and the lack
+  of a pre-populated catalog out of the box, are real product
+  considerations worth surfacing to a human reviewer, but they are not
+  installability blockers and do not change the recommendation.

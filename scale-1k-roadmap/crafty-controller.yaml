@@ -1,0 +1,113 @@
+slug: crafty-controller
+name: Crafty Controller
+source_description: "Web-based control panel for managing multiple Minecraft Java and Bedrock servers"
+
+upstream:
+  url: https://craftycontrol.com/
+  repo_url: https://gitlab.com/crafty-controller/crafty-4
+  license: GPL-3.0-or-later
+  docker_image: registry.gitlab.com/crafty-controller/crafty-4
+  compose_file_url: https://gitlab.com/crafty-controller/crafty-4/-/raw/dev/docker/docker-compose.yml
+  compose_file_notes: >
+    Official docs.craftycontrol.com Docker install page links directly to
+    this file ("you can find the compose file in
+    ./docker/docker-compose.yml"), pointing at the `dev` branch — a rolling
+    reference to the default development branch, not a pinned release tag
+    (the identical file also exists unchanged at the `master` branch and at
+    the `v4.10.8` tag path, so content has not drifted between refs
+    recently, but the docs' own link will track whatever `dev` contains at
+    fetch time). Only one variant is shipped (no GPU/CPU or sqlite/postgres
+    split). Note the file uses `build: ..` (builds the image from the
+    cloned repo's Dockerfile) rather than `image:
+    registry.gitlab.com/crafty-controller/crafty-4`, so it is meant to be
+    run from within a repo checkout, not pulled standalone.
+
+version_health:
+  latest_version: "v4.10.8"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v4.10.8 landed 2026-07-29, about one week before this
+    analysis (2026-08-05). Recent tag history (v4.10.4 2026-04-20, v4.10.5
+    and v4.10.6 both 2026-06-15, v4.10.7 2026-06-16, v4.10.8 2026-07-29)
+    shows several releases per month through mid-2026. Repo has 6,300+
+    commits and 72+ releases, no archival notice, actively triaged issues.
+    Primary development moved to GitLab (crafty-controller/crafty-4); the
+    old craftycontrol GitHub org is a stale mirror — this is worth flagging
+    since a search for "Crafty Controller" on GitHub surfaces several
+    unrelated or abandoned forks (e.g. RMDC-Crafty/crafty, exzork/crafty-4)
+    that are not the upstream project.
+
+catalogue_fit:
+  categories: [gaming, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch game-server hosting/management.
+    Crafty would be a genuinely new category: a panel for spinning up,
+    scheduling, and monitoring Minecraft Java/Bedrock server instances from
+    a browser, which is a common self-hoster use case with no equivalent
+    in the catalogue today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable demand (Minecraft server hosting is one of the most
+    common self-hosting use cases), but it's a narrower, hobbyist-leaning
+    audience compared to general productivity/security/AI tools already
+    offered, and the actual game servers it manages need their own raw
+    TCP/UDP ports (25500-25600, 19132/udp for Bedrock, 8123 for Dynmap)
+    that a Traefik-only, HTTP(S)-ingress recipe would not expose — so a
+    recipe would ship a control panel that can create servers but players
+    could not connect to them without additional port exposure this
+    catalogue doesn't do today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CRAFTY_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Crafty has no environment variable, config option, or setup wizard
+      to set the admin credential at boot. On first start the app itself
+      generates a random admin username/password pair internally and
+      writes it in plaintext only to a container-local file
+      (/crafty/app/config/default-creds.txt) — there is no supported
+      channel to feed a customer-derived value (plaintext or hash) into
+      that credential, so `generated_from` cannot be projected onto it.
+    - >
+      Because the generated credential is random per-instance and only
+      readable from inside the container filesystem, a customer with no
+      shell access to the container has no way to ever discover it and log
+      into Crafty's own UI. Fronting the app with Traefik `basic_auth`
+      would only add an outer gate — the customer would still be locked
+      out of the app itself behind that gate, unlike cases (e.g. Adminer)
+      where basic_auth is hardening in front of an app with no login, or
+      cases (e.g. n8n's setup wizard) where the customer sets their own
+      credential once past the gate.
+    - >
+      The panel backend is HTTPS-only on 8443 with a self-signed cert and
+      requires WSS (WebSocket-over-TLS) for the UI to function, which is
+      workable behind Traefik (backend TLS with cert verification
+      disabled, standard websocket passthrough) but is an extra piece of
+      Traefik config beyond the plain-HTTP backend pattern most current
+      recipes use — not a blocker on its own, just a caveat if this is
+      revisited later.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Crafty Controller is an actively maintained (releases roughly monthly,
+  latest one week old), GPL-3.0 Minecraft server panel with no overlap in
+  the current catalogue — a genuinely new "game server hosting" category.
+  It is blocked today, though, not just by weak defaults but by a hard
+  structural gap: Crafty generates its own admin username/password
+  randomly on first boot and only ever writes it to a file inside the
+  container, with no env var, config, or wizard path for us to set it via
+  `generated_from`, and no way for a customer without container shell
+  access to ever retrieve it. A Traefik `basic_auth` gate doesn't fix this
+  — it would just add a second wall in front of a UI the customer still
+  can't log into. This needs either an upstream mechanism to pre-seed the
+  admin credential (env var or mountable config) or a platform-side way to
+  surface an app-generated secret to the customer post-install before it
+  can ship as a recipe.

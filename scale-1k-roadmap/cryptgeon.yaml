@@ -1,0 +1,84 @@
+slug: cryptgeon
+name: Cryptgeon
+source_description: "Secure, encrypted note and file sharing service inspired by PrivNote"
+
+upstream:
+  url: https://cryptgeon.org
+  repo_url: https://github.com/cupcakearmy/cryptgeon
+  license: MIT
+  docker_image: cupcakearmy/cryptgeon
+  compose_file_url: https://raw.githubusercontent.com/cupcakearmy/cryptgeon/main/docker-compose.yaml
+  compose_file_notes: >
+    Official compose file at the repo root (linked from the README's
+    Docker installation section). This is a rolling reference to the
+    default branch (main), not version-pinned — the project has no
+    per-release compose asset, so there's no /releases/latest/download/
+    style link to use instead. Only one variant is shipped (Valkey
+    for in-memory storage + the cupcakearmy/cryptgeon app image); a
+    separate docker-compose.dev.yaml also exists at the repo root but is
+    for local development of the project itself, not for running it, so
+    it was not used here.
+
+version_health:
+  latest_version: "v2.9.3"
+  latest_release_date: "2026-06-25"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v2.9.3 is a git tag / Docker Hub image (pushed ~1 month before today,
+    2026-08-05) that has not yet been published as a formal GitHub Release;
+    the last formal Release is v2.9.2 (2026-06-07). Repo pushed_at is
+    2026-06-28, so commit activity is current within the last ~5-6 weeks
+    and the repo is not archived. However, cadence has clearly slowed:
+    2024 saw 7 releases (May-September) and early 2025 saw 3 more
+    (Jan-Feb), then a roughly 15-16 month gap between v2.9.1 (2025-02-27)
+    and v2.9.2 (2026-06-07) with only that one release in between. 16 open
+    issues on a single-maintainer (cupcakearmy) project. Reads as a small,
+    still-alive but low-velocity hobby project rather than an
+    actively-growing one.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does ephemeral,
+    client-side-encrypted, self-destructing note/file sharing (the
+    PrivNote/"burn after reading" use case). Vaultwarden is long-term
+    credential storage for the account owner, not one-off sharing with
+    external third parties; OpenGist is Git-backed code snippets without
+    encryption or view-count self-destruction; Syncthing is P2P sync
+    between the owner's own devices. Cryptgeon would be a genuinely new
+    category: a link customers can hand to someone outside their org that
+    self-destructs after N views or a TTL, with the server never seeing
+    plaintext.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (secure one-time secret/file sharing is a common
+    ask for teams handling credentials or sensitive attachments), and the
+    single-container-plus-Redis footprint is cheap to run. Docked from
+    "high" because the project is a single-maintainer hobby app with a
+    slowing release cadence and a fairly small user base (~1.5k GitHub
+    stars) — a reasonable niche addition, not a must-have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Cryptgeon is a small, single-maintainer Rust/Svelte app (one web
+  container + Redis for encrypted-blob/view-count metadata, no disk
+  persistence) that fills a real gap in the catalogue: ephemeral,
+  client-side-encrypted note/file sharing with self-destruction, a
+  PrivNote-style use case nothing else in the 24 recipes covers. It is
+  mechanically installable today with zero blocking secrets (no login of
+  any kind); that "no login" design is deliberate — links are meant to be
+  handed to external, credential-less recipients — so a Traefik basic_auth
+  gate would defeat the product rather than being an optional hardening
+  step, and is simply not applicable here rather than a blocking issue.
+  Recommend build_now: installable today with no blocking issues.

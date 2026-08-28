@@ -1,0 +1,121 @@
+slug: phpbb
+name: phpBB
+source_description: "Classic open-source PHP bulletin board software for self-hosted forums"
+
+upstream:
+  url: https://www.phpbb.com
+  repo_url: https://github.com/phpbb/phpbb
+  license: GPL-2.0
+  docker_image: null  # no official production image; see notes below
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. phpBB's own `phpbb/docker`
+    GitHub repo (github.com/phpbb/docker) contains only Dockerfiles for
+    running phpBB's unit/functional test suite and a Bamboo CI agent, no
+    docker-compose.yaml anywhere in it, and its README frames it purely as
+    a testing tool, not a deployment artifact. The main phpbb/phpbb repo's
+    README and phpBB.com's install/support docs point to a
+    Composer-based/manual PHP install (or Vagrant/Codespaces for
+    development), never a docker-compose file. This is consistent with the
+    installability section below: phpBB has no first-party production
+    Docker story at all, official compose file or otherwise.
+
+version_health:
+  latest_version: "3.3.17 (stable); 4.0.0-a2 (alpha, Symfony-based rewrite)"
+  latest_release_date: "2026-06-06"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest stable is 3.3.17, released 2026-06-06 (~2 months before today,
+    2026-08-05) — a maintenance/security release of the 3.3.x line, which
+    has been the sole actively supported branch since 3.2 went EOL in 2019.
+    phpBB's own endoflife.date entry describes releases as irregular rather
+    than on a fixed schedule; only the latest 3.3.x point release gets
+    fixes. In parallel, phpBB 4.0.0-a2 (a ground-up rewrite on Symfony 7.4)
+    shipped 2026-04-27 as an early alpha explicitly marked "should not be
+    used on any live sites." No EOL announcement or archival for 3.3.x —
+    the project is active but slow-moving, with the real forward momentum
+    concentrated in an unreleased 4.0 rewrite.
+
+catalogue_fit:
+  categories: [community]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers forum/community hosting — the nearest
+    neighbours (Gitea for code, Anytype for notes, Opengist for pastes)
+    serve different purposes. A customer wanting a public discussion forum
+    would reach for this instead of a hosted SaaS. Two other forum
+    candidates in this niche (Flarum, NodeBB) were evaluated separately and
+    hit the identical structural blocker documented below — phpBB does not
+    change that picture, it's the same gap with the same platform-side
+    obstacle.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted forums are a genuine but narrow need next to the
+    automation/dev-tooling/security apps dominating the current 24
+    recipes. phpBB is the most recognizable classic option in this space
+    (20+ years of history, huge extension/theme ecosystem), but it is also
+    the most dated: PHP-native with no first-party container story, and its
+    forward development energy is going into an unreleased 4.0 rewrite
+    rather than the 3.3.x line a recipe would have to pin to.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin.name (admin username)
+    - admin.password (admin password)
+    - admin.email (admin email)
+    - dbpasswd (MySQL/MariaDB password)
+  secrets_expressible_today:
+    - secret: dbpasswd (MySQL/MariaDB password)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      phpBB's own installer — the web installer and its CLI equivalent
+      (`php install/phpbbcli.php install install-config.yml`) — takes the
+      admin username/password/email as plaintext in an `installer.admin`
+      config block and hands it to phpBB's own account-creation code, which
+      hashes it internally (`phpbb_hash()`). There is no supported install
+      path that accepts a pre-computed hash instead, so `generated_from`
+      (which only ever carries a hash) cannot express this credential —
+      the same genuine plaintext-password requirement documented for
+      Flarum and NodeBB, not merely an unsupported hash algorithm.
+    - >
+      Gating the whole app behind Traefik `basic_auth` is mechanically
+      available but wrong here: phpBB's entire surface is the public forum
+      itself (topics, member posts, registration), not an admin-only tool
+      like n8n or Adminer. Basic-auth-ing the whole domain would block real
+      forum visitors and members, defeating the product's purpose, just as
+      concluded for Flarum and NodeBB.
+    - >
+      phpBB has no official production Docker image — the phpBB project's
+      own `phpbb/docker` repo is explicitly scoped to CI and local
+      development, not production, and the project's public guidance is to
+      install phpBB directly rather than run it in Docker. Community
+      images exist (e.g. `selim13/phpbb`, `blueimp/phpbb`) but the
+      once-common `bitnami/phpbb` image is no longer maintained, and none
+      of the remaining actively-updated community images were found
+      tracking the current 3.3.17 stable with a version-pinned tag rather
+      than an unversioned `latest`. This is an independent blocker on top
+      of the plaintext-password issue.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  phpBB is the best-known classic self-hosted forum platform and would fill
+  the same community/discussion-board gap already identified for Flarum and
+  NodeBB, but it is blocked today for the same structural reason as both:
+  its installer (web or CLI) requires the admin password as plaintext so
+  phpBB can hash it internally, which `generated_from` cannot supply, and
+  gating the whole public forum behind Traefik `basic_auth` would block
+  real visitors rather than just protect an admin surface. It is further
+  hampered by having no official production Docker image and no
+  well-maintained community image publishing a current, version-pinned tag
+  — the project explicitly recommends against Docker for production use.
+  Revisit if the platform gains a genuinely customer-chosen credential
+  channel, or if a maintained, version-pinned image with a pre-hashed-admin
+  install path appears; until then this sits alongside Flarum and NodeBB as
+  the same unresolved forum-niche blocker, not a reason to build a
+  bespoke image ourselves.

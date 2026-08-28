@@ -1,0 +1,113 @@
+slug: solidtime
+name: Solidtime
+source_description: "Time tracking for freelancers and agencies with billing rates and PDF reports"
+
+upstream:
+  url: https://www.solidtime.io/
+  repo_url: https://github.com/solidtime-io/solidtime
+  license: AGPL-3.0
+  docker_image: solidtime/solidtime
+  compose_file_url: https://raw.githubusercontent.com/solidtime-io/self-hosting-examples/main/1-docker-with-database/docker-compose.yml
+  compose_file_notes: >
+    Official — solidtime's own self-hosting docs
+    (docs.solidtime.io/self-hosting/guides/docker) explicitly reference
+    the solidtime-io/self-hosting-examples repo (same GitHub org as the
+    main solidtime-io/solidtime project) as the source of deployable
+    compose configs; the docs don't embed a compose file directly, they
+    point readers to this repo and its per-example READMEs. That repo
+    ships two variants: "0-docker-traefik-with-database" (adds a Traefik
+    reverse proxy + ACME/SSL) and "1-docker-with-database" (app + queue +
+    scheduler + gotenberg + Postgres, no bundled proxy, single
+    ${FORWARD_APP_PORT:-8000} HTTP port). Picked the latter since it
+    assumes an external reverse proxy rather than bundling one, matching
+    how af-recipes structures recipes. This is a rolling default-branch
+    reference (raw.githubusercontent.com/.../main/...), not pinned to a
+    tag; the image itself defaults to
+    solidtime/solidtime:${SOLIDTIME_IMAGE_TAG:-latest}, also a rolling
+    reference unless the deployer overrides SOLIDTIME_IMAGE_TAG. The root
+    docker-compose.yml in the main solidtime-io/solidtime repo
+    (github.com/solidtime-io/solidtime/blob/main/docker-compose.yml) was
+    considered and rejected — it's a Laravel Sail dev-environment compose
+    file that builds the app from source and spins up Playwright/MinIO/
+    Mailpit test scaffolding, not a production deployment artifact.
+
+version_health:
+  latest_version: "0.19.1"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly tagged releases through 2026: 0.12.2 (2026-05-18),
+    0.13.0 (2026-05-26), 0.14.0 (2026-06-03), 0.15.0/0.15.1 (2026-06-19,
+    2026-06-24), 0.16.0 (2026-07-09), 0.17.0 (2026-07-23), 0.18.0
+    (2026-07-28), and 0.19.0/0.19.1 on 2026-08-06 — the latter one day
+    after today (2026-08-05), i.e. actively shipping right now. No
+    archival or EOL signal.
+
+catalogue_fit:
+  categories: [productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers time tracking or
+    freelancer/agency billing. Solidtime is a self-hosted, open-source
+    alternative to Toggl/Clockify/Harvest — projects, tasks, billable
+    rates, clients, multi-organization support, PDF invoicing/reports —
+    which is a genuinely new, business-facing category distinct from the
+    ops/dev-tooling lean of most existing recipes.
+
+  usefulness: high
+  usefulness_rationale: >
+    Time tracking with billing rates is a common freelancer/agency need
+    with real "don't hand my client billing data to a SaaS vendor" appeal,
+    and solidtime is the most visible open-source project in this space
+    with an active weekly release cadence — a strong candidate to broaden
+    the catalogue into a new business-productivity category.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_account_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Solidtime's official Docker deployment ships with public
+      registration disabled by default (APP_ENABLE_REGISTRATION); the
+      documented path to a usable admin account is running
+      `docker compose exec scheduler php artisan admin:user:create "Name"
+      "email@example.com" --verify-email` after the containers are up,
+      which prints a server-generated temporary password to the CLI
+      output, then adding that account's email to the SUPER_ADMINS env
+      var and restarting. There is no HTTP-reachable first-run setup
+      wizard and no single admin-login field that `generated_from` could
+      project the root-password hash into — the credential is minted by a
+      one-off `artisan` CLI invocation, not read from an env var at
+      container start. `/compose` has no channel to run a post-boot exec
+      command, so this can't be wired up today.
+    - >
+      Even if registration were left open, Solidtime requires a working
+      SMTP relay for signup verification and password-reset email; no
+      SMTP credential input channel exists either, though this is
+      secondary to the admin-bootstrap blocker above.
+    - >
+      Gating the whole app behind Traefik basic_auth as a workaround does
+      not solve this — the app still has no way for the customer to reach
+      a working admin session behind that gate, since account creation
+      itself requires the CLI step.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Solidtime is an actively maintained (weekly releases, latest one day
+  after today) open-source Laravel app — solidtime/solidtime image,
+  Postgres + Redis backing services, single web port — that would fill a
+  genuine catalogue gap (no time-tracking/billing app exists today) with a
+  reverse-proxy-friendly single HTTP port. It is blocked from shipping as
+  a recipe today purely on the installability mechanism: the only
+  documented way to get a working admin login is a post-boot `artisan
+  admin:user:create` CLI exec that mints its own temporary password and
+  requires manually editing SUPER_ADMINS and restarting, which has no
+  equivalent in `/compose`'s env-var-only bootstrap and no fit for either
+  `generated_from` root-password projection or a Traefik basic_auth gate.
+  Recommend revisiting once the platform supports either a post-boot exec
+  step or Solidtime ships an env-var-driven first-admin bootstrap.

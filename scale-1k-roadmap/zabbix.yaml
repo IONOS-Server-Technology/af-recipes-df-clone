@@ -1,0 +1,119 @@
+slug: zabbix
+name: Zabbix
+source_description: "Enterprise open-source monitoring for networks, servers, and applications"
+
+upstream:
+  url: https://www.zabbix.com
+  repo_url: https://github.com/zabbix/zabbix-docker
+  license: GPL-2.0
+  docker_image: zabbix/zabbix-server-mysql (+ zabbix/zabbix-web-nginx-mysql, zabbix/zabbix-agent2)
+  compose_file_url: https://raw.githubusercontent.com/zabbix/zabbix-docker/7.0/compose.yaml
+  compose_file_notes: >
+    Official, from the zabbix/zabbix-docker repo (the same repo already
+    recorded as repo_url), which is maintained by Zabbix SIA itself and
+    linked from the project's own docs as the supported Docker deployment
+    method. This link is a rolling reference to the tip of the `7.0`
+    branch (not a tagged/pinned commit or release asset) — it will track
+    whatever compose.yaml looks like on that branch over time, so it
+    should be watched for drift rather than treated as immutable. The
+    repo ships several compose file variants at its root
+    (compose.yaml, compose_pgsql.yaml, compose_databases.yaml,
+    compose_additional_components.yaml, compose_zabbix_components.yaml);
+    compose.yaml (MySQL/MariaDB) was picked because it's the default file
+    the repo's own README leads with and matches this recipe's MySQL-based
+    stack (zabbix-server-mysql / zabbix-web-nginx-mysql), and the `7.0`
+    branch specifically was picked to match version_health's LTS pin
+    (7.0.x) over the `7.4` branch used for the standard/non-LTS track.
+
+version_health:
+  latest_version: "7.0.29 (LTS)"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Zabbix ships two live tracks: 7.0 LTS (released June 2024, patch
+    7.0.29 on 2026-07-28, full support through 2027 and limited support
+    through mid-2029) and 7.4 standard (patch 7.4.13 on 2026-07-29,
+    support ends 2026-09-30 since standard releases only get ~1 year of
+    life before the next one supersedes them). Both branches are getting
+    patch releases roughly monthly as of today (2026-08-05), and the
+    official zabbix/zabbix-docker images track both `7.0-*` and `7.4-*`
+    tags with pushes within the last 1-2 weeks. This is an actively
+    maintained, corporately-backed (Zabbix SIA) project with no
+    EOL/dormancy signal — for a recipe, the LTS 7.0.x line is the sane
+    pin given its multi-year support window versus 7.4's ~1-year runway.
+
+catalogue_fit:
+  categories: [monitoring, networking, observability]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Uptime Kuma is a lightweight external "is it up" status checker for a
+    handful of HTTP/TCP/ping targets. Zabbix is a full enterprise
+    monitoring platform: SNMP/agent-based polling of networked devices,
+    servers, VMs and applications, historical metric storage and
+    trending, templated item/trigger libraries per device type,
+    distributed proxies, and alerting/escalation workflows. A customer
+    who has outgrown Uptime Kuma's simple up/down checks (e.g. wants to
+    monitor CPU/disk/network across a fleet of servers or network gear)
+    would reach for Zabbix instead, so this is a genuinely different tier
+    of the same broad "monitoring" category rather than a duplicate.
+  usefulness: high
+  usefulness_rationale: >
+    Zabbix is one of the most widely deployed open-source monitoring
+    platforms (used by large enterprises and MSPs) and IONOS customers
+    running any nontrivial server/network footprint would have real use
+    for it. It's a heavier, more IT-admin-oriented tool than most of the
+    current catalogue, but that's exactly the gap: nothing here today
+    does agent/SNMP-based infrastructure monitoring at this depth.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MYSQL_ROOT_PASSWORD
+    - MYSQL_PASSWORD
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The official zabbix-web-nginx-mysql / zabbix-server-mysql images
+      have no environment variable to set the frontend "Admin" account
+      password at first boot (confirmed via zabbix/zabbix-docker issue
+      #820 — this is a known, unresolved request). Every fresh deployment
+      boots with the well-known default Admin/zabbix credential. Per
+      apps-gaps/SCHEMA.md's guidance for a fixed default credential the
+      app itself gives no way to change at deploy time, this is not a
+      hard blocker on its own: the mitigation is a Traefik `basic_auth:
+      true` gate in front of the whole app (same pattern as
+      apps-gaps/sonarqube.yaml's admin/admin case), which moves the
+      actual customer-facing auth boundary to the gate. The still-default
+      Admin/zabbix login behind it is only reachable by someone who
+      already holds the gate credential, so it is no longer
+      customer-facing risk.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Zabbix is a three-service stack (zabbix-server, zabbix-web frontend on
+  nginx, MySQL/MariaDB — structurally close to n8n's app+Postgres pattern
+  but with one more tier) exposing a single HTTP port for the web UI that
+  is cleanly reverse-proxy-compatible behind Traefik; the server↔agent
+  port (10051) stays internal-only for a basic single-node deployment.
+  It fills a real gap versus Uptime Kuma's lightweight status checks with
+  full agent/SNMP-based infrastructure monitoring, and upstream is
+  actively maintained with a multi-year-support LTS line (7.0.29,
+  2026-07-28) to pin against. The frontend's fixed default Admin/zabbix
+  login (no env var to change it at first boot) is solvable today via a
+  Traefik `basic_auth` gate per apps-gaps/SCHEMA.md's guidance on fixed
+  default credentials — the same pattern used for SonarQube's
+  admin/admin — so it is not a hard blocker. No other blocking issue was
+  found (MySQL credentials are server-generated with no customer input
+  needed, and the multi-container wiring is a standard app+DB compose
+  shape already used elsewhere in the catalogue). Recommend build_now.

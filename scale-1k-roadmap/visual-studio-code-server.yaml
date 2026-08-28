@@ -1,0 +1,117 @@
+slug: visual-studio-code-server
+name: Visual Studio Code Server
+source_description: "Run Visual Studio Code in your browser anywhere"
+
+upstream:
+  url: https://www.hostinger.com/applications/visual-studio-code-server
+  repo_url: https://github.com/coder/code-server
+  license: MIT (coder/code-server) — see naming-ambiguity note below
+  docker_image: codercom/code-server
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists — same upstream as
+    apps-gaps/code-server.yaml (coder/code-server), so the same finding
+    applies. Both the docs site (coder.com/docs/code-server/install,
+    Docker section) and the GitHub repo README document only a bare
+    `docker run` command (codercom/code-server image, mounting a project
+    directory and ~/.local/share/code-server) — no docker-compose.yaml/.yml
+    is linked, embedded, or present at the repo root or under any docker/,
+    deploy/, or contrib/ directory. Community-maintained compose files
+    exist but none are published or endorsed by the coder/code-server
+    project itself, so none are adopted here.
+
+version_health:
+  latest_version: "4.131.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Name is ambiguous and this analysis resolves it explicitly.
+    "Visual Studio Code Server" could refer to (a) Microsoft's own
+    proprietary "VS Code Server" component (code.visualstudio.com/docs/
+    remote/vscode-server), used for Remote Tunnels/SSH/Codespaces, whose
+    license explicitly states "hosting it as a service is not allowed"
+    (aka.ms/vscode-server-license) and which authenticates via a
+    Microsoft/GitHub device-code flow, not a password screen; or (b) the
+    third-party open-source coder/code-server project, an MIT-licensed
+    from-scratch reimplementation that runs VS Code in the browser behind
+    a simple password login.
+
+    Hostinger's own setup docs (hostinger.com/support/9292934) describe
+    this catalogue entry as deploying "Ubuntu 24.04 with VS Code" and
+    logging in with "a secure password provided during the initial
+    setup" at https://[vps-ip] — a plain password gate, persistent
+    settings/extensions, integrated terminal, and Git tooling. That
+    matches coder/code-server's feature set and auth model exactly, and
+    does not match Microsoft's official component (device-code auth, no
+    password screen, single-user tunnel model). Ruled out Microsoft's
+    proprietary VS Code Server as the underlying software on this basis
+    — if it were, the whole candidate would be a hard license blocker,
+    since redistributing it as a hosted service is explicitly forbidden.
+
+    Hostinger's Docker catalogue additionally lists this as a THIRD,
+    separate entry alongside "Code-Server" ("VS Code running in the
+    browser for remote development from any device") and "Coder"
+    ("Open-source platform for provisioning self-hosted cloud
+    development environments") — see hostinger.com/support/
+    hostinger-docker-catalog-applications. "Code-Server" has already been
+    analyzed as its own gap-analysis candidate (apps-gaps/code-server.yaml,
+    recommendation: build_now) and, on every observable technical detail
+    (upstream project, docker image, password-based login, browser
+    terminal, persistent extensions/settings), is the same underlying
+    software as this "Visual Studio Code Server" entry — Hostinger appears
+    to have relisted the identical coder/code-server project under a
+    second, more search-friendly marketing name rather than this being a
+    genuinely distinct product.
+
+    Version facts (latest tag v4.131.0, 2026-08-03, 2 days before today's
+    2026-08-05 analysis date; steady ~weekly-to-10-day release cadence;
+    ~75k GitHub stars; maintained by Coder) are carried over from that
+    prior analysis since it is the same upstream.
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None beyond what apps-gaps/code-server.yaml already documents — this
+    is the same upstream project (coder/code-server) under a second
+    Hostinger catalogue name. It fills the same "browser-based VS Code on
+    my own VM" gap that candidate already covers; it does not add any
+    capability the code-server candidate lacks.
+  usefulness: low
+  usefulness_rationale: >
+    The underlying software is genuinely useful (see code-server.yaml),
+    but as a *second* candidate for the exact same project there is no
+    incremental value in analyzing or building it again under a different
+    slug — one recipe (from the code-server candidate) already covers
+    this use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [HASHED_PASSWORD]
+  secrets_expressible_today:
+    - secret: HASHED_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mechanically this app is installable today by the same mechanism as
+  apps-gaps/code-server.yaml: codercom/code-server is a single official
+  container exposing one HTTP port with a password login that maps
+  cleanly onto generated_from: "argon2:ROOT_PASSWORD", no external
+  dependencies, and it's actively maintained. Hostinger's "Visual Studio
+  Code Server" and "Code-Server" catalogue entries describe the same
+  underlying open-source project (confirmed via Hostinger's own setup
+  docs: password-gated browser IDE, persistent extensions/settings,
+  integrated terminal — matching coder/code-server, not Microsoft's
+  license-restricted proprietary "VS Code Server" component), so this is
+  a duplicate of the already-analyzed code-server candidate — but that
+  overlap is a catalogue-management fact, not an installability blocker.
+  On mechanism alone this is build_now, same as apps-gaps/code-server.yaml;
+  whether to actually schedule building a second, redundant recipe for
+  identical software is a separate prioritization decision for whoever
+  schedules the work.

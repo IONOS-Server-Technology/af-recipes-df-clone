@@ -1,0 +1,120 @@
+slug: judge0-ce
+name: Judge0 CE
+source_description: "Open-source code execution API supporting 60+ programming languages"
+
+upstream:
+  url: https://ce.judge0.com/
+  repo_url: https://github.com/judge0/judge0
+  license: GPL-3.0
+  docker_image: judge0/judge0:1.13.1
+  compose_file_url: https://raw.githubusercontent.com/judge0/judge0/v1.13.1/docker-compose.yml
+  compose_file_notes: >
+    Official docker-compose.yml lives at the repo root (not inside the
+    release archive) and is tracked in git alongside judge0.conf; it is
+    confirmed present both on the master branch and on the v1.13.1 tag. The
+    URL above is version-pinned to tag v1.13.1 rather than a rolling
+    reference to master, matching the pinned docker_image above and how
+    other entries in this catalogue are pinned. The repo also ships a
+    judge0-v1.13.1.zip release asset bundling this same docker-compose.yml
+    with judge0.conf for convenience (referenced from CHANGELOG.md's
+    "Deployment Procedure" section and the README), but the raw repo-root
+    file is preferred per the more direct/official source. No separate
+    HTTPS/nginx-proxy compose variant exists at the repo root for v1.13.1
+    (older releases shipped a judge0-vX.Y.Z-https.zip release asset only);
+    AF terminates TLS at its own reverse proxy layer regardless.
+
+version_health:
+  latest_version: "1.13.1"
+  latest_release_date: "2024-04-18"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v1.13.1 (2024-04-18) — 2 years, 3.5 months before
+    today (2026-08-05). Release history shows rapid cadence 2019-2020 (every
+    2-4 weeks), then a sharp slowdown: only one release between 2021-03-10
+    (v1.13.0) and 2024-04-18 (v1.13.1, itself a security patch for 3 CVEs),
+    and none since. Repo is not archived and receives ongoing commits, but
+    every commit in the last 12+ months (through 2026-08-03) only touches the
+    README (added blog posts, papers, and a "Hostinger one click install"
+    reference) — no code, no docker-compose.yml, no Dockerfile changes. 169
+    open issues / 26 open PRs with no releases cutting against them suggests
+    triage has effectively stopped even though the repo isn't formally
+    declared EOL. Note the "Hostinger one click install" reference commit
+    (2026-06-29) implies Hostinger may already surface this app via another
+    channel outside the AF recipe catalogue — worth checking with the
+    catalogue owner before duplicating effort.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers arbitrary multi-language
+    code execution as a service. It would appeal to a narrow customer segment
+    (developers building coding-assessment platforms, online IDEs, LMS
+    integrations) rather than general self-hosting users — it is a REST API
+    with no web UI of its own, unlike almost every other recipe we ship.
+  usefulness: low
+  usefulness_rationale: >
+    Real differentiator on paper, but the target audience (developers
+    embedding a sandboxed code-execution backend into their own product) is
+    narrow compared to the rest of the catalogue, and the app's only
+    interface is an API — there's nothing for a typical AF customer to click
+    into. Combined with the security profile below, the addressable value is
+    low.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - AUTHN_TOKEN
+    - POSTGRES_PASSWORD
+    - REDIS_PASSWORD
+  secrets_expressible_today:
+    - secret: AUTHN_TOKEN
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Judge0's own AUTHN_TOKEN is compared as a plaintext shared secret (an
+      X-Auth-Token header value checked for exact string equality), not a
+      hashed admin login — it cannot receive a generated_from ROOT_PASSWORD
+      hash the way Vaultwarden's ADMIN_TOKEN does, since the app never
+      re-hashes the incoming value for comparison. Not a hard blocker: leave
+      Judge0's own AUTHN_TOKEN unset and gate the whole public port with
+      Traefik basic_auth (root-password-hash-derived) instead, the same
+      pattern used for n8n/WUD/Open WebUI. This is expressible today and
+      avoids leaving a remote-code-execution API open unauthenticated, but it
+      means every API call from the customer's own client code must also
+      carry HTTP Basic Auth, which is workable but adds integration friction
+      for an app whose whole purpose is being called by other software.
+    - >
+      Not a hard blocker either, but a real caveat: both the `server` and
+      `worker` services require `privileged: true`
+      (Judge0's `isolate` sandbox needs direct cgroup/kernel-namespace
+      access to isolate submitted code). RFC-002's
+      `no-privileged-without-justification` rule permits this with a
+      documented justification. This is a code-execution service that must
+      run privileged containers specifically to sandbox untrusted,
+      customer-submitted code, and upstream has not shipped a
+      security-relevant release in over 2 years despite 169 open issues.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Judge0 CE is mechanically installable under the current mechanism: its own
+  AUTHN_TOKEN can't take a generated_from ROOT_PASSWORD hash (it's checked as
+  a plaintext shared secret, not a hashed login), so the public port must
+  instead be gated with Traefik basic_auth the same way n8n/WUD/Open WebUI
+  are, and POSTGRES_PASSWORD/REDIS_PASSWORD are server-generated. That basic-
+  auth gate means every API call from the customer's own client code must
+  also carry HTTP Basic Auth, adding integration friction for an app whose
+  whole purpose is being called by other software. Separately, both `server`
+  and `worker` require `privileged: true` for Judge0's `isolate` sandbox to
+  get direct cgroup/kernel-namespace access to isolate untrusted submitted
+  code — permitted under RFC-002's `no-privileged-without-justification`
+  rule with a documented justification, but a real operational caveat for a
+  code-execution service. Build with these caveats documented.

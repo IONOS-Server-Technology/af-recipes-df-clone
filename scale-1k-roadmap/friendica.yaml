@@ -1,0 +1,134 @@
+slug: friendica
+name: Friendica
+source_description: "Self-hosted fediverse social network with ActivityPub and Diaspora federation"
+
+upstream:
+  url: https://friendi.ca
+  repo_url: https://github.com/friendica/friendica
+  license: AGPL-3.0
+  docker_image: friendica:2026.05-apache
+  compose_file_url: https://raw.githubusercontent.com/friendica/docker/stable/.examples/docker-compose/insecure/smtp/apache/docker-compose.yml
+  compose_file_notes: >
+    Official — from friendica/docker, the GitHub org's own repo that builds
+    the `friendica` image published to Docker Hub (the same image family as
+    this recipe's `docker_image`). This repo ships many example
+    docker-compose variants under `.examples/docker-compose/` (insecure vs
+    with-traefik-proxy; smtp vs mariadb-cron-redis; apache vs fpm vs
+    fpm-alpine), not one canonical file. Picked
+    `insecure/smtp/apache/docker-compose.yml` because it's the closest
+    match to this recipe's shape and secrets: MariaDB + a `cron` worker
+    service + apache image + the same `SMTP_AUTH_USER`/`SMTP_AUTH_PASS`
+    env vars this recipe's blocking_issues cite, using `image: friendica`
+    (the published tag) rather than `build: ./app` (several of the other
+    example variants, e.g. the with-traefik-proxy ones, build from a local
+    Dockerfile instead of pulling the published image). The link points at
+    the `stable` branch (the repo's default branch), which is a rolling
+    reference — it is not pinned to a release tag or commit, and its
+    content moves as the `stable` branch is updated. As of this check, the
+    branch's latest commit (2026-05-21) lines up with this recipe's
+    `latest_release_date`, but that will drift over time since it's a
+    branch ref, not a version-pinned link.
+
+version_health:
+  latest_version: "2026.05"
+  latest_release_date: "2026-05-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. 2026.05 (May 21, 2026, codename "Blutwurz") is the
+    newest tagged release, about 2.5 months old. Release history is a
+    steady few-times-a-year cadence: 2026.05 → 2026.01 (Jan 27, 2026) →
+    2024.12 (Jan 1, 2025) → 2024.08 (Aug 17, 2024) → 2024.03 (Mar 21, 2024),
+    roughly every 4-5 months going back years. The official Docker Hub
+    image (`friendica`, part of Docker's library/official images) shows an
+    unreleased `2026.08-dev` tag already being built as of Aug 5, 2026 —
+    the same day as this analysis — confirming active ongoing development
+    toward the next release. Upstream GitHub repo is not archived, has
+    43k+ commits on `develop`, and ~28 open PRs. No maintenance-only or
+    EOL signal; this is a long-running, actively maintained project (first
+    released 2010).
+
+catalogue_fit:
+  categories: [social, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch federated/social networking —
+    Friendica would be the first entry in that space. It lets a customer
+    run their own ActivityPub + Diaspora-protocol node (interoperating with
+    Mastodon, Lemmy, Diaspora, etc.), which is a genuinely different pitch
+    ("own your social presence") than anything currently in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted fediverse nodes have a real and growing audience among
+    privacy-conscious users leaving corporate social platforms, and
+    Friendica specifically appeals to that crowd by bridging multiple
+    federation protocols (not just ActivityPub) in one node. Capped at
+    medium rather than high because it's a smaller, more technical niche
+    than our typical productivity/AI-tool customer, and full usefulness
+    depends on outbound email (SMTP) working for registration/notification
+    mail, which is a separate manual setup step post-install.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MYSQL_PASSWORD, SMTP_AUTH_USER, SMTP_AUTH_PASS]
+  secrets_expressible_today:
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Friendica's registration form has no password field at all — it only
+      collects nickname, full name, and email
+      (docs.friendi.ca / wiki.friendi.ca account-basics). The account's
+      actual password is generated server-side and delivered only by
+      outbound email ("An email will be sent to you providing your account
+      login details... your initial password"), which the user must then
+      change via Settings after logging in. This applies to every account,
+      including the one matched to `FRIENDICA_ADMIN_MAIL` for admin rights
+      — there is no separate admin-bootstrap path that skips this.
+    - >
+      That means becoming admin (or even just getting a usable login at
+      all) at first boot depends on outbound mail actually working. The
+      Friendica docker image exposes `SMTP` / `SMTP_PORT` / `SMTP_AUTH_USER`
+      / `SMTP_AUTH_PASS` / `SMTP_DOMAIN` for a real mail relay — real
+      external mail-provider credentials the customer would have to
+      supply. Per SCHEMA.md this is exactly the "external credential the
+      customer must supply, no input channel today" case: nothing in
+      `/compose` can carry an SMTP username/password into the container.
+    - >
+      Traefik `basic_auth` does not sidestep this the way it does for
+      n8n/WUD/Immich, because those apps have no login of their own —
+      `basic_auth` becomes the only auth boundary. Friendica does have its
+      own login, required for actually using the app (posting, following,
+      managing federation, admin panel), so gating the reverse-proxy
+      entrypoint with `basic_auth` still leaves the customer needing a
+      working Friendica login underneath, which still requires the emailed
+      password. `basic_auth` would only add a redundant outer lock, not
+      replace the blocked credential.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Friendica is mechanically simple to deploy (the official
+  `friendica:2026.05-apache` image, a MariaDB/MySQL container, and a
+  `cron`/worker instance for background federation delivery — a
+  three-service stack similar in shape to n8n — behind a single HTTP port,
+  Traefik-friendly), and the internal DB password is trivially
+  server-generated. But its account-bootstrap mechanism is not a self-
+  contained web install wizard: the registration form has no password
+  field, and every account's password — including the one that becomes
+  admin via `FRIENDICA_ADMIN_MAIL` (a fixed config value, not itself a
+  secret, but one that must be set to match whatever address is used to
+  register) — is generated server-side and only reachable by outbound
+  email. That makes real SMTP relay credentials (`SMTP_AUTH_USER`/
+  `SMTP_AUTH_PASS`) a hard requirement for the customer to ever obtain a
+  working login, and there is no channel today for the customer to supply
+  those, nor does a Traefik `basic_auth` gate substitute for Friendica's
+  own required login the way it does for apps with no built-in auth. This
+  is a genuine bootstrap-mechanism blocker, not merely a low-value niche —
+  recommend `blocked_on_platform` pending either an SMTP-credential input
+  channel or an upstream option to set a password directly at first boot.
+  Otherwise the catalogue-fit case (first fediverse/social-networking
+  recipe, active steady release cadence, no EOL signal) still stands and
+  this is worth revisiting if that platform gap closes.

@@ -1,0 +1,116 @@
+slug: koffan
+name: Koffan
+source_description: "Ultralight self-hosted shopping list app for families and shared households"
+
+upstream:
+  url: https://github.com/PanSalut/Koffan
+  repo_url: https://github.com/PanSalut/Koffan
+  license: "MIT + Commons Clause"
+  docker_image: ghcr.io/pansalut/koffan
+  compose_file_url: https://raw.githubusercontent.com/PanSalut/Koffan/main/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the README's
+    "docker-compose up -d" instruction refers to. This is a rolling
+    reference to the `main` default branch, not a version-pinned link:
+    GitHub Releases for this repo ship only source archives, no compose
+    file as a release asset, so there is no tag-pinned variant to prefer
+    instead. Repo root also has a docker-compose.local.yaml variant that
+    differs only by publishing the port with `ports: "8080:8080"` instead
+    of internal-only `expose: "8080"` (for local/dev access without a
+    reverse proxy); picked docker-compose.yaml (the plain, no-suffix name)
+    as the one to record since it's the "production" variant and the one
+    named in the README's quickstart. Both variants build the image from
+    the repo's own Dockerfile (`build: .`) rather than pulling
+    ghcr.io/pansalut/koffan, and both default APP_PASSWORD to the
+    plaintext literal "shopping123" if unset.
+
+version_health:
+  latest_version: "v2.13.0"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.13.0 shipped 2026-08-01, only 4-5 days before this analysis
+    (2026-08-05). Tag history shows a fast, active cadence: v2.8.0-v2.8.1
+    both on 2026-04-17, v2.9.0 the same week, v2.10.0 2026-04-23 (the
+    breaking change that moved the container's default port from 80 to
+    8080 for non-root execution), v2.11.0 2026-05-03, then v2.12.0
+    2026-06-28 through v2.12.3 2026-07-17 and v2.13.0 2026-08-01 — releases
+    roughly every 1-3 weeks over the last four months. 743 stars, 76 forks,
+    45 open issues, 3 open PRs; clearly under active development, no
+    maintenance-only or dormancy signals. Name is ambiguous: the only real
+    candidate is PanSalut/Koffan (this analysis); chhinhsovath/KoffanLightWebApp
+    is a fork/mirror of the same project, not a distinct upstream, and was
+    ruled out as such.
+
+catalogue_fit:
+  categories: [household, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing currently in recipes/ covers household grocery/shopping-list
+    management, so there is no duplicate today. However this is the third
+    app in this niche to go through gap analysis (see apps-gaps/grocy.yaml
+    and apps-gaps/kitchenowl.yaml) — both of those are broader (inventory
+    tracking, recipes, meal planning) where Koffan is deliberately narrow
+    (just a shared shopping list, ~2.5MB RAM / ~16MB disk, PWA, multi-
+    language UI). Koffan's pitch is minimalism/footprint, not feature
+    breadth, so if the catalogue only has room for one household-shopping
+    recipe, Koffan is the "cheapest to run" option but the least
+    featureful.
+  usefulness: low
+  usefulness_rationale: >
+    Single-purpose, single-household personal tool with a small feature
+    set (a shopping list, nothing else) — narrower appeal than Grocy or
+    KitchenOwl, which cover the same audience with more reasons to keep a
+    server running. Real value is resource footprint, which matters to us
+    operationally (cheap to host) more than it does as a customer-facing
+    differentiator.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_PASSWORD, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: APP_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      License conflict: Koffan ships under MIT with the Commons Clause
+      rider, which explicitly excludes "the right to Sell the Software",
+      defining "Sell" to include providing a third party, for a fee, "a
+      product or service whose value derives, entirely or substantially,
+      from the functionality of the Software" — this covers hosting fees
+      explicitly. Offering Koffan as a paid Application Factory recipe is
+      the exact scenario the clause targets. This is a legal blocker
+      independent of the mechanical installability question below and
+      should go to legal/licensing review before any recipe work starts.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mechanically, Koffan is easy to install: it's a single-container Go app
+  (ghcr.io/pansalut/koffan, ~2.5MB RAM) on one HTTP port with a SQLite file
+  under /data, structurally like recipes/vaultwarden or recipes/uptime-kuma.
+  Its own login is a single plaintext APP_PASSWORD env var with no documented
+  hashed-password input, so generated_from can't target it directly — but the
+  app ships a DISABLE_AUTH flag explicitly meant for reverse-proxy setups,
+  so the clean path is DISABLE_AUTH=true plus a Traefik basic_auth gate
+  projected from the customer's root-password hash (APP_PASSWORD itself
+  becomes an unused, server-generated placeholder value the app still
+  requires to boot). Upstream is very active (weekly-to-biweekly releases,
+  latest 4 days before this analysis). The blocker that actually rules this
+  out is licensing, not mechanics: Koffan uses MIT + Commons Clause, which
+  by its own text excludes charging for hosting a service whose value comes
+  substantially from the software — precisely what an Application Factory
+  recipe would do. Recommend build_with_caveats: mechanically this is
+  build_now, but that licensing clause is a real caveat that must clear
+  legal/licensing review before any recipe work starts. (Separately, this
+  niche also has two broader candidates, Grocy and KitchenOwl, under gap
+  analysis — see catalogue_fit above — but that overlap is not itself a
+  reason for the caveat.) Note on identity: the only real candidate found
+  was PanSalut/Koffan;
+  chhinhsovath/KoffanLightWebApp is a fork/mirror of the same project, not
+  a distinct upstream, and was ruled out as such.

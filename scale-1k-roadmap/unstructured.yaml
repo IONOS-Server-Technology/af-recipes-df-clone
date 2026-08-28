@@ -1,0 +1,112 @@
+slug: unstructured
+name: Unstructured
+source_description: "Unstructured is a document processing API for RAG and AI model fine-tuning"
+
+upstream:
+  url: https://unstructured.io/
+  repo_url: https://github.com/Unstructured-IO/unstructured-api
+  license: Apache-2.0
+  docker_image: quay.io/unstructured-io/unstructured-api
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The unstructured-api repo root
+    (github.com/Unstructured-IO/unstructured-api) has no docker-compose.yaml
+    /.yml at root or under any docker/deploy/contrib directory — confirmed
+    via the GitHub contents API, which lists only .github,
+    exploration-notebooks, img, prepline_general, sample-docs, scripts,
+    test_general, plus top-level files (Dockerfile, Makefile, README.md,
+    etc.), no compose file among them. The repo's own README documents only
+    `docker pull` / `docker run` (quay.io/unstructured-io/unstructured-api)
+    and `make docker-build` / `make docker-start-api` for local builds — no
+    compose reference. The official docs site
+    (docs.unstructured.io/open-source/installation/docker-installation)
+    likewise documents only `docker pull` / `docker run` against
+    downloads.unstructured.io/unstructured-io/unstructured, again no
+    compose file or snippet. No community-maintained compose file was
+    adopted in its place either, per this file's policy of never
+    substituting a community file for an official one.
+
+version_health:
+  latest_version: "0.1.10"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.1.10 pushed to quay.io 2026-07-23, about two weeks before today
+    (2026-08-05). Docker-tag history shows a tight cadence through 2026:
+    0.1.5 (2026-04-22), 0.1.6 (unreleased-tag gap), 0.1.7 (2026-05-27),
+    0.1.8 (2026-07-10), 0.1.9 (2026-07-21), 0.1.10 (2026-07-23) — several
+    releases are CVE remediations (starlette, lxml, python-multipart,
+    opencv/ffmpeg bundled libs) landing within days of disclosure. Note:
+    GitHub's own Releases page only lists formal releases up to 0.1.2
+    (2026-04-03); versions 0.1.3+ are recorded in `CHANGELOG.md` and tagged
+    as Docker images on quay.io without a matching GitHub Release object —
+    confirmed via the quay.io tags API and the repo's raw CHANGELOG.md, so
+    this is a packaging/release-process quirk, not reduced activity. Sibling
+    repo `Unstructured-IO/unstructured` (the underlying OSS library) shows
+    commits as recent as 2026-07-23 and `pushed_at: 2026-08-04`. Neither
+    repo is archived. Clearly active, no EOL or maintenance-only signal.
+
+catalogue_fit:
+  categories: [ai-ml, document-processing, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Unstructured is a stateless REST API (port 8000) that ingests ~26 file
+    formats (PDF, Office docs, images, HTML, email, etc.), auto-detects
+    type, and returns structured elements — optionally chunked by title —
+    ready for embedding into a vector store or feeding an LLM fine-tuning
+    job. Nothing in the current 24 recipes does this: Paperless-ngx and
+    Paperless-AI do document *archiving* with their own internal OCR, not a
+    standalone parsing/chunking API another app calls; Ollama and
+    Open WebUI are the inference/chat layer, not the ingestion layer feeding
+    them. The niche is closest in shape to two other unbuilt apps-gaps
+    candidates — Apache Tika (generic extract-only REST microservice,
+    `apps-gaps/apache-tika.yaml`, verdict: not_recommended for lack of
+    end-user value) and Gotenberg (headless PDF-generation API,
+    `apps-gaps/gotenberg.yaml`, verdict: build_now) — both "developer calls
+    it, no dashboard" tools. Unstructured sits between them: more
+    special-purpose than Tika (RAG-chunking output, not bare extraction)
+    and squarely useful to the same audience the catalogue's existing
+    AI/LLM recipes (Ollama, Open WebUI) already target, but like both
+    siblings it has zero interactive UI beyond an auto-generated Swagger
+    page at `/general/docs`.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-known capability gap — Unstructured is one of the most
+    commonly referenced document-ingestion components in self-hosted
+    RAG/AI stacks, and pairs naturally with the AI-tooling recipes already
+    in the catalogue. But it is developer infrastructure, not a product a
+    customer opens and uses directly: value only accrues to a customer
+    already building or running their own RAG pipeline against it, a
+    narrower audience than a standalone app with a UI.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Unstructured ships as a single, stateless container (no database, no
+  volumes) on one HTTP port (8000), with a pinnable image tag on
+  quay.io/unstructured-io/unstructured-api and an actively, frequently
+  patched upstream (multiple CVE-remediation releases in the last four
+  months, latest 0.1.10 on 2026-07-23). It has no built-in login — an
+  optional `UNSTRUCTURED_API_KEY` env var can require a bearer-style header,
+  but that key would need to be read back out by the customer's own calling
+  code, which our current mechanism has no channel for — so the right fit,
+  same as Gotenberg and Tika, is a mandatory Traefik `basic_auth: true` gate
+  keyed off the customer's root-password hash, closing the "open document-
+  parsing endpoint on the internet" exposure without needing any app-side
+  change. With that gate, it is mechanically installable today. It
+  duplicates nothing in the current 24 recipes and gives the catalogue's
+  existing AI/LLM tooling (Ollama, Open WebUI) a natural ingestion
+  counterpart, though its audience — developers wiring up their own RAG
+  pipeline — is narrower than a standalone consumer app. Recommend
+  `build_now`, comparable to Gotenberg rather than Tika.

@@ -1,0 +1,85 @@
+slug: homepage
+name: Homepage
+source_description: "Modern, customizable application dashboard with Docker integration"
+
+upstream:
+  url: https://gethomepage.dev
+  repo_url: https://github.com/gethomepage/homepage
+  license: GPL-3.0-only
+  docker_image: ghcr.io/gethomepage/homepage
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists anywhere in the
+    gethomepage/homepage repo (checked root and for docker/deploy/contrib
+    directories) or as a downloadable release asset. The project's
+    installation docs (gethomepage.dev/installation/docker/) embed a
+    docker-compose snippet directly in the page text (services.homepage,
+    image ghcr.io/gethomepage/homepage:latest, port 3000, config +
+    docker.sock volume mounts, HOMEPAGE_ALLOWED_HOSTS env var, plus an
+    alternate PUID/PGID variant) rather than linking to a file the project
+    publishes and updates. Since this is docs-embedded text, not a
+    fetchable file, there is nothing to record as a URL.
+
+version_health:
+  latest_version: "v1.13.2"
+  latest_release_date: "2026-06-09"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v1.13.2 (2026-06-09) is the latest tagged release, about 8 weeks before
+    this analysis on 2026-08-05 — a longer gap than the roughly-monthly
+    cadence seen earlier this year (v1.11.0 2026-03-14, v1.12.0-v1.12.3
+    through 2026-04-01, v1.13.0 2026-05-08, v1.13.1 2026-05-11, v1.13.2
+    2026-06-09). Not dormant: the `main` branch was pushed 20 days ago and
+    `dev`/`nightly` Docker Hub tags were rebuilt within the last few hours,
+    so upstream development is continuing, it just hasn't cut a new
+    numbered tag recently.
+
+catalogue_fit:
+  categories: [dashboard, monitoring, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Homepage is a start-page/application-launcher dashboard: a single
+    YAML-configured board of links, live service-status widgets (100+
+    integrations — Radarr/Sonarr/Plex-style *arr apps, weather, search),
+    and optional Docker container status tiles. No recipe currently in the
+    24-recipe catalogue fills this "single landing page for all my other
+    self-hosted apps" role. It is functionally near-identical in pitch to
+    Homarr, which is not yet a shipped recipe but already has its own
+    gap-analysis (apps-gaps/homarr.yaml, recommended build_now) — the two
+    are competing candidates for the same dashboard slot rather than
+    complementary, so shipping both would be redundant catalogue bloat
+    unless there's a reason to offer customers a choice.
+  usefulness: medium
+  usefulness_rationale: >
+    The dashboard/launcher gap itself is real and valuable for customers
+    running several of our other recipes, but Homarr already covers it
+    with an actively-developed, weekly-release upstream and a config-free
+    onboarding wizard. Homepage's config is YAML-file-based (edited by
+    hand or via bind-mounted files) rather than an in-app UI, which is a
+    rougher first-boot experience for an AF customer with no shell access
+    to the container's config volume.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Homepage is a mechanically simple, single-container, single-port (3000)
+  app with no database and no built-in login — the docs explicitly say it
+  must sit behind a reverse proxy that enforces authentication, which maps
+  cleanly onto our Traefik basic_auth gate mechanism, making it installable
+  today with no blocking secrets. It overlaps in purpose with Homarr
+  (apps-gaps/homarr.yaml), which is more actively released and offers a
+  friendlier no-config onboarding wizard vs. Homepage's file-based YAML
+  config, but that overlap is a catalogue-fit fact, not a reason to
+  downgrade installability. Recommend build_now.

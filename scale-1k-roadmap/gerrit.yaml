@@ -1,0 +1,113 @@
+slug: gerrit
+name: Gerrit
+source_description: "Enterprise-grade web-based code review system built on top of Git"
+
+upstream:
+  url: https://www.gerritcodereview.com/
+  repo_url: https://gerrit.googlesource.com/gerrit
+  license: Apache-2.0
+  docker_image: gerritcodereview/gerrit
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml file exists anywhere in the project's
+    repositories. The official image repo (github.com/GerritCodeReview/
+    docker-gerrit, a mirror of gerrit.googlesource.com/docker-gerrit)
+    contains only Dockerfiles under almalinux/ and ubuntu/ build
+    directories plus a README — no compose file at the repo root or under
+    any docker/deploy/contrib-style directory. That README does embed two
+    docker-compose.yaml snippets inline as documentation prose (a simple
+    persistent-volumes example, and a more advanced OpenLDAP-backed
+    production example), but neither is a file the project publishes,
+    versions, or serves a link to — copy-pasting one would mean us
+    authoring/maintaining a derivative, not tracking an official artifact.
+    Community-maintained standalone compose projects exist (e.g.
+    derekjhyang/docker-compose-gerrit) but are explicitly out of scope per
+    the "no official one" rule.
+
+version_health:
+  latest_version: "3.14.2"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub tag gerritcodereview/gerrit:3.14.2 was pushed ~3 weeks before
+    2026-08-05 (i.e. mid-July 2026). Gerrit maintains several concurrent
+    stable branches (3.14.x, 3.13.x, 3.12.x all received patch releases on
+    the same day), which is a sign of active, disciplined maintenance rather
+    than a single moving HEAD. Canonical development happens on Google's own
+    Gerrit instance (gerrit-review.googlesource.com); the GitHub mirror
+    (GerritCodeReview/gerrit) shows zero "Releases" entries because upstream
+    doesn't use GitHub Releases for this project — that is expected, not a
+    sign of abandonment, and should not be read as EOL. The project backs
+    Android's and Chromium's own code review, which is a strong activity
+    signal on its own.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea, opengist]
+  differentiation: >
+    Gerrit's patch-set/vote-based review model (per-change +2/-1 scoring,
+    mandatory review before merge) is a genuinely different workflow from
+    Gitea's GitHub-style PRs or Opengist's snippet sharing — it is the tool
+    of choice for teams that want strict gatekeeping before code lands, and
+    is the de facto standard behind large open-source projects (Android,
+    Chromium, LibreOffice). It is not a drop-in substitute for Gitea (no
+    issue tracker, wiki, or package registry) but targets a narrower,
+    real need: rigorous pre-merge review.
+  usefulness: low
+  usefulness_rationale: >
+    The workflow differentiation is real, but Gerrit is a heavyweight,
+    enterprise/OSS-foundation tool with a steep learning curve (patch sets,
+    Change-Ids, git-review tooling) aimed at teams already running LDAP/OAuth
+    identity infrastructure and CI. It is a poor fit for the self-hosted
+    small-business/solo-developer audience this catalogue otherwise targets,
+    and (see installability below) its production auth model does not fit
+    our current single-secret provisioning mechanism at all.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [GERRIT_ADMIN_HTTP_PASSWORD, LDAP_OR_OAUTH_IDENTITY_PROVIDER]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Gerrit ships with auth.type=DEVELOPMENT_BECOME_ANY_ACCOUNT by default —
+      "no authentication at all," where anyone hitting the app can pick any
+      existing account (including the initial admin account created by
+      whoever logs in first) from a list and log in as them with zero
+      credential. Gating the whole site behind a single Traefik basic_auth
+      credential (our only "no login of its own" mechanism) does not fix
+      this: anyone who gets past that one shared gate can then silently
+      impersonate every user in the system, not just reach a single shared
+      admin account. That is a materially worse security posture than the
+      "fixed default password" case the schema explicitly allows behind
+      basic_auth, so treating it the same way would be a mistake.
+    - >
+      The only auth.type Gerrit supports for real production use without an
+      external identity provider is HTTP — trusting a header set by the
+      reverse proxy to say who the user is — which still requires something
+      upstream (Apache mod_auth, an LDAP bind, OAuth) to actually
+      authenticate the human and populate that header. Traefik basic_auth
+      alone only gates the door; it doesn't supply per-user identity, so it
+      cannot stand in for the HTTP/LDAP/OAuth auth backends Gerrit actually
+      needs to be secure with multiple real users. Multi-user LDAP/OAuth
+      identity provisioning has no customer-supplied input channel today.
+    - >
+      A production deployment additionally needs an SSH port (29418) open
+      for git push/review operations — a raw non-HTTP port outside Traefik's
+      reverse-proxy model, though this is not a novel blocker on its own
+      (Gitea and Opengist already ship recipes with an analogous public SSH
+      port for git clone).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Gerrit is an actively maintained, genuinely differentiated code-review tool
+  (patch-set voting, not PR-style merging). Its only auth-free default
+  (DEVELOPMENT_BECOME_ANY_ACCOUNT) lets anyone past the door impersonate any
+  account with zero credential, and the only mechanism this platform
+  supports today (a single shared Traefik basic_auth gate) does not fix
+  that — it only adds one more locked door in front of an already-open
+  house. Real production use needs LDAP/OAuth/HTTP-header identity, which
+  has no customer-input channel today. Not recommended.

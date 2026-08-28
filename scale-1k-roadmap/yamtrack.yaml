@@ -1,0 +1,76 @@
+slug: yamtrack
+name: Yamtrack
+source_description: "Yamtrack is a self-hosted media tracker for movies, TV, anime, and games"
+
+upstream:
+  url: https://github.com/FuzzyGrim/Yamtrack
+  repo_url: https://github.com/FuzzyGrim/Yamtrack
+  license: AGPL-3.0
+  docker_image: ghcr.io/fuzzygrim/yamtrack
+  compose_file_url: https://raw.githubusercontent.com/FuzzyGrim/Yamtrack/release/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked from the project's own Setup docs
+    (fuzzygrim.github.io/Yamtrack/release/setup/) which say to "Download
+    the default docker-compose.yml file from the repository". This is a
+    rolling reference to the `release` branch, not pinned to a specific
+    version tag — it will track whatever the release branch currently
+    has, not a frozen snapshot. This is the SQLite variant (the docs'
+    stated default, "enough for most personal installs"); the project
+    also ships a PostgreSQL variant at
+    .../release/docker-compose.postgres.yml on the same rolling branch
+    reference, for installs wanting Postgres instead.
+
+version_health:
+  latest_version: "v0.25.3"
+  latest_release_date: "2026-05-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged releases roughly every 1-2 months (v0.25.0 on 2026-02-06,
+    v0.25.1/v0.25.2 in April, v0.25.3 on 2026-05-25 — about 2.5 months
+    before today, 2026-08-05). Repo is unarchived with a push as recent as
+    2026-08-05 (today), 3300+ stars, and active dependabot/PR merges listed
+    in the v0.25.3 changelog. No EOL or maintenance-mode signal.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The only existing "media" recipe is Immich (photo/video library
+    management and backup). Yamtrack is a personal watch/play tracker —
+    logging progress and ratings across movies, TV, anime, manga, games,
+    books, comics, and board games, similar in spirit to Trakt — a
+    distinct use case with no functional overlap in the current 24-recipe
+    catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely new category (personal media-tracking/logging) with decent
+    upstream popularity (3300+ stars) and an active project, but it's a
+    narrower, more hobbyist audience than infrastructure/dev-tools/AI
+    recipes already in the catalogue, and it depends on third-party
+    metadata APIs (TMDB, MAL, IGDB, etc.) for its core value even though
+    those ship with usable default keys.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Yamtrack is a two-container app (Django app + Redis for Celery/caching)
+  exposing a single HTTP port (8000), reverse-proxy-friendly behind
+  Traefik. It needs no customer-supplied secret at first boot: REGISTRATION
+  defaults to true, so — exactly like Uptime Kuma and Actual Budget — the
+  customer creates their own account through the app's own signup page on
+  first visit, and the Django SECRET key is a server-generated random
+  string the customer never needs to see or supply. Built-in default API
+  keys for TMDB/MAL/IGDB/etc. mean no external API key is required to
+  boot, though a customer may optionally add their own later for higher
+  rate limits. This clears the current /compose constraint cleanly with
+  zero blocking issues, matching the single-container-with-own-signup
+  pattern already used elsewhere in the catalogue.

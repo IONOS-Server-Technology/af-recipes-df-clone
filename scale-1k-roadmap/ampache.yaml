@@ -1,0 +1,90 @@
+slug: ampache
+name: Ampache
+source_description: "Ampache is a web-based audio/video streaming application and media manager"
+
+upstream:
+  url: https://ampache.org
+  repo_url: https://github.com/ampache/ampache
+  license: AGPL-3.0-or-later
+  docker_image: ampache/ampache
+  compose_file_url: https://raw.githubusercontent.com/ampache/ampache-docker/master/docker-compose.yml
+  compose_file_notes: >
+    Official, from the ampache org's separate `ampache-docker` repo (the
+    ampache/ampache README explicitly points to this repo for "pre-built
+    docker images" and running the app; ampache/ampache's own root
+    `docker-compose.yml` is a live-mount local-build dev environment for
+    hacking on Ampache8 source, not for running a deployment, and its own
+    ampache-docker README calls it out as "a different file"). This is a
+    rolling reference to the `master` branch (uses `image:
+    ampache/ampache:latest`, the stable-branch tag per that repo's image
+    variants table), not a version-pinned release asset — the
+    ampache-docker repo has no versioned releases/tags of its own to pin
+    the compose file to, only the image tags it documents
+    (ampache/ampache:<version>, :latest, :develop). Only one compose
+    variant is offered (bundled MariaDB by default; a nosql image variant
+    exists for bringing your own DB but has no separate compose file).
+
+version_health:
+  latest_version: "7.10.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.10.0 shipped 2026-07-21, about 2 weeks before today (2026-08-05).
+    Release history on the release7 branch is dense: 7.9.0 (2026-02-19),
+    7.9.1 (2026-02-25), 7.9.2 (2026-03-05), 7.9.3 (2026-05-01), 7.9.4
+    (2026-05-21), 7.9.5 (2026-05-29), 7.9.6 (2026-06-03), 7.9.7/7.9.8
+    (2026-06-04), 7.10.0 (2026-07-21) — near-weekly patch cadence with no
+    gaps. Ampache8 is in parallel active development on `develop`
+    (18,700+ commits, 373 open issues, requires PHP 8.5+). Repo is not
+    archived; this is a clearly active project, not maintenance-only.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers personal music/video streaming.
+    Immich is the closest neighbor by "self-hosted personal media" flavor
+    but is strictly photo/video backup and organization, not an
+    audio-focused streaming server with Subsonic/DAAP/UPnP client support.
+    This is the same niche a prior gap analysis found in Airsonic Advanced
+    ([[airsonic-advanced]]), except Ampache is actively maintained where
+    Airsonic Advanced has been dormant for 2+ years with no stable release
+    ever cut.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted music/video streaming (Subsonic-API-compatible, wide mobile
+    client support) has a real recurring self-hosting audience, would
+    diversify the catalogue beyond dev-tools/monitoring/security, and unlike
+    Airsonic Advanced this project is actively releasing near-weekly with no
+    abandonment signal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [AMPACHE_ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: AMPACHE_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Ampache is a single-container app (the official `ampache/ampache` image
+  bundles its own MariaDB by default, external DB optional) most similar to
+  Vaultwarden/Uptime Kuma-style recipes, exposing one HTTP port that works
+  fine behind Traefik on `<slug>.<base_domain>`. Its Docker image supports
+  fully non-interactive first-boot provisioning via
+  AMPACHE_ADMIN_USER/AMPACHE_ADMIN_EMAIL/AMPACHE_ADMIN_PASSWORD env vars
+  (falls back to the manual install.php wizard only if unset), which maps
+  cleanly onto the generated_from:ROOT_PASSWORD projection — the same
+  pattern already used for Vaultwarden's admin token. Combined with active,
+  near-weekly upstream releases and a genuine catalogue gap (no music/video
+  streaming recipe today, and the one prior candidate in this space,
+  Airsonic Advanced, was rejected for 2+ years of dormancy), this is a
+  build_now candidate contingent only on the generated_from:ROOT_PASSWORD
+  mechanism itself (IF-1420) landing.

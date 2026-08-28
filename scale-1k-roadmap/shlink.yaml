@@ -1,0 +1,108 @@
+slug: shlink
+name: Shlink
+source_description: "Definitive self-hosted URL shortener with analytics and API support"
+
+upstream:
+  url: https://shlink.io/
+  repo_url: https://github.com/shlinkio/shlink
+  license: MIT
+  docker_image: shlinkio/shlink
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for deploying Shlink. The
+    project's own install docs
+    (shlink.io/documentation/install-docker-image/) cover only `docker run`
+    commands for the shlinkio/shlink image, with no compose example or
+    linked compose file anywhere on the page. The shlinkio/shlink repo does
+    contain a root-level docker-compose.yml, but it is a local-development
+    harness (builds shlink_php/shlink_nginx/shlink_roadrunner services from
+    source via data/infra/*.Dockerfile, wires up every supported
+    database/broker/cache backend for test matrices), not a deployment
+    artifact -- confirmed via the repo README, which only says to use "the
+    official docker image" per the docs above. The companion
+    shlinkio/shlink-web-client repo likewise has only a root
+    docker-compose.yml that builds the client from source with
+    dev.Dockerfile for its own dev server (ports 3000/56745/4173), again not
+    a deployment file. No third-party/community compose file was
+    substituted here per instructions.
+
+version_health:
+  latest_version: "v5.1.5"
+  latest_release_date: "2026-06-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.1.5 was published 2026-06-22, about 6 weeks before today (2026-08-05).
+    Preceding releases in the same minor series: v5.1.4 (2026-06-18), v5.1.3
+    (2026-06-16), v5.1.2 (2026-06-14), v5.1.1 (2026-06-11), v5.1.0
+    (2026-06-11) — six releases inside eleven days, then v5.0.2 (2026-04-16),
+    v5.0.1 (2026-03-04), v5.0.0 (2026-01-09), v4.6.0 (2025-11-01). That is a
+    release roughly every 4-8 weeks over the past year with no long gaps, one
+    of the more actively maintained candidates evaluated so far. Not
+    archived, no unmaintained notice; GitHub shows continued issue/PR
+    activity. The official Docker Hub image (`shlinkio/shlink`) carries a
+    matching pinned `5.1.5` tag (also `5`, `5.1`, `latest`, `stable`, plus a
+    `-roadrunner` variant per tag) alongside every prior release tag, so
+    image availability is not a lag risk.
+
+catalogue_fit:
+  categories: [productivity, networking, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers URL shortening.
+    Shlink is a branded, self-hosted short-link service (short links under
+    the customer's own domain) with per-link visit analytics, tag/rule-based
+    redirects, and a full REST API plus CLI for automation — a distinct,
+    well-understood self-hosting use case (marketing/growth teams running
+    their own bit.ly) with zero overlap against anything currently shipped.
+  usefulness: medium
+  usefulness_rationale: >
+    URL shortening with analytics is a common, easily-explained self-hosting
+    want and Shlink is the most established open-source option in the space
+    (MIT, active upstream, official images, ~8k GitHub stars). Usefulness is
+    medium rather than high because it is a narrow single-purpose tool with a
+    smaller addressable audience than broader productivity/security recipes
+    already in the catalogue, and it requires two containers (API + separate
+    web client) rather than one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    # Shlink's REST API key (INITIAL_API_KEY) is a bearer token the app
+    # compares literally against incoming requests -- it is not verified as
+    # a password hash, so generated_from (which only ever yields a hash of
+    # ROOT_PASSWORD) cannot be used to seed it directly. It can, however, be
+    # generated fully server-side as a patternless random value and injected
+    # into both the shlink API container (INITIAL_API_KEY) and the
+    # shlink-web-client container (SHLINK_SERVER_API_KEY) at boot, since the
+    # customer never needs to know or type it. shlink-web-client has no
+    # login screen of its own -- whoever can reach it can manage every short
+    # link -- so the stack still needs a gate in front.
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Shlink ships as two official, separately-versioned containers behind one
+  reverse proxy: the `shlinkio/shlink` API/backend (SQLite by default, so no
+  extra database service is required) and `shlinkio/shlink-web-client` for
+  the management UI, which supports a single-server mode
+  (SHLINK_SERVER_URL/SHLINK_SERVER_API_KEY env vars) that needs no manual
+  "add server" step. The one required-looking env var beyond a domain
+  (GEOLITE_LICENSE_KEY) is confirmed optional -- Shlink boots and serves
+  short links fine without it, it only disables IP-geolocation stats, so it
+  is not a blocker. The API key that both containers share can be generated
+  server-side with no customer input, and because shlink-web-client has no
+  authentication of its own, the whole stack should sit behind a Traefik
+  basic_auth gate keyed off the customer's root password (IF-1312 pattern),
+  matching how Adminer/WUD-style no-login apps are handled elsewhere in the
+  catalogue. Nothing here needs an external API key or OAuth registration,
+  upstream is releasing every few weeks, and the app fills a genuine gap (no
+  URL shortener in the current 24-recipe catalogue) -- recommend building
+  now.

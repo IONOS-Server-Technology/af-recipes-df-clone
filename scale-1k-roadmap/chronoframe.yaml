@@ -1,0 +1,90 @@
+slug: chronoframe
+name: ChronoFrame
+source_description: "Self-hosted photo gallery with EXIF, geolocation, and interactive explore map"
+
+upstream:
+  url: https://github.com/HoshinoSuzumi/chronoframe
+  repo_url: https://github.com/HoshinoSuzumi/chronoframe
+  license: MIT
+  docker_image: ghcr.io/hoshinosuzumi/chronoframe:1.0.0-rc.3
+  compose_file_url: https://raw.githubusercontent.com/HoshinoSuzumi/chronoframe/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the exact file the README's
+    "Docker Compose" install section walks through. Rolling reference to
+    the default branch (`main`), not version-pinned: the file itself uses
+    `image: ghcr.io/hoshinosuzumi/chronoframe:latest`, so both the compose
+    file and the image tag it references float with upstream rather than
+    pinning to a release. Only one variant is shipped — a single
+    `chronoframe` service on local filesystem storage — with an optional
+    Postgres `database` service present but fully commented out (the app's
+    default is local storage with no mandatory database, matching
+    installability notes above); no separate GPU/dev/sqlite variants exist.
+
+version_health:
+  latest_version: "v1.0.0-rc.3"
+  latest_release_date: "2026-04-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Still pre-GA (highest tag is a 1.0.0 release candidate; no stable 1.0.0
+    has shipped). Last tagged release was 2026-04-17, roughly 3.5 months
+    before this analysis (2026-08-05), but commit activity on `main`
+    continues well past that tag — most recently 2026-06-10, with regular
+    feature/i18n/fix commits through early June. Reads as an actively
+    developed project that simply hasn't cut a new RC/GA in ~2 months, not
+    as dormant or abandoned. 1.9k GitHub stars, not archived.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich, chevereto]
+  differentiation: >
+    Closest to Immich (private personal photo gallery with EXIF and
+    geolocation) but architecturally much lighter: Nuxt 4 + Drizzle ORM,
+    ships as a single container with local filesystem or S3 storage and no
+    mandatory Postgres/Redis/ML services, versus Immich's multi-container
+    stack with a hard 4GB RAM / 50GB disk floor for its ML-powered face and
+    object search. ChronoFrame's differentiators are a WebGL large-image
+    viewer, Live/Motion Photo support, and an interactive 3D-globe "explore"
+    map of photo locations — Immich has geolocation but not that globe UX.
+    It does not overlap with Chevereto's multi-user public-gallery/hosting
+    use case at all; both Immich and ChronoFrame target single-tenant
+    private backup.
+  usefulness: medium
+  usefulness_rationale: >
+    A legitimate lighter-weight alternative to Immich for customers who want
+    photo backup with a map view but not the RAM/disk cost of Immich's ML
+    pipeline. Value is real but narrow — it's a smaller-footprint sibling of
+    an app we already carry rather than filling a new customer need, and
+    it's still pre-1.0 upstream.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [NUXT_SESSION_PASSWORD, BASIC_AUTH_GATE, CFRAME_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: NUXT_SESSION_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+    - secret: CFRAME_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ChronoFrame is a single-container Nuxt app (local storage by default, no
+  mandatory database) that boots fine behind Traefik on one HTTP port —
+  mechanically simple to package, similar shape to uptime-kuma/vaultwarden.
+  NUXT_SESSION_PASSWORD is server-generated with no customer input needed.
+  CFRAME_ADMIN_PASSWORD only accepts plaintext (defaults to a fixed value,
+  CF1234@!, if unset), so generated_from can't project the customer's root
+  password into it; per platform convention for a fixed/default admin
+  credential, the fix is to leave it at its default and gate the whole app
+  behind a Traefik basic_auth boundary keyed off the root password instead
+  — that's a standard pattern (n8n/WUD/Open WebUI), not a blocker. It's
+  mechanically installable today with no blocking issues, so it's a
+  build_now candidate; it overlaps with an existing recipe (Immich) as a
+  lighter-weight alternative, but that overlap is a catalogue_fit fact, not
+  a reason to deprioritize building it.

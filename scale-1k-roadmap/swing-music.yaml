@@ -1,0 +1,106 @@
+slug: swing-music
+name: Swing Music
+source_description: "Swing Music is a self-hosted music streaming server with smart mixes"
+
+upstream:
+  url: https://swingmx.com/
+  repo_url: https://github.com/swingmx/swingmusic
+  license: "AGPL-3.0-or-later (core); the 'Mixes' feature and some recommendation/discovery features are gated behind a paid Swing Music Premium license/GitHub sponsorship as of v3.0.0, separate from the open-source core"
+  docker_image: "ghcr.io/swingmx/swingmusic"
+  compose_file_url: null
+  compose_file_notes: >
+    No linkable official docker-compose file exists. The project's own
+    docs (swingmx.com/downloads and swingmx.com/guide/introduction) embed
+    an inline docker-compose.yml snippet directly in the page text ("Create
+    a docker-compose.yml in your desired path" followed by the YAML), and
+    the GitHub README embeds the identical snippet — but neither is a
+    linkable file; there is no docker-compose.yaml/.yml, docker/, deploy/,
+    or contrib/ directory in the swingmx/swingmusic repo itself. The
+    embedded snippet is a rolling reference, not version-pinned (pulls
+    ghcr.io/swingmx/swingmusic:latest with no release tag).
+
+version_health:
+  latest_version: "v3.0.0"
+  latest_release_date: "2026-06-12"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.0.0 released 2026-06-12, about 7.5 weeks before today (2026-08-05).
+    Preceding releases show a steady cadence: v2.1.10 (pre-release,
+    2026-04-26), v2.1.4 (2026-01-18, a security patch for a path-traversal
+    bug in the directory-browser endpoint), v2.1.3 (2025-12-07), v2.1.0
+    (2025-12-01, a critical fix preventing unauthorized file downloads via
+    the streaming endpoint), v2.0.9 (2025-08-14). Repo is not archived,
+    actively developed (1,400+ commits, ongoing multi-contributor activity,
+    117 open issues, 10 open PRs at time of research). No sign of
+    dormancy — clearly active.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 shipped recipes cover personal music streaming — Immich
+    is the closest existing media recipe but is photo/video-focused. Swing
+    Music scans a customer-mounted local music library and serves a
+    Spotify-style browser player (folder browsing, playlists, related
+    artists/albums, fuzzy search, listening stats) plus an Android client.
+    It is not additive on top of an existing shipped recipe, but it is
+    also not a novel niche within apps-gaps: navidrome.yaml, koel.yaml,
+    ampache.yaml, airsonic-advanced.yaml, and jellyfin.yaml all already
+    analyze the same "bring your own music library, self-hosted streaming"
+    space. If the catalogue ever ships one such recipe, Swing Music would
+    be one of several already-vetted candidates competing for that single
+    slot, not a distinct addition alongside them.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-scoped, actively maintained, single-container app with a polished
+    web UI — a good structural fit for this catalogue's profile. Capped at
+    medium (same as the other music-server candidates) because it only
+    delivers value once a customer has their own music library to
+    upload/mount, and because part of its most distinctive feature set
+    ("smart mixes" — the very hook in Hostinger's own description) is now
+    gated behind a paid Premium license/sponsorship as of v3.0.0 rather
+    than being fully open-source functionality, which weakens the
+    differentiation Hostinger's description implies.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Swing Music ships one fixed default admin login (admin/admin,
+      documented by third-party install guides such as the Umbrel app
+      listing and NAS install guides) with no environment variable on the
+      official image to set a different admin username/password at
+      container start. Only SWINGMUSIC_PORT and SWINGMUSIC_DEVICE_NAME are
+      documented env vars; there is no SWINGMUSIC_ADMIN_* equivalent.
+      Rotating the password afterward requires logging in with the default
+      credentials first and changing it through the web UI — an
+      interactive, plaintext-password flow install.sh cannot drive, since
+      af-api only ever projects a hash via generated_from.
+    - >
+      Same shape as the already-analyzed Koel candidate: a fixed,
+      publicly-documented default admin credential with no first-boot
+      channel to change it falls under the SCHEMA.md guidance to gate the
+      whole app behind a mandatory Traefik basic_auth using the
+      root-password-derived hash, rather than treating the app's own
+      unchangeable default login as a blocker on its own.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Swing Music (ghcr.io/swingmx/swingmusic, pin v3.0.0) is an actively
+  maintained, single-container, single-HTTP-port (1970) music streaming
+  server with a genuine browser web UI and no database dependency —
+  mechanically simple to front with Traefik. It is installable today only
+  via the Traefik basic_auth workaround, not its own login: the official
+  image has a fixed default admin/admin credential with no env var to
+  override it at first boot, the same gap already flagged for Koel.
+  Recommend build_with_caveats: the app itself is installable today only
+  via the Traefik basic_auth workaround, not its own login, since the
+  fixed admin/admin default has no first-boot channel to change it.

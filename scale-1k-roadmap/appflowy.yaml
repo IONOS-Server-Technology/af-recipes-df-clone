@@ -1,0 +1,98 @@
+slug: appflowy
+name: AppFlowy
+source_description: AppFlowy is an AI-powered open-source workspace and Notion alternative
+
+upstream:
+  url: https://appflowy.com
+  repo_url: https://github.com/AppFlowy-IO/AppFlowy-Cloud
+  license: AGPL-3.0
+  docker_image: appflowyinc/appflowy_cloud
+  compose_file_url: https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official compose file, published at the root of the AppFlowy-Cloud repo
+    (titled "Essential services for AppFlowy Cloud" in-file), covering
+    nginx, MinIO, Postgres+pgvector, GoTrue, appflowy_cloud, admin_frontend,
+    and related services matching this file's blocking_issues analysis.
+    Linked here at the `main` branch path — a rolling reference to the
+    default branch, not pinned to a release tag; the project stopped
+    tagging GitHub Releases after 0.9.64 (per version_health above) and
+    versions via Docker Hub tags instead, so there is no versioned Git tag
+    to pin this link to. The repo also ships docker-compose-dev.yml (local
+    dev), docker-compose-ci.yml (CI), and docker-compose-extras.yml
+    (additional optional services); the plain docker-compose.yml is the
+    one intended for self-hosted/production use and is the variant
+    referenced above.
+
+version_health:
+  latest_version: "0.17.2"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Self-hosted server component is AppFlowy-Cloud (separate repo from the
+    AppFlowy-IO/appflowy Flutter client). The project stopped tagging
+    GitHub Releases after 0.9.64 (2025-07-04) and now versions purely via
+    Docker Hub tags on appflowyinc/appflowy_cloud: 0.17.0 (2026-07-23),
+    0.17.1 (2026-07-30), 0.17.2 (2026-08-02) — 3 days before today
+    (2026-08-05). Main-branch commits continue through 2026-08-04. Well
+    within an active cadence, not a gap.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >
+    AppFlowy is a Notion-style docs/wiki/project workspace with an
+    AI-assisted editor; anytype-server (currently disabled in the
+    catalogue) is a sync backend for a local-first note-taking app with a
+    different data model and no comparable web UI. No enabled recipe
+    today covers a Notion-alternative workspace.
+  usefulness: high
+  usefulness_rationale: >
+    "Notion alternative" is a well-known, high-demand self-hosting
+    category with no current entry in the catalogue; AppFlowy is the
+    most prominent open-source option in that space.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GOTRUE_ADMIN_PASSWORD
+    - GOTRUE_JWT_SECRET
+    - POSTGRES_PASSWORD
+    - APPFLOWY_S3_ACCESS_KEY / APPFLOWY_S3_SECRET_KEY (MinIO)
+  secrets_expressible_today:
+    - secret: GOTRUE_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: APPFLOWY_S3_ACCESS_KEY / APPFLOWY_S3_SECRET_KEY (MinIO)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      GOTRUE_ADMIN_PASSWORD is consumed by GoTrue as a plaintext value at
+      container startup to create the bootstrap admin account for the
+      AppFlowy admin frontend — GoTrue hashes it internally, it does not
+      accept a pre-hashed value. `generated_from` only ever projects a
+      hash of the customer's root password, so there is no channel to
+      supply this credential today. Gating the whole stack behind Traefik
+      `basic_auth` does not resolve this either, since the admin frontend
+      is a distinct login surface from the customer-facing app, not a
+      no-login app that basic_auth could stand in for.
+    - >
+      The stack is 11 containers (nginx, Postgres+pgvector, Redis, MinIO,
+      GoTrue, appflowy_cloud, admin_frontend, ai, worker, search, web) —
+      substantially heavier than any current recipe, though this alone is
+      not a blocker.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  AppFlowy fills a real catalogue gap (Notion-alternative workspace) and
+  upstream is actively released, but the self-hosted server (AppFlowy-Cloud)
+  requires a plaintext GOTRUE_ADMIN_PASSWORD to bootstrap its own admin
+  account, which the current `/compose` mechanism cannot supply — only a
+  hash via `generated_from`, and no basic_auth gate substitutes for a
+  distinct admin login surface. Revisit once the platform supports a
+  plaintext customer-supplied credential channel, or investigate whether
+  GoTrue can be pointed at a pre-hashed admin password.

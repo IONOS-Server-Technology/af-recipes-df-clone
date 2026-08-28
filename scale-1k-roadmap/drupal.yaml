@@ -1,0 +1,112 @@
+slug: drupal
+name: Drupal
+source_description: "Open-source CMS for building and managing dynamic websites"
+
+upstream:
+  url: https://www.drupal.org/
+  repo_url: https://git.drupalcode.org/project/drupal
+  license: GPL-2.0-or-later
+  docker_image: drupal:11.3.16-php8.4-apache-bookworm
+  compose_file_url: null
+  compose_file_notes: >
+    Drupal (the project) publishes no docker-compose file of its own.
+    drupal.org's official install docs (Installing Drupal wiki, "Docker
+    solutions overview") point to DDEV — a Docker-based dev tool with its
+    own config format, not a plain docker-compose.yaml — or to Composer,
+    not to a compose file. The `drupal:*` image itself is a Docker Hub
+    "Official Image" maintained by the Docker Community, and its README
+    (docker-library/drupal, mirrored to hub.docker.com/_/drupal) explicitly
+    states it is maintained by the Docker Community and is "*not* the
+    Drupal Community" — so even though that page ships an example
+    compose.yaml (drupal:10-apache + postgres:16, rolling/unpinned to a
+    default branch), it is not sourced from the Drupal project and does
+    not qualify as an official Drupal compose file. No other
+    project-published compose file was found; recording null per the
+    "community-maintained, no official one" case.
+
+version_health:
+  latest_version: "11.3.16"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11.3.16 (a Drupal 10/11-cycle patch release) shipped 2026-07-23, ~2 weeks
+    before this analysis on 2026-08-05. Drupal core follows a published
+    semver-ish release-cycle policy: scheduled minor releases roughly twice
+    a year, patch/security releases on a near-monthly cadence, all tracked
+    publicly at drupal.org/about/core/policies/core-release-cycles/schedule.
+    Drupal 12.0.0 is on the published schedule for the week of 2026-08-10
+    (days after this analysis). Older majors are being sunset on schedule,
+    not abandoned: Drupal 9 reached EOL in November 2023, Drupal 10 is
+    scheduled for EOL 2026-12-09 as Drupal 11/12 take over. The project
+    (founded 2001, one of the largest OSS CMS communities, used for
+    gov/enterprise sites worldwide) shows no slowdown; the official
+    docker-library/drupal image is kept in step with core releases (Docker
+    Hub official image, 100M+ pulls).
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website CMS —
+    closest neighbors (gitea, opengist) are developer/source-control tools,
+    not content-management for a public-facing site. Drupal would fill a
+    real gap for customers who want to build/manage a blog, brochure site,
+    or larger structured-content site without hand-coding, which is exactly
+    the kind of workload Hostinger's shared/VPS customers already look for.
+  usefulness: high
+  usefulness_rationale: >
+    CMS is one of the most commonly requested self-hosted app categories
+    and Drupal is a top-3 open-source CMS by install base, well beyond a
+    niche audience. High customer pull if it can actually be installed
+    through our current mechanism.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [drupal_admin_password, database_password]
+  secrets_expressible_today:
+    - secret: database_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Drupal has no first-boot flow that accepts a pre-supplied credential
+      for its own admin account in a form our platform can produce. The
+      official image ships no env var for this; the only supported paths
+      are (a) the interactive browser install wizard, where a human types
+      a password into a form field, or (b) `drush site-install
+      --account-pass=<plaintext>`, which requires the **plaintext**
+      password — Drush hashes it internally and writes it to Drupal's own
+      `users_field_data.pass` column using Drupal's password-hashing
+      scheme (a `$S$`-prefixed PHPass/bcrypt-hybrid format), not a raw
+      bcrypt/argon2 digest. `generated_from` only ever produces a bare
+      bcrypt/argon2 hash of the root password — it cannot be written
+      directly into that column (wrong format) and the plaintext root
+      password is never available to project into `--account-pass`. There
+      is no algorithm-support gap to add here (unlike a case where Drupal
+      simply used raw bcrypt); the app-side format itself is incompatible
+      with a bare-hash input.
+    - >
+      Gating the whole site behind Traefik `basic_auth` (our fallback for
+      apps with no login of their own) doesn't resolve this the way it
+      does for e.g. Adminer or WUD: Drupal customers need an ongoing,
+      distinct admin/editor login to manage their own content after
+      install, not just a one-time gate to keep the install page private.
+      A `basic_auth` wrapper only hides the problem; it doesn't give the
+      customer a way to actually log into their new site's admin UI.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Drupal is an actively maintained, high-usefulness CMS with no equivalent
+  in our current 24-recipe catalogue, a single reverse-proxy-compatible
+  HTTP port, and an official, regularly updated Docker image — mechanically
+  it looks like an easy build. The blocker is entirely on the secrets
+  side: Drupal's admin account can only be created with a plaintext
+  password (via the interactive installer or `drush site-install
+  --account-pass`), and its own password-hash format is incompatible with
+  the bare bcrypt/argon2 hash `generated_from` produces, so there is no
+  channel today to give the customer a working admin login. Recommend
+  revisiting once either a plaintext-projection channel exists or Drupal's
+  install path adds support for pre-hashed credentials.

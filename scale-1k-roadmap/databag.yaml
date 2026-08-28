@@ -1,0 +1,116 @@
+slug: databag
+name: Databag
+source_description: "Self-hosted federated messenger with end-to-end encryption and topic-based threads"
+
+upstream:
+  url: https://github.com/balzack/databag
+  repo_url: https://github.com/balzack/databag
+  license: Apache-2.0
+  docker_image: balzack/databag:0.1.18
+  compose_file_url: https://raw.githubusercontent.com/balzack/databag/main/examples/docker-basic/docker-compose.yml
+  compose_file_notes: >
+    Official — lives in the project's own repo under examples/docker-basic/,
+    referencing the published balzack/databag:latest image (not a build-from-source
+    context). This is a rolling reference to the main branch's default
+    tip, not version-pinned to a release tag or commit SHA; the repo has no
+    tagged releases for the server component to pin to (see version_health —
+    GitHub release tags are for the mobile client only). Picked over two
+    sibling variants in the same examples/ directory:
+    docker-basic (chosen) is the plain single-container case matching this
+    recipe's docker_image/secrets_required_at_first_boot above;
+    docker-nginx-proxy adds VIRTUAL_HOST/LETSENCRYPT_* vars for a specific
+    nginx-proxy/letsencrypt-companion setup and builds from source (build: .)
+    rather than pulling the published image; docker-ssl bundles an extra
+    Caddy sidecar container for TLS termination. The repo root's own
+    docker-compose.yml (and docker-compose.dev.yml) were not used because
+    both use `build: .` to build the image from source rather than
+    reference the published balzack/databag image.
+
+version_health:
+  latest_version: "0.1.18 (Docker Hub tag); mobile-app release tags top out at v1.1.1021 (Jun 2024)"
+  latest_release_date: "2025-10-15"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Docker Hub's newest numbered tag, 0.1.18, was pushed 2025-10-15 —
+    just under 10 months before today (2026-08-05) — consistent with the repo's
+    last substantive commits on 2025-09-15/16 ("fixing dark colors on
+    tablet", "updating go version format", merging an SDK-container branch).
+    Since then, main has only received translation-string commits: 2025-11-08
+    (nginx-proxy doc example, non-code), 2026-01-01, 2026-04-17, and
+    2026-06-14 — the most recent activity is ~1.7 months old, but nothing
+    functional or security-relevant has landed in the ~11 months since the
+    Sep 2025 work. GitHub "release" tags (v1.1.x) are for the mobile client
+    build number, not the server, and haven't moved since June 2024 (over 2
+    years ago). No archive banner, no announced EOL, issues/discussions still
+    open — this reads as a project on autopilot (a maintainer merging
+    community translations) rather than actively developed or abandoned
+    outright.
+
+catalogue_fit:
+  categories: [communication, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers chat/messaging. Databag is a lightweight,
+    self-hosted, E2E-encrypted, federated messenger (topic-based threads,
+    audio/video calls, own public/private-key identity not tied to a
+    blockchain or hosting domain) — distinct from anything in the current
+    24-recipe catalogue, which has no communication-category app at all.
+  usefulness: medium
+  usefulness_rationale: >
+    A self-hosted encrypted messenger is a recognizable customer want and
+    would be a genuinely new category for the catalogue, not a rehash of an
+    existing recipe. Rated medium rather than high because the project's
+    own momentum has stalled (see version_health) and its federation model
+    (direct app-to-server, own identity keys) is a niche fit compared to
+    mainstream chat expectations — customers evaluating self-hosted chat are
+    more likely to already know Matrix/Element or Rocket.Chat by name.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The `ADMIN` env var is the server's admin-panel credential, and it is
+      compared as a raw plaintext string, not a hash: `entrypoint.sh` writes
+      the env var's value verbatim into the `token` config row
+      (`insert into configs (config_id, str_value) values ('token', '$ADMIN')`),
+      and `net/server/internal/authUtil.go`'s `ParamAdminToken` checks
+      `value != token` — a literal string comparison against that stored
+      value. `generated_from` only ever projects a hash (argon2/bcrypt) of
+      ROOT_PASSWORD into an app parameter; there is no way to make a hash
+      satisfy a plaintext-equality check, so this is the "genuine requirement
+      for the plaintext password" case SCHEMA.md calls a structural blocker,
+      not an extensible-algorithm gap like IF-1420.
+    - >
+      Gating the app behind Traefik `basic_auth` instead does not substitute
+      for this: Databag has its own real login layer (per-account bcrypt
+      passwords plus the separate admin token), and the admin token
+      specifically is required to do first-run setup — configuring the
+      federated host domain and generating the invite link needed to create
+      the very first user account. A customer who can pass a Traefik gate
+      but never learns the (server-generated, non-customer-facing) ADMIN
+      value would be locked out of ever configuring or using the app, so
+      basic_auth only closes the "sitting open on the internet" gap, not the
+      "customer needs working admin access" gap.
+    - No other channel in `/compose` exists to carry a customer-chosen or
+      customer-derived plaintext value.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Databag is a single-container Go/SQLite app (balzack/databag:0.1.18,
+  official image, pinned) that would be reverse-proxy-compatible on one
+  HTTP port and fills a real gap — no messaging/chat recipe exists in the
+  catalogue today. It is blocked, though: its admin credential is checked
+  by exact plaintext string comparison with no hashing anywhere in the
+  auth path, so `generated_from` (which only ever carries a hash) cannot
+  satisfy it, and Traefik `basic_auth` can gate the app's front door but
+  can't give the customer usable admin access inside it. Combined with the
+  upstream project having done no functional work in ~11 months (only
+  translation-string commits since Sep 2025), this is not a good build-now
+  candidate; revisit if af-api ever gains a genuine plaintext-projection
+  channel, not just more `generated_from` hash algorithms.

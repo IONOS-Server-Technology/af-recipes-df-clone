@@ -1,0 +1,116 @@
+slug: pinchflat
+name: Pinchflat
+source_description: "Self-hosted YouTube media manager for automated channel and playlist downloads"
+
+upstream:
+  url: https://github.com/kieraneglin/pinchflat
+  repo_url: https://github.com/kieraneglin/pinchflat
+  license: AGPL-3.0
+  docker_image: ghcr.io/kieraneglin/pinchflat
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official docker-compose file exists. The repo root
+    docker-compose.yml (github.com/kieraneglin/pinchflat/blob/master/
+    docker-compose.yml) is a dev-only file that builds the app from
+    docker/dev.Dockerfile for live-reload development, not a
+    production deployment file — it doesn't even reference the
+    published ghcr.io/kieraneglin/pinchflat image. The only
+    production-oriented compose snippet is embedded directly in the
+    README's Docker/Portainer installation section (and mirrored on
+    the GitHub wiki Installation page), a `version: '3'` block naming
+    the `ghcr.io/kieraneglin/pinchflat:latest` image, port 8945, and
+    config/downloads volumes with a TZ env var — this is a rolling
+    reference (no tag pin; tracks the default branch) and would need
+    to be copied out of the docs rather than fetched as a file.
+
+version_health:
+  latest_version: "v2025.9.26"
+  latest_release_date: "2025-09-26"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Just over 10 months since the latest release (v2025.9.26) as of today
+    (2026-08-05). Prior cadence was near-monthly through 2025 (v2025.1.3,
+    v2025.1.14, v2025.1.17, v2025.1.27, v2025.2.20, v2025.3.6, v2025.3.17,
+    v2025.6.6, v2025.9.26), so a 10-month gap with zero releases since is a
+    sharp break from that pattern. This is not silent abandonment: the same
+    day as the last release, the maintainer opened issue #800, "READ:
+    Temporary Development Pause," announcing a step back to work on an
+    unrelated project (age/identity-verification legislation tooling),
+    stating "Pinchflat isn't dead! But it is on a development break," with
+    an original estimate of "at least 4-8 weeks" and a commitment to only
+    monitor for breaking changes (e.g. yt-dlp/Deno compatibility) and
+    occasionally review PRs — feature work and minor bug fixes explicitly
+    deprioritized. That stated minimum window has been exceeded roughly
+    5x over. Consistent with that reduced-scope commitment, there was a
+    small burst of maintenance-only commits (spelling fixes, UI tweaks,
+    table-overflow fix) around 2025-09-27/28 and again 2025-12-16, but
+    nothing since — about 7.5 months of no commits as of today, and no
+    release cut since the pause began. The repo is not archived and issue
+    #800 remains open/pinned with no update reversing or reaffirming the
+    pause; 201 open issues, with new ones still being filed by users as
+    recently as 2026-07-01, but no evidence of the maintainer resuming
+    active development. Net effect: functionally in maintenance-only mode
+    for ~10 months against an original 4-8 week estimate, which is worth
+    flagging as a real risk for a recipe whose core dependency (yt-dlp
+    extractors) breaks routinely as YouTube changes its frontend.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes covers video acquisition from
+    YouTube; the closest recipe, Immich, is photo/video library management
+    for content the customer already has, not fetching. Pinchflat is also
+    functionally distinct from the other video-download gap candidates
+    already analyzed in this directory (apps-gaps/metube.yaml,
+    apps-gaps/mediago.yaml, apps-gaps/alltube.yaml): those are on-demand
+    "paste a URL, get a file" tools, whereas Pinchflat is a standing
+    "Sonarr for YouTube" — you register channels/playlists once, it polls
+    on a schedule, applies download rules/filters, and writes
+    Plex/Jellyfin/Kodi-ready output (NFO metadata, poster art, filename
+    templating) for continuous library growth. Single container, single
+    HTTP port (8945), SQLite embedded (no external DB service), volumes for
+    config + downloads only.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (automated YouTube archiving into a media-center
+    library) with a large user base (5.2k GitHub stars, active Unraid/
+    Umbrel/Dokploy/Easypanel community packaging). Held to medium rather
+    than high for two reasons: the same third-party-platform ToS
+    consideration flagged in the metube/mediago/alltube analyses applies
+    equally here, and — more concretely for this specific app — the
+    project has been in an unplanned ~10-month maintenance pause against a
+    much shorter original estimate, which is a real risk for a tool whose
+    core scraping logic requires frequent patching as YouTube changes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Pinchflat is structurally simple to install: a single container, single
+  HTTP port (8945), SQLite embedded (no separate DB service), no external
+  API keys, and no built-in login by default (it supports optional
+  BASIC_AUTH_USERNAME/PASSWORD env vars, but absent those it's open) — so
+  it slots behind a mandatory Traefik basic_auth gate exactly like
+  MeTube/MediaGo/Adminer, with no platform blocker. It also fills a
+  functionally distinct niche from the catalogue's other video-download
+  gap candidates: continuous, rule-based channel/playlist archiving into a
+  media-center-ready library, rather than one-off URL downloads. The catch
+  is version health: the project has been in an unplanned, maintainer-
+  announced development pause since 2025-09-26 (issue #800), originally
+  estimated at 4-8 weeks but now running roughly 10 months with no release
+  cut and no commits in the last ~7.5 months, against a project whose core
+  function depends on frequent patching for yt-dlp/YouTube frontend
+  changes, and worth monitoring post-build given the extractor-breakage
+  risk of a paused maintainer. Recommend build_now: mechanically
+  installable today with no blocking issues.

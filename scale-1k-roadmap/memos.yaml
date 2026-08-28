@@ -1,0 +1,103 @@
+slug: memos
+name: Memos
+source_description: "Memos is a lightweight, privacy-first note-taking application"
+
+upstream:
+  url: https://usememos.com
+  repo_url: https://github.com/usememos/memos
+  license: MIT
+  docker_image: neosmemo/memos
+  compose_file_url: https://raw.githubusercontent.com/usememos/memos/main/scripts/compose.yaml
+  compose_file_notes: >
+    Official file at scripts/compose.yaml in the usememos/memos repo (the
+    same repo the README's "Docker Compose — Recommended for production
+    deployments" section points readers to, via the deployment guide at
+    usememos.com/docs/deploy). This is a rolling reference to the default
+    (main) branch, not version-pinned to a release tag — there is no
+    release-asset or tag-pinned compose file published. Only one variant
+    exists (single memos service, SQLite by default via the
+    MEMOS_DRIVER env var, image tagged :stable rather than a numbered
+    version); there is no separate Postgres/MySQL compose variant shipped
+    in the repo. The project's docs site
+    (usememos.com/docs/deploy/docker-compose) also shows an equivalent
+    inline example (adding MEMOS_PORT/MEMOS_DRIVER/MEMOS_INSTANCE_URL env
+    vars) but does not link to a distinct downloadable file, so the
+    in-repo scripts/compose.yaml is the more direct, file-based source.
+
+version_health:
+  latest_version: "v0.30.0"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11 days since the latest release as of 2026-08-05. 2026 has seen a
+    steady stream of releases (v0.28.0 on 2026-04-27, v0.29.0 on 2026-05-27,
+    v0.29.1 on 2026-06-05, v0.30.0-rc.1/rc.2 in mid-late July, v0.30.0 on
+    2026-07-26), roughly monthly minors with release candidates and
+    same-month patch releases in between. Repo is not archived, pushed_at
+    is 2026-08-06 (today), 62k GitHub stars — clearly an active, healthy
+    project.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >
+    Memos is a single-container, quick-capture Markdown note app (think
+    "self-hosted Twitter-style memo feed") — one Go binary, SQLite by
+    default, one HTTP port (5230), no client app required. anytype-server
+    is a different weight class: it's just the sync backend for the
+    AnyType desktop/mobile client, a multi-service any-sync stack (2GB+ RAM)
+    that requires installing AnyType's own app to do anything. A customer
+    wanting a fast, browser-only, no-install note-taking tool is not served
+    by anytype-server today, so Memos still fills a real gap despite the
+    conceptual overlap.
+  usefulness: high
+  usefulness_rationale: >
+    Popular (62k stars), lightweight, broadly appealing note-taking app
+    with no unusual infra needs (SQLite by default, single container) —
+    exactly the kind of easy, high-demand addition the catalogue is missing
+    at the "quick notes" end of productivity, distinct from anytype-server's
+    heavier knowledge-base/sync-client use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Confirmed against upstream docs (Getting Started, Configuration ->
+      Security) and the official docker-compose example: there is no
+      environment variable to preset an admin username/password. The app
+      boots with zero users; the first visitor to the public URL is shown
+      an open sign-up form, and whoever submits it first becomes the "host
+      admin" with full instance control. There is no `type: password`
+      parameter on the app's own login for `generated_from:
+      "<algo>:ROOT_PASSWORD"` to target — the credential is created
+      client-side via self-registration, not injected via env var. This is
+      the same shape of gap already documented for 2FAuth
+      (apps-gaps/2fauth.yaml) and Activepieces (apps-gaps/activepieces.yaml).
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger races to register first" version
+      of the race, but per the precedent set in those two prior analyses,
+      today's basic_auth mechanism has no channel to hand the customer a
+      *second*, distinct credential for the in-app sign-up form beyond the
+      single root-password projection already used for the gate itself —
+      so gating does not fully resolve the underlying provisioning gap.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Memos is an active, popular, genuinely lightweight note-taking app
+  (single container, SQLite by default, one HTTP port) that would add real
+  value to the catalogue's productivity lineup distinct from
+  anytype-server's heavier sync-backend use case. It fails today's
+  installability test for the same structural reason as 2FAuth and
+  Activepieces: there is no env var to preset the sole admin account, so
+  the app relies on an open, first-visitor self-registration screen that
+  neither `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can
+  safely provision for the customer. Revisit once upstream adds an
+  env-var-driven initial-admin flow, or the platform gains a second
+  customer-facing credential channel beyond root-password projection.

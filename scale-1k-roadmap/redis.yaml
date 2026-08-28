@@ -1,0 +1,123 @@
+slug: redis
+name: Redis
+source_description: "High-performance in-memory data store for caching, sessions, and real-time workloads."
+
+upstream:
+  url: https://redis.io/
+  repo_url: https://github.com/redis/redis
+  license: "Tri-licensed: AGPLv3, RSALv2, SSPLv1 (customer/deployer choice, per redis.io/legal/licenses)"
+  docker_image: redis
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists, in-repo or otherwise. The
+    redis/redis GitHub repo ships no docker-compose.yaml/.yml at its root
+    or under any docker/deploy/contrib directory. The official docs
+    tutorial (redis.io/tutorials/operate/orchestration/docker/) embeds a
+    docker-compose.yml snippet inline in its "How do I run Redis with
+    Docker Compose?" section, but this is page-embedded example markup,
+    not a published/linkable file the project ships or versions — same
+    class of non-finding as Raneto's homepage-embedded snippet
+    (apps-gaps/raneto.yaml), not an adopted official artifact.
+
+version_health:
+  latest_version: "8.10.0 (current stable line); 8.8.1, 8.6.5, 8.4.5, 8.2.8, 7.4.10, 7.2.15, 6.2.23 also maintained"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    8.10.0 released 2026-07-29, about 1 week before today (2026-08-05) —
+    an aggressively active cadence. The same day-of-batch release
+    (2026-07-23) also shipped point releases across every parallel-
+    maintained line (8.8.1, 8.6.5, 8.4.5, 8.2.8, 7.4.10, 7.2.15, 6.2.23),
+    showing a healthy multi-branch maintenance ladder, not just a single
+    latest line. Redis went through public licensing turmoil (SSPL/RSAL
+    dual-license switch in 2024, prompting the Linux Foundation's Valkey
+    fork) but reversed course in May 2025 by adding AGPLv3 as an
+    OSI-approved option starting with Redis 8 — upstream is healthy and
+    actively developed, the license churn is resolved, not an EOL signal.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [immich, paperless-ngx]
+  differentiation: >
+    Both `immich` and `paperless-ngx` already run Redis internally, on the
+    bridge network only, purely as a private cache/queue backend for that
+    one app — never customer-reachable. A standalone Redis recipe would
+    target a different use case: a customer running their own external
+    app (a custom script, a self-hosted SaaS, a queue worker) that needs
+    a Redis instance to connect to from outside the VM. That's a real,
+    distinct need in principle, but it requires publishing the Redis port
+    to the internet, which is exactly what the catalogue's own rules
+    forbid (see `blocking_issues`).
+  usefulness: medium
+  usefulness_rationale: >
+    Would be useful to technical customers who want a managed cache/queue
+    backend for something they run themselves, but it's a developer/
+    power-user tool with no UI of its own, and its one useful exposure
+    shape (a public 6379) is one our own recipe rules already reject on
+    security grounds. Same structural class as MySQL/MariaDB/PostgreSQL
+    (apps-gaps/mariadb.yaml, apps-gaps/postgresql.yaml) — a raw-protocol
+    data store with no application-layer presence to gate behind
+    Traefik — and harder to ship than Adminer (apps-gaps/adminer.yaml),
+    which at least has an HTTP UI to gate. Unlike those recipes, Redis
+    also has no bundled web UI equivalent (RedisInsight is a separate,
+    unaffiliated-image tool, not part of the official `redis` image) that
+    could serve as the reverse-proxy-friendly front door.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today:
+    - secret: root_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The only useful shape for a standalone Redis recipe is a publicly
+      reachable Redis-protocol port so an external customer app/worker
+      can connect to it. Publishing host port 6379 is exactly what
+      RFC-002's `no-public-db-port` rule forbids
+      (rfc/002-recipe-rules.md:220-226) — 6379 is explicitly on the
+      forbidden-host-port list. There is no alternate exposure path
+      today: Traefik only routes HTTP, and Redis speaks a raw RESP
+      binary protocol, so it cannot be fronted the way our web-UI
+      recipes are (no `basic_auth`, no subdomain routing).
+    - >
+      Even setting the port rule aside, the official `redis` image has
+      no pre-hashed-password input at all. Auth is set via the
+      `requirepass` directive in `redis.conf`, or equivalently via
+      `REDIS_ARGS="--requirepass <plaintext>"` on `redis/redis-stack`-
+      style entrypoints — both take the password in plaintext at
+      container start. `generated_from` only ever produces a hash
+      (argon2/bcrypt), never plaintext, so it cannot project the
+      customer's root password into Redis auth. This is not a
+      supported-algorithm gap waiting on a new hash type
+      (`blocked_on_platform`); Redis structurally requires the plaintext
+      secret, which `generated_from` can never supply — the same
+      structural mismatch documented for PostgreSQL
+      (apps-gaps/postgresql.yaml). Moot anyway given the public-port
+      blocker above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Redis is an actively maintained, healthy upstream project (8.10.0
+  shipped about a week before this analysis, with a full ladder of
+  parallel-maintained branches all patched the same week; the 2024
+  licensing controversy was resolved in 2025 with an AGPLv3 option, not
+  an EOL event). But a standalone Redis recipe has no viable shape in the
+  current catalogue: its only useful exposure — a public, customer-
+  reachable 6379 — is explicitly forbidden by our `no-public-db-port`
+  rule, and it has no web UI to gate behind Traefik/basic_auth the way
+  Adminer or other no-login apps do. `immich` and `paperless-ngx` already
+  run Redis internally as private, non-exposed caches, so there's no
+  literal duplication, but also no "internal-only" niche left for a
+  standalone recipe to fill. This is the same structural mismatch already
+  documented for MySQL, MariaDB, and PostgreSQL — a raw internet-facing
+  data-store port our security rules and Traefik-only routing model don't
+  support, compounded by an auth mechanism (`requirepass`) that only ever
+  accepts a plaintext secret, which `generated_from` can never supply.
+  Recommend not_recommended rather than blocked_on_platform, since no
+  plausible mechanism change fixes this without relaxing a deliberate
+  security rule.

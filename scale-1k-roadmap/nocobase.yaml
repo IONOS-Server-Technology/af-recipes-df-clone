@@ -1,0 +1,146 @@
+slug: nocobase
+name: NocoBase
+source_description: "NocoBase is an extensible no-code/low-code platform for building applications"
+
+upstream:
+  url: https://www.nocobase.com
+  repo_url: https://github.com/nocobase/nocobase
+  license: >
+    Custom "NocoBase License Agreement" (not plain Apache-2.0). The
+    Community Edition (core, since v2.0.3, 2026-02-26; was AGPL-3.0 before
+    that — some optional plugins remain AGPL-3.0) is governed by this
+    agreement, which incorporates Apache-2.0 by reference but states its
+    own supplementary terms prevail wherever they conflict with
+    Apache-2.0. Those supplementary terms (clause 5.4) explicitly forbid
+    using the Community Edition to "provide to the public any form of
+    no-code, zero-code, low-code, AI platform SaaS/PaaS products", and
+    (clause 5.2/5.3) forbid removing NocoBase branding/attribution from
+    the UI or code without a paid Commercial license. See
+    https://github.com/nocobase/nocobase/blob/main/LICENSE.txt (operative
+    agreement) vs. LICENSE-APACHE.txt (plain Apache-2.0 text, incorporated
+    by reference only).
+  docker_image: nocobase/nocobase
+  compose_file_url: null
+  compose_file_notes: >
+    No official downloadable/repo-committed compose file exists. NocoBase's
+    own Docker install docs
+    (docs.nocobase.com/welcome/getting-started/installation/docker,
+    verified against github.com/nocobase/nocobase
+    docs/docs/en/get-started/installation/docker.mdx on main) instruct
+    users to hand-create an empty docker-compose.yml and paste in one of
+    several inline YAML snippets, chosen by version tab (latest/beta/alpha,
+    or a pinned tag) crossed with database tab (PostgreSQL/MySQL/MariaDB)
+    — there is no single file the docs link to or that the project
+    publishes as a release asset. The docs' recommended default is the
+    "Latest version" + "PostgreSQL" tab, using image
+    nocobase/nocobase:latest-full (a rolling tag, not version-pinned; docs
+    note production users should pin an explicit tag like 1.7.14-full
+    instead) paired with postgres:16. Separately, the repo does contain a
+    committed docker/app-postgres/docker-compose.yml (plus app-mysql,
+    app-mariadb, app-sqlite variants), but it is a stale, no-longer-linked
+    example (pins postgres:10, differs from the current docs snippet) and
+    is not what the current install docs point users to, so it is not
+    treated as the official file here. The repo-root docker-compose.yml is
+    unrelated — it's a devcontainer/monorepo dev setup (verdaccio local
+    registry, mounts source, node:16-stretch-slim), not an install
+    artifact for end users.
+
+version_health:
+  latest_version: "v2.1.36 (tag, 2026-08-05)"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active — the GitHub releases page shows multiple stable
+    patch releases per week (v2.1.33 on 2026-07-31, v2.1.34 on 2026-08-01,
+    v2.1.35 and v2.1.36 both on 2026-08-05, today's date) alongside a
+    parallel v3.0.0-alpha prerelease track. Docker Hub tags confirm the
+    same cadence (2.1.36 and 2.1.36-full images pushed 2026-08-05). No
+    EOL/deprecation signals; this is a well-funded, fast-moving project.
+
+catalogue_fit:
+  categories: [no-code, internal-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    NocoBase is a no-code/low-code *application builder* — customers model
+    data collections, workflows, and UIs to stand up internal tools/admin
+    panels (Airtable/Retool-style), not a fixed-purpose app. n8n is the
+    closest thing in the current catalogue but is scoped to workflow/API
+    automation, not database-backed app/UI building, so there's no real
+    functional overlap — a customer could reasonably want both. No other
+    recipe in the 24-app catalogue covers this space.
+  usefulness: high
+  usefulness_rationale: >
+    No-code internal-tool builders (Airtable, Retool, Budibase) are a
+    popular self-hosting category with no representation in the catalogue
+    today; NocoBase is one of the most active open-source options in that
+    space and would fill a real gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, DB_PASSWORD, INIT_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      The app's own first-boot admin login is bootstrapped from
+      INIT_ROOT_PASSWORD (documented default: admin@nocobase.com /
+      admin123, username nocobase), which NocoBase's install routine reads
+      and hashes itself internally — it needs the **plaintext** password,
+      not a pre-computed hash. `generated_from` only ever projects a hash
+      (argon2/bcrypt) of the customer's root password, so there is no
+      channel to seed this field with a value the customer could actually
+      use to log into the built app afterward. Unlike Adminer-style tools,
+      NocoBase's core product *is* the logged-in app-builder session, so
+      gating the whole thing behind Traefik `basic_auth` (leaving
+      INIT_ROOT_PASSWORD at a fixed/random server-side value) would still
+      leave the customer locked out of the NocoBase UI itself once past
+      the gate — this isn't the "fixed default credential behind a proxy
+      gate is fine" case, because there's no way for the customer to ever
+      learn or set that inner credential.
+    - >
+      Separately from the platform-mechanism issue above, NocoBase's
+      Community Edition license (the custom "NocoBase License Agreement",
+      not plain Apache-2.0 — see upstream.license) clause 5.4 explicitly
+      prohibits using the Software to "provide to the public any form of
+      no-code, zero-code, low-code, AI platform SaaS/PaaS products". An
+      af-recipe hosting NocoBase for IONOS customers to build no-code apps
+      on is arguably exactly this: a productized no-code/low-code
+      SaaS/PaaS offering built on the original/modified Software. This is
+      a legal/business blocker independent of the INIT_ROOT_PASSWORD
+      issue — even if a plaintext-credential projection channel existed
+      tomorrow, this licensing restriction would still need to be cleared
+      (e.g. via a paid Commercial license, which itself still forbids the
+      SaaS/PaaS use per its own clause) before this app could ship as a
+      recipe.
+    - >
+      Clause 5.2/5.3 of the same agreement also forbids removing or
+      changing NocoBase's branding/name/version/license info from the UI
+      or code without a paid Commercial license, constraining how any
+      eventual recipe could present/white-label the app.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  NocoBase is strong on technical/catalogue merits — active development,
+  official Docker image, single reverse-proxy-friendly HTTP port, and no
+  functional overlap with anything currently in the catalogue. However it
+  has two independent, unrelated blockers. (1) Platform mechanism: its
+  first-boot admin account requires a plaintext INIT_ROOT_PASSWORD that
+  only NocoBase's own install step can hash, and `generated_from` only
+  ever supplies a hash — not fixable by wrapping the app in Traefik
+  `basic_auth` the way Adminer-style tools are, since the customer still
+  needs a working NocoBase login behind that gate. (2) Licensing: the
+  Community Edition is governed by a custom "NocoBase License Agreement"
+  (incorporating but overriding Apache-2.0) whose clause 5.4 bars using it
+  to offer no-code/low-code SaaS/PaaS products to the public — which an
+  af-recipe hosting it for IONOS customers plausibly is. Either blocker
+  alone would prevent shipping this recipe today; both would need to be
+  resolved (a plaintext-secret projection channel or post-boot
+  password-set API for #1, and legal clearance or a Commercial license
+  for #2) before revisiting.

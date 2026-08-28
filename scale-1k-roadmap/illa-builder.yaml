@@ -1,0 +1,105 @@
+slug: illa-builder
+name: ILLA Builder
+source_description: "Open-source low-code platform for building internal tools and dashboards"
+
+upstream:
+  url: https://illacloud.com
+  repo_url: https://github.com/illacloud/illa-builder
+  license: Apache-2.0
+  docker_image: illasoft/illa-builder
+  compose_file_url: https://raw.githubusercontent.com/illacloud/deploy-illa-manually/main/docker-compose/docker-compose.yaml
+  compose_file_notes: >
+    Official, from illacloud's own separate deployment repo
+    (github.com/illacloud/deploy-illa-manually), which the illa-builder
+    README's self-hosted section points to. Only one variant is offered
+    for docker-compose (single all-in-one illasoft/illa-builder container,
+    port 2022 mapped to host 80, two named volumes for database and
+    drive) — no GPU/CPU or sqlite/postgres split. This is a rolling
+    reference: the URL points at the `main` branch (no release tags exist
+    in this repo) and the compose file itself pins the image to the
+    `:latest` tag, not a specific version, so both the file content and
+    the image it resolves to can change without the URL changing. The
+    repo's own README explicitly recommends the `illa-cli` auto-deploy
+    tool over this manual compose file as the primary path, but the
+    compose file itself is still an official, project-maintained artifact.
+
+version_health:
+  latest_version: "4.8.5"
+  latest_release_date: "2024-08-05"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Zero tagged releases in the exactly two years between 4.8.5
+    (2024-08-05) and today (2026-08-05). Commit activity also thinned
+    sharply after that: the last substantive PR merge on the `beta`
+    branch was around Feb 2025, followed only by docs/typo fixes through
+    May 2025, and nothing visible since. Separately, ILLA Cloud (the
+    commercial entity behind the project) announced on 2024-10-?? that it
+    would shut down its hosted cloud service on 2024-11-11 due to
+    unresolved financial issues, then reversed that decision days later
+    (2024-11-09 CEO post) claiming the funding problem was fixed and the
+    open-source project would keep being developed. In practice the
+    reversal did not translate into renewed release cadence: no release
+    followed it, the project's own docs site (docs.illacloud.com) no
+    longer resolves in DNS as of this analysis, and the hosted status
+    page shows extended outages through mid-2025. This reads as a company
+    in decline that nominally kept the OSS repo alive but has not shipped
+    meaningful work on it in well over a year — maintenance-only at best,
+    trending toward de facto abandonment.
+
+catalogue_fit:
+  categories: [low-code, developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover a low-code/no-code internal-tool
+    builder (dashboards, CRUD apps, admin panels backed by an arbitrary
+    external database). n8n is the closest recipe by category
+    (developer/automation tooling) but is a workflow-automation engine,
+    not a UI/app builder — the two are complementary, not redundant. A
+    healthy ILLA Builder would be a genuine, non-duplicative addition.
+  usefulness: medium
+  usefulness_rationale: >
+    The use case (self-hosted Retool alternative) has real customer
+    appeal for a business/developer audience, but ILLA Builder
+    specifically is a risky pick to build on right now given the
+    company's financial instability and stalled release cadence — a
+    customer standing up internal business tools on an abandoned platform
+    is a worse outcome than not offering it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      ILLA Builder ships a single all-in-one container
+      (illasoft/illa-builder, port 2022 internally / 80 by default) with a
+      hardcoded default admin login (root / password) and no environment
+      variable or first-boot config to set a different admin credential —
+      the only supported deploy-time input for the container is its two
+      data volumes. There is no channel to project a per-customer
+      credential into the app's own login, so it must be treated as
+      "no login of its own that customer can set" and gated with Traefik
+      basic_auth rather than generated_from.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  ILLA Builder is mechanically installable today: it's a single container,
+  single HTTP port, with a fixed default admin login that has no
+  deploy-time override, so the standard fix is to gate the whole app
+  behind a mandatory Traefik basic_auth wall (basic_auth_password
+  projected from the customer's root password) rather than trying to set
+  its internal root/password credential. The blocker isn't the platform
+  mechanism, though — it's the upstream project itself. Releases stopped
+  exactly two years ago (4.8.5, 2024-08-05), commit activity has been
+  essentially docs-only since early-to-mid 2025, the vendor's own docs
+  site no longer resolves, and the company that maintains it publicly
+  disclosed and then "resolved" a funding crisis in late 2024 without any
+  visible follow-through in shipped work since. Recommend not building
+  this recipe now; revisit only if upstream shows a real release
+  resurgence.

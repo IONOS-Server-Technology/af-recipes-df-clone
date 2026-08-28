@@ -1,0 +1,95 @@
+slug: papra
+name: Papra
+source_description: "Minimalistic open-source document management and archiving platform"
+
+upstream:
+  url: https://papra.app/
+  repo_url: https://github.com/papra-hq/papra
+  license: AGPL-3.0
+  docker_image: ghcr.io/papra-hq/papra:26.6.1-rootless
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere in the papra-hq/papra repo
+    (checked root, docker/, deploy/, contrib/ — all 404 on raw.githubusercontent.com)
+    and no release ships one as an asset. The only official compose
+    content is embedded as inline YAML text on the docs site at
+    https://docs.papra.app/self-hosting/using-docker-compose/ (a single
+    rootless-image, SQLite-backed service definition with a companion
+    docker-compose.yml generator tool at
+    https://docs.papra.app/docker-compose-generator/ for customizing
+    service name/port/auth secret/image) — there is no downloadable file
+    URL to point to, only a docs page that renders the snippet as text.
+
+version_health:
+  latest_version: "26.6.1"
+  latest_release_date: "2026-07-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Papra uses a calendar-flavored version scheme (26.5.0, 26.6.0, 26.6.1).
+    26.5.0 shipped 2026-06-07, 26.6.0 on 2026-07-02, and 26.6.1 on
+    2026-07-04 — three releases in about 8 weeks, roughly monthly minor
+    releases with same-week patch follow-ups. Latest release is ~1 month
+    before today (2026-08-05). Repo has 5.1k stars, 1,085+ commits, 132
+    open issues and 32 open PRs, no archive notice — a young but clearly
+    active project shipping regularly, not a maintenance-only or dormant
+    codebase.
+
+catalogue_fit:
+  categories: [productivity, documents]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx, paperless-ai]
+  differentiation: >
+    Directly competes with paperless-ngx (currently `enabled: false`,
+    pending its own UAT) on the core pitch — self-hosted document
+    archiving with full-text search and tagging. The differentiation is
+    architectural rather than feature-based: paperless-ngx is a
+    multi-service stack (Django app + Postgres + Redis + Gotenberg +
+    Tika, ~2GB RAM minimum) whereas Papra is a single container with an
+    embedded SQLite-backed data dir and no required external services —
+    a meaningfully lighter operational footprint for the same customer
+    need. It also adds AI-assisted auto-tagging and OCR/text-extraction
+    out of the box, which paperless-ngx only gets via the separate
+    paperless-ai companion recipe (also disabled, and itself dependent on
+    a running paperless-ngx instance). A customer choosing between the
+    two would pick Papra for simplicity/lower resource use and paperless-ngx
+    for its larger ecosystem/maturity (2.x release line, much larger
+    community) — genuine overlap, not a clear "why not both" case.
+  usefulness: medium
+  usefulness_rationale: >
+    Document archiving is a proven self-hosting use case (evidenced by
+    paperless-ngx + paperless-ai already existing in-catalogue), so demand
+    is real. Capped at medium rather than high because it's a second entry
+    covering ground paperless-ngx already covers — value here is offering
+    a lighter-weight alternative, not opening a new category, and
+    paperless-ngx's larger, more established ecosystem may already satisfy
+    most of this demand once it clears UAT.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - AUTH_SECRET
+  secrets_expressible_today:
+    - secret: AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Papra (official image `ghcr.io/papra-hq/papra:26.6.1-rootless`, AGPL-3.0)
+  is an actively developed, single-container document-archiving app with
+  no external service dependencies (embedded SQLite + local/S3 file
+  storage) and a standard first-user-becomes-admin registration flow —
+  the same self-serve-signup pattern already shipping in the n8n and
+  Immich recipes, needing no customer credential to be projected through
+  our compose mechanism. The only boot-time secret, `AUTH_SECRET`, is a
+  patternless random value the platform can generate server-side and the
+  customer never needs to read. It is mechanically installable today with
+  no blockers. The open question is prioritization, not mechanism: it
+  overlaps meaningfully with the already-in-catalogue (if currently
+  disabled) paperless-ngx/paperless-ai pairing, differentiated mainly by a
+  much lighter resource footprint. Recommend `build_now` on its own
+  technical merits, while flagging the overlap for a human to weigh
+  against paperless-ngx's UAT timeline and existing ecosystem maturity.

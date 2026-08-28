@@ -1,0 +1,103 @@
+slug: notifuse
+name: Notifuse
+source_description: Self-hosted email marketing and transactional email platform
+
+upstream:
+  url: https://www.notifuse.com/
+  repo_url: https://github.com/Notifuse/notifuse
+  license: AGPL-3.0
+  docker_image: notifuse/notifuse:v37.0
+  compose_file_url: https://github.com/Notifuse/notifuse/blob/main/compose.yaml
+  compose_file_notes: >
+    Official compose.yaml lives at the root of the Notifuse/notifuse repo
+    (raw:
+    https://raw.githubusercontent.com/Notifuse/notifuse/main/compose.yaml).
+    This is a rolling reference to the default `main` branch, not a
+    version-pinned tag or release asset — no versioned/release-asset
+    variant is published. docs.notifuse.com's self-hosting page confirms
+    this same repo file as the recommended install path (it has the
+    project clone the repo rather than linking a separate docs-hosted
+    copy). Only one variant is shipped: a two-service (API +
+    PostgreSQL 17-Alpine) stack; there is no separate dev/prod or
+    alternate-database variant.
+
+version_health:
+  latest_version: v37.0
+  latest_release_date: 2026-08-05
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Weekly-to-biweekly release cadence throughout 2026 (v32.0 on 2026-05-22
+    through v37.0 released ~1 day before this analysis on 2026-08-05, per
+    Docker Hub tag history). Actively maintained, no signs of slowdown.
+
+catalogue_fit:
+  categories: [email, marketing, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers email marketing/newsletter or transactional
+    email sending (n8n does workflow automation, not email campaigns). This
+    would be a genuinely new category: a self-hosted alternative to
+    Mailchimp/Resend/Brevo with campaign broadcasts, A/B testing, an MJML
+    visual editor, and a transactional email API/SMTP relay.
+  usefulness: high
+  usefulness_rationale: >
+    Email marketing/transactional email is a common SMB need with no
+    self-hosted option in the current 24-recipe catalogue; a working
+    Notifuse instance would be an attractive, differentiated addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ROOT_EMAIL
+    - PASETO_PRIVATE_KEY
+    - PASETO_PUBLIC_KEY
+    - DB_PASSWORD
+    - SMTP_HOST
+    - SMTP_USERNAME
+    - SMTP_PASSWORD
+  secrets_expressible_today:
+    - secret: PASETO_PRIVATE_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: PASETO_PUBLIC_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Notifuse has no password-based login: the admin/root account
+      authenticates via a passwordless "magic link" emailed to ROOT_EMAIL,
+      which requires a working outbound SMTP (or Amazon SES / Mailgun /
+      Postmark / SparkPost) connection to even complete first login — there
+      is no `generated_from: "<algo>:ROOT_PASSWORD"` login field to project
+      the customer's root password into.
+    - >
+      SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD (or an equivalent ESP API key)
+      are mandatory at first boot for the app to send any email at all —
+      its entire purpose. This is a third-party credential the customer
+      must supply themselves; there is no `/compose`-time channel for
+      arbitrary customer-supplied secrets today, and a Traefik
+      `basic_auth` gate does not help since the app's own SMTP
+      configuration, not just its web UI, needs this secret to function.
+    - >
+      Gating the app behind Traefik `basic_auth` would protect the web UI
+      but would not satisfy the app's internal requirement for real SMTP
+      credentials to send the magic-link email or any campaign/transactional
+      email — the blocker is functional, not just an auth-boundary gap.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Notifuse is an actively maintained (releases roughly every 1-2 weeks,
+  latest v37.0 as of 2026-08-05), AGPL-3.0 self-hosted email marketing and
+  transactional email platform with a single-container web UI and no
+  overlap with the current catalogue — a genuinely new, high-value category.
+  However it cannot be installed under today's recipe mechanism: its admin
+  login is a passwordless magic-link sent by email (no root-password login
+  field to project into), and its core function requires a real SMTP/ESP
+  credential the customer must supply, for which there is no customer-input
+  channel today. This needs a generic external-secret input mechanism (or a
+  first-run web setup wizard the customer completes themselves) beyond
+  IF-1420/IF-1312's root-password/basic-auth mechanisms before it can ship.

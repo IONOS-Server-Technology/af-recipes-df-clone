@@ -1,0 +1,84 @@
+slug: tinymediamanager
+name: tinyMediaManager
+source_description: "Cross-platform media manager for organizing movies and TV shows with metadata"
+
+upstream:
+  url: https://www.tinymediamanager.org/
+  repo_url: https://gitlab.com/tinyMediaManager/tinyMediaManager
+  license: "Source-available freemium (custom EULA) — code is open but compiled/packaged distribution is shareware; not an OSI-approved open-source license"
+  docker_image: tinymediamanager/tinymediamanager:5.3.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists at any URL. The project's own
+    docs page (tinymediamanager.org/docs/docker) and the official Docker
+    Hub image page (hub.docker.com/r/tinymediamanager/tinymediamanager,
+    the same tinymediamanager/tinymediamanager image referenced above)
+    both embed an identical "Sample compose file" as inline docs-page
+    text — a single-service config (ports 4000 web/noVNC + 5900 direct
+    VNC, /data + /media/movies + /media/tv_shows volumes, USER_ID/
+    GROUP_ID/PASSWORD env vars) — but there is no linked or downloadable
+    .yaml/.yml file, no docker/ or deploy/ directory in a repo shipping
+    one, and no version-pinned equivalent. Third-party images/compose
+    files exist (e.g. jlesage/docker-tinymediamanager, romancin/
+    tinymediamanager-docker) but are not official and were not adopted.
+
+version_health:
+  latest_version: "5.3.0"
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.3.0 shipped 2026-07-17, ~19 days before today (2026-08-05). The 5.2.x
+    series before it released roughly monthly for almost a year (5.2.0 on
+    2025-08-30 through 5.2.12 on 2026-05-12, then 5.3.0). That's a steady,
+    ongoing cadence with no gaps — clearly active development, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [media, home-media-server]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    tinyMediaManager scrapes and writes NFO/artwork metadata for local movie
+    and TV libraries (for Kodi/Plex/Jellyfin consumption) — a distinct job
+    from anything in the current 24 recipes. Immich is the closest
+    conceptual neighbor (self-hosted media) but is a photo/video library
+    with AI search, not a metadata curation tool for an existing movie/TV
+    collection; there's no functional overlap.
+  usefulness: low
+  usefulness_rationale: >
+    The app is only useful to someone who already has a substantial local
+    movie/TV file collection to organize — it does nothing on a fresh cloud
+    VM without that pre-existing library mounted in, which is a poor match
+    for the typical Application Factory customer profile (spin up an app on
+    a fresh server, not attach an existing NAS media dump). The official
+    image also ships the whole desktop GUI as a noVNC remote-desktop stream
+    rather than a native web UI, a heavier and less polished UX than the
+    rest of the catalogue. On top of that, full scraper functionality is
+    gated behind a separate paid PRO subscription the customer would need
+    to buy and activate themselves inside the app — the free tier is
+    intentionally limited.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["noVNC access gate (app ships with no built-in login unless PASSWORD is set)"]
+  secrets_expressible_today:
+    - secret: "noVNC access gate (app ships with no built-in login unless PASSWORD is set)"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  tinyMediaManager is mechanically installable: it's a single-container app
+  exposing one HTTP/websocket port (4000, noVNC) that Traefik can front, and
+  since the official image has no authentication by default (the PASSWORD
+  env var is optional), a Traefik basic_auth gate using the root-password
+  hash covers the only secret it needs at first boot. The project is
+  actively maintained (monthly releases, latest 2026-07-17). It's a
+  metadata-organizing companion tool for an already-existing local movie/TV
+  library, its UI is a full desktop GUI streamed over noVNC rather than a
+  native web app, and full scraper functionality requires a
+  separately-purchased PRO license the customer manages outside our
+  platform — but none of that blocks installation. Recommend build_now.

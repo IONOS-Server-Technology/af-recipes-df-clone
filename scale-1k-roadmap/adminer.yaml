@@ -1,0 +1,79 @@
+slug: adminer
+name: Adminer
+source_description: "Full-featured database management interface supporting 11+ database systems"
+
+upstream:
+  url: https://www.adminer.org/
+  repo_url: https://github.com/vrana/adminer
+  license: Apache-2.0 / GPL-2.0 (dual-licensed)
+  docker_image: adminer
+  compose_file_url: null
+  compose_file_notes: >
+    No official compose file exists. The vrana/adminer repo ships no
+    docker-compose file anywhere in its tree, and the project's own site
+    (adminer.org) explicitly lists the Docker image under "User
+    contributed packages" rather than as an official artifact, linking out
+    to hub.docker.com/_/adminer. That Docker Hub page is a Docker Official
+    Image maintained by a separate community maintainer (Tim Düsterhus /
+    TimWolla, per docker-library/docs), not by the Adminer project itself,
+    and its README (github.com/docker-library/docs/tree/master/adminer)
+    does embed an example compose.yaml, but adopting it here would be
+    treating a community-maintained artifact as official, which this field
+    is meant to avoid.
+
+version_health:
+  latest_version: "5.5.1"
+  latest_release_date: "2024-07-21"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    Four releases in July 2024 (5.4.4 -> 5.5.1) closing security advisories,
+    then no tagged release in the ~24-25 months since (as of 2026-08-05).
+    Repo is not archived and issues/PRs are still being triaged, but there
+    has been zero release activity for over two years, well past "slowing"
+    into dormant. Docker Hub also ships a maintained 4.x track (4.17.1)
+    alongside 5.x for anyone pinned to the older line.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes gives customers a generic database
+    browser/admin UI. Recipes like n8n, paperless-ngx, gitea, immich, etc.
+    run their own Postgres/MySQL internally but don't expose a UI to browse
+    it. Adminer would let a customer manage any DB they run themselves
+    (their own MySQL/Postgres, or the internal DB of another recipe) via a
+    single lightweight PHP app.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for developers/power users who self-host a database and want a
+    phpMyAdmin-style UI without provisioning one manually, but it's a
+    niche/technical tool rather than a broad-appeal app, and it needs a
+    reachable database to be useful at all (BYO or a separate recipe).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Adminer is a single-container, single-HTTP-port (8080) PHP app with no
+  built-in admin login of its own — its "login" screen is a per-connection
+  DB credential form the end user fills in interactively at each visit, not
+  a secret af-api needs to provision. That makes it directly installable
+  today: front it with the domain param plus a Traefik basic_auth:true
+  gate (same pattern as n8n/WUD), with the basic-auth password itself
+  projected from the customer's root password via `generated_from`, to
+  keep the unauthenticated login page from being open to the internet.
+  Release cadence has gone dormant (no tag since mid-2024, ~2 years now) but
+  the project is still active/triaged, not EOL. Recommend building the
+  recipe, with basic_auth as a required (not optional) gate given the app
+  has zero auth of its own.
+# ci-test: happy path (should pass, no schema violation)

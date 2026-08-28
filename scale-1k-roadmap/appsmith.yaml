@@ -1,0 +1,91 @@
+slug: appsmith
+name: Appsmith
+source_description: Open-source low-code platform for building internal tools and applications
+
+upstream:
+  url: https://www.appsmith.com/
+  repo_url: https://github.com/appsmithorg/appsmith
+  license: Apache-2.0
+  docker_image: appsmith/appsmith-ce:v2.2
+  compose_file_url: https://docs.appsmith.com/getting-started/setup/installation-guides/docker
+  compose_file_notes: >
+    No official downloadable/linkable docker-compose.yml exists. The repo's
+    own deploy/docker/docker-compose.yml (github.com/appsmithorg/appsmith,
+    release branch) is explicitly commented "Use for running an Appsmith,
+    during development" and is not the production-install artifact. The
+    only official production compose definition is embedded as an inline
+    YAML snippet directly in the Docker install docs page (linked above),
+    which uses a rolling `<version>` placeholder the installer fills in
+    (not pinned by the doc itself) and defaults to the commercial
+    appsmith-ee image, with the docs separately noting appsmith-ce as the
+    swap-in for the open-source edition.
+
+version_health:
+  latest_version: v2.2
+  latest_release_date: 2026-07-09
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.2 was tagged ~2026-07-07/09 (Docker Hub shows the v2.2 image pushed
+    about 28 days ago as of 2026-08-05, with the rolling `release` tag
+    rebuilt as recently as 9 hours ago). Prior tags show a consistent,
+    ongoing roughly-monthly semver cadence right up to the present: v2.1
+    (~2026-05-28), v2.0 (~2026-05), v1.99 (~2026-04), v1.98/v1.97
+    (~2026-03), v1.96 (~2026-02), v1.95 (~2026-01), v1.94 (~2025-12). Repo
+    has 40.6k stars, no archive notice, and active issue/commit traffic.
+    Both semver tagging and engineering are active — no cadence concern.
+
+catalogue_fit:
+  categories: [low-code, developer-tools, internal-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover low-code/no-code app building or
+    internal-admin-panel construction. n8n is the closest existing recipe
+    (also "low-code", also needs an admin identity at setup) but n8n
+    automates workflows between existing services, while Appsmith builds
+    custom CRUD UIs/dashboards over 25+ databases and APIs — a distinct use
+    case a customer would reach for separately.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted internal-tool builders, but the
+    all-in-one container's ~8GB RAM footprint (bundles Mongo, Redis and
+    Postgres inside the app image) is heavy relative to most of the
+    catalogue and raises the effective hosting-plan floor for this recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik basic-auth gate credential
+  secrets_expressible_today:
+    - secret: traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Appsmith is mechanically installable today as a single-container
+  docker-compose recipe behind Traefik basic_auth: internal Mongo/Redis/
+  Postgres passwords are all server-generated with no customer input
+  needed. Appsmith has no env var to preset an admin account at boot
+  (email + password are always created interactively through the app's
+  own signup form), but that is not a blocker — the normal first-boot
+  flow (visiting the base URL redirects to /setup/welcome, which calls
+  the one-shot /api/v1/users/super endpoint) automatically grants
+  Instance Administrator rights to whoever completes that wizard first,
+  so no admin-email input channel is actually needed.
+  appsmithorg/appsmith#36699 describes a bug only reachable by bypassing
+  the wizard via a direct /user/signup call, not the normal flow. The
+  real risk is the open-signup race itself — an anonymous visitor could
+  reach /setup/welcome before the customer and claim admin rights
+  (related to the super-user creation issue tracked as
+  GHSA-9wcp-79g5-5c3c, fixed in 1.99+) — and gating the app behind
+  Traefik basic_auth closes that race entirely. It fills a genuine gap
+  versus the current 24-recipe catalogue, and upstream is actively
+  maintained with an ongoing ~monthly release cadence as of 2026-08-05.
+  The main caveat is operational: the all-in-one image's ~8GB RAM
+  footprint raises the effective hosting-plan floor versus most of the
+  catalogue. Recommend build_now, with that RAM footprint called out in
+  the recipe README.

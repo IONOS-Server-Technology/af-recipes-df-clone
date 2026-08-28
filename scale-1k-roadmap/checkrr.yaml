@@ -1,0 +1,102 @@
+slug: checkrr
+name: Checkrr
+source_description: "Media library scanner that auto-replaces corrupt files via Sonarr and Radarr"
+
+upstream:
+  url: https://github.com/aetaric/checkrr
+  repo_url: https://github.com/aetaric/checkrr
+  license: MIT
+  docker_image: aetaric/checkrr
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the repo
+    (root, docker/, deploy/, contrib/ all 404). The README's "Docker Compose
+    Configuration" section only embeds a compose snippet inline as
+    installation documentation — it is not a file the project publishes or
+    versions, so there is nothing to link as an official compose file.
+
+version_health:
+  latest_version: "3.6.1"
+  latest_release_date: "2026-02-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.6.1 shipped 2026-02-18, about 5.5 months before today (2026-08-05) —
+    no tagged release since. Release cadence between tags is uneven: 3.5.4
+    (2025-03-20) to 3.6.0 (2026-02-04) was a ~10.5-month gap, then 3.6.0 and
+    3.6.1 landed two weeks apart. Despite the tag gap, upstream commit
+    activity is current — the default branch has commits as recently as
+    2026-07-11 (dependency bumps plus a real bugfix), and the repo is not
+    archived. Single-maintainer project (aetaric) but actively triaged;
+    treating the tag cadence alone as dormant would be misleading given the
+    live commit history.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media-library
+    integrity checking. Checkrr scans a media directory (ffprobe/magic
+    number/mimetype/hash checks against a local bbolt file) and, when it
+    finds a corrupt file, can ask Sonarr/Radarr/Lidarr to delete and
+    re-request it — but that "replace" behavior (the entire feature
+    Hostinger's description highlights) is entirely dependent on
+    Sonarr/Radarr, neither of which exists as an AF recipe today. Same
+    structural gap already flagged for [[bazarr]]: it's a companion tool to
+    the *arr stack, not a standalone app.
+  usefulness: low
+  usefulness_rationale: >
+    Without Sonarr/Radarr present, checkrr degrades to a read-only "scan a
+    folder and log which files are corrupt" utility — mechanically fine but
+    a thin value proposition on its own, and there is no existing AF media
+    volume/library for it to point at in the first place (no Plex/Jellyfin/
+    Sonarr/Radarr recipe populates one). Lower priority than Bazarr: Bazarr
+    at least has a companion recipe precedent in this same gap-analysis
+    pass, and Checkrr's headline feature is unusable without infrastructure
+    AF doesn't offer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Checkrr's web UI (port 8585) is a status/progress dashboard only — it
+      has no login of its own, so it needs a Traefik basic_auth gate like
+      Adminer/WUD. That part is installable today.
+    - >
+      Unlike Bazarr, checkrr has no post-boot UI for entering Sonarr/Radarr
+      API keys — they are static fields in checkrr.yaml, which must be
+      fully written before container start. There is no channel for a
+      customer to supply an external arr API key at first boot, so the
+      "auto-replace via Sonarr/Radarr" feature named in Hostinger's own
+      description cannot be wired up under the current mechanism even in
+      principle (this is on top of Sonarr/Radarr not existing as AF
+      recipes to point at).
+    - >
+      Checkrr also expects the operator to pre-create empty checkrr.db and
+      checkrr.yaml files as bind-mounted files (not directories) before
+      first start, and to mount an existing media library into the
+      container — no such shared media volume exists elsewhere in the
+      catalogue for it to reuse.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Checkrr (aetaric/checkrr, MIT, single official image, port 8585) is
+  mechanically simple to containerize — one service, no database beyond a
+  local bbolt file, reverse-proxy compatible — and the basic_auth gate for
+  its UI is expressible today, so installable_today is true in the narrow
+  mechanical sense. But its only differentiating feature, auto-replacing
+  corrupt media via Sonarr/Radarr, has no path to working: those apps don't
+  exist in the catalogue, and even if they did, checkrr has no channel to
+  receive their API keys (config-file-only, no setup UI, unlike Bazarr).
+  Shipping it today would hand customers a corrupt-file logger with no
+  library to scan and no arr stack to talk to. Recommend not_recommended
+  until/unless Sonarr and Radarr are added as recipes first, at which point
+  this should be revisited alongside Bazarr as part of the same "media
+  automation stack" decision.

@@ -1,0 +1,89 @@
+slug: speaches
+name: Speaches
+source_description: "OpenAI-compatible self-hosted speech-to-text and text-to-speech server"
+
+upstream:
+  url: https://speaches.ai/
+  repo_url: https://github.com/speaches-ai/speaches
+  license: MIT
+  docker_image: ghcr.io/speaches-ai/speaches
+  compose_file_url: https://raw.githubusercontent.com/speaches-ai/speaches/master/compose.cpu.yaml
+  compose_file_notes: >
+    Official — the project's own docs site (speaches.ai/installation)
+    instructs users to curl-download compose.yaml plus a variant overlay
+    (compose.cpu.yaml or compose.cuda.yaml) from the repo and run
+    `docker compose up`. This is a rolling reference to the default
+    (master) branch, not version-pinned — the URL has no tag/ref in the
+    path, so it always serves whatever is currently on master. Picked the
+    CPU variant (compose.cpu.yaml) over compose.cuda.yaml/compose.cuda-cdi.yaml
+    since the recipe's own version_health notes call for pinning to a CPU
+    image tag, not a GPU one. Note compose.cpu.yaml uses `extends:` to pull
+    in the base `speaches` service definition from compose.yaml, so both
+    files are required together (as the docs instruct); compose.yaml alone
+    only builds from the local Dockerfile and isn't a deployable standalone
+    file.
+
+version_health:
+  latest_version: "v0.9.0-rc.3"
+  latest_release_date: "2025-12-27"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Repo is not archived and commit activity continues well past the last
+    tag (commits as recent as 2026-04-18), so the project is genuinely
+    active, not dormant/EOL. But the latest *tagged* release is still a
+    release candidate (v0.9.0-rc.3, published 2025-12-27) — over 7 months
+    ago as of 2026-08-05 — and no final v0.9.0 has shipped despite ongoing
+    development. That gap between active commits and stalled tagging is
+    worth flagging: consuming the moving "latest-cpu"/"latest-cuda" image
+    tags (what upstream's own compose files use) would track unreleased
+    work; a recipe should instead pin to a specific published tag like
+    "0.9.0-rc.3-cpu" from the GHCR package, accepting that it's a
+    pre-release build.
+
+catalogue_fit:
+  categories: [ai, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover speech-to-text/text-to-speech.
+    Ollama and Open WebUI cover local LLM inference/chat, but neither
+    transcribes audio or generates speech. Speaches is an OpenAI-compatible
+    STT/TTS server (faster-whisper for STT, Piper/Kokoro for TTS) that
+    would pair naturally with things like Home Assistant voice pipelines or
+    n8n voice-processing workflows — a genuinely new capability, not a
+    reskin of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct capability (self-hosted Whisper/TTS API) with clear use
+    cases (voice assistants, transcription pipelines), but it's a
+    developer-facing API server rather than a broad consumer app — value
+    depends on the customer already having something (Home Assistant, a
+    custom app, n8n) that calls its OpenAI-compatible endpoints.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Speaches is a single-container, single-HTTP-port (8000) app serving both
+  its OpenAI-compatible API and a bundled Gradio web UI. It supports an
+  optional API_KEY env var for bearer-token auth on the API routes, but
+  upstream explicitly exempts the Gradio UI (and /health, /docs,
+  /openapi.json) from that check — so the web UI itself has no built-in
+  login and would sit open on the internet without a gate. That maps
+  cleanly onto the existing Traefik basic_auth pattern (n8n/WUD/Adminer):
+  gate the whole app behind basic_auth projected from the customer's root
+  password, same as those recipes, making it mechanically installable
+  today with no blocking issues. Separately, version health is worth
+  noting: the project is actively committed to but has not cut a final
+  stable release in over 7 months, sitting on a release-candidate tag — a
+  recipe should pin to the RC tag with awareness that upstream may still
+  be stabilizing toward 0.9.0 final.

@@ -1,0 +1,101 @@
+slug: ersatztv
+name: ErsatzTV
+source_description: "Self-hosted IPTV server that builds live channels from your media library"
+
+upstream:
+  url: https://ersatztv.org/
+  repo_url: https://github.com/ErsatzTV/legacy
+  license: Zlib
+  docker_image: ghcr.io/ersatztv/legacy
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone/downloadable official compose file exists. The official
+    docs page at ersatztv.org/docs/installation/docker only embeds a
+    docker-compose.yml example inline in a code block, using
+    `image: ghcr.io/ersatztv/legacy` with no tag — a rolling reference to
+    whatever `latest` resolves to, not pinned to a release — and there is
+    no downloadable file behind it (confirmed no GitHub release asset and
+    no raw repo link for an end-user file). The repo also contains
+    github.com/ErsatzTV/legacy/blob/main/docker/docker-compose.yml, which
+    was considered and rejected for the same reason: it `build:`s the
+    image from source (context: .., dockerfile: docker/Dockerfile) rather
+    than pulling the published ghcr.io image, so it's a developer/CI build
+    file, not the documented end-user install path.
+
+version_health:
+  latest_version: "v26.7.1"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v26.7.1 was published 5 days before today (2026-08-05). Prior releases
+    (v26.7.0 on 2026-07-27, v26.6.0 on 2026-07-09, v26.5.1/v26.5.0 in early
+    May, v26.4.0 on 2026-04-19) show a roughly monthly cadence, reading as
+    active. Note the project ownership context: the ErsatzTV GitHub org
+    split the original C# app into a repo now named `legacy` and started a
+    from-scratch Rust rewrite in a separate `next` repo. `next`'s own
+    README states it is "VERY EARLY STAGE ... experimental, and not yet
+    ready for production use" and explicitly scopes out library/metadata
+    management and scheduling — so `legacy` (the app this analysis covers)
+    remains the only usable version and is still the one receiving regular
+    releases; this is not a maintenance-only fork of an abandoned mainline.
+    Docker Hub's `jasongdove/ersatztv` image, which older guides reference,
+    stopped updating after `v26.3.0`/2026-02-24 — the project has since
+    consolidated publishing onto `ghcr.io/ersatztv/legacy`, confirmed
+    current via the GHCR package page (v26.7.1 tagged `latest`, published
+    5 days ago). Use the GHCR image, not the stale Docker Hub one, for any
+    future recipe.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Immich (the only existing `media`-category recipe) is a photo/video
+    backup-and-organize tool. ErsatzTV is a different product entirely: it
+    takes a customer's existing media library (movies, shows, music
+    videos) and schedules it into always-on, linear "TV channels" with an
+    EPG, playable as IPTV/M3U/HDHomeRun-emulated tuners in any client that
+    understands live TV (Plex, Jellyfin, Emby, or a standalone player).
+    No current recipe touches "make my media library behave like
+    broadcast TV," so this would be a genuinely new sub-niche within
+    the media category rather than a duplicate of Immich or of a
+    hypothetical Plex/Jellyfin/Emby recipe (none of which exist yet
+    either).
+  usefulness: medium
+  usefulness_rationale: >
+    It is a well-known, actively maintained name within the self-hosted
+    media/IPTV niche and is genuinely differentiated from anything in the
+    current catalogue. It's rated medium rather than high because it is a
+    narrower, more enthusiast-oriented use case than general media serving
+    or backup (it assumes the customer already runs a media library and
+    wants a "TV channel" presentation layer on top of it, plus ffmpeg-based
+    transcoding tuning), so the addressable audience is smaller than for a
+    general-purpose media server.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ErsatzTV is a single-container, HTTP-only web app (port 8409, confirmed
+  as the only network port the official docs mention — HDHomeRun/M3U/EPG
+  endpoints are all served over that same port, no extra raw ports or
+  UDP/SSDP needed) so it works cleanly behind Traefik on
+  ersatztv.<base_domain>. Upstream (github.com/ErsatzTV/legacy) is actively
+  released, most recently 5 days before today, and not a dead fork of the
+  in-progress Rust rewrite. It ships with no built-in login of its own —
+  the web UI and its config/scheduling surface are wide open on first
+  boot — so it needs, and is fully covered by, a Traefik `basic_auth` gate
+  using the root-password projection, the same pattern already used for
+  WUD/OpenClaw/Open WebUI. That makes it installable under the current
+  recipe mechanism with no blockers. It fills a real gap versus the
+  existing single `media` recipe (Immich, a photo backup tool) but targets
+  a narrower audience, hence a medium rather than high usefulness rating.

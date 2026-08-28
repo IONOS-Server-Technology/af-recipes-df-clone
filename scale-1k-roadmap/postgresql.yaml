@@ -1,0 +1,116 @@
+slug: postgresql
+name: PostgreSQL
+source_description: "PostgreSQL is a powerful, open-source object-relational database system"
+
+upstream:
+  url: https://www.postgresql.org/
+  repo_url: https://github.com/postgres/postgres
+  license: PostgreSQL License (permissive, OSI-approved, MIT/BSD-style)
+  docker_image: postgres
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml exists in either
+    docker-library/postgres (the Dockerfile source repo) or
+    docker-library/docs (the source of the official Docker Hub image
+    page) — both checked directly, neither has a compose file at the
+    repo root or under any docker/deploy/contrib-style directory. The
+    only official artifact is a `compose.yaml` code snippet embedded in
+    docker-library/docs/postgres/README.md (rendered as the "How to use
+    this image" section on hub.docker.com/_/postgres), showing a
+    postgres + adminer pairing with POSTGRES_PASSWORD set inline. It's a
+    rolling reference to that repo's default branch (no version pin),
+    but since it's docs-embedded prose rather than a fetchable file, not
+    a real "official docker-compose file" per this issue's definition —
+    same situation as the Plone case recorded in apps-gaps/plone.yaml.
+
+version_health:
+  latest_version: "18.4 (current stable line); 17.10, 16.14, 15.18, 14.23 also maintained; 19 Beta 2 in testing"
+  latest_release_date: "2026-05-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    18.4 (and the parallel 17.10/16.14/15.18/14.23 point releases) shipped
+    2026-05-14, about 2.9 months before today (2026-08-05) — well inside
+    PostgreSQL's normal quarterly minor-release cadence. PostgreSQL 19 Beta
+    2 landed 2026-07-16, with GA expected around September/October 2026,
+    showing active major-version development on top of the maintenance
+    releases. This is the official PostgreSQL Global Development Group
+    project and the `postgres` Docker Hub image is the official,
+    actively-updated packaging (docker-library/postgres).
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea, guacamole, immich, n8n, paperless-ngx, runtipi]
+  differentiation: >
+    None of the listed recipes expose Postgres as a standalone,
+    customer-usable service — each runs its own Postgres (or, for Immich,
+    a Postgres-based fork with pgvecto.rs) internally, on the bridge
+    network only, purely as private storage for that one app. A
+    standalone PostgreSQL recipe would target a different use case: a
+    customer running their own external app (a custom script, a BI tool,
+    a self-hosted SaaS) that needs a Postgres backend to connect to from
+    outside the VM. That's a real, distinct need in principle, but it
+    requires publishing the database port to the internet, which is
+    exactly what the catalogue's own rules forbid (see `blocking_issues`).
+  usefulness: medium
+  usefulness_rationale: >
+    Would be useful to technical customers who want a managed Postgres
+    backend for something they run themselves, but it's a developer/
+    power-user tool with no UI of its own, and its one useful exposure
+    shape (a public 5432) is one our own recipe rules already reject on
+    security grounds. Same structural class as MySQL and MariaDB
+    (apps-gaps/mysql.yaml, apps-gaps/mariadb.yaml) — both raw-protocol
+    RDBMS engines with no application-layer presence to gate behind
+    Traefik — and harder to ship than Adminer (apps-gaps/adminer.yaml),
+    which at least has an HTTP UI to gate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today:
+    - secret: root_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The only useful shape for a standalone PostgreSQL recipe is a
+      publicly reachable Postgres-protocol port so an external customer
+      app can connect to it. Publishing host port 5432 is exactly what
+      RFC-002's `no-public-db-port` rule forbids
+      (rfc/002-recipe-rules.md:220-226) — 5432 is explicitly on the
+      forbidden-host-port list. There is no alternate exposure path
+      today: Traefik only routes HTTP, and Postgres speaks a raw binary
+      wire protocol, so it cannot be fronted the way our web-UI recipes
+      are (no `basic_auth`, no subdomain routing).
+    - >
+      Even setting the port rule aside, the superuser password is only
+      projectable via `POSTGRES_PASSWORD` (a plaintext env var, which
+      `generated_from` does not produce) — the official image has no
+      pre-hashed-password input at all (unlike MySQL/MariaDB's
+      `*_ROOT_PASSWORD_HASH` variants). So this credential is not even a
+      `blocked_on_platform`-shaped gap waiting on a new supported hash
+      algorithm; Postgres structurally requires the plaintext password at
+      container start, which `generated_from` can never supply. Moot
+      anyway given the public-port blocker above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  PostgreSQL is an actively maintained, healthy upstream project (18.4
+  released under 3 months before this analysis, 19 Beta already out), but
+  a standalone PostgreSQL recipe has no viable shape in the current
+  catalogue. Its only useful exposure — a public, customer-reachable 5432
+  — is explicitly forbidden by our own `no-public-db-port` rule, and it
+  has no web UI to gate behind Traefik/basic_auth the way our other
+  no-login apps do. None of the existing 24 recipes expose Postgres
+  externally either (they all run it as private internal storage), so
+  there's no literal duplication, but also no "internal-only" niche left
+  for a standalone recipe to fill. This is the same structural mismatch
+  documented for MySQL and MariaDB — a raw internet-facing DB port that
+  our security rules and Traefik-only routing model don't support — and
+  is if anything a harder blocker for the credential channel, since
+  Postgres has no pre-hashed-password env var at all. Recommend
+  not_recommended rather than blocked_on_platform, since no plausible
+  mechanism change fixes this without relaxing a deliberate security
+  rule.

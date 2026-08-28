@@ -1,0 +1,86 @@
+slug: opencloud
+name: OpenCloud
+source_description: Open-source file sync and collaboration with built-in identity management
+
+upstream:
+  url: https://opencloud.eu
+  repo_url: https://github.com/opencloud-eu/opencloud
+  license: Apache-2.0
+  docker_image: opencloudeu/opencloud-rolling
+  compose_file_url: https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/docker-compose.yml
+  compose_file_notes: >
+    Official project repo opencloud-eu/opencloud-compose (linked from the
+    OpenCloud docs at docs.opencloud.eu/docs/admin/getting-started/container/docker-compose/).
+    The base file is a rolling reference to the main branch (no version
+    tag in the path), so it tracks whatever the project currently ships
+    rather than a pinned release. The repo is modular: this base
+    docker-compose.yml must be combined with an overlay depending on
+    deployment target - e.g. external-proxy/opencloud.yml for the
+    "behind an existing reverse proxy" variant (matches this recipe's
+    external-proxy assumption in installability/summary), or traefik/
+    for the built-in Traefik+Let's Encrypt variant. Recorded the base
+    file here since the schema only allows one URL; the external-proxy
+    overlay is at the same rolling ref:
+    https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/external-proxy/opencloud.yml
+
+version_health:
+  latest_version: "7.4.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Rolling release with a new tag roughly every 2-4 weeks (7.2.0 -> 7.2.1
+    -> 7.3.0 -> 7.4.0 across June-August 2026); v7.4.0 shipped 2 days before
+    this analysis (today 2026-08-05). Note the upstream also publishes a
+    slower-cadence "production" track (e.g. 7.2.x patches) alongside the
+    rolling one - the compose repo defaults to the rolling image
+    (opencloudeu/opencloud-rolling), which a recipe should pin to a specific
+    tag rather than tracking rolling by branch/latest.
+
+catalogue_fit:
+  categories:
+    - productivity
+    - file-storage
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OpenCloud is a full Nextcloud/ownCloud-style file server: web-based
+    file management, sharing, versioning, and in-browser document
+    collaboration (Collabora/Euro Office WOPI backends), plus a built-in
+    identity provider (OIDC/LDAP-capable). Nothing in the current 24
+    recipes covers this - Syncthing (recipes/syncthing/) is P2P sync only,
+    no server-side sharing UI, no accounts/identity, no office
+    collaboration; Immich (recipes/immich/) is media-specific, not
+    general file storage. OpenCloud fills a distinct "self-hosted
+    Google-Drive-alternative" niche the catalogue currently lacks.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted file sync/sharing with office collaboration is a
+    high-demand, well-understood category (Nextcloud-class) that the
+    catalogue has no entry for today. OpenCloud is the actively developed
+    successor project from the ownCloud team and ships an official,
+    reverse-proxy-friendly single-container deployment path.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - INITIAL_ADMIN_PASSWORD
+  secrets_expressible_today:
+    - secret: INITIAL_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OpenCloud is a single reverse-proxy-compatible web app (opencloudeu/opencloud-rolling
+  image, port 9200 in external-proxy mode) whose only first-boot secret is
+  INITIAL_ADMIN_PASSWORD for its built-in admin account - a direct fit for
+  generated_from root-password projection, no LDAP/Keycloak/external IDP
+  required for the basic single-tenant deployment. It's actively developed
+  (releases every 2-4 weeks, latest 2 days old) and fills a real gap: the
+  catalogue has no Nextcloud/ownCloud-class file-sync-and-collaboration app
+  today. Recommend building a recipe now, using the official
+  opencloud-compose "external-proxy" overlay as the template and pinning to
+  a specific rolling tag (not :latest or the rolling floating tag).

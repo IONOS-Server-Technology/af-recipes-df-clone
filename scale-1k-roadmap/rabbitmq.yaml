@@ -1,0 +1,136 @@
+slug: rabbitmq
+name: RabbitMQ
+source_description: "Open-source message broker implementing AMQP for reliable asynchronous messaging"
+
+upstream:
+  url: https://www.rabbitmq.com
+  repo_url: https://github.com/rabbitmq/rabbitmq-server
+  license: MPL-2.0
+  docker_image: rabbitmq:4.3.4-management-alpine
+  compose_file_url: null
+  compose_file_notes: >
+    No official general-purpose docker-compose.yaml/.yml exists. The
+    project's own install docs (rabbitmq.com/docs/download) only give a
+    bare `docker run` command against the official Docker Hub image
+    (rabbitmq:4-management), with no compose file linked or embedded. The
+    Docker Hub official-image page (hub.docker.com/_/rabbitmq) is the
+    same: `docker run` only, no compose reference. The rabbitmq/rabbitmq-
+    server repo itself ships no docker-compose file at its root or under
+    a docker/deploy/contrib directory; the only compose files anywhere in
+    that repo (deps/rabbitmq_prometheus/docker/docker-compose-overview.yml
+    and a sibling docker-compose-qq.yml/docker-compose-dist-tls.yml) are
+    narrow internal test/demo harnesses for Prometheus metrics collection,
+    quorum-queue workload generation, and inter-node TLS stress testing —
+    not general-purpose deployment references, so not adopted here.
+
+version_health:
+  latest_version: "4.3.4"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Less than 2 weeks between 4.3.4 (2026-07-23) and today (2026-08-05).
+    The 4.3.x line has shipped roughly monthly since 4.3.0 (2026-04-23):
+    4.3.1 (2026-05-20), 4.3.2 (2026-06-15), 4.3.3 (2026-07-20), 4.3.4
+    (2026-07-23). The older 4.2.x line is still getting parallel patch
+    releases (4.2.9 on 2026-07-20), showing an active supported-branches
+    policy, not just a single moving HEAD. Repo is not archived, VMware/
+    Broadcom (via the Tanzu RabbitMQ team) and the open-source community
+    both actively maintain it, and the official Docker Hub image is
+    rebuilt within a day of each server release. No EOL or dormancy
+    signal of any kind — this is one of the most actively maintained
+    projects considered in this batch.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a message
+    broker/queueing system. RabbitMQ would be a pure infrastructure
+    building block for customers wiring up their own applications (or
+    n8n workflows already in this catalogue) with asynchronous
+    messaging, task queues, or pub/sub — a role distinct from every
+    existing recipe, which are all stand-alone consumer/productivity
+    apps or single-purpose tools.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, durable demand — RabbitMQ is one of the most widely deployed
+    message brokers and a natural pairing with self-hosted app stacks
+    (decoupling n8n workflows, backing custom microservices a customer
+    is developing). Capped at medium rather than high because, like
+    Qdrant/Chroma/Milvus in this same analysis batch, the primary
+    consumers are other applications and SDKs, not a human clicking
+    around a browser — the management UI is an operations dashboard, not
+    the product itself. The audience is developers standing up their own
+    infrastructure, narrower than a general-purpose destination app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [broker_admin_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      RabbitMQ's built-in `guest` account is restricted to loopback
+      connections by default for ALL protocols it serves, not just the
+      management HTTP UI — AMQP (5672), the management API, and every
+      other listener refuse `guest` logins from any non-loopback client.
+      Since customers necessarily connect from outside the container
+      (their own app publishing/consuming messages, or a browser hitting
+      the management UI through Traefik), the broker is completely
+      non-functional out of the box unless a real, remotely-usable
+      admin user/password is provisioned at first boot — this is not
+      optional the way a login screen usually is.
+    - >
+      The official image's supported mechanism for provisioning that
+      user, `RABBITMQ_DEFAULT_USER`/`RABBITMQ_DEFAULT_PASS`, only accepts
+      a plaintext password — RabbitMQ hashes it internally, but the env
+      var itself must be the plaintext value, never a pre-computed hash.
+      (A legacy `RABBITMQ_DEFAULT_PASS_HASH` variable existed pre-3.9 but
+      is deprecated and documented as no longer used.) `generated_from:
+      "<algo>:ROOT_PASSWORD"` only ever produces a hash string, so
+      feeding that into `RABBITMQ_DEFAULT_PASS` would set the broker's
+      real password to an opaque hash the customer never sees and can't
+      type — same plaintext-vs-hash mismatch documented for Qdrant's
+      API key and Ackee's login field. This is a genuine plaintext
+      requirement, not just a missing hash algorithm, which
+      apps-gaps/SCHEMA.md calls out as an actual structural blocker
+      rather than a "not a hard no" algorithm gap.
+    - >
+      Unlike every other app in this analysis batch that hit a
+      plaintext-login wall (Apache Hop, Apache Amoro, AstrBot, Agent
+      Zero), the standard workaround — leave the app's own login unset/
+      default and gate its single HTTP surface with Traefik
+      `basic_auth: true` — does not fully apply here. RabbitMQ's core
+      function is served over AMQP (5672), a raw binary protocol that
+      Traefik's HTTP-layer `basic_auth` cannot gate at all. Even if the
+      management UI on 15672 were fully covered by a `basic_auth` gate,
+      the AMQP port would still need its own working, non-default,
+      customer-known credential to be secure and functional — and that
+      credential has no expressible input channel today.
+    - >
+      Net effect: there is no way to give the customer a working,
+      secure broker without a plaintext admin credential neither
+      `generated_from` (hash-only) nor `traefik_basic_auth` (HTTP-only,
+      doesn't reach the AMQP port) can supply today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  RabbitMQ is an extremely active, MPL-2.0 open-source message broker with
+  an official, regularly-updated Docker image (`rabbitmq:4.3.4-management-
+  alpine`) and no EOL signal whatsoever — a solid upstream by every
+  version-health measure. It would also fill a genuine gap: nothing in the
+  current 24-recipe catalogue is a message broker/queue. It fails
+  installability today for a reason distinct from the usual plaintext-
+  login pattern seen elsewhere in this batch: RabbitMQ's `guest` account
+  is loopback-only across every protocol it serves, so a real remote admin
+  credential is mandatory (not optional) for the broker to work at all,
+  the official image only accepts that credential as plaintext (no hash
+  input), and — unlike single-HTTP-surface apps — the core AMQP protocol
+  on port 5672 has no HTTP-layer gate that `basic_auth` could substitute
+  in front of. This is a platform mechanism gap (a customer-supplied or
+  projected plaintext credential, not just a hash), so `blocked_on_platform`
+  rather than `not_recommended` — worth revisiting if the bootstrap
+  mechanism ever gains a plaintext-credential input channel.

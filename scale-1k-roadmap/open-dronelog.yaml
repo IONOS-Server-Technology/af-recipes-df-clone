@@ -1,0 +1,82 @@
+slug: open-dronelog
+name: Open Dronelog
+source_description: "Self-hosted drone flight log analyzer for DJI, Litchi, and Airdata logs"
+
+upstream:
+  url: https://opendronelog.com/
+  repo_url: https://github.com/arpanghosh8453/open-dronelog
+  license: AGPL-3.0
+  docker_image: ghcr.io/arpanghosh8453/open-dronelog
+  compose_file_url: https://raw.githubusercontent.com/arpanghosh8453/open-dronelog/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root of arpanghosh8453/open-dronelog. This
+    is a rolling reference to the `main` branch (no version-pinned release
+    asset exists for it), pulling `ghcr.io/arpanghosh8453/open-dronelog:latest`.
+    The repo ships two compose files at root: `docker-compose.yml` (uses the
+    pre-built GHCR image, matches this recipe's `docker_image`) and
+    `docker-compose-build.yml` (builds the image from source locally,
+    ~10-15 min Rust compile). Picked the pre-built-image variant since it's
+    the one the README recommends as the default/quick-start path and it's
+    the variant that matches our published-image installability analysis.
+
+version_health:
+  latest_version: "3.3.0"
+  latest_release_date: "2026-05-01"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Between late March and early May 2026 the project shipped near-daily
+    tagged releases (2.33.0 on 2026-03-27 up through 3.0.0's first Android
+    APK on 2026-03-29, then 3.1.x/3.2.x/3.3.0 through 2026-05-01). No new
+    version tag has landed since 3.3.0 (2026-05-01) as of this analysis on
+    2026-08-05 — a 3-month gap after a period of multiple releases per week.
+    Commit activity on `main` continues past that gap (most recently
+    2026-07-26, CI/Windows-toolchain fixes; 2026-07-25 doc update), so the
+    project is not dormant or abandoned, but the drop from very-high release
+    cadence to zero tagged releases in 3 months is a real slowdown worth
+    tracking, not a diplomatic rounding-up to "active".
+
+catalogue_fit:
+  categories: [productivity, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers drone flight-log analysis. Closest catalogue
+    neighbors (Immich for photo/video, Paperless-ngx/Paperless-AI for
+    documents) are general media/document managers with no telemetry, flight
+    map, or battery-health parsing for DJI/Litchi/Airdata log formats — this
+    is a genuinely new, narrow vertical for the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Real value for the specific niche of drone pilots/aerial-photography
+    teams who want private, self-hosted flight-log analysis instead of
+    uploading logs to DJI/Airdata's cloud, but that audience is a small
+    slice of self-hosting customers compared to general-purpose apps
+    already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DEFAULT_PROFILE_PASSWORD]
+  secrets_expressible_today:
+    - secret: DEFAULT_PROFILE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Open Dronelog is a single-container (ghcr.io/arpanghosh8453/open-dronelog),
+  AGPL-3.0, Nginx-fronted app that boots on one HTTP port (80) with an
+  embedded DuckDB store — no external database service needed, and it fits
+  cleanly behind Traefik like our other single-container recipes
+  (Vaultwarden, Uptime Kuma). Its `default` profile takes an optional
+  plaintext `DEFAULT_PROFILE_PASSWORD` env var at first boot, which the app
+  hashes internally with argon2id — exactly the Gitea/OneDev pattern of a
+  platform-generated random password satisfying first boot with no
+  customer-supplied input, so nothing here is structurally blocked. It is a
+  well-built but narrow vertical tool for drone pilots specifically, with no
+  overlap in the current 24-recipe catalogue, and its tagged-release cadence
+  has gone quiet for three months after a very active spring — worth
+  tracking, but not a blocking issue. With no blocking issues and everything
+  installable today, this is a build_now.

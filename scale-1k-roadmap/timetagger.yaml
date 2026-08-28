@@ -1,0 +1,94 @@
+slug: timetagger
+name: TimeTagger
+source_description: "Privacy-first personal time tracker with interactive timeline, tags, and reports"
+
+upstream:
+  url: https://timetagger.app/
+  repo_url: https://github.com/almarklein/timetagger
+  license: "GPL-3.0"
+  docker_image: ghcr.io/almarklein/timetagger
+  compose_file_url: https://raw.githubusercontent.com/almarklein/timetagger/main/deploy/docker-compose.yml
+  compose_file_notes: >
+    Rolling reference to the default branch (main), not version-pinned —
+    the repo has no tagged/release-asset compose file, so this is the
+    `blob/main` link. Found via the repo's own `/deploy` directory, which
+    the project's official self-host article
+    (timetagger.app/articles/selfhost2/) matches: that docs page shows an
+    inline example config using the root-level `/root/_timetagger` data
+    path, i.e. the same shape as `deploy/docker-compose.yml`. The repo
+    ships two variants: `docker-compose.yml` (runs as root) and
+    `docker-compose.nonroot.yml` (runs as uid 1000, data at
+    `/opt/_timetagger`). Picked the root variant since it's the one the
+    official docs article's own inline example matches; the nonroot file
+    is an official but secondary/hardening variant, not what's documented
+    as the default path.
+
+version_health:
+  latest_version: "v26.1.3"
+  latest_release_date: "2026-02-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v26.1.3 published 2026-02-02, about 6 months before today (2026-08-05).
+    The gap between v26.1.3 and the prior three releases (v26.1.1
+    2026-01-05, v26.1.2 2026-01-29) is short, but the 6-month silence since
+    is longer than the project's typical cadence of a release every 1-3
+    months going back through 2023-2025 (v25.12.1, v25.06.1, v24.12.2,
+    v24.12.1, v24.07.1, v24.4.1, v23.11.4, ...). Single maintainer
+    (almarklein) with no co-maintainers listed. Still classified `active`
+    rather than `slowing`: the repo shows no archive notice, the
+    almarklein/timetagger_cli companion project and the hosted
+    timetagger.app SaaS are both still operating, and a single ~6-month
+    gap after a burst of bugfix releases reads as a quiet period rather
+    than an abandonment signal. Worth re-checking on the next pass if the
+    gap extends further.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers personal time
+    tracking. The closest peers by category (productivity) are
+    Paperless-ngx/Paperless-AI (document management/OCR), Anytype-server
+    (headless knowledge-base sync backend with no web UI of its own), and
+    Syncthing (file sync) — none address logging hours against tags and
+    reviewing them on an interactive timeline. TimeTagger is a genuinely
+    distinct, lightweight single-container use case: a freelancer/
+    individual time log with tag-based reporting (PDF/CSV export), not a
+    team project-management tool. It adds real breadth rather than
+    competing with an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Time tracking is a common self-hosting want (freelancers, contractors,
+    consultants avoiding third-party SaaS time trackers for privacy
+    reasons — exactly the positioning in Hostinger's own description).
+    Usefulness is medium rather than high because the tool is explicitly
+    single/small-team-scoped (SQLite-backed, tag-based rather than
+    project/client/invoicing-oriented), a narrower audience than e.g.
+    Vaultwarden or Uptime Kuma, and the "privacy-first" pitch is somewhat
+    diluted by the maintainer's own hosted commercial SaaS at
+    timetagger.app existing as the more polished path for most users.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today:
+    - secret: admin_password
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  TimeTagger is a small, single-container, single-HTTP-port app with no
+  overlap in the current catalogue and a login mechanism that maps
+  cleanly onto the existing generated_from projection: its
+  TIMETAGGER_CREDENTIALS env var takes "username:bcrypt_hash" pairs (the
+  same shape as Vaultwarden's ADMIN_TOKEN pattern already shipping today),
+  so a fixed username plus generated_from: "bcrypt:ROOT_PASSWORD" covers
+  the app's own admin login without needing a Traefik basic_auth gate on
+  top. The only soft caveat is a maintainer-attention gap: the latest
+  release is 6 months old against a historically tighter cadence, worth a
+  recheck before or shortly after building. Recommend build_now.

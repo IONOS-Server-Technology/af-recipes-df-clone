@@ -1,0 +1,82 @@
+slug: odysseus
+name: Odysseus
+source_description: "Self-hosted AI workspace with chat, agents, deep research, and persistent memory"
+
+upstream:
+  url: https://odysseusai.dev/
+  repo_url: https://github.com/odysseus-dev/odysseus
+  license: AGPL-3.0-or-later
+  docker_image: null  # no official pre-built image published anywhere (checked Docker Hub: 404); the main
+                       # service is `build:` from the repo's own Dockerfile, run at whatever commit is checked out
+  compose_file_url: https://raw.githubusercontent.com/odysseus-dev/odysseus/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root alongside two GPU variants
+    (docker-compose.gpu-nvidia.yml, docker-compose.gpu-amd.yml); this is the
+    default CPU-only variant, matching the README's documented `docker
+    compose up -d --build` quickstart. Rolling reference to the `main`
+    branch HEAD, not version-pinned — consistent with the project having no
+    git tags or GitHub Releases yet (see version_health above). It still
+    builds the image from the repo's own Dockerfile (`build: .`) rather than
+    pulling a published tag, so this doesn't resolve the blocking_issues
+    below, just documents where the compose definition itself lives.
+
+version_health:
+  latest_version: "no tagged release — rolling main/dev branches, latest commit 2026-07-23"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Launched 2026-05-31 (PewDiePie/Felix Kjellberg's "Project Odysseus"), ~2 months old as of
+    2026-08-05. Extremely active by commit volume (daily-to-near-daily commits, 84.8k GitHub
+    stars, 98 open PRs) but has never cut a GitHub Release or git tag — the repo's Releases page
+    is empty. 937 open issues against a 2-month-old project is a high churn/instability signal
+    for a project with no versioned artifacts yet, not evidence of neglect. Too early to call
+    maintenance-only or dormant; the opposite risk applies — it's moving too fast to pin
+    reliably.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true  # single web port (7000 by default, via APP_BIND), Traefik-friendly; ChromaDB/SearXNG/ntfy stay internal-only
+  overlaps_with: [open-webui, openclaw, hermes-agent]
+  differentiation: >
+    open-webui covers local-model chat, and openclaw/hermes-agent cover messaging-driven agents,
+    but none combine chat + agent mode (with bundled SearXNG web search, shell/file/MCP tools) +
+    multi-step deep research + persistent cross-session memory (ChromaDB) + email/calendar/notes
+    in one workspace. If it matures, it's a genuinely broader "AI workspace" product rather than
+    a single-purpose tool, per CLAUDE.md's guidance that overlap alone isn't disqualifying.
+  usefulness: high
+  usefulness_rationale: >
+    Strong name recognition and a differentiated all-in-one feature set would likely drive
+    adoption if offered; the practical blocker below is packaging maturity, not product fit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ODYSSEUS_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ODYSSEUS_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "No official published Docker image and no upstream versioning: the repo has zero git
+      tags and zero GitHub Releases, so the only way to run it is `build:` from the Dockerfile
+      at whatever commit HEAD happens to be. RFC-002's image-tag-pinned expectation (a stable,
+      reproducible, officially-published tag) has no upstream artifact to point at today — we'd
+      have to build and privately maintain our own image from an arbitrary commit SHA, with no
+      upstream changelog or stability guarantee behind it."
+    - "Chat/agent/deep-research features are non-functional out of the box without an LLM
+      provider (OPENAI_API_KEY/OPENROUTER_API_KEY/etc., or a separately-run Ollama pointed at via
+      OLLAMA_BASE_URL) — same optional-key pattern already accepted for openclaw, so not a hard
+      installability blocker on its own, but worth noting since it compounds the packaging-
+      maturity concern above (first-boot login works, first-boot usefulness doesn't)."
+  installable_today: false
+  recommendation: build_with_caveats
+
+summary: >
+  Odysseus is a fast-growing, high-name-recognition self-hosted AI workspace (chat, agents, deep
+  research, persistent memory, email/calendar) with real differentiation from our existing
+  open-webui/openclaw/hermes-agent recipes. The admin-login secret projects cleanly via
+  generated_from root-password, same as Vaultwarden. The disqualifying issue today is packaging,
+  not mechanism: 2 months old, no git tags, no GitHub Releases, no official Docker image — only
+  a Dockerfile built at HEAD of a fast-moving main branch. Revisit once upstream cuts its first
+  tagged release/published image; building against an unpinned commit SHA today would be
+  fragile and outside how every other recipe in the catalogue is packaged.

@@ -1,0 +1,100 @@
+slug: logto
+name: Logto
+source_description: "Logto is a comprehensive identity and authentication platform with OAuth and OIDC support"
+
+upstream:
+  url: https://logto.io
+  repo_url: https://github.com/logto-io/logto
+  license: MPL-2.0
+  docker_image: svhd/logto
+  compose_file_url: https://github.com/logto-io/logto/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official, repo-root file (also linked from the "Get started with OSS"
+    docs page's quick-start command, which pipes
+    raw.githubusercontent.com/logto-io/logto/HEAD/docker-compose.yml into
+    `docker compose up`). Rolling reference to the default branch (HEAD),
+    not version-pinned to a release tag. Only one variant is shipped (no
+    separate GPU/CPU or dev/prod split) - it defines both the `svhd/logto`
+    app service (ports 3001 + 3002, matching the two-port blocker already
+    recorded above) and a bundled `postgres:17-alpine` service with a
+    hardcoded demo password. The file's own header comment states it is
+    "for demonstration only" and explicitly warns against production use.
+
+version_health:
+  latest_version: v1.42.0
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly release cadence going back at least a year (v1.35.0 2025-12-30
+    through v1.42.0 2026-07-30, roughly one tag every 4-5 weeks). Repo is not
+    archived; last push to master was 2026-08-06 (yesterday relative to
+    today, 2026-08-05, i.e. actively committed to within the last day). 181
+    open issues being triaged. No indication of maintenance-only mode or EOL.
+
+catalogue_fit:
+  categories: [identity, security, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes provide identity/access-management
+    functionality (OIDC/OAuth2.1 provider, SSO, RBAC, social/enterprise
+    connectors) that a customer could use to centralize login for their own
+    apps. This would be a genuinely new category for the catalogue, not a
+    duplicate of anything shipping today.
+  usefulness: medium
+  usefulness_rationale: >
+    High conceptual value (IAM-as-a-service is a common self-host want,
+    especially paired with the AI/automation recipes already in the
+    catalogue), but Logto's two-surface architecture (separate app and admin
+    console ports, see below) makes it a heavier integration lift than most
+    of our single-container, single-port recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES password (internal, not customer-facing)
+    - admin console access gate (to prevent an unauthenticated third party from
+      racing the customer to complete the one-time admin sign-up wizard)
+  secrets_expressible_today:
+    - secret: POSTGRES password (internal, not customer-facing)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Logto's official docker-compose exposes two distinct HTTP surfaces on
+      two different ports: 3001 (the OIDC/OAuth provider + end-user
+      sign-in experience, meant to be public) and 3002 (the Admin Console,
+      where the customer configures applications, connectors, and RBAC).
+      Both need to be reachable over HTTP with their own hostname for the
+      product to be usable. RFC-001 §4.3 states a recipe may declare "at
+      most one HTTP port ... only the first gets a router" — there is no
+      mechanism today to give a second port its own Traefik-routed
+      subdomain, so the Admin Console (3002) cannot be exposed correctly
+      under the current single-router-per-recipe constraint.
+    - >
+      Logto OSS has no env var or CLI flag to pre-seed the initial admin
+      account. The first person to open the Admin Console's "Welcome" page
+      after boot picks their own username/password through a one-time
+      sign-up wizard, and only one admin account is supported. This isn't a
+      `generated_from: ROOT_PASSWORD`-projectable login (no plaintext or
+      hash input field exists at boot) — the only way to make this safe is
+      to gate the Admin Console itself behind Traefik `basic_auth` so only
+      the customer can reach the wizard first. That gate can't be wired up
+      independently of the port-routing blocker above, since Admin Console
+      exposure is already blocked.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Logto is an active, well-maintained (monthly releases, MPL-2.0, no EOL
+  signals) OIDC/OAuth identity platform that would fill a genuine gap in the
+  catalogue - no current recipe offers IAM/SSO. It is not installable under
+  the current recipe mechanism, though: the product architecturally needs
+  two independently-routed HTTP surfaces (public app on 3001, Admin Console
+  on 3002), but RFC-001 limits a recipe to one Traefik-routed HTTP port, and
+  the Admin Console's one-time, env-var-less sign-up wizard has no
+  first-boot credential channel other than gating that same
+  Admin Console behind basic auth. Revisit once multi-router-per-recipe
+  support exists; until then this is blocked on the platform, not on Logto
+  itself.

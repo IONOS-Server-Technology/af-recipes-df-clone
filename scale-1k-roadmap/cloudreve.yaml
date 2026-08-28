@@ -1,0 +1,90 @@
+slug: cloudreve
+name: Cloudreve
+source_description: "Self-hosted cloud storage platform with file management and sharing capabilities"
+
+upstream:
+  url: https://cloudreve.org/
+  repo_url: https://github.com/cloudreve/cloudreve
+  license: "GPL-3.0 (Community edition); Pro edition is a separate proprietary/licensed build (cloudreve/pro image, CR_LICENSE_KEY)"
+  docker_image: cloudreve/cloudreve
+  compose_file_url: https://raw.githubusercontent.com/cloudreve/docker-compose/master/docker-compose.yml
+  compose_file_notes: >
+    Official: the docs site (docs.cloudreve.org/en/overview/deploy/docker-compose)
+    directs users to clone the cloudreve-org-owned repo
+    github.com/cloudreve/docker-compose, whose README in turn points back
+    to the same docs page. That repo ships three variants:
+    docker-compose.yml (base), docker-compose.fts.yml (adds full-text
+    search), and docker-compose.pro.yml (Pro/licensed edition). Picked the
+    base docker-compose.yml as the closest match to this recipe's
+    Community-edition, non-FTS scope. It is a rolling reference to the
+    default (master) branch, not a version-pinned release asset — and
+    the file itself pins the app image to the `cloudreve/cloudreve:v4`
+    tag (rolling within the v4 major line, not pinned to 4.18.0) and pairs
+    it with postgres:17 + redis:latest rather than this recipe's SQLite/
+    in-memory-cache default, so treat it as a reference architecture to
+    diff against rather than a drop-in file.
+
+version_health:
+  latest_version: "4.18.0"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 4.18.0 published 2026-07-15, ~3 weeks before today
+    (2026-08-05). Prior releases show a steady ~3-4 week minor-release
+    cadence: 4.17.0 (2026-06-26), 4.16.1 (2026-06-06), 4.16.0 (2026-05-10),
+    4.15.0 (2026-03-14). 28.5k GitHub stars, 1,189+ commits, active issue
+    triage, dedicated docs site (docs.cloudreve.org) and community channels
+    (Telegram/Discord). This is the v4 rewrite (Go + ent backend, React
+    frontend), a clean break from the older v3 line — no dormancy signal,
+    actively developed with a commercial Pro tier alongside the open-source
+    Community edition.
+
+catalogue_fit:
+  categories: [productivity, storage]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue has no general-purpose personal cloud storage / file
+    hosting app. Syncthing is the closest existing recipe by broad theme
+    (file handling) but is peer-to-peer device sync with no web upload/
+    share-link UI, no accounts, and no server-side storage browsing —
+    a structurally different tool. Cloudreve is a Google-Drive-style
+    self-hosted drive: web upload, folder browsing, share links, multi-
+    user accounts, and optional multi-cloud storage backends (S3, OneDrive,
+    Aliyun/Tencent/Huawei OSS, etc). This would be a genuinely new category
+    for the catalogue, not a duplicate.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted "own your cloud drive" is one of the most commonly
+    requested self-hosting use cases (alongside Nextcloud-style tools),
+    and nothing in the current 24 recipes covers it. Cloudreve is
+    lightweight (single Go binary/container, SQLite by default) compared
+    to heavier alternatives like Nextcloud, which fits the AF model well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Cloudreve v4 ships as a single container (cloudreve/cloudreve, pinned tag
+  4.18.0) that defaults to SQLite for storage and built-in in-memory cache
+  when no external database/Redis env vars are supplied, so a minimal
+  deployment needs no server-generated infra secrets at all beyond what
+  Docker/Traefik already handle. Like the already-shipped n8n and the
+  gap-analyzed Baserow, Cloudreve has no fixed or env-var-driven admin
+  account: the first person to reach the web UI registers and becomes the
+  instance administrator, so there is no root-password projection needed
+  and no blocking secret gap. The only wrinkle is an optional TCP/UDP port
+  6888 for its built-in Aria2 remote-download feature, which is a raw
+  (non-HTTP) port outside Traefik's reverse-proxy model — but that feature
+  is optional and the port can simply be omitted from the recipe, leaving
+  a fully reverse-proxy-compatible single-port (5212) web app. Upstream is
+  actively maintained (release ~3 weeks old, ~1 month cadence) and fills a
+  real gap: the catalogue has no self-hosted personal cloud storage/drive
+  app today. Recommend build_now.

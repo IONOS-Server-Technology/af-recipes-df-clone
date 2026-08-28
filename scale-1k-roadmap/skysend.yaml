@@ -1,0 +1,136 @@
+slug: skysend
+name: SkySend
+source_description: "End-to-end encrypted, zero-knowledge file and note sharing service"
+
+upstream:
+  url: https://skysend.app
+  repo_url: https://github.com/Skyfay/SkySend
+  license: AGPL-3.0
+  docker_image: skyfay/skysend
+  compose_file_url: https://raw.githubusercontent.com/Skyfay/SkySend/main/docker-compose.yml
+  compose_file_notes: >
+    Official, at the repo root (github.com/Skyfay/SkySend/docker-compose.yml),
+    not merely embedded in docs. It is a rolling reference to the `main`
+    branch's HEAD rather than a version-pinned release asset — there is no
+    per-release compose download (e.g. no `/releases/latest/download/...`
+    asset), so this link should be re-fetched/diffed on future checks rather
+    than treated as frozen to v2.12.0. Only one variant exists (no separate
+    dev/prod, GPU/CPU, or sqlite/postgres compose files were found); the file
+    itself pins the image tag to `:latest` rather than a version, consistent
+    with the rest of the repo's rolling-reference style. A sibling
+    `docker-compose.build.yml` also exists at the repo root but is for
+    building the image from source, not for running the app, so it was not
+    used here.
+
+version_health:
+  latest_version: "v2.12.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.12.0 shipped 2026-07-30, 6 days before today (2026-08-05). The
+    project's own changelog (https://docs.skysend.app/changelog) shows 40
+    tagged releases between v1.0.0 (2026-04-12) and v2.12.0 (2026-07-30),
+    but they are not evenly spread — the cadence has clearly decelerated.
+    36 of the 40 releases landed in the first ~7 weeks (2026-04-12 to
+    v2.11.0 on 2026-05-30, i.e. 48 days, near-daily), while only 4 have
+    landed in the 67 days since: v2.11.1 (2026-05-31), v2.11.2 (2026-06-05),
+    v2.11.3 (2026-06-21) and v2.12.0 (2026-07-30). The two most recent gaps
+    are 16 days (v2.11.2 -> v2.11.3) and 39 days (v2.11.3 -> v2.12.0), so
+    the current rhythm is roughly monthly, not weekly. Cadence is still
+    recorded as `active` rather than `slowing` because the deceleration reads
+    as normalisation after a post-launch burst rather than as a stall: in
+    absolute terms the project shipped a feature release 6 days ago and has
+    never gone more than ~6 weeks without one. A recipe author should
+    nonetheless expect monthly-ish tag bumps, not weekly. The other flip
+    side is immaturity: a ~4-month-old codebase has not yet had time to
+    prove long-term stability, and breaking or security-relevant changes
+    could land at any pinned-tag bump.
+
+catalogue_fit:
+  categories: [productivity, security, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing currently in the 24-recipe catalogue covers anonymous,
+    link-based file/note sharing with true client-side (browser) end-to-end
+    encryption — the server and its operator never see plaintext content or
+    the decryption key (carried only in the URL fragment, never sent to the
+    server). OpenGist is the closest neighbor but is Git-backed code/text
+    snippets with server-side plaintext storage and no encryption; Syncthing
+    is P2P folder sync between a customer's own owned devices, not one-off
+    link sharing with third parties; Vaultwarden is a password manager, not
+    a share-a-link tool. The `anonupload` gap-analysis (not built,
+    not_recommended — eol) covers similar ground conceptually but that
+    specific project has been abandoned since 2023, so SkySend is a live,
+    actively-maintained alternative to that unfilled niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Zero-knowledge encrypted file/note drop (with burn-after-read notes and
+    view limits) is a genuinely useful, currently-unfilled niche for a
+    self-hosting customer who wants to share a sensitive file or secret with
+    someone outside their org without trusting a third-party service.
+    Usefulness is medium rather than high because it is a narrow,
+    single-purpose utility (not a platform customers build on) and the
+    underlying project's newness (~4 months, pre-1.0-in-spirit release
+    velocity) adds real stability/security risk for something whose whole
+    value proposition is trustworthy handling of sensitive data.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The only auth mechanism expressible today cannot express the
+      configuration this app actually needs. Traefik `basic_auth: true` is a
+      boolean gate on the recipe's public HTTP port, not a path-scoped rule
+      (see apps-gaps/SCHEMA.md), and SkySend serves both the upload UI and
+      the recipient-facing share/download URLs (`BASE_URL/<share path>`) on
+      that one port (3000). Gating the port therefore prompts every share
+      recipient for the customer's basic-auth credential — which is derived
+      from their own server root password and so cannot responsibly be
+      handed to an outside party — before they can fetch a file or read a
+      note. That defeats the app's stated purpose (sharing a secret with
+      someone outside the org). Leaving the gate off keeps share links usable
+      but exposes an unauthenticated upload endpoint to the internet, i.e.
+      anyone who finds the URL can write arbitrary files to the customer's
+      disk. Upstream's own answer to exactly this is OIDC with
+      `OIDC_PROTECT_FILES` / `OIDC_PROTECT_NOTES`, which gates upload/note
+      creation only while "downloads always public" — the split our
+      whole-app boolean cannot express. Enabling it needs registering the
+      instance with an external identity provider (client ID/secret/issuer
+      URL), for which /compose has no input channel today.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  SkySend ships as a single official container (skyfay/skysend, pin to
+  v2.12.0) on one HTTP port (3000), backed by SQLite and local bind-mounted
+  `/data` + `/uploads` volumes with no external database — a clean fit for
+  our single-container-behind-Traefik pattern. The app has no built-in
+  account system or admin login by design (that's the whole "zero
+  accounts, zero knowledge" pitch); its only auth option is OIDC/SSO, which
+  requires registering the instance with an external identity provider and
+  has no input channel in our current /compose flow. That leaves an
+  unavoidable trade-off, because IF-1312's Traefik `basic_auth` is a
+  whole-port boolean and SkySend serves uploads and recipient download links
+  on the same port: gate it and outside recipients are locked out of the
+  share links the app exists to produce; leave it open and anyone who finds
+  the URL can upload to the customer's disk. A recipe author should ship it
+  gated — an open write endpoint on a public VM is not a defensible default —
+  and document that this reduces the instance to single-operator use until
+  path-scoped basic_auth or an OIDC input channel exists, which is the
+  platform work that would unlock the app's headline external-sharing use
+  case. The project itself is new (~4 months) and its release
+  cadence has slowed from near-daily during the April/May launch burst to
+  roughly monthly since late May 2026, with the most recent release 6 days
+  ago — still actively maintained, just no longer sprinting. Recommend
+  building with the caveat above, plus a note to the recipe author to track
+  upstream releases for security-relevant fixes given the sensitive-data use
+  case, and to treat a gap beyond ~2 months as the signal to re-check project
+  health.

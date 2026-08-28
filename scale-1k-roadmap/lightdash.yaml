@@ -1,0 +1,89 @@
+slug: lightdash
+name: Lightdash
+source_description: "Open-source BI platform built around dbt for data exploration and dashboards"
+
+upstream:
+  url: https://www.lightdash.com
+  repo_url: https://github.com/lightdash/lightdash
+  license: MIT (core; enterprise-edition code under packages/backend/src/ee is separately licensed)
+  docker_image: lightdash/lightdash
+  compose_file_url: https://github.com/lightdash/lightdash/blob/main/docker-compose.yml
+  compose_file_notes: >-
+    Official, first-party file at the repo root, linked directly from
+    Lightdash's own self-host docs
+    (docs.lightdash.com/self-host/self-host-lightdash-docker-compose).
+    Rolling reference to the default (main) branch, not version-pinned to
+    a release tag or SHA. Only one variant is shipped (no separate
+    GPU/CPU or sqlite/postgres flavors) — it defines all four services
+    (lightdash, db/Postgres+pgvector, minio, headless-browser) matching
+    this recipe's described stack.
+
+version_health:
+  latest_version: "1.91.2"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    1.91.2 published 2026-08-05, the same day as this analysis — releases
+    are effectively continuous (1.86.1 through 1.91.2 all shipped within a
+    single ~10-hour window on 2026-08-05 per the GitHub releases feed),
+    consistent with automated semantic-release-on-merge rather than a
+    dated release cadence. 282+ tags on Docker Hub, repo is not archived,
+    no EOL or maintenance-only signal anywhere upstream — this is one of
+    the most actively developed candidates seen in this gap-analysis batch.
+
+catalogue_fit:
+  categories: [analytics, data]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    No existing recipe covers self-hosted BI/dashboarding or dbt-based
+    data exploration — n8n (automation) and paperless-ngx/paperless-ai
+    (document management) are the closest thing to "data tooling" in the
+    catalogue but serve entirely different jobs. Lightdash would be a
+    genuinely new category: a customer with their own warehouse (or the
+    dbt demo project shipped in the image) gets Looker/Metabase-style
+    dashboards without a SaaS BI subscription.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real gap-fill (no overlap), but the audience is narrower than most of
+    the catalogue's utility apps — it's only useful to a customer who
+    already has (or is willing to stand up) a dbt project and a data
+    warehouse to point it at; without that it only demos against the
+    bundled sample data. Worth building, but expect lower attach rate
+    than broadly-applicable tools like n8n or uptime-kuma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LIGHTDASH_SECRET, PGPASSWORD, MINIO_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: LIGHTDASH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: PGPASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MINIO_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Lightdash is installable today with no customer-supplied secret at all:
+  every required env var (LIGHTDASH_SECRET, the internal Postgres
+  password, the MinIO root credential used for result caching) is a
+  patternless string the platform can generate server-side, and the
+  admin/first-user account is created through Lightdash's own first-visit
+  signup screen — the same self-serve pattern already accepted for
+  n8n, uptime-kuma, immich, and (per apps-gaps/librechat.yaml)
+  LibreChat. Upstream is exceptionally active (near-continuous automated
+  releases, no EOL signal) and the app fills a genuine gap — no existing
+  recipe covers self-hosted BI/dashboarding. The stack is four containers
+  (app, Postgres, MinIO for query-result caching, a headless-browser
+  service for scheduled/exported dashboard images), heavier than a typical
+  single-service recipe but comparable to immich's multi-service footprint.
+  No blocking issues at the installability/mechanism level, so this is a
+  build_now: Lightdash is only useful to a customer with (or willing to
+  stand up) a dbt project and a data warehouse to connect it to, but that
+  audience-size consideration is a fact about the catalogue fit, not a
+  reason to hold back the build recommendation.

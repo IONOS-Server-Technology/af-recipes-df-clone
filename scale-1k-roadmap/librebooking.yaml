@@ -1,0 +1,162 @@
+slug: librebooking
+name: LibreBooking
+source_description: "Open-source resource scheduling system for rooms, equipment, and shared assets"
+
+upstream:
+  url: https://librebooking.readthedocs.io/
+  repo_url: https://github.com/LibreBooking/librebooking
+  license: GPL-3.0
+  docker_image: librebooking/librebooking
+  compose_file_url: https://raw.githubusercontent.com/LibreBooking/docker/main/.examples/docker/docker-compose-local.yml
+  compose_file_notes: >
+    Official — published by the project itself in its LibreBooking/docker
+    repo (the same repo that builds the librebooking/librebooking image),
+    under .examples/docker/, and referenced directly from that repo's
+    README.md ("Using docker compose" section). Two variants are shipped
+    side by side: docker-compose-local.yml (plain HTTP on :8080, no
+    reverse proxy) and docker-compose-public.yml (adds an nginx
+    reverse-proxy with automatic certificates for a public domain). Picked
+    docker-compose-local.yml as the reference since it is the simpler,
+    dependency-free base (db + app + cron only) and matches this
+    catalogue's own Traefik-fronted reverse-proxy pattern better than
+    bundling a second, competing nginx proxy from docker-compose-public.yml.
+    This is a rolling default-branch link (raw.githubusercontent.com/.../main/...),
+    not version-pinned, and it resolves to a file whose service definitions
+    themselves float further still: image tags default to
+    librebooking/librebooking:develop and linuxserver/mariadb:10.6.13 via
+    ${DOCKER_APP_TAG:-develop} / ${DOCKER_DB_TAG:-10.6.13} env-var
+    overrides — no tagged-release compose file is published upstream.
+
+version_health:
+  latest_version: "5.3.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Monthly (sometimes sub-monthly) release cadence throughout 2026 —
+    5.0.0 (2026-05-03), 5.0.1/5.0.2 (early-to-mid May), 5.0.3 (2026-06-03),
+    5.1.0 (2026-06-07), 5.2.0 (2026-07-03), 5.3.0 (2026-08-03, 2 days before
+    this analysis). Repo has 5,000+ commits, dozens of open issues/PRs under
+    active triage. Clearly active, not maintenance-only. Project is a
+    continuation of the discontinued open-source "Booked Scheduler"
+    (phpScheduleIt lineage), rebranded LibreBooking after Booked Scheduler
+    went closed-source/SaaS-only in 2020 — LibreBooking itself has diverged
+    substantially since and is the actively maintained upstream, not an
+    abandoned fork.
+
+catalogue_fit:
+  categories: [scheduling, resource-management, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover room/equipment/shared-asset
+    booking or scheduling. Closest neighbors (Uptime Kuma, Portainer,
+    Gitea) are unrelated domains. This would be a net-new category for the
+    catalogue — useful to small orgs, coworking spaces, or teams wanting to
+    schedule meeting rooms/equipment without a SaaS subscription.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case with no in-catalogue competitor, but resource
+    booking is a narrower niche than the productivity/automation/AI tools
+    that dominate the current catalogue — likely lower demand than a
+    generic top-of-funnel app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - LB_DATABASE_PASSWORD
+    - LB_INSTALL_PASSWORD
+    - MYSQL_ROOT_PASSWORD
+    - TRAEFIK_BASIC_AUTH
+  secrets_expressible_today:
+    - secret: LB_DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: LB_INSTALL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: TRAEFIK_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  # How the two-step setup lands on our mechanism, verified against upstream
+  # (github.com/LibreBooking/docker and github.com/LibreBooking/librebooking):
+  #
+  # 1. Container boot. bin/entrypoint.sh only sed-patches config/config.php —
+  #    ['database'][user|password|name|hostspec], ['install.password'],
+  #    ['default.timezone'], ['logging'][folder|level|sql]. It does NOT create
+  #    the DB schema and does NOT create an admin account. All of these env
+  #    vars are patternless server-side values; the customer never sees them.
+  #
+  # 2. Schema creation, scripted by install.sh — no HTML form scraping needed.
+  #    The /install wizard (gated by Presenters/Install/InstallSecurityGuard.php,
+  #    which compares the submitted password to ConfigKeys::INSTALLATION_PASSWORD)
+  #    is only a browser front-end over SQL files upstream ships in
+  #    database_schema/. INSTALLATION.rst documents the manual equivalent, and
+  #    install.sh can run it directly against the MariaDB companion using the
+  #    server-generated MYSQL_ROOT_PASSWORD, in this documented order:
+  #      create-db.sql → create-user.sql → create-schema.sql →
+  #      upgrades/*.sql (in version order) → create-data.sql
+  #    The docs warn explicitly that skipping the upgrade scripts breaks
+  #    create-data.sql, so the recipe must apply them in version order.
+  #    Because this path exists, LB_INSTALL_PASSWORD can stay a purely
+  #    server-side value the customer never needs — it exists only to keep the
+  #    web installer locked once install.sh has finished.
+  #
+  # 3. Admin account — this is the n8n pattern, not a hash projection.
+  #    Web/register.php → Pages/RegistrationPage.php extends ActionPage and is
+  #    NOT behind InstallSecurityGuard or any install-password check; it only
+  #    needs the schema to exist. BASIC-CONFIGURATION.rst shows
+  #    'registration' => ['allow.self.registration' => true] on by default, and
+  #    INSTALLATION.rst states: "When you later register an account with the
+  #    admin email address, the user will be given admin privileges." So the
+  #    customer visits register.php and types their OWN plaintext username and
+  #    password into the app's own form — exactly like n8n's owner-setup
+  #    screen. No pre-computed hash ever has to reach the app, so the
+  #    generated_from:ROOT_PASSWORD hash-projection limitation simply does not
+  #    apply here.
+  #
+  # SECURITY BOUNDARY — call this out in the recipe, do not gloss over it:
+  # admin.email is a plain config.php value with no customer-input channel
+  # today, so it has to be left at a fixed, recipe-known default (upstream ships
+  # 'admin@example.com'). Combined with self-registration being open by default,
+  # that means anyone who can reach register.php before the real customer does
+  # can register the admin address and claim admin. Therefore the Traefik
+  # basic_auth gate is not a nice-to-have here — it IS the auth boundary that
+  # protects the instance during the window between install and the customer's
+  # first login. It must be mandatory on the public port, and the recipe must
+  # not leave register.php exposed without it. (This is the same reasoning
+  # SCHEMA.md applies to a fixed/default credential sitting behind basic_auth.)
+  #
+  # Caveats (neither blocking): (a) reminder emails need an external job
+  # scheduler (cron) hitting a URL periodically — not required to boot or use
+  # the app, but worth a cron/sidecar follow-up; (b) registration captcha is
+  # enabled by default, which is fine for the human customer completing
+  # register.php in a browser but means the recipe should not try to automate
+  # that step.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LibreBooking is an active, GPL-3.0 room/equipment/resource-booking web app
+  with an official single-container Docker image (needs a MariaDB
+  companion), a single HTTP port, and monthly releases through August 2026 —
+  no EOL or dormancy concerns. It fills a category gap none of the current
+  24 recipes cover. Setup is two steps, and both fit the current mechanism:
+  the entrypoint only pre-populates config.php (DB connection string, install
+  password) without creating the schema or an admin account, but install.sh
+  can create the schema server-side by importing upstream's own
+  database_schema/*.sql files in the documented order — the /install wizard is
+  just a browser front-end over those, so no HTML form scripting is needed and
+  every secret involved (LB_DATABASE_PASSWORD, LB_INSTALL_PASSWORD,
+  MYSQL_ROOT_PASSWORD) is patternless and server-generated. The admin account
+  is then the n8n pattern: register.php is a public, unauthenticated page that
+  is not behind the install-password guard, self-registration is on by default,
+  and whoever registers with the configured admin.email gets admin — so the
+  customer types their own plaintext credential into the app's own form and no
+  hash projection is required. The one thing to be explicit about is that
+  admin.email has no customer-input channel and must stay at a fixed default,
+  which makes the mandatory Traefik basic_auth gate the real auth boundary
+  protecting open self-registration until the customer completes signup.
+  Recommend build_now; usefulness rated medium given the narrower niche
+  relative to the catalogue's productivity/automation/AI focus.

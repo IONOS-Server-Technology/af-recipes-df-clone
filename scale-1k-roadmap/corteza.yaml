@@ -1,0 +1,101 @@
+slug: corteza
+name: Corteza
+source_description: "Open-source low-code platform for building business apps and CRM"
+
+upstream:
+  url: https://cortezaproject.org
+  repo_url: https://github.com/cortezaproject/corteza
+  license: Apache-2.0
+  docker_image: cortezaproject/corteza
+  compose_file_url: https://docs.cortezaproject.org/corteza-docs/2024.9/devops-guide/examples/deploy-online/multi-pgsql.html
+  compose_file_notes: >
+    No docker-compose.yaml/.yml exists at the root of, or in any
+    docker/deploy/contrib directory of, the cortezaproject/corteza repo
+    itself — confirmed 404 at
+    raw.githubusercontent.com/cortezaproject/corteza/2024.9.x/docker-compose.yaml.
+    The project's own DevOps Guide
+    (docs.cortezaproject.org/corteza-docs/2024.9/devops-guide/) is the
+    official source instead: it embeds several complete docker-compose.yaml
+    + .env pairs inline as AsciiDoc-rendered examples rather than linking a
+    standalone file, under devops-guide/examples/deploy-offline/ (single
+    network, ports bound to host) and devops-guide/examples/deploy-online/
+    (reverse-proxied, Let's Encrypt-ready). Recorded the "online,
+    multi-image PostgreSQL" variant
+    (devops-guide/examples/deploy-online/multi-pgsql.html) since it matches
+    this recipe's Postgres + single-public-HTTP-port assumptions in
+    installability/catalogue_fit above; the same page also offers MySQL and
+    MySQL/Postgres-with-OpenSearch-discovery variants. This link is
+    version-pinned to the "2024.9" docs line (matching latest_version
+    above), not a rolling default-branch reference — but it is a docs page
+    that embeds the compose file's text rather than a directly fetchable
+    file/release asset, so it should be watched by re-checking page content,
+    not by URL-diffing a raw file.
+
+version_health:
+  latest_version: "2024.9.9 (stable), 2024.9.9-hotfix.1 and 2024.9.10-dev.2 pre-release tags also cut since"
+  latest_release_date: "2026-05-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05): stable 2024.9.9 shipped 2026-05-26, a
+    2024.9.9-hotfix.1 tag followed 2026-06-08, and a 2024.9.10-dev.2
+    pre-release tag is dated 2026-07-22 — under 2 weeks before this
+    analysis. Commit history on the 2024.9.x branch is continuous through
+    early June 2026 (feature and bugfix commits, not just version bumps).
+    The version-number scheme is misleading at a glance ("2024.9.x" looks
+    two years stale) but this is a calendar-style major/minor line that
+    keeps receiving patch releases rather than a version frozen since
+    2024 — release cadence is genuinely active, not dormant. No
+    archival, deprecation, or EOL notice found anywhere upstream; Planet
+    Crust (the commercial sponsor) continues to publish release
+    announcements and offers hosted/commercial editions alongside the
+    OSS project.
+
+catalogue_fit:
+  categories: [business, crm, low-code, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a low-code/business-app
+    builder or CRM. The closest structural neighbors by architecture are
+    n8n and paperless-ngx (single app server + Postgres, single public
+    HTTP port), but neither overlaps functionally — n8n is workflow
+    automation, not a data-modeling/CRM app builder, and paperless-ngx is
+    a document archive. Corteza fills a genuinely distinct "build your
+    own structured business app without code" niche (records, modules,
+    workflows, forms, basic CRM) that nothing else here covers.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted low-code/CRM tooling as a
+    Salesforce-lite alternative, and Corteza is a mature, actively
+    maintained Apache-2.0 project with no better-known open alternative
+    already in the catalogue. Ceiling is medium rather than high because
+    the value only materializes once a customer invests time modeling
+    their own apps/data inside it (steeper first-use curve than most of
+    our single-purpose recipes like Vaultwarden or Uptime Kuma).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, AUTH_JWT_SECRET, admin_signup_credential]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: AUTH_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Corteza is an actively maintained (releases and commits within weeks of
+  this analysis, despite a version string that reads as stale), Apache-2.0
+  low-code/CRM platform with no overlap in the current catalogue. It runs
+  as a single app server plus Postgres behind one public HTTP port,
+  matching our existing reverse-proxy shape. Its only customer-facing
+  credential — the admin account password — is set by the customer
+  through Corteza's own public sign-up form (first registrant becomes
+  admin), the same "first-user-becomes-owner" pattern already shipped in
+  this catalogue for n8n and Open WebUI without a basic_auth gate, so this
+  is not a new blocker. All other secrets (DB password, JWT signing key)
+  are server-generated and never customer-facing. Recommend building now.

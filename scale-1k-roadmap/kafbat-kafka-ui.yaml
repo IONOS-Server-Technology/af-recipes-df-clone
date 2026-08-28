@@ -1,0 +1,106 @@
+slug: kafbat-kafka-ui
+name: Kafbat Kafka UI
+source_description: "Open-source web UI for managing and monitoring Apache Kafka clusters"
+
+upstream:
+  url: https://kafbat.io/
+  repo_url: https://github.com/kafbat/kafka-ui
+  license: Apache-2.0
+  docker_image: kafbat/kafka-ui:v1.5.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for actually deploying kafka-ui
+    against a customer's own cluster. The project's own quick-start
+    (ui.docs.kafbat.io/quick-start/demo-run) tells users to run a bare
+    `docker run -it -p 8080:8080 -e DYNAMIC_CONFIG_ENABLED=true
+    ghcr.io/kafbat/kafka-ui` command, not a compose file, which is exactly
+    the single-service/empty-config pattern this recipe already uses. The
+    repo does maintain a directory of compose files
+    (github.com/kafbat/kafka-ui/tree/main/documentation/compose, indexed at
+    documentation/compose/DOCKER_COMPOSE.md, rolling reference to the
+    default `main` branch) but every file there (kafbat-ui.yaml,
+    kafka-ssl.yml, cluster-sr-auth.yaml, auth-context.yaml,
+    e2e-tests.yaml, ui-jmx-secured.yml, nginx-proxy.yaml, ui-sasl.yaml,
+    traefik-proxy.yaml, ui-with-jmx-exporter.yaml, kafka-zookeeper.yaml) is
+    a local dev/demo fixture that bundles one or two full throwaway Kafka
+    broker services (confluentinc/cp-kafka, Schema Registry, Kafka Connect,
+    etc.) alongside kafbat-ui purely to give a self-contained sandbox to
+    click around in — none is a standalone file for pointing kafbat-ui at
+    an externally-run cluster the way this recipe needs. Adopting one of
+    those as "the" compose file would silently drag in an unwanted demo
+    Kafka cluster, so none is recorded here.
+
+version_health:
+  latest_version: "v1.5.0"
+  latest_release_date: "2026-04-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Name is not ambiguous but has a notable history worth flagging: kafbat/kafka-ui
+    is a 2024 community fork of the older `provectus/kafka-ui` project, created
+    after Provectus paused active development in Sept 2023 (a known RCE sat
+    unpatched for ~6 months under Provectus). Core contributors (Haarolean,
+    germanosin) forked to the `kafbat` org and shipped v1.0.0 on 2024-03-20.
+    Since the fork, releases have shipped roughly every 2-4 months: v1.0.0
+    (2024-03-20), v1.1.0 (2025-01-11), v1.2.0 (2025-03-20), v1.3.0
+    (2025-07-23), v1.4.1/v1.4.2 (2025-11-10/12), v1.5.0 (2026-04-20). Latest
+    release is ~3.5 months before today (2026-08-05), with `main`-branch
+    images still being pushed as recently as ~26 days ago, so upstream is
+    genuinely active. It runs on a GitHub Sponsors model with no commercial
+    backer/SLA, but development velocity has been consistent since the fork
+    and this is now the de-facto maintained successor to the original
+    provectus project (do not confuse the two when researching further —
+    `provectus/kafka-ui` itself is the stale/abandoned predecessor).
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches Apache Kafka or
+    message-queue observability; Portainer is the closest sibling in spirit
+    (a management UI over infrastructure the customer already runs) but for
+    Docker, not Kafka. This would be a genuinely new category rather than a
+    duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Kafbat UI does not bundle or run a Kafka broker itself — it is purely a
+    management/monitoring UI that connects to a Kafka cluster the customer
+    already operates elsewhere (their own cluster, a managed cloud Kafka
+    service, etc.). That makes it useful specifically to customers who
+    already run Kafka and want a lightweight web UI for it, not a
+    general-purpose self-hosting audience the way n8n or Vaultwarden are.
+    Real value for that narrower segment, but it's a bring-your-own-backend
+    tool rather than a self-contained app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Kafbat Kafka UI can boot with zero Kafka-cluster env vars set — passing only
+  `DYNAMIC_CONFIG_ENABLED=true` starts the app with an empty config, and the
+  customer adds their real cluster's bootstrap-server address (and any
+  SASL/SSL credentials it needs) through the app's own in-UI configuration
+  wizard after install, the same deferred-config pattern Portainer uses for
+  its Docker environment. That sidesteps what would otherwise be a hard
+  blocker: the actual Kafka connection details are arbitrary customer-supplied
+  values (host, port, possibly SASL creds) with no input channel through
+  `/compose` today. The app's own login (`AUTH_TYPE=LOGIN_FORM` +
+  `SPRING_SECURITY_USER_NAME`/`SPRING_SECURITY_USER_PASSWORD`) is unconfirmed
+  whether it accepts a pre-hashed value, so the simpler and already-proven
+  path is to leave the app's built-in auth off and gate the single HTTP port
+  (8080) with Traefik `basic_auth`, matching the n8n/WUD/Open WebUI pattern.
+  Upstream is a well-maintained 2024 community fork of the formerly-stalled
+  provectus/kafka-ui, releasing roughly every 2-4 months with the latest tag
+  3.5 months old — no EOL or dormancy concerns. Recommend building this
+  recipe: it fills a real, currently-empty category (Kafka management) for
+  customers who already run Kafka elsewhere, is mechanically installable
+  today, and has a healthy upstream.

@@ -1,0 +1,83 @@
+slug: chevereto
+name: Chevereto
+source_description: "Self-hosted image and video sharing platform with user accounts and albums"
+
+upstream:
+  url: https://chevereto.com/
+  repo_url: https://github.com/chevereto/chevereto
+  license: "Dual-licensed — AGPL-3.0 (free/open-source edition) plus a commercial proprietary license for Lite/Pro tiers"
+  docker_image: chevereto/chevereto:4.5.5
+  compose_file_url: https://raw.githubusercontent.com/chevereto/docker/4.5/default.yml
+  compose_file_notes: >
+    Official — from chevereto/docker, the org's own companion repo for
+    running Chevereto with Docker (linked from both the main repo README
+    and the v4 docs' "Pure Docker" guide). The repo has no `main`/`master`
+    branch; it uses per-major-version branches, and `4.5` is the one
+    matching the current 4.5.x release line tracked in this file — so this
+    link is version-pinned to that branch, not the bare default branch,
+    and will need to be re-pointed when a new major line ships. The repo
+    ships several compose variants selectable via `COMPOSE=<name>` (its
+    own Makefile wrapper, not raw `docker compose`); picked `default.yml`
+    over `default-mysql.yml`/`dev.yml`/`dev-mysql.yml`/`default-tenants.yml`/
+    `tenants-tls.yml` because the repo's own docs
+    (docs/DOCKER-COMPOSE.md) state `default.yml` is "intended to be used
+    in production with nginx proxy" and is the Makefile's default; it uses
+    MariaDB rather than MySQL, but docs note that's a legacy naming
+    artifact, not a functional distinction that matters here.
+
+version_health:
+  latest_version: "4.5.5"
+  latest_release_date: "2026-07-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (4.5.5) shipped roughly 4 weeks before this analysis
+    (2026-08-05). Release history shows a steady cadence of patch/minor
+    releases every 1-3 months over the past ~2 years (4.1.4 May-2024,
+    4.2.x Nov-2024 through Feb-2025, 4.3.0 May-2025, 4.4.0 Dec-2025, 4.5.0
+    Apr-2026, 4.5.5 Jul-2026). Actively maintained, no signs of slowing.
+    Note the project's older AGPLv3-only predecessor, chevereto-free
+    (rodber/chevereto-free), was archived when development moved to the
+    dual-licensed V4 line — that archived repo is not the one to track.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Immich targets personal photo/video backup with AI-powered search and
+    is single-tenant by design. Chevereto is a multi-user, public-facing
+    image/video hosting platform (Imgur/Flickr-style) — user registration,
+    albums, hotlink-friendly embeds, and site-wide branding/monetization
+    controls aimed at someone running a shared or public gallery/community
+    site rather than a private backup. Different persona, low functional
+    overlap in practice.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a distinct niche (self-hosted Imgur-alternative for communities,
+    forums, or small businesses embedding images) not covered by Immich.
+    Demand is real but narrower than general photo backup.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Chevereto is a MySQL/MariaDB-backed web app (single HTTP port, works fine
+  behind Traefik) with an actively maintained upstream and a straightforward
+  docker-compose shape similar to n8n/paperless-ngx. Its first-run setup
+  wizard lets the customer create their own site owner account directly in
+  the browser after deployment — the same pattern used by Immich — so no
+  platform-injected customer secret is needed beyond an auto-generated,
+  non-customer-facing DB password. The free/AGPLv3 edition covers full
+  self-hosted functionality (multi-user and S3 storage were made free in
+  v4.4) without requiring a paid license key. Differentiated enough from
+  Immich (public/multi-user gallery vs. private photo backup) to be worth
+  building.

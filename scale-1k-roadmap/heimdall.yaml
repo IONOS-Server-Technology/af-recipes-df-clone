@@ -1,0 +1,91 @@
+slug: heimdall
+name: Heimdall
+source_description: "Application dashboard for organizing and accessing your web services"
+
+upstream:
+  url: https://heimdall.site
+  repo_url: https://github.com/linuxserver/Heimdall
+  license: MIT
+  docker_image: linuxserver/heimdall:2.8.1
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    linuxserver/docker-heimdall repo (root, docker/, deploy/, contrib/ all
+    checked — none present); the compose config is only an inline snippet
+    embedded in README.md (github.com/linuxserver/docker-heimdall) and
+    mirrored on docs.linuxserver.io/images/docker-heimdall/, generated from
+    the repo's readme-vars.yml template. That snippet uses
+    lscr.io/linuxserver/heimdall:latest — a rolling reference to the
+    latest-published image tag, not pinned to a release — and is the only
+    variant offered (single-container, no GPU/CPU or sqlite/postgres
+    split). Since there's no actual file to link, recording null here
+    rather than pointing compose_file_url at a docs page that merely
+    embeds the snippet.
+
+version_health:
+  latest_version: "2.8.1"
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v2.8.1 shipped 2026-07-09, about 4 weeks before today
+    (2026-08-05); v2.8.0 landed the same day. Commit and PR activity is
+    current — PR #1583 ("fix inconsistent SVG tile icon sizes") merged
+    2026-08-03, two days before this analysis. Not archived, no
+    deprecation notice. Worth flagging: the release history has an uneven
+    cadence rather than a steady one — 2.7.x point releases shipped roughly
+    monthly through mid/late 2025 (2.7.3 on 2025-07-24 through 2.7.6 on
+    2025-09-15), then nothing tagged for about 10 months until 2.8.0/2.8.1
+    both dropped on 2026-07-09 (a Laravel-13 upgrade plus security patches).
+    Net: alive and currently being patched, but historically prone to long
+    gaps between stable tags even while the underlying repo stays active.
+
+catalogue_fit:
+  categories: [dashboard, homelab, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are a bookmark/startpage-style app
+    launcher — portainer (container management) and uptime-kuma (uptime
+    monitoring) serve adjacent but distinct purposes. Heimdall would be a
+    "front door" landing page listing a customer's other self-hosted apps
+    with icons/tiles, similar in spirit to a physical dashboard of tiles
+    linking elsewhere. Worth flagging for a human reviewer: this exact gap
+    has already been analyzed three times over — dashy.yaml, flame.yaml,
+    and glance.yaml all cover the same startpage/dashboard niche and were
+    each rated has_web_ui/reverse_proxy_compatible true with only medium
+    usefulness. Heimdall is a fourth near-duplicate candidate for the same
+    slot; shipping more than one of these four would be redundant.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful once a customer has 2+ other recipes running on the
+    same VPS (a single page to jump between them), but it's a convenience
+    layer rather than a standalone draw, and the catalogue already has
+    three other pending candidates (Dashy, Flame, Glance) competing for the
+    same "startpage" slot — at most one should likely be built.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Heimdall is a single-container (linuxserver/heimdall), actively
+  maintained, MIT-licensed dashboard app with an official multi-arch Docker
+  image and no auth of its own by default — the upstream docs describe an
+  optional manual htpasswd setup, not an env-var-driven login, so it isn't
+  a `generated_from` candidate. The pragmatic path is the same one used for
+  Dashy/Flame/Adminer: leave Heimdall's own auth off and gate the whole app
+  behind Traefik basic_auth keyed off the customer's root-password hash.
+  That makes it mechanically installable today with no platform changes, so
+  build_now. Note for a human reviewer: this is the fourth startpage/
+  dashboard candidate analyzed (after Dashy, Flame, Glance) targeting the
+  identical gap — a prioritization call on which of the four to build first
+  is a separate later decision, not a reason to downgrade this
+  recommendation.

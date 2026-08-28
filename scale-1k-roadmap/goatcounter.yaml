@@ -1,0 +1,91 @@
+slug: goatcounter
+name: GoatCounter
+source_description: "Privacy-first web analytics without cookies or personal data tracking"
+
+upstream:
+  url: https://www.goatcounter.com
+  repo_url: https://github.com/arp242/goatcounter
+  license: "EUPL-1.2 (slightly modified — Compatible Licenses appendix trimmed, otherwise identical)"
+  docker_image: arp242/goatcounter:2.7.0
+  compose_file_url: https://raw.githubusercontent.com/arp242/goatcounter/main/compose.yaml
+  compose_file_notes: >
+    Official file, lives at the repo root (arp242/goatcounter/compose.yaml),
+    referenced directly from the project's own README's Docker section. This
+    is a rolling reference to the default branch (main), not version-pinned
+    to a release tag — the repo has no tagged release-asset copy of this
+    file. It defines two services behind separate invocations rather than
+    separate compose files: `goatcounter-sqlite` (SQLite storage, matching
+    this recipe's docker_image default) and `goatcounter-postgres` (adds a
+    tuned Postgres 18 Alpine container). Picked the SQLite variant as the
+    reference since it matches the no-external-DB deployment already
+    described in this file's installability/summary sections.
+
+version_health:
+  latest_version: "v2.7.0"
+  latest_release_date: "2025-12-15"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    v2.7.0 shipped 2025-12-15, ~7.5 months before this analysis (2026-08-05).
+    Release history is genuinely irregular, not just slow: v2.2.3 to v2.3.0
+    (2022-10-17) was ~8 months, v2.4.1 (2022-11-15) to v2.5.0 (2023-12-14)
+    was ~13 months, v2.5.0 to v2.6.0 (2025-06-08) was ~18 months, then
+    v2.7.0 followed 6 months later. But
+    the repo is not dormant — the `master` branch's most recent commit is
+    2026-07-20, about two weeks before this analysis, so development is
+    ongoing; the maintainer (arp242) just batches changes into infrequent,
+    unpredictable releases rather than cutting them on a schedule.
+    "sporadic" describes the release cadence, not abandonment.
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers website traffic analytics.
+    GoatCounter is a lightweight (Go, ~17MB image), cookie-free alternative
+    to Google Analytics — closest in spirit to Ackee (apps-gaps/ackee.yaml)
+    and Countly (apps-gaps/countly.yaml), both already analyzed as separate
+    gap candidates in this same emerging "self-hosted analytics" cluster.
+    GoatCounter is the simplest of the three: single Go binary, SQLite by
+    default, no separate frontend/API split like Countly and no Node/Mongo
+    stack like Ackee.
+  usefulness: medium
+  usefulness_rationale: >
+    Same audience as Ackee/Countly — indie site owners and privacy-conscious
+    teams who want traffic stats without Google Analytics or a GDPR cookie
+    banner. GoatCounter is a well-known, credible name in that space (its
+    own hosted SaaS has been running for years) and its single-binary/
+    SQLite deployment is the lightest-weight of the three. Value is capped
+    by the same ceiling as Ackee/Countly: it's a single-purpose add-on tool
+    for sites hosted elsewhere, not a broad-audience app like n8n or
+    Vaultwarden, and a customer choosing between three similar
+    catalogue candidates dilutes any one recipe's uptake.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  GoatCounter is a single-container Go app (SQLite storage, ~17MB image,
+  arp242/goatcounter:2.7.0) that needs no customer-supplied value at
+  compose time: it defaults to listening on :8080 over plain HTTP (its
+  built-in ACME/TLS mode must be disabled with
+  GOATCOUNTER_TLS=http,GOATCOUNTER_LISTEN=:8080 to sit behind Traefik, the
+  same pattern already used for other apps that ship their own optional
+  TLS), and the very first site/admin account is created interactively
+  through GoatCounter's own setup wizard at http://<domain> on first visit
+  — the same self-serve pattern already used by uptime-kuma, immich, and
+  the countly gap analysis. No root-password projection or basic_auth gate
+  is required. It's installable today with no blocking issues and fills a
+  real gap (no website-analytics recipe exists in the catalogue) —
+  build_now. It overlaps with Ackee and Countly, both already analyzed as
+  separate gap candidates in the same "self-hosted analytics" cluster, but
+  that overlap is a catalogue-fit fact, not a reason to hold back the
+  recommendation; prioritizing among the three build_now candidates is a
+  later scheduling decision, not part of this analysis.

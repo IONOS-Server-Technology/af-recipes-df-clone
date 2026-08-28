@@ -1,0 +1,123 @@
+slug: zen
+name: Zen
+source_description: "Minimalist self-hosted note-taking app with markdown and full-text search"
+
+upstream:
+  url: https://github.com/sheshbabu/zen
+  repo_url: https://github.com/sheshbabu/zen
+  license: AGPL-3.0
+  docker_image: ghcr.io/sheshbabu/zen/zen:1.5.0
+  compose_file_url: https://www.sheshbabu.com/zen/documentation.html#docker-compose
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file is published anywhere in
+    the repo (root, docker/, deploy/, or contrib/) or as a GitHub release
+    asset — only a `Dockerfile` exists in-repo. The one official source is
+    the project's own documentation page (linked from the GitHub repo's
+    homepage URL and mirrored verbatim in `docs/documentation.html` in the
+    repo itself), which embeds a single Docker Compose snippet inline under
+    a "Docker Compose" heading (anchor `#docker-compose`) rather than
+    linking to a downloadable file. That snippet pins the image to the
+    `latest` tag rather than a specific version, so it is a rolling
+    reference, not version-pinned — it will always resolve to whichever
+    build is currently tagged `latest` on GHCR rather than the `1.5.0`
+    tag recorded above. Only one variant is shown (no GPU/CPU or
+    sqlite/postgres split, matching the app's single-binary/single-image
+    architecture), so there was no variant choice to make.
+
+version_health:
+  latest_version: "1.5.0"
+  latest_release_date: "2025-10-06"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    The repo has exactly two git tags ever: 1.0.0 (2025-09-02) and 1.5.0
+    (2025-10-06), about a month apart, and nothing tagged since — just over
+    10 months as of today (2026-08-05). Untagged commit activity on
+    `master` continued past the last tag (features like import frontmatter
+    support, internal-note side panel) but the most recent commit of any
+    kind is 2026-04-29, so the project has now also gone fully quiet on
+    commits for just over 3 months. Not archived, AGPL-3.0 license intact,
+    only 2 open issues, ~1.1k GitHub stars. The README states explicitly
+    "This is a personal project built for my own use... I may not actively
+    review pull requests or respond to issues due to time constraints" —
+    a single-maintainer hobby project. This reads as a real but
+    low-bandwidth, currently-dormant-for-months project rather than an
+    abandoned one; worth re-checking before a build, not a hard EOL call.
+
+catalogue_fit:
+  categories: [productivity, notes]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal
+    note-taking. Zen is a single Go binary storing Markdown notes in a
+    local SQLite database (full-text search via BM25, tag-based
+    organisation instead of folders, templates, pin/archive/soft-delete,
+    import/export). It occupies the same "self-hosted Obsidian-alternative"
+    niche already surfaced by prior gap-analyses of flatnotes, SilverBullet,
+    and Many Notes — several strong candidates now compete for the same
+    empty catalogue slot, which is fine to leave as-is per current
+    prioritization guidance and doesn't count against any one of them on
+    its own merits. Zen's differentiator within that niche is being the
+    most minimal: a single ~small Go binary, no bundled search service or
+    OAuth surface, with heavier features (semantic search, similar-image
+    lookup, automated backups) split out into separate companion projects
+    (zen-intelligence, zen-backup) rather than shipped in the main
+    container.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted markdown note-taking is a well-understood, recurring
+    self-hosting want, and Zen's low-resource single-binary/single-container
+    footprint fits the AF profile well. Usefulness is capped at medium
+    rather than high because Zen is thinner on features than SilverBullet
+    or Many Notes (no multi-vault, no plugin/scripting system, no OAuth),
+    is maintained by a single person who has explicitly flagged limited
+    review bandwidth, and has had zero commits of any kind for the past 3+
+    months on top of an already sparse two-release tagging history.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Zen has its own local login (email + password, hashed and stored in
+      SQLite) but no admin-password env var or setup wizard — the very
+      first account is created through an open, unauthenticated
+      `POST /api/users` self-registration endpoint that is only disabled
+      once exactly one user exists (`HasUsers()` check). There is no
+      `generated_from` channel to project the customer's root-password hash
+      into that registration call, since it's a plain unauthenticated API
+      call rather than an app-managed credential field. Left unfronted,
+      whichever visitor reaches the domain first (not necessarily the
+      customer) could claim the sole account. A Traefik `basic_auth` gate
+      keyed off the root-password hash closes that exposure at the
+      perimeter, but the customer still has to complete in-app registration
+      themselves on first authenticated visit — the recipe can only secure
+      the door, not pre-provision the account behind it. This is the same
+      pattern already documented for Many Notes.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Zen is a single-container Go app (image `ghcr.io/sheshbabu/zen/zen:1.5.0`,
+  default port 8080, two volumes `/data` and `/images`, no external
+  database) that is reverse-proxy compatible and would fill a note-taking
+  gap not covered by any of the current 24 recipes — the same gap also
+  being separately evaluated via flatnotes, SilverBullet, and Many Notes
+  candidates. It clears the installability bar only via a mandatory
+  Traefik `basic_auth` perimeter gate, because its own account creation is
+  an open, unauthenticated self-registration call with no root-password
+  projection channel; the customer must still complete in-app registration
+  themselves after first login, same caveat as Many Notes. Separately,
+  only two tags exist in the project's history (1.0.0, 1.5.0, both in
+  Sep-Oct 2025) and there has been no commit of any kind — tagged or not —
+  since 2026-04-29, over 3 months ago; the repo isn't archived and the
+  maintainer is still responsive to its low issue volume, so this reads as
+  dormant rather than abandoned. Recommend build_with_caveats: mechanically
+  installable today via the basic_auth perimeter gate, but that gate only
+  secures the door and cannot pre-provision the account behind it, so the
+  caveat must be called out explicitly in the recipe.

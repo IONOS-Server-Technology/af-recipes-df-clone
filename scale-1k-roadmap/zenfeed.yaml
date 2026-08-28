@@ -1,0 +1,120 @@
+slug: zenfeed
+name: Zenfeed
+source_description: "AI-powered RSS aggregator with summaries, semantic search, and smart alerts"
+
+upstream:
+  url: https://zenfeed.xyz
+  repo_url: https://github.com/glidea/zenfeed
+  license: AGPL-3.0-only
+  docker_image: glidea/zenfeed (backend); glidea/zenfeed-web (web UI); diygod/rsshub (bundled feed-scrape dependency)
+  compose_file_url: https://raw.githubusercontent.com/glidea/zenfeed/main/docker-compose.yml
+  compose_file_notes: >
+    Official, published by the project itself: the README's own
+    quick-start instructions tell users to download this exact file
+    (also viewable at
+    https://github.com/glidea/zenfeed/blob/main/docker-compose.yml).
+    Only one variant exists, no GPU/CPU or sqlite/postgres split. This
+    is a rolling reference to the default branch (`main`), not a
+    version-pinned release asset — there is no tagged-release download
+    link to prefer instead, consistent with the no-tag-since-v0.7.0
+    situation already noted under version_health. The file itself pins
+    `glidea/zenfeed:latest` and `glidea/zenfeed-web:latest` (only the
+    bundled `diygod/rsshub` dependency has a dated tag,
+    `2024-12-14`), matching the RFC-002 pinning blocker already
+    recorded under installability.
+
+version_health:
+  latest_version: "v0.7.0 (2025-11-07)"
+  latest_release_date: "2025-11-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Tagged releases: v0.1.1 (2025-04-23) through v0.7.0 (2025-11-07),
+    roughly monthly during 2025 then nothing tagged since. However,
+    commit activity on `main` has continued well past the last tag —
+    most recently 2026-07-10, with a small run of merged PRs
+    (provider additions, README fixes) on 2026-07-03. As of today
+    (2026-08-05) that is ~9 months since the last tagged release but
+    under 1 month since the last commit, so this reads as a small,
+    single-maintainer project that has stopped cutting version tags
+    while still shipping to `main` and merging community PRs — active,
+    not dormant, but untagged commits mean the official
+    docker-compose.yml pins `:latest` for both first-party images with
+    no versioned tag to pin to instead.
+
+catalogue_fit:
+  categories: [productivity, ai, rss, news]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is an RSS/feed reader or
+    news-aggregation tool. Open WebUI and Hermes Agent are general AI
+    chat/agent front ends, not feed aggregators; n8n could be wired up
+    to poll feeds via automation but is not a reading/browsing product.
+    Zenfeed's pitch — LLM-driven summarization, scoring/filtering, and
+    semantic search over subscribed feeds, plus scheduled "daily
+    briefing" digests and webhook/email alerts on tracked topics — is a
+    genuinely distinct niche (personal AI news/monitoring hub) that
+    none of the existing recipes cover.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (self-hosted AI-curated RSS reading) with
+    an actively-updated (if untagged) upstream, but it is a single-user
+    personal tool rather than a business/team product, and its core
+    value proposition (LLM summarization/semantic search) is
+    non-functional out of the box without a customer-supplied LLM API
+    key — see installability below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "LLM provider API_KEY (SiliconFlow by default; OpenAI/Gemini/others configurable)"
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The official docker-compose.yml requires an API_KEY env var for
+      its LLM provider (defaults to SiliconFlow's Qwen3-8B/embedding
+      models; the fallback literal "your-api-key" is non-functional).
+      Without it, the app's only real feature — AI summarization,
+      scoring/filtering, and semantic search — does not work at all;
+      the app degrades to a bare RSS reader. This is a third-party API
+      key with no customer-supplied-value channel in /compose today
+      (the same class of blocker already tracked on the disabled
+      `paperless-ai` recipe in this catalogue).
+    - >
+      Upstream README states explicitly: "zenfeed does not yet have an
+      authentication mechanism" for its web UI, and warns that exposing
+      it publicly risks leaking the API_KEY. A mandatory Traefik
+      basic_auth gate (expressible today via generated_from root
+      password) mitigates the public-exposure risk but does not solve
+      the missing-API-key blocker above.
+    - >
+      No versioned upstream tag since v0.7.0 (2025-11-07); the official
+      compose stack pins both first-party images (`glidea/zenfeed`,
+      `glidea/zenfeed-web`) to `:latest`, which RFC-002's
+      image-tag-pinned rule would reject — there is no stable numbered
+      tag on Docker Hub to pin to instead as of today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Zenfeed is a three-container stack (zenfeed backend, zenfeed-web
+  frontend, bundled diygod/rsshub feed-scraper) exposing a single
+  primary web port (1400) that would sit cleanly behind Traefik, with
+  the backend's other ports (query/gRPC API, MCP endpoint, Prometheus
+  metrics) staying container-internal — structurally similar to other
+  multi-container recipes like n8n. It fills a real gap: no existing
+  recipe is an AI-curated RSS/news reader. It is blocked from shipping
+  today for two independent reasons: it mandates a third-party LLM
+  API_KEY with no supported input channel in /compose (the same
+  structural blocker already tracked on the disabled paperless-ai
+  recipe), and it ships no web-UI authentication of its own, upstream
+  says so directly. On top of that, upstream has not cut a version tag
+  since 2025-11-07 even though `main` is still being committed to,
+  leaving no pinnable stable tag for the two first-party images.
+  Revisit once IF-1420/1312-style secret projection is extended to
+  arbitrary external API keys and upstream resumes tagging releases.

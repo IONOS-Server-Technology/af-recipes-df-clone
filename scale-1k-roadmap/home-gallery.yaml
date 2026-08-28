@@ -1,0 +1,86 @@
+slug: home-gallery
+name: Home Gallery
+source_description: "Self-hosted photo gallery with similar-image search and face detection"
+
+upstream:
+  url: https://home-gallery.org
+  repo_url: https://github.com/xemle/home-gallery
+  license: MIT
+  docker_image: xemle/home-gallery
+  compose_file_url: https://raw.githubusercontent.com/xemle/home-gallery/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (README's docker-compose section points
+    to the docs install page, which in turn just directs back to this
+    file). This is a rolling reference to the default `master` branch, not
+    version-pinned — consistent with the project shipping no tagged
+    GitHub Releases (see version_health). Only one variant is offered (no
+    separate GPU/CPU or dev/prod compose files); the checked-in file
+    itself defaults to the WASM TensorFlow.js backend for the `api`
+    service, with CPU/Node.js backends left as commented-out alternatives.
+
+version_health:
+  latest_version: "268ca663 (rolling `latest` tag, no semver release)"
+  latest_release_date: "2026-06-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Project has no GitHub Releases at all (repo's Releases page is empty) —
+    it ships as a rolling `latest`/commit-sha Docker tag rather than tagged
+    versions, even though `package.json` on `master` carries an internal
+    "1.21.0" that is never cut into a release artifact. The most recent
+    commits are dated 2026-06-22 (server hardening/proxy-trust fixes),
+    2026-05-18, and 2026-05-14 — about 6-11 weeks before today (2026-08-05).
+    The published `xemle/home-gallery` Docker Hub tag (`latest`, digest
+    `268ca663`) was pushed about 1 month before today, tracking the June 22
+    commit. Commit cadence looks steady (weekly-ish, including dependency
+    bumps and a past arbitrary-file-read security fix), so treat as
+    actively maintained despite the unconventional no-releases workflow.
+
+catalogue_fit:
+  categories: [media, photos]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Home Gallery is a lighter, database-less alternative: it indexes media
+    into a JSON "database" loaded client-side rather than Postgres/Redis,
+    and can run its similarity/object/face-detection backend either against
+    the public api.home-gallery.org service or a self-hosted
+    `xemle/home-gallery-api-server` sidecar (WASM/CPU backend, no external
+    API key needed either way). Feature-wise it covers the same ground as
+    Immich (tagging, AI-powered similar-image search, face discovery) but
+    is explicitly single-user ("one user only — all files are served") with
+    no built-in login, no mobile apps, and no multi-user sharing/albums —
+    strictly a subset of what Immich already provides in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    The self-hosted-photo-gallery-with-AI-search niche is already filled by
+    Immich, which is more feature-complete (multi-user, native mobile
+    clients, albums/sharing, larger community and commercial backing) and
+    already ships as a recipe. Home Gallery's only distinguishing trait —
+    no database, JSON-file index — is an implementation detail, not a
+    customer-facing reason to prefer it, and its lack of any built-in auth
+    plus single-user design make it a weaker fit for a hosted product than
+    Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Home Gallery is mechanically installable today: it's a two-container
+  docker-compose stack (a `gallery` web UI on a single port 3000, plus an
+  `api` sidecar for similarity/face-detection that needs no external API
+  key), and since it has no login of its own, gating it behind Traefik
+  basic_auth keyed off the customer's root-password hash covers the only
+  secret it needs. The project itself is actively maintained (weekly-ish
+  commits into 2026-06, despite an unconventional no-tagged-releases
+  workflow). It overlaps with Immich in the catalogue (see
+  catalogue_fit.overlaps_with/differentiation) but has no blocking
+  installability issues, so it's build_now.

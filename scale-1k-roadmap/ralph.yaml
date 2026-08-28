@@ -1,0 +1,105 @@
+slug: ralph
+name: Ralph
+source_description: "IT asset management and DCIM platform with REST API for data centers"
+
+upstream:
+  url: https://ralph-ng.readthedocs.io
+  repo_url: https://github.com/allegro/ralph
+  license: Apache-2.0
+  docker_image: allegro/ralph:20260805.1
+  compose_file_url: https://raw.githubusercontent.com/allegro/ralph/ng/docker/docker-compose.yml
+  compose_file_notes: >
+    Rolling reference to the default branch (`ng`), not version-pinned —
+    the file lives at docker/docker-compose.yml in the repo itself (no
+    GitHub release ships it as a tagged asset), and it also pulls
+    `allegro/ralph:latest` rather than a pinned tag. This is the file to
+    use, not the one the docs point to: docs/installation/installation.md
+    labels its Docker install "Experimental"/"beta" and directs readers to
+    a `contrib/docker-compose.yml.tmpl`, but that template no longer
+    exists in the repo (404) — the docs reference is stale. The docker/
+    directory also has docker-compose-dev.yml, docker-compose-demo.yml,
+    and docker-compose-local-dev.yml variants; docker-compose.yml (no
+    suffix) is the plain/production one and matches this analysis's own
+    five-service architecture description (Django web + static-asset
+    nginx + MySQL + Redis + inkpy), so it was picked over the dev/demo/
+    local-dev variants.
+
+version_health:
+  latest_version: "20260805.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (20260805.1) is dated today (2026-08-05); the
+    prior release (20260729.1) is exactly one week earlier, and the
+    pattern before that (20260609.1, 20260506.1, 20260327.1, 20260324.1,
+    20260309.1, 20260129.1, 20260126.1, 20260123.1) shows roughly
+    weekly-to-monthly cuts throughout 2026, not a stalled or single-
+    commit-then-abandoned project. Allegro's own README carries a
+    lingering "Sources only" disclaimer dating to a January 2024
+    announcement (no guaranteed issue/PR response), but a February 2025
+    update states they are actively investing in modernizing the
+    codebase, and the 2026 release cadence backs that up — this reads as
+    "community-support-only, not maintainer-abandoned" rather than
+    dormant or EOL. The Docker Hub image (allegro/ralph) is rebuilt and
+    tagged in lockstep with each GitHub release, most recently ~22 hours
+    before this analysis.
+
+catalogue_fit:
+  categories: [infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue tracks physical/IT asset
+    inventory, data-center rack/space visualization, or a CMDB. Portainer
+    and WUD are the closest "infrastructure" recipes but manage running
+    containers/images, not hardware assets, licenses, or DC floor space —
+    a genuinely different job. Ralph would appeal to a narrower,
+    more ops/enterprise-leaning customer (someone tracking physical
+    servers, racks, network gear, or back-office hardware) than the
+    consumer/prosumer-leaning apps that make up most of the catalogue
+    today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand — Ralph is a long-standing, purpose-built CMDB/DCIM
+    tool with an active community and a REST API for integration, and
+    "IT asset management" is a distinct job none of the 24 existing
+    recipes cover. Capped at medium rather than high because the
+    audience is narrow (IT/ops teams managing physical inventory, not a
+    general self-hosting audience) and the app is a heavier multi-service
+    stack (Django app + static-asset nginx + MySQL + Redis + a custom
+    inkpy diagramming service) than most of what's in the catalogue,
+    which raises operational weight for what is likely to be a
+    lower-volume recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_root_password, superuser_password, basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: db_root_password
+      mechanism: server_generated_no_customer_input
+    - secret: superuser_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Ralph is an active, Apache-2.0-licensed CMDB/DCIM tool with an official,
+  regularly-updated Docker image and no EOL or dormancy signal — release
+  cadence has been weekly-to-monthly through all of 2026. It fills a real
+  gap: no existing recipe covers IT asset/DCIM tracking. Its own admin
+  login (`ralphctl createsuperuser`, or the container's
+  `RALPH_DEFAULT_SUPERUSER_NAME`/`RALPH_DEFAULT_SUPERUSER_PASSWORD` env
+  vars) only accepts a plaintext password, which `generated_from` (hash
+  only) can't feed — but because the entire app surface is a single HTTP
+  service (Django app behind a static-asset nginx, no raw non-HTTP
+  protocol like RabbitMQ's AMQP), the standard workaround applies
+  cleanly: set a fixed, server-generated superuser password behind a
+  mandatory Traefik `basic_auth` gate keyed to the customer's root
+  password, with the fixed internal credential documented so the
+  customer can log in and change it via Ralph's own password-change
+  flow. That makes it installable today with no blocking issues.

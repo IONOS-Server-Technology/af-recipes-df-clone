@@ -1,0 +1,99 @@
+slug: ackee
+name: Ackee
+source_description: "Ackee is a self-hosted Node.js analytics tool for privacy-focused website tracking"
+
+upstream:
+  url: https://ackee.electerious.com/
+  repo_url: https://github.com/electerious/Ackee
+  license: MIT
+  docker_image: electerious/ackee:3.6.0
+  compose_file_url: https://github.com/electerious/Ackee/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the README's "Get
+    started...with Docker Compose" section points to. It's a rolling
+    reference to the default (master) branch, not version-pinned to a
+    release tag; Ackee doesn't publish a per-release compose asset. Only
+    one variant is shipped (Ackee + Mongo, single-port 3000), so there was
+    no dev/prod or GPU/CPU choice to make.
+
+version_health:
+  latest_version: "3.6.0"
+  latest_release_date: "2026-04-08"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Repo is not archived; last code push was 2026-07-25, so development is
+    ongoing (as of 2026-08-05). But release history is lumpy: v3.4.2
+    shipped 2022-12-17, then nothing tagged for almost three years until
+    v3.5.0 landed 2025-11-13, followed quickly by v3.5.1 (2025-11-19) and
+    v3.6.0 (2026-04-08, ~4 months ago). Read as a project that went quiet
+    for a long stretch and has recently picked back up, not a steady
+    cadence — "slowing" fits better than "active" until a few more releases
+    confirm the revival holds.
+
+catalogue_fit:
+  categories: [analytics, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers website analytics/traffic
+    tracking. Ackee is a lightweight, cookie-free alternative to Google
+    Analytics/Plausible/Matomo that a customer running any of their own
+    sites elsewhere (not necessarily hosted through us) could point a
+    tracking snippet at. It's a genuinely new category, not a variant of
+    an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted privacy analytics has a real, recurring audience (indie
+    site owners, privacy-conscious devs) and pairs naturally with
+    IONOS-hosted sites, but it's a single-purpose tool with a narrower
+    audience than e.g. n8n or Vaultwarden, and competes with more actively
+    maintained alternatives (Plausible, Umami) a customer might expect
+    instead.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ACKEE_USERNAME, ACKEE_PASSWORD]
+  secrets_expressible_today:
+    - secret: ACKEE_USERNAME
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ACKEE_PASSWORD has no expressible mechanism today. Ackee's login
+      resolver (src/resolvers/tokens.js) compares the submitted password to
+      the ACKEE_PASSWORD env var with plain string equality
+      (`password !== config.password`) — it never hashes or verifies a
+      hash, it does a literal match. `generated_from: "<algo>:ROOT_PASSWORD"`
+      produces a hash string (e.g. "argon2:$argon2id$...") to place into the
+      parameter; that only works for apps that hash-verify the credential
+      themselves (Vaultwarden's ADMIN_TOKEN does this). Putting a hash into
+      ACKEE_PASSWORD would require the customer to type that opaque hash
+      string as their login password, which defeats the point — there is no
+      channel today to hand Ackee a plaintext credential the customer
+      actually knows, short of leaking their real root password verbatim
+      into an env var, which we don't do.
+    - >
+      Even if ACKEE_PASSWORD were solved, auto-generating it server-side
+      (like a DB password) doesn't work either: unlike POSTGRES_PASSWORD or
+      N8N_ENCRYPTION_KEY, this credential is customer-facing — it's the
+      literal password typed into Ackee's own login screen every visit —
+      so a random value the customer is never shown would lock them out.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Ackee is a single-HTTP-port (3000), reverse-proxy-friendly Node.js +
+  MongoDB app with no overlap in the current catalogue — analytics/tracking
+  is a genuinely new category for us. It fails installability today purely
+  on credential mechanics: its admin password field does a literal
+  plaintext comparison against the ACKEE_PASSWORD env var, not a hash
+  verification, so the `generated_from` root-password-hash projection (our
+  only mechanism for an app's own login field) can't be wired to it, and
+  auto-generating the password server-side would silently lock the
+  customer out of a screen they need to use. Username is solvable (fixed
+  constant), but password is not. Recommend revisiting only if a future
+  mechanism can pass a customer-known plaintext credential through, or if
+  Ackee itself adds hash-based password verification. Release cadence is
+  also worth watching — a ~3-year gap before the current revival — before
+  investing in a recipe either way.

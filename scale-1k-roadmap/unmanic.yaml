@@ -1,0 +1,85 @@
+slug: unmanic
+name: Unmanic
+source_description: "Self-hosted media library optimizer for automated file transcoding"
+
+upstream:
+  url: https://docs.unmanic.app/
+  repo_url: https://github.com/Unmanic/unmanic
+  license: GPL-3.0
+  docker_image: josh5/unmanic:0.4.0.post23
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose file for the plain/default setup
+    exists. The official docs page
+    (docs.unmanic.app/docs/installation/docker) shows a basic docker-compose
+    example only as an inline YAML snippet in a tab next to the `docker run`
+    equivalent -- it is not a downloadable or linked file. The upstream repo
+    (github.com/Unmanic/unmanic) does contain real standalone files under
+    `docker/`, but every one of them is for a specific niche purpose rather
+    than a plain default: docker-compose-nvidia.yml and
+    docker-compose-vaapi.yml (hardware-accelerated encoding variants),
+    docker-compose-cifs.yml (network/SMB library mount), and
+    docker-compose-ssl.yml / docker-compose-test.yml (internal dev/test
+    setups, not intended for end users). None of these matches the basic
+    single-container setup the docs page's inline snippet describes, so
+    none was adopted as "the" official compose file.
+
+version_health:
+  latest_version: "0.4.0.post23"
+  latest_release_date: "2026-04-04"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Formal GitHub releases are infrequent and irregular (0.2.7 May 2022 ->
+    0.2.8 Aug 2022 -> 0.2.9 Jun 2023 -> 0.3.0 Jul 2023 -> 0.4.0 Feb 2026, gaps
+    from a few weeks to ~11 months). The last tagged GitHub release (0.4.0,
+    2026-02-25) is ~5.4 months old as of today (2026-08-05). However the
+    repo is not archived and commit activity is current: repo pushed_at is
+    2026-08-03 and the `staging` Docker tag was updated 2026-08-04 (1 day
+    before this analysis), so development is ongoing between releases —
+    classified as "slowing" release cadence on an otherwise active project,
+    not dormant.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch media transcoding/storage
+    optimization. Immich is the closest existing "media" recipe but is a
+    photo/video backup and library app, not a transcoding tool — Unmanic
+    would be a distinct capability (batch re-encode a video library to a
+    uniform format/codec to reclaim disk space), not a replacement or
+    competitor for anything we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful for anyone self-hosting a video library, but its value
+    is conditional: it optimizes files already sitting in a mounted
+    library path, and the catalogue has no Plex/Jellyfin/Emby-style media
+    server recipe for it to pair with. A customer would need to bring their
+    own media storage/mount and workflow, which is a smaller addressable
+    slice of AF's customer base than a self-contained app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["basic_auth gate credential (Traefik)"]
+  secrets_expressible_today:
+    - secret: "basic_auth gate credential (Traefik)"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Unmanic is a single-container, single-HTTP-port (8888) app with no
+  built-in login, so it fits the current recipe mechanism cleanly via a
+  Traefik basic_auth gate — no external API keys, OAuth, or unsupported
+  credential types are involved. It is mechanically installable today with
+  no blocking issues, so it's a build_now. Release cadence has slowed to
+  roughly one tagged version every several months (though upstream commits
+  are current as of this week), and its usefulness depends on the customer
+  already having a video library mounted into the VM, which the catalogue
+  currently has no companion media-server recipe to provide — these are
+  factual notes on priority/audience, not grounds to downgrade the
+  recommendation.

@@ -1,0 +1,119 @@
+slug: pghero
+name: PgHero
+source_description: "Open-source PostgreSQL performance dashboard for query and index monitoring"
+
+upstream:
+  url: https://github.com/ankane/pghero
+  repo_url: https://github.com/ankane/pghero
+  license: MIT
+  docker_image: ankane/pghero
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The project's own Docker guide
+    (github.com/ankane/pghero/blob/master/guides/Docker.md) documents only
+    bare `docker run -e DATABASE_URL=... -p 8080:8080 ankane/pghero`
+    commands (plus Kubernetes deployment notes and `docker run` invocations
+    for the rake-based stats-capture/cleanup tasks) — no compose.yaml/yml
+    is referenced or shipped anywhere in the repo, root or otherwise.
+
+version_health:
+  latest_version: "4.0.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.0.0 tagged 2026-08-05 — the same day as this analysis — dropping
+    support for Postgres < 14 and several legacy Ruby/Rails/dependency
+    versions. Prior releases: v3.8.0 (2026-04-15, ~4 months earlier),
+    v3.7.0 (2025-05-26, ~11 months before that), v3.6.2 (2025-03-21),
+    v3.6.1 (2024-10-14), v3.6.0 (2024-07-10). Cadence is irregular
+    (gaps from 2 to 11 months) but has never gone dormant — at least one
+    release every year since the project started, with the changelog
+    showing continuous maintenance-style fixes (dropped legacy support,
+    CSP/CSS fixes, bug fixes) between major version bumps. Repo is not
+    archived, has 8.9k GitHub stars, MIT license, and the Docker image on
+    Docker Hub is published in lockstep with tags (linux/amd64 +
+    linux/arm64). This is a healthy, actively maintained single-maintainer
+    project (Andrew Kane / "ankane"), not a corporate-backed one with a
+    fixed release train — cadence reflects that but shows no sign of
+    abandonment.
+
+catalogue_fit:
+  categories: [databases, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    PgHero is a narrow, single-purpose read-only dashboard for one
+    Postgres instance — slow queries, missing/unused/duplicate indexes,
+    live queries, connection/space stats, and a query-explain view. It is
+    lighter-weight and more focused than a general admin tool like
+    pgAdmin (schema browsing, arbitrary SQL execution, user/permission
+    management) or a fleet-wide monitoring platform like Percona PMM
+    (multi-database-engine, Grafana-based, client/server architecture).
+    None of the 24 shipped recipes offer Postgres-specific performance
+    insight; n8n and paperless-ngx each run Postgres internally but
+    expose no monitoring UI for it.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to a technically inclined customer who already runs
+    Postgres and wants performance visibility, but its value is entirely
+    contingent on which database it points at. Pointed at a customer's
+    own external, self-managed Postgres server it is genuinely valuable;
+    pointed at nothing (or at a fresh, empty database we'd have to bundle
+    just to make the recipe self-contained) it has little to show. Unlike
+    pgAdmin — where the customer adds server connections through the UI
+    after logging in — PgHero's target database is fixed by a single
+    `DATABASE_URL` environment variable set once at container start, so
+    the "which database" question has to be answered at install time, not
+    left to the customer to configure later.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DATABASE_URL, basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      PgHero has no login of its own by default — it ships with optional
+      basic auth via plaintext `PGHERO_USERNAME`/`PGHERO_PASSWORD` env
+      vars, which is not itself a blocker since the app works fine with
+      those vars simply left unset and a Traefik `basic_auth` gate placed
+      in front instead (same pattern as Adminer/WUD).
+    - >
+      The real blocker is `DATABASE_URL`: PgHero's one required
+      environment variable, read once at container start with no
+      post-boot UI to change it, must contain the host, port, database
+      name, and a username+password for the actual Postgres server to be
+      monitored. That connection string is either (a) an arbitrary
+      external customer-owned Postgres instance — a third-party
+      credential with no input channel today, same category as an
+      external API key — or (b) a database we'd have to stand up
+      ourselves inside the recipe's own compose stack purely to give
+      PgHero something to point at, which sidesteps the mechanism
+      constraint but produces a recipe that monitors an empty, purpose-
+      built database instead of anything the customer actually runs,
+      defeating the point of a performance dashboard. Neither
+      `generated_from` (hash-only, and only ever the customer's *root*
+      password) nor Traefik `basic_auth` (gates HTTP access, not an
+      app's internal DB connection config) can supply an arbitrary
+      external connection string.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PgHero is a small, actively maintained (MIT, v4.0.0 shipped the same day
+  as this analysis, no dormancy despite an irregular release cadence),
+  genuinely differentiated addition — nothing in the current 24-recipe
+  catalogue offers Postgres-specific query/index performance monitoring.
+  Its own optional auth is a non-issue (a Traefik `basic_auth` gate covers
+  it cleanly), but it is blocked on a more fundamental gap than pgAdmin or
+  Percona PMM: its single required `DATABASE_URL` must name an actual
+  external Postgres server with real credentials, and our platform has no
+  channel today for a customer to supply an arbitrary third-party
+  connection string — only a hash of their own root password or a static
+  basic-auth gate. Recommend `blocked_on_platform`: revisit once a genuine
+  customer-supplied-value input channel exists; bundling a throwaway
+  Postgres just to satisfy the env var would ship a recipe with no real
+  content to display.

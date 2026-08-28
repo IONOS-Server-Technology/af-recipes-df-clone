@@ -1,0 +1,92 @@
+slug: viewtube
+name: ViewTube
+source_description: "Privacy-friendly alternative YouTube front-end with subscriptions and no ads"
+
+upstream:
+  url: https://viewtube.io
+  repo_url: https://github.com/ViewTube/viewtube
+  license: AGPL-3.0
+  docker_image: mauriceo/viewtube
+  compose_file_url: https://viewtube.wiki/installation/docker
+  compose_file_notes: >
+    No standalone compose file is published (no release asset, no raw file
+    on the wiki repo, and the repo root's docker-compose.yml is a dev-only
+    file that builds the image from source via `build: .` rather than
+    pulling a published tag, plus exposes MongoDB/Redis ports directly —
+    not what the project documents for self-hosting). The install-oriented
+    compose file lives embedded in prose on the official wiki page above
+    (source: ViewTube/wiki repo, content/2.installation/2.docker.md), which
+    pulls `mauriceo/viewtube:latest` + `mongo:7` + `redis:7`. It is a
+    rolling reference (the `:latest`/`:7` tags float on whatever those
+    upstream registries currently serve), not pinned to a specific
+    ViewTube release. Only one variant is offered — no GPU/CPU or
+    sqlite/postgres split — aside from a documented option to drop to
+    `mongo:4.4` on hosts without AVX support.
+
+version_health:
+  latest_version: "0.17.0"
+  latest_release_date: "2024-08-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No stable release since v0.17.0 (2024-08-27) — almost 24 months before
+    today (2026-08-05). The default branch's last human-authored, merged
+    commit was 2025-06-23 (#3020); every commit and open PR since then
+    (through 2026-08-04) is a Renovate dependency-bump, all still unmerged.
+    Two open bug reports (#2988, #2989), opened 2024-10-07, have no
+    maintainer response nearly two years later — only user comments (last
+    one 2025-03-02) speculating the project is abandoned. The repo is not
+    archived and a "nightly"
+    Docker image is still auto-built as recently as 2026-08-07, so tooling
+    is technically alive, but there has been no real feature work, bug
+    triage, or tagged release in about two years — this reads as a
+    de facto abandoned/maintenance-only project despite the bot activity
+    keeping the commit graph superficially busy.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch video/media consumption in this
+    way — Immich is personal photo/video backup, not a YouTube front-end.
+    ViewTube would be the catalogue's first ad-free/privacy-respecting
+    YouTube proxy (in the same space as Invidious/Piped, neither of which
+    is in the catalogue), giving customers a self-hosted way to browse and
+    subscribe to YouTube channels without ads, tracking, or a Google
+    account.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable use case (ad-free YouTube viewing) with a genuine
+    niche audience, but the underlying project's two-year stall on releases
+    and unaddressed bugs makes it a riskier long-term bet than an actively
+    maintained alternative would be — YouTube-scraping front-ends also tend
+    to break as YouTube changes its site, and without active upstream
+    maintenance those breakages may go unfixed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ViewTube is a single-HTTP-port (8066) Docker Compose app (viewtube +
+  MongoDB + Redis, all internal-only) that works fine behind Traefik on
+  viewtube.<base_domain> — mechanically straightforward and no different in
+  shape from other multi-service recipes already in the catalogue.
+  Its own auth model needs no customer secret at first boot: admin rights
+  are granted by setting the static env var VIEWTUBE_ADMIN_USER to a
+  self-registered account's username (no password field exists at all), and
+  public self-registration is on by default. That default-open registration
+  is itself the risk — anyone reaching the instance first could register
+  the admin username and claim the account before the customer does — so a
+  mandatory Traefik basic_auth gate (projected from the customer's root
+  password, as used for n8n/WUD) is warranted to protect the instance until
+  the customer completes their own setup. Installable today with no
+  blocking issues, so recommend build_now.

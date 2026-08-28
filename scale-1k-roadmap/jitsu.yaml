@@ -1,0 +1,82 @@
+slug: jitsu
+name: Jitsu
+source_description: "Open-source customer data platform and event streaming pipeline for engineers"
+
+upstream:
+  url: https://jitsu.com/
+  repo_url: https://github.com/jitsucom/jitsu
+  license: MIT
+  docker_image: jitsucom/console (plus jitsucom/rotor, jitsucom/bulker, jitsucom/ingest, jitsucom/syncctl — no single "jitsu" image for the current architecture)
+  compose_file_url: https://raw.githubusercontent.com/jitsucom/jitsu/newjitsu/docker/docker-compose.yml
+  compose_file_notes: >
+    Official file, linked from upstream's own self-hosting quick-start docs
+    (jitsu.com/docs/self-hosting/quick-start), which reference it as
+    `./docker/docker-compose.yml` in the repo. It lives on the `newjitsu`
+    branch — the active rewrite branch this analysis already identified as
+    the current default/shipped codebase (see version_health notes) — not on
+    a tagged release, so this is a rolling reference to a branch tip rather
+    than a version-pinned link; no release-asset or tag-pinned variant of
+    this file was found. Only one variant is offered (no GPU/CPU or
+    sqlite/postgres split). Per upstream's own docs this Compose setup is
+    explicitly deprecated in favor of a Helm chart and "cannot run functions,
+    profile builders or connector syncs" — consistent with the
+    installability blocking issues already recorded below.
+
+version_health:
+  latest_version: "2.15.0-beta.28"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases are dated same-day as this analysis (2026-08-05) with daily/near-daily
+    beta tags going back weeks — the project is clearly actively developed. However
+    every visible release tag is a "-beta.N" pre-release; no stable non-beta channel
+    was found, so "latest stable" doesn't exist as a concept here today. Name
+    ambiguity: the GitHub repo's `master` branch (and the `jitsucom/jitsu` Docker
+    Hub image, last pushed ~2 years ago) is the old Jitsu v1 "Segment alternative"
+    architecture (configurator + server + Redis + ClickHouse). The active,
+    default-branch project (`newjitsu`) is a ground-up rewrite ("Jitsu Next") with a
+    different microservice architecture and different Docker images. This analysis
+    covers the active `newjitsu` rewrite, since that's what upstream now ships and
+    documents; the old v1 branch/image was considered and ruled out as effectively
+    dormant.
+
+catalogue_fit:
+  categories: [analytics, developer-tools, data-engineering]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers event streaming / customer-data-platform tooling
+    (a self-hosted Segment alternative). It would add a genuinely new category to
+    the catalogue rather than duplicating anything among the current 24 recipes.
+  usefulness: low
+  usefulness_rationale: >
+    The audience is narrow (engineering/data teams wanting to self-host an event
+    pipeline) and the operational footprint is heavy for a general VPS customer —
+    upstream itself steers self-hosters toward Kubernetes for full functionality,
+    which cuts against the profile of most AF customers who want a lightweight
+    single-VPS app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["console admin login password (SEED_USER_PASSWORD)"]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "SEED_USER_PASSWORD is consumed by the console service as the literal credentials-login password (ENABLE_CREDENTIALS_LOGIN=true), not as a hash the app verifies against — a genuine plaintext-password requirement. generated_from only ever projects a hash of the customer's root password, so it cannot satisfy this; it is a structural blocker, not just an unsupported algorithm."
+    - "Upstream's own self-hosting docs describe the Docker Compose deployment as legacy/deprecated for full functionality: it 'cannot run functions, profile builders or connector syncs' — core CDP features. The documented, supported path for a real deployment is a Kubernetes cluster + Helm chart, which is a different deployment model than our docker-compose recipe mechanism, not just a missing secret."
+    - "Heavy backing-infra footprint even for the degraded Compose setup: five first-party services (console, ingest, rotor, bulker, syncctl) plus Postgres, MongoDB, ClickHouse, and Kafka/Redpanda — well beyond the resource floor of a typical AF recipe and hard to justify for the single-VPS use case."
+    - "Several env vars are named for an 'EE' (Enterprise Edition) auth path (EE_API_AUTH_TOKENS, EE_CONNECTION), suggesting some functionality may be licensing-gated even in a self-hosted deployment; not fully verified but worth flagging."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Jitsu's active codebase (the `newjitsu` rewrite) needs its own plaintext
+  admin password at first boot — a channel our recipe mechanism doesn't have
+  today, and one `generated_from` cannot satisfy since it only ever projects a
+  password hash. On top of that, upstream's own docs say the Docker Compose
+  deployment can't run core CDP features (functions, profile builders,
+  connector syncs) and point self-hosters at a Kubernetes + Helm deployment
+  instead — a different deployment model than our docker-compose mechanism,
+  not just a missing secret. These are structural blockers independent of each
+  other; recommend not building a recipe for it today.

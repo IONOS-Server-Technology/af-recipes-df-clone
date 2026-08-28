@@ -1,0 +1,92 @@
+slug: speakr
+name: Speakr
+source_description: "Self-hosted AI transcription and intelligent note-taking platform"
+
+upstream:
+  url: https://murtaza-nasir.github.io/speakr/
+  repo_url: https://github.com/murtaza-nasir/speakr
+  license: AGPLv3 (dual-licensed; a separate commercial license is offered for organizations that don't want AGPLv3's network-source-sharing obligation — running the unmodified upstream image as-is, without redistributing modifications, stays inside the AGPLv3 terms, same posture already accepted for Vaultwarden)
+  docker_image: learnedmachine/speakr
+  compose_file_url: https://raw.githubusercontent.com/murtaza-nasir/speakr/master/config/docker-compose.example.yml
+  compose_file_notes: >-
+    Official file, referenced directly by name ("cp config/docker-compose.example.yml
+    docker-compose.yml") in the project's own installation guide
+    (docs/getting-started/installation.md, "Recommended: pre-built Docker
+    image" path). It's a rolling reference to the default branch (master),
+    not version-pinned — the repo has no tagged release archives with
+    per-version compose files, and the doc's own copy-paste snippet mirrors
+    this file exactly. Only one variant exists at this path; it pins
+    `image: learnedmachine/speakr:latest` with a comment noting an
+    alternate `lite` tag (smaller, no PyTorch/semantic-search) that can be
+    swapped in via the same file, not a separate compose file. Optional
+    self-hosted ASR (WhisperX) and cross-container-network configurations
+    are documented as additional/companion compose snippets layered on top
+    of this one, not alternate versions of it.
+
+version_health:
+  latest_version: "v0.10.2-alpha"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Latest tag v0.10.2-alpha shipped 2026-07-15, ~21 days before today
+    (2026-08-05). The run-up to it was near-daily: v0.9.5-alpha (Jul 6),
+    v0.9.6-alpha (Jul 8), v0.9.7-alpha (Jul 13), v0.10.0-alpha (Jul 14),
+    v0.10.1-alpha (Jul 14), v0.10.2-alpha (Jul 15) — six releases in nine
+    days. Clearly active, well-maintained development. Caveat: every
+    release to date, including the current one, is tagged "-alpha" — the
+    project has not cut a 1.0/stable line yet, so breaking changes between
+    point releases are plausible and should be expected when bumping the
+    pinned tag later.
+
+catalogue_fit:
+  categories: [productivity, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    No existing recipe covers audio transcription or AI-assisted
+    note-taking from voice recordings. paperless-ai (closest AI-adjacent
+    recipe) works on already-digitized documents, not audio; open-webui/
+    ollama provide general chat, not recording capture, diarization, or
+    transcript summarization. Speakr fills a genuinely new niche: capture
+    or upload audio, transcribe with optional speaker diarization,
+    auto-generate titles/summaries, and semantically search across a
+    recording library — a plausible standalone sell for meeting notes,
+    interviews, or voice journaling that keeps audio off third-party SaaS.
+  usefulness: medium
+  usefulness_rationale: >-
+    The privacy-first pitch (audio never leaves the customer's own infra)
+    is a real differentiator, but the most useful configuration (cloud
+    transcription/summarization APIs for good accuracy) is not
+    exposable under the current recipe mechanism (see below), so the
+    catalogue version would ship as a materially degraded, fully-local-only
+    experience unless/until IF-1420/1312-style secret-projection is
+    extended to a general external-API-key channel.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "Speakr's own admin bootstrap is unusually well-shaped for this platform: ADMIN_USERNAME/ADMIN_EMAIL/ADMIN_PASSWORD env vars create the sole admin account on first startup (no open self-registration race, no OIDC-only login) — a direct generated_from:\"<algo>:ROOT_PASSWORD\" target on ADMIN_PASSWORD, the same shape as the shipping Vaultwarden ADMIN_TOKEN example. This part is NOT a blocker."
+    - "The app's core function (transcription + AI summary/chat) needs either a cloud provider credential (TRANSCRIPTION_API_KEY for OpenAI/WhisperX-cloud/Mistral/AssemblyAI, TEXT_MODEL_API_KEY for OpenRouter/OpenAI) or a fully local connector (ASR_BASE_URL pointing at a self-hosted WhisperX/faster-whisper container, TEXT_MODEL pointing at a local Ollama/LM Studio endpoint) — confirmed via upstream docs that ASR_BASE_URL requires no API key at all once set. Because a no-external-key local path exists, this does not meet the SCHEMA.md \"can't function without [an external key]\" bar for a hard block — but it does mean a recipe can only ship the local-only configuration; there is no channel today for a customer to supply their own cloud provider key for better transcription/summarization accuracy, which is the configuration upstream's own docs treat as the higher-quality default."
+    - "A local-only build requires bundling at least one extra sidecar container (a WhisperX/faster-whisper ASR service, likely CPU-only on standard recipe VM sizing since GPU passthrough isn't part of the current recipe pattern) plus a local LLM endpoint (Ollama-style) for summarization/chat — a heavier multi-service footprint than most current recipes, and CPU-only ASR transcription speed/quality will be noticeably worse than the cloud-API path Speakr is designed around."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Speakr is an actively developed (if still pre-1.0/alpha-tagged),
+  AGPLv3-licensed transcription and note-taking app with a genuinely new
+  niche in the catalogue and an admin-login shape (ADMIN_PASSWORD env var)
+  that maps cleanly onto generated_from root-password projection — no
+  auth blocker here. The catch is that its real value proposition (cloud-
+  quality transcription and summarization) needs an external API key the
+  customer has no channel to supply today; the only mechanism-compliant
+  path is a fully local WhisperX+Ollama-style stack, which is heavier to
+  build and materially lower-quality than the product's intended
+  configuration. Recommend build_with_caveats: worth a real recipe only if
+  the local-only degraded experience is accepted as the shipping default,
+  or revisit once a general external-API-key input channel exists.

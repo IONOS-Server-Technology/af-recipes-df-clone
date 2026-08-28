@@ -1,0 +1,102 @@
+slug: habitica
+name: Habitica
+source_description: "Gamified task manager that turns productivity into an RPG adventure"
+
+upstream:
+  url: https://habitica.com
+  repo_url: https://github.com/HabitRPG/habitica
+  license: GPL-3.0
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/HabitRPG/habitica/develop/docker-compose.yml
+  compose_file_notes: >
+    This is the only docker-compose file the project ships (alongside
+    docker-compose.mongo-only.yml and docker-compose.mongo-test-local.yml,
+    which are mongo-only dev helpers, not full-app stacks). It is a rolling
+    reference to the default branch (develop), not version-pinned — there
+    is no tagged-release variant to prefer instead. As already documented
+    in installability.blocking_issues, this file is a development harness
+    (builds from Dockerfile-Dev, runs client and server as two separate
+    dev-server processes on ports 5173/3000, depends on a locally-built
+    mongo:7.0 replica set) rather than a production deployment; no
+    production-oriented compose variant exists upstream.
+
+version_health:
+  latest_version: "v5.48.8"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v5.48.8 published 2026-08-04, one day before today (2026-08-05); the
+    prior five releases (v5.48.4 through v5.48.7) all landed 2026-07-16,
+    v5.48.0-v5.48.2 landed 2026-06-02 to 2026-06-04, and v5.47.9 landed
+    2026-05-12. Roughly weekly-to-monthly release cadence, latest commit
+    on develop dated 2026-08-04 — this is a healthy, actively maintained
+    project, not remotely dormant.
+
+catalogue_fit:
+  categories: [productivity, gamification]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a task/habit tracker,
+    gamified or otherwise — this would be a genuinely new category if the
+    packaging story were viable. It is not, as detailed below: there is no
+    maintained, current-version way to run it in a container.
+  usefulness: medium
+  usefulness_rationale: >
+    A gamified task manager is a plausible, differentiated customer want
+    with a large, active upstream community (14k+ GitHub stars). Usefulness
+    is capped at medium rather than high because the self-hosting story is
+    poor even upstream — Habitica is primarily operated as a SaaS
+    (habitica.com) and self-hosting is a secondary, dev-oriented use case,
+    not a first-class deployment target the way our other recipes' apps are.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No maintained official Docker image exists. The only published
+      image, docker.io/habitica/habitica, is frozen at tag 4.60.3, last
+      pushed 2018-09-11 — over 7 years stale against the current v5.48.8
+      release. Pinning it would ship a version roughly 900 releases and 7+
+      years of security fixes behind current, violating the 'pick a
+      pinned, current stable tag' rule with nothing current to pin."
+    - "The docker-compose.yml shipped in the repo itself is a development
+      harness, not a production deployment: it builds from Dockerfile-Dev
+      (FROM node:20, installs mocha/gulp-cli, runs the source tree
+      directly), runs the client via a webpack/vite dev server on :5173
+      and the API server via 'npm start' on :3000 as two separate
+      processes/ports, and depends on a locally-built mongo:7.0 replica
+      set. There is no shipped production Dockerfile or single-port
+      production compose file to adopt as-is."
+    - "Because there is no current published image, shipping this recipe
+      would require af-recipes to build and maintain its own production
+      Habitica image from source (tracking upstream's frequent release
+      cadence indefinitely) rather than pin an existing tag — a different
+      and heavier commitment than every other recipe in the catalogue,
+      and not something the current recipe mechanism supports."
+    - "Even setting the image problem aside, the dev harness exposes the
+      client and API as two separate ports/services rather than one HTTP
+      origin, so it would need real production packaging work (a built
+      client bundle served by the API, or a second Traefik route) before
+      it fits the single-port-behind-Traefik pattern the rest of the
+      catalogue uses."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Habitica would fill a genuine gap (no gamified task/habit tracker in the
+  current catalogue) and has an active, healthy upstream (v5.48.8 shipped
+  2026-08-04, roughly weekly releases). But there is no viable path to a
+  Docker-based recipe today: the only published Docker Hub image is frozen
+  at v4.60.3 since 2018 (7+ years and hundreds of releases stale), and the
+  repo's own docker-compose.yml is a development-only harness (two ports,
+  webpack dev server, no production build) rather than a deployable
+  production stack. Filling this gap would require af-recipes to build and
+  indefinitely maintain its own production image from source — a
+  structurally different, heavier commitment than pinning an existing
+  vendor-published tag, and outside what the current recipe mechanism is
+  built for. Recommend not_recommended for now; revisit only if upstream
+  publishes and maintains a current production image.

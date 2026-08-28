@@ -1,0 +1,105 @@
+slug: svix
+name: Svix
+source_description: "Open-source webhook delivery service with automatic retries and message signing"
+
+upstream:
+  url: https://www.svix.com/open-source-webhook-service/
+  repo_url: https://github.com/svix/svix-webhooks
+  license: MIT
+  docker_image: svix/svix-server
+  compose_file_url: https://raw.githubusercontent.com/svix/svix-webhooks/main/server/docker-compose.yml
+  compose_file_notes: >
+    Official file, lives at server/docker-compose.yml in the svix-webhooks
+    monorepo (the same file already referenced by name in this analysis's
+    differentiation notes). Rolling reference to the default `main` branch,
+    not version-pinned — no per-release tagged copy is published. Wires
+    up backend (svix-server) + postgres + pgbouncer + redis, matching the
+    architecture described elsewhere in this file. Note it builds the
+    `backend` service from a local Dockerfile (`build: context: .`) rather
+    than pulling the `svix/svix-server` tagged image directly, and ships
+    the JWT secret line commented out with a placeholder ("uncomment and
+    set a real JWT secret here"). A sibling `docker-compose.override.yml`
+    and `testing-docker-compose.yml` also exist in the same directory for
+    dev/test use; this is the only one of the three positioned as the
+    general-purpose deployment file.
+
+version_health:
+  latest_version: "v1.100.0 (Svix Server OSS)"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Svix Server OSS v1.100.0 published 2026-08-03, two days before this
+    analysis (2026-08-05); a companion Svix Bridge v1.100.0 followed
+    2026-08-04. Looking back through the release history (v1.99.1
+    2026-07-23, v1.99.0 2026-07-23, v1.98.0 2026-07-17, v1.97.0
+    2026-07-15, v1.96.1 2026-06-25, v1.96.0 2026-06-18), the project ships
+    roughly weekly with no gaps longer than a few weeks. Repo is not
+    archived, 3.3k GitHub stars, actively receiving commits. Clearly a
+    well-resourced, actively maintained project.
+
+catalogue_fit:
+  categories: [developer-tools, integration, messaging]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does outbound webhook
+    delivery/retries/signing, so on paper this looks like a genuine gap.
+    In practice svix-server is a headless REST API service, not a
+    consumer-facing application: the official docker-compose.yml
+    (server/docker-compose.yml upstream) wires up svix-server behind
+    Postgres + pgbouncer + Redis and exposes a single port (8071) that
+    serves only a JSON API, health-checked via `svix-server healthcheck`.
+    Access is via Bearer JWTs minted with the `svix-server jwt generate`
+    CLI command against a configured signing secret (HS256/RS256/EdDSA);
+    there is no browser-based dashboard or admin UI in the self-hosted
+    OSS server. (Svix's hosted SaaS product has a management console and
+    an embeddable "App Portal", but those are cloud-only features, not
+    part of the self-hosted svix-server this recipe would deploy.) The
+    intended consumption pattern is a developer's own backend application
+    calling the Svix API/SDK to register webhook endpoints and send
+    events — structurally the same "headless dependency, not a
+    standalone app" shape already flagged for SuperTokens.
+  usefulness: low
+  usefulness_rationale: >
+    Svix is a strong building block for a team that is already writing a
+    backend application and wants outbound webhook delivery infrastructure
+    integrated at development time — it is not something an AF customer
+    could stand up and start using directly the way they can with every
+    other recipe in the catalogue. Deployed alone, the container exposes
+    a bare authenticated JSON API with nothing to click on; all the value
+    requires the customer to write and deploy separate backend code
+    against the Svix SDK/API, which is outside what a self-hosting recipe
+    delivers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, SVIX_JWT_SECRET]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SVIX_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Both first-boot secrets (the internal Postgres password and the JWT signing secret used to mint API bearer tokens) are patternless values nothing customer-facing needs to read, so mechanically they are server-generatable and the container would boot. But there is no customer-facing login screen to gate: the app's only HTTP surface is a JSON REST API meant to be called by the customer's own backend/SDK with a bearer token, not a browser session. The standard 'no login of its own, gate it with Traefik basic_auth' pattern used for Adminer/WUD/Stirling PDF doesn't transfer here — basic_auth would just break normal Bearer-token API calls from a customer's backend."
+    - "Even assuming successful boot, the recipe would deliver nothing a customer can use standalone: functioning webhook delivery requires them to write and deploy their own backend application against the Svix SDK/API, pointed at this instance and using tokens minted via the CLI (`svix-server jwt generate`) — steps outside anything a recipe can provision. This is a product-fit gap, not a secrets/mechanism gap."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  svix-server (svix/svix-server, pin v1.100.0) is a Postgres+pgbouncer+
+  Redis-backed, single-port (8071) REST API service with no customer-
+  supplied secrets it can't get server-generated — mechanically it would
+  boot fine. Upstream is very actively maintained (weekly releases, 3.3k
+  stars, not archived). It fails on product fit, not mechanism: the
+  self-hosted OSS server has no web dashboard of its own (that's a
+  cloud-only SaaS feature) — its only surface is a Bearer-token JSON API
+  meant to be consumed by a customer's own backend application via the
+  Svix SDK. Standing up the container alone would give an AF customer an
+  authenticated API with nothing to open in a browser, not a usable
+  self-hosted app. Recommend not_recommended: this is a developer
+  infrastructure dependency, not a self-contained application, and
+  doesn't fit the "one container, one web UI behind Traefik" shape the
+  rest of the catalogue follows — the same verdict already reached for
+  SuperTokens.

@@ -1,0 +1,132 @@
+slug: apache-superset
+name: Apache Superset
+source_description: "Apache Superset is a modern data exploration and visualization platform for BI"
+
+upstream:
+  url: https://superset.apache.org/
+  repo_url: https://github.com/apache/superset
+  license: Apache-2.0
+  docker_image: "apache/superset (lean build, e.g. apache/superset:6.1.0)"
+  compose_file_url: https://raw.githubusercontent.com/apache/superset/6.1.0/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo (docs at
+    superset.apache.org/admin-docs/installation/docker-compose walk through
+    it directly), but not a standalone downloadable artifact like Immich's
+    release asset — the documented workflow is `git clone` the repo, then
+    `git checkout <tag>`, then `docker compose up` from within that
+    checkout, because the compose file expects sibling files (docker/
+    scripts, .env, Dockerfile) to be present and in sync. The URL above is
+    version-pinned to the 6.1.0 tag (matches this file's recorded
+    latest_version) rather than a rolling default-branch reference, so it
+    reflects one point in time and would need to be re-pinned on version
+    bumps. The repo ships four compose variants for different purposes:
+    docker-compose.yml (interactive dev environment, builds
+    frontend/backend from source, chosen here as the base/default
+    variant), docker-compose-light.yml (lighter dev setup, in-memory cache
+    instead of Redis, supports multiple instances), docker-compose-non-dev.yml
+    (builds immutable images from the local branch), and
+    docker-compose-image-tag.yml (pulls pre-built images for a specific
+    released TAG rather than building — closest to a "production" flavor).
+    The docs explicitly warn: "THE DOCKER-COMPOSE INSTALLATION IS NOT
+    PRODUCTION-READY OUT OF THE BOX" (metadata Postgres DB has no backup
+    by default) — this applies to all four variants, not just the one
+    picked here.
+
+version_health:
+  latest_version: "6.1.0"
+  latest_release_date: "2026-05-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    6.1.0 shipped 2026-05-13 (~2.8 months before today, 2026-08-05), the
+    first minor on the 6.x line after 6.0.0 (2025-12-18, a major visual
+    and architectural overhaul). Before that: 5.0.0 (2025-06-23), with
+    patch releases (e.g. 4.1.4, 2025-08-28) filling gaps between minors —
+    a steady ~5-6 month major/minor cadence with patch releases in
+    between, consistent with Pinot/other healthy top-level ASF projects.
+    Top-level ASF project with heavy commercial backing (Preset.io);
+    6.1.0 alone gathered 1,500+ PRs from 136 contributors including 69
+    first-timers per Preset's release announcement. No slowdown or EOL
+    signal.
+
+catalogue_fit:
+  categories: [analytics, business-intelligence, data-visualization]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers self-service BI/dashboarding — this would be
+    a new category. Superset lets a customer connect to their own SQL
+    data source(s) and build charts/dashboards via drag-and-drop, plus an
+    ad-hoc SQL Lab query editor and scheduled alerts/reports. The web UI
+    is a single HTTP port (8088 by default), so it's reverse-proxy
+    friendly like most of the catalogue — no raw ports or extra
+    protocols exposed to the customer.
+  usefulness: medium
+  usefulness_rationale: >
+    Superset ships with no data of its own — it is only useful to a
+    customer who already has (or is willing to stand up) a separate
+    database to point it at, which narrows the audience versus a
+    self-contained app. The minimum viable stack is also heavier than
+    most single-container recipes: Postgres for Superset's own metadata
+    store, Redis for caching and as the Celery broker, plus web, worker,
+    and worker-beat containers (worker-beat is needed for scheduled
+    alerts/reports, one of the app's headline features). That said, it's
+    a well-known, widely-adopted open-source BI tool, so there's real
+    demand for a self-hosted deployment among customers who already run
+    a database on the same VM or elsewhere.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [superset_admin_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Superset's own admin account is created at first boot by the
+      upstream docker-init flow via `superset fab create-admin`, which
+      takes ADMIN_PASSWORD as plaintext (Flask-AppBuilder hashes it
+      internally with Werkzeug — pbkdf2 or scrypt depending on version,
+      neither of which `generated_from` supports today anyway). There is
+      no config path that accepts a pre-computed hash for this account,
+      so root-password projection — which only ever produces a hash,
+      never the plaintext — cannot supply it. This is a genuine
+      structural blocker, not just an unsupported-algorithm gap: even if
+      `generated_from` grew pbkdf2/scrypt support, the CLI still wants
+      plaintext.
+    - >
+      A Traefik `basic_auth` gate (root-password projection, argon2 or
+      bcrypt) can front the whole app to stop it sitting open on the
+      internet, but that only gates transport — Superset still shows its
+      own login screen behind the gate, and the customer has no way to
+      know the ADMIN_PASSWORD needed to get past it. Superset's
+      Flask-AppBuilder supports an AUTH_REMOTE_USER mode that trusts a
+      proxy-set username header (which Traefik's basic_auth middleware
+      does forward) to auto-login/auto-provision a user without its own
+      password prompt. That could plausibly close this gap, but it's a
+      nonstandard auth mode not used by any recipe in the current
+      catalogue and would need real end-to-end validation before it can
+      be called "installable today" — flagging it as an open engineering
+      question, not a confirmed workaround.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Apache Superset is an actively maintained, healthy ASF top-level project
+  (latest 6.1.0, 2026-05-13, ~5-6 month major/minor cadence) with strong
+  commercial backing and no EOL signal. It would fill a genuinely new
+  niche in the catalogue — self-service BI/dashboarding — behind a
+  reverse-proxy-friendly single HTTP port, but the minimum viable stack
+  is heavier than most recipes (Postgres + Redis + web + worker +
+  worker-beat) and the app only delivers value once the customer has a
+  separate data source to connect it to. It is not installable today: the
+  upstream admin-account bootstrap requires a plaintext ADMIN_PASSWORD
+  with no hash-accepting alternative, so root-password projection (hash
+  only) cannot supply it, and a Traefik basic_auth gate alone doesn't
+  solve the app's own login screen behind it. A Flask-AppBuilder
+  AUTH_REMOTE_USER trust-the-proxy-header mode might close the gap but
+  is unvalidated and unlike any pattern currently shipped — `build_now`
+  would need either a plaintext-password input channel or a validated
+  AUTH_REMOTE_USER-based recipe design, not just an algorithm addition to
+  `generated_from`.

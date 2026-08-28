@@ -1,0 +1,126 @@
+slug: percona-pmm
+name: Percona PMM
+source_description: "Open-source database monitoring with query analytics and Grafana dashboards"
+
+upstream:
+  url: https://www.percona.com/software/percona-monitoring-and-management
+  repo_url: https://github.com/percona/pmm
+  license: AGPL-3.0
+  docker_image: percona/pmm-server
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for deploying PMM Server itself.
+    Percona's own install docs
+    (docs.percona.com/percona-monitoring-and-management/3/install-pmm/
+    install-pmm-server/deployment-options/docker/) document only a plain
+    `docker run --publish 443:443 ... percona/pmm-server:3` command and an
+    "easy-install" curl script (percona.com/get/pmm); neither page mentions
+    docker-compose. The percona/pmm repo does contain a
+    docker-compose.yml (github.com/percona/pmm/blob/main/docker-compose.yml,
+    main-branch rolling reference), but its own header states its purpose
+    is to "spin up a fully wired PMM stack on a local machine ... including
+    a monitored database workload" for local dev/testing — it bundles
+    pmm-server together with pmm-client, Percona Server/MySQL, optional
+    Postgres/MongoDB, and sysbench load generators as a demo/eval rig, not
+    a production single-service deployment recipe for PMM Server alone.
+    Adopting it would pull in unrelated demo database containers rather
+    than the standalone server this recipe targets, so it is not a fit
+    for compose_file_url despite being in the official repo.
+
+version_health:
+  latest_version: "3.9.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.9.0 shipped 2026-07-30, six days before this analysis (2026-08-05),
+    adding an Alert Status page, MongoDB/PostgreSQL dashboard improvements,
+    and CSV export for Real-Time Query Analytics. Prior releases landed
+    roughly monthly through 2026: v3.8.1 (2026-06-16, security patches for
+    gRPC/Grafana/nginx CVEs), v3.8.0 (2026-05-28, Grafana 12.4 upgrade,
+    encrypted PMM dumps), v3.7.1 (2026-04-30, security release), v3.7.0
+    (2026-04-01, real-time MongoDB query analytics), v3.6.0 (2026-02-05,
+    native PMM navigation, HA cluster tech preview). Repo is not archived,
+    the PMM 2.x line is in maintenance mode while active development is on
+    the 3.x line, and Percona publishes security-focused patch releases
+    promptly. No ambiguity on identity — Percona's own "PMM", not a
+    different project.
+
+catalogue_fit:
+  categories: [monitoring, database, observability]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    PMM is purpose-built for monitoring database servers (MySQL, MongoDB,
+    PostgreSQL) it doesn't itself run: a lightweight pmm-client/exporter is
+    installed on each target database and reports metrics, slow-query logs,
+    and Query Analytics (QAN) back to a central PMM Server, which ships
+    with its own bundled Grafana-based dashboards out of the box. This is
+    distinct from every other monitoring-adjacent candidate considered so
+    far: Uptime Kuma (external endpoint pings), Netdata (generic host/
+    container telemetry), Checkmk (generic infra/service auto-discovery),
+    and Grafana (a bare dashboarding shell with no built-in data source or
+    database-specific collectors). None of the 24 shipped recipes offer
+    database-specific query analytics or pre-built DB dashboards.
+  usefulness: high
+  usefulness_rationale: >
+    Database performance monitoring and query analytics is a distinct,
+    well-recognized need for anyone running production MySQL/Postgres/
+    MongoDB, and PMM is the leading purpose-built open-source tool in that
+    niche with dashboards included out of the box (no separate Grafana
+    wiring needed, unlike a bare Grafana install). Value depends on the
+    customer separately running pmm-client against their own database
+    servers (which may or may not be on this platform), similar to
+    Grafana's data-source caveat, but the server component alone still
+    provides real out-of-the-box dashboards rather than an empty shell.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [GF_SECURITY_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      PMM Server's admin account (username "admin", used for both the
+      native PMM UI and its underlying Grafana) is provisioned on first
+      boot from the plaintext GF_SECURITY_ADMIN_PASSWORD environment
+      variable — documented by Percona itself as applying only "on first
+      startup" and being ignored thereafter. There is no pre-hashed-
+      credential option (unlike Vaultwarden's ADMIN_TOKEN), so
+      `generated_from` (hash-only) cannot populate it.
+    - >
+      Unlike Grafana (which can fully disable its own login via
+      GF_AUTH_ANONYMOUS_ENABLED / GF_AUTH_DISABLE_LOGIN_FORM, shifting the
+      sole auth boundary to a Traefik basic_auth gate) or Alerta
+      (AUTH_REQUIRED=False), no documented mechanism exists to disable
+      PMM's own login screen. Percona's FAQ explicitly covers setting or
+      resetting the admin password but says nothing about anonymous
+      access or disabling auth. A Traefik basic_auth gate in front of PMM
+      would still leave the customer facing PMM's own admin login with no
+      channel to learn or set that plaintext credential.
+    - >
+      Secondary, non-blocking note: PMM Server terminates TLS itself and
+      is documented to publish container port 8443 (mapped to host 443)
+      rather than plain HTTP, which is a minor mismatch with our
+      Traefik-terminates-TLS model but not a structural blocker on its
+      own — it would need double TLS termination or PMM configured to
+      serve HTTP internally.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Percona PMM is actively maintained (v3.9.0, six days before this
+  analysis, roughly monthly release cadence with prompt security patches)
+  and would fill a genuine, high-value gap in the catalogue: none of the
+  24 shipped recipes offer database-specific query analytics or
+  pre-built DB dashboards. It is blocked from shipping as a recipe today
+  purely on the installability mechanism, in the same way as Checkmk: its
+  admin account is created from a plaintext GF_SECURITY_ADMIN_PASSWORD
+  env var honored only on first boot, with no pre-hashed-credential path
+  and — unlike Grafana or Alerta — no documented way to disable its own
+  login so a Traefik basic_auth gate could stand in as the sole auth
+  boundary. This needs a genuine plaintext root-password-projection
+  channel added to the platform (or Percona documenting an anonymous-
+  access mode) before it's buildable — recommend `blocked_on_platform`
+  rather than `not_recommended`, since the app itself is a strong
+  catalogue candidate once that channel exists.

@@ -1,0 +1,109 @@
+slug: bytebase
+name: Bytebase
+source_description: "Open-source database schema change management and DevOps platform"
+
+upstream:
+  url: https://www.bytebase.com/
+  repo_url: https://github.com/bytebase/bytebase
+  license: "MIT (core); proprietary Enterprise license for code under `enterprise/`-named directories and feature/permission/plan gating — SSO, SCIM, and some governance features are Enterprise-only"
+  docker_image: bytebase/bytebase:3.21.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Bytebase's own docs
+    (docs.bytebase.com/get-started/self-host/deploy-with-docker) and the
+    repo README (github.com/bytebase/bytebase) only publish a `docker run`
+    command (`docker run --init --name bytebase --publish 8080:8080
+    --volume ~/.bytebase/data:/var/opt/bytebase bytebase/bytebase:latest`)
+    plus a Helm chart for Kubernetes. The repo's only in-tree
+    docker-compose-shaped file, `docker/tidb.yaml`, is a TiDB test fixture
+    used by the test suite, not an app-deployment compose file. No
+    docker/, deploy/, or contrib/ directory ships a compose file for
+    running Bytebase itself. Community compose examples exist on
+    third-party sites (awesome-docker-compose.com, dev.to tutorials,
+    elestio's fork) but are not official and were not adopted here.
+
+version_health:
+  latest_version: "3.21.0"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.21.0 shipped 2026-07-30T18:24:37Z (per releases.atom, exact ISO
+    timestamp) — 6 days before today (2026-08-05). Release history shows a
+    steady roughly-biweekly cadence through 2026: 3.20.1 (2026-07-16),
+    3.20.0 (2026-07-02), 3.19.1 (2026-06-18), 3.19.0 (2026-06-05), 3.18.1
+    (2026-06-01), 3.17.1 (2026-04-23), 3.17.0 (2026-04-09). The Docker Hub
+    `bytebase/bytebase` image was rebuilt for 3.21.0 within the last day
+    of this analysis. 14.3k GitHub stars, active issue triage and PR
+    merges. Clearly active, well-maintained, not remotely EOL or dormant.
+
+catalogue_fit:
+  categories: [developer-tools, database, devops]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does database schema
+    change management / migration review. Gitea covers git hosting and
+    n8n covers workflow automation, but neither reviews, approves, or
+    tracks SQL schema changes against MySQL/PostgreSQL/etc. instances.
+    Bytebase would be a genuinely new "database DevOps" category, useful
+    to the same technical/developer audience already served by Gitea,
+    Portainer, and n8n.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, actively-maintained tool with a clear niche (SQL review/change
+    workflow, GitOps for DB migrations), but it targets teams running
+    their own database infrastructure and doing structured schema
+    change-management — a narrower, more technical slice of our customer
+    base than broad consumer/SMB tools like Vaultwarden or Uptime Kuma.
+    Worth having for the developer-tools segment, not a mass-appeal app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Bytebase has no fixed ADMIN_TOKEN/ADMIN_PASSWORD-style env var to
+      project a `generated_from: "<algo>:ROOT_PASSWORD"` hash into.
+      Instead, the first user to complete the web setup wizard registers
+      their own email + password and becomes the Workspace Admin/Owner —
+      a customer-chosen credential the platform has no need to supply,
+      analogous to Uptime Kuma's first-visitor-claims-admin pattern.
+    - >
+      Unlike Uptime Kuma, registration does not lock after the first
+      account: per Bytebase's own docs, "the first registered account is
+      the admin account... all following registered accounts will be
+      regular accounts" — signup stays open indefinitely for anyone who
+      reaches the URL, and disabling it (`disallow_signup` / sign-in
+      domain restriction) is a post-setup UI/Terraform/API action, not a
+      boot-time env var or CLI flag af-api could set. Left ungated, any
+      internet visitor could self-register a regular account and see
+      whatever database connections/schema-change data other members
+      have shared into the workspace. A Traefik `basic_auth` gate over
+      the whole app (same pattern as Budge, n8n, WUD) closes this: only
+      someone with the root-password-derived basic-auth credential can
+      reach the app at all, including the signup page.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Bytebase is a single-container app (ships an embedded Postgres by
+  default inside /var/opt/bytebase, though it can also point at an
+  external Postgres via PG_URL) on one HTTP port (8080), reverse-proxy
+  friendly, MIT-licensed for its core functionality, and actively
+  released roughly every two weeks with the latest tag (3.21.0) only 6
+  days old as of this analysis — a clearly healthy, non-EOL project. It
+  fills a genuinely new category (database schema change management)
+  with zero overlap in the current 24-recipe catalogue. It clears the
+  installability bar only via a mandatory Traefik `basic_auth` gate,
+  since Bytebase's own auth is an open-forever self-registration flow
+  with no admin-password field to hash-project into and no boot-time way
+  to disable signup. Recommend `build_with_caveats`: worth building as a
+  developer-tools-segment recipe, but the recipe author must treat the
+  basic_auth gate as mandatory (not optional) given open signup, and
+  should default to the embedded-Postgres mode to keep it single-container
+  and avoid a second stateful service.

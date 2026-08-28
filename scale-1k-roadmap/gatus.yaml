@@ -1,0 +1,92 @@
+slug: gatus
+name: Gatus
+source_description: "Developer-oriented status page with multi-protocol uptime monitoring and alerting"
+
+upstream:
+  url: https://github.com/TwiN/gatus
+  repo_url: https://github.com/TwiN/gatus
+  license: Apache-2.0
+  docker_image: ghcr.io/twin/gatus:v5.36.0
+  compose_file_url: https://raw.githubusercontent.com/TwiN/gatus/master/.examples/docker-compose/compose.yaml
+  compose_file_notes: >
+    Official — lives in the project's own repo under `.examples/docker-compose/`,
+    linked from the main README's storage-config sections alongside the sibling
+    sqlite/postgres examples. This is a rolling reference to the `master` branch
+    (not version-pinned to a release tag) — the raw URL always reflects whatever
+    is currently on `master`. Picked the plain `docker-compose` example over the
+    `docker-compose-sqlite-storage` and `docker-compose-postgres-storage`
+    variants because it matches this recipe's minimal single-container scope
+    (image + port + config volume, no bundled database); it uses
+    `twinproduction/gatus:latest` rather than the `ghcr.io/twin/gatus` image
+    referenced elsewhere in this file, but both are official images published
+    by the same project.
+
+version_health:
+  latest_version: "v5.36.0"
+  latest_release_date: "2026-05-19"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v5.36.0 (2026-05-19) is the latest tagged GitHub release and matches
+    the `stable` tag on both `ghcr.io/twin/gatus` and `twinproduction/gatus`
+    on Docker Hub — about 2.5 months before this analysis (2026-08-05).
+    Release cadence was roughly monthly from late 2025 through early 2026
+    (v5.34.0 2026-01-03, v5.35.0 2026-02-20) but has stretched to a single
+    release since then. The repo itself is not dormant: last push to
+    `master` was 2026-08-03 (two days before this analysis), 355 open
+    issues, not archived — active development continues even though it
+    hasn't been cut into a new tagged/published image in ~2.5 months. This
+    reads as a genuinely maintained project with a slowing (not stalled)
+    release cadence, not an EOL signal.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [uptime-kuma]
+  differentiation: >
+    Gatus covers the same core ground as the existing uptime-kuma
+    recipe (HTTP/TCP/ICMP/DNS/SSH/gRPC checks, alerting to 30+ providers,
+    a status dashboard) but is architecturally config-as-code: every
+    monitored endpoint is declared in a static `config.yaml`, hot-reloaded
+    on file change, with no UI for adding or editing endpoints at runtime.
+    That matches Hostinger's own "developer-oriented" framing but is a
+    real usability gap for an AF customer, who gets a running container
+    and no shell/file access to that config — unlike uptime-kuma, which is
+    entirely self-service through its own web UI after deploy. Gatus's own
+    differentiators (OIDC login, gRPC/SSH checks, Grafana/Prometheus
+    metrics export) target a technical, GitOps-style user, not the typical
+    AF customer.
+  usefulness: low
+  usefulness_rationale: >
+    The uptime/status-page monitoring use case is already served by
+    uptime-kuma with a lighter footprint and a self-service UI. Gatus adds
+    no new category of value for this catalogue, and its config-file-only
+    workflow for defining monitors is actively worse for a customer with
+    no access to edit files inside their own container — they would get a
+    dashboard with nothing configured to monitor, and no way to add checks
+    without SSH/file access AF doesn't provide today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [security.basic.password-bcrypt-base64]
+  secrets_expressible_today:
+    - secret: security.basic.password-bcrypt-base64
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Gatus is mechanically installable today: its own `security.basic`
+  config takes a username plus a bcrypt password hash (base64-encoded),
+  which install.sh can populate from `generated_from: "bcrypt:ROOT_PASSWORD"`
+  the same way Vaultwarden's ADMIN_TOKEN is projected today, gating the
+  single-port (8080) dashboard behind the app's own login rather than a
+  Traefik basic-auth wrapper. The project is actively maintained (commits
+  two days ago) even though its release cadence has slowed to roughly
+  quarterly. It overlaps with the existing uptime-kuma recipe and its
+  config-as-code model — no UI to add or edit monitored endpoints — is a
+  worse fit for an AF customer with no file access to the running
+  container, but neither of those affects installability. Recommend
+  build_now.

@@ -1,0 +1,98 @@
+slug: harness
+name: Harness
+source_description: "End-to-end developer platform with SCM, CI/CD pipelines, and hosted dev environments"
+
+upstream:
+  url: https://harness.io/open-source
+  repo_url: https://github.com/harness/harness
+  license: Apache-2.0
+  docker_image: harness/harness:3.3.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for Harness Open Source (the
+    harness/harness repo, formerly Gitness — the project this analysis
+    targets). Both the repo's own README
+    (github.com/harness/harness/blob/main/README.md) and the official docs
+    quick-start (developer.harness.io/docs/open-source/installation/quick-start/)
+    document only a single `docker run` command against the harness/harness
+    image, no compose file. Searched the repo root and common locations
+    (docker/, deploy/, contrib/) for a compose file — none exist. A
+    docker-compose setup does exist at
+    github.com/harness/harness-cd-community/tree/main/docker-compose/harness,
+    but harness-cd-community is a distinct (and now retired) product — a
+    Kubernetes-delegate-based CD tool with no bundled SCM — not the
+    SCM+CI/CD+dev-environments platform this file analyzes, so it was not
+    adopted as if it were the official compose file for this app.
+
+version_health:
+  latest_version: "3.3.0"
+  latest_release_date: "2025-08-19"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    "Harness" is ambiguous. The Hostinger description ("SCM, CI/CD pipelines,
+    hosted dev environments") matches Harness Open Source (github.com/harness/harness,
+    formerly Gitness) — a single-container, self-hostable platform. The
+    project name is also used for the commercial Harness.io SaaS platform
+    (closed-source, enterprise) and for a "Harness CD Community Edition"
+    (harness/harness-cd-community, a Kubernetes-delegate-based CD tool with
+    no bundled SCM). Neither of those matches the description as closely as
+    Harness Open Source does, so this analysis targets the OSS repo.
+    The repo itself is still active day-to-day (pushed_at 2026-08-05), but
+    that activity is almost entirely a legacy "drone" branch that keeps
+    cutting patch releases for the old Drone-CI runner component (v2.28.2 on
+    2026-04-20, v2.28.1 on 2026-03-30, v2.27.x through early 2026, roughly
+    monthly). The actual Harness Open Source *platform* release line
+    (release/3.x branch, what `harness/harness:latest` on Docker Hub
+    tracks) has not cut a new version since v3.3.0 on 2025-08-19 — just
+    under 12 months with no stable release against today's date
+    (2026-08-05), even though an `unstable` nightly tag is still being
+    pushed. Treating this as dormant/maintenance-only for the product a
+    customer would actually install.
+
+catalogue_fit:
+  categories: [developer-tools, ci-cd]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea, opengist]
+  differentiation: >
+    Adds CI/CD pipelines (Drone-derived) and hosted dev-environment
+    provisioning on top of Git hosting, which neither gitea nor opengist
+    offer. But both existing recipes are already disabled (enabled: false)
+    in the catalogue, and Harness needs a Docker-socket mount to actually
+    run pipelines — a materially larger privilege/blast-radius ask than
+    either.
+  usefulness: low
+  usefulness_rationale: >
+    The differentiator (CI/CD + dev environments) only works if the
+    container gets access to the host Docker socket to spin up build
+    containers, which is a significant privilege-escalation surface in a
+    shared/multi-tenant hosting environment. Combined with the platform
+    line being effectively stale for a year, this is a weak candidate next
+    to already-shelved, lower-risk alternatives (gitea, opengist) covering
+    the SCM half of the pitch.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GITNESS_PRINCIPAL_ADMIN_PASSWORD
+  secrets_expressible_today:
+    - secret: GITNESS_PRINCIPAL_ADMIN_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Harness's own admin login (GITNESS_PRINCIPAL_ADMIN_PASSWORD) only accepts a plaintext password that the app hashes itself at boot — there is no field that takes a pre-computed hash. generated_from can only ever carry a hash, so it cannot be projected into this env var directly (a genuine plaintext requirement, not an unsupported hash algo). Left unset, the app falls back to a fixed default (admin/changeit), so the workable path is to leave it at that default/a server-generated value and put the whole app behind a Traefik basic_auth gate (root-password hash, htpasswd-compatible) as the real auth boundary — mechanically installable, but the app's own login stays a credential the customer never actually sets."
+    - "Needs a bind mount of /var/run/docker.sock into the app container so pipelines can launch build containers on the host Docker daemon. That is a full container-escape-equivalent privilege grant, which is a materially different risk class than anything our current 24 recipes require, independent of the auth question above."
+    - "Exposes SSH (port 3022) for git-over-SSH in addition to the web UI on port 3000 — a second raw TCP port beyond a single HTTP surface, though our existing gitea/opengist recipes already show this pattern is not a hard blocker by itself."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Harness Open Source (formerly Gitness) matches Hostinger's SCM+CI/CD+dev-environments
+  pitch, but its own admin login can only be set via a plaintext env var (no
+  hash-projection channel), so a customer-specific credential can only be
+  delivered by falling back to a Traefik basic_auth gate over the app's
+  unset default login — workable, but not what the app's own auth was
+  designed for. More importantly, the platform needs a host Docker-socket
+  mount to run pipelines (a large privilege grant for a multi-tenant host)
+  and its stable release line has been dormant for roughly a year against
+  today's date. Not recommended.

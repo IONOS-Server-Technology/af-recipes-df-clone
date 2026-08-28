@@ -1,0 +1,95 @@
+slug: linkstack
+name: LinkStack
+source_description: "Self-hosted Linktree alternative for branded link-in-bio pages"
+
+upstream:
+  url: https://linkstack.org/
+  repo_url: https://github.com/LinkStackOrg/LinkStack
+  license: AGPL-3.0
+  docker_image: 'linkstackorg/linkstack — no immutable version-numbered tag is published upstream (checked Docker Hub API for linkstackorg/linkstack: only tags are "latest", "laravel12", "beta", and legacy arch tags like "amd64"/"arm64v8"/"V4" last pushed ~3 years ago; none map to a GitHub release like 4.8.6, and there is no GHCR mirror). A recipe must pin by image digest (re-resolve the current "latest" digest at build time) rather than by a version tag, and should re-verify the digest periodically since it rolls on every upstream push to "latest".'
+  compose_file_url: https://raw.githubusercontent.com/LinkStackOrg/linkstack-docker/main/docker-compose.yml
+  compose_file_notes: >
+    Official: LinkStack's main README (github.com/LinkStackOrg/LinkStack)
+    has a dedicated Docker section linking to
+    github.com/LinkStackOrg/linkstack-docker as "the official docker
+    version of LinkStack", and that repo ships a single docker-compose.yml
+    at its root (also shown as the "Example config" in its README) using
+    image linkstackorg/linkstack:latest. This is a rolling reference to
+    the default branch, not version-pinned — the linkstack-docker repo has
+    no tags or releases at all, consistent with the main image also only
+    publishing a rolling "latest" tag (see docker_image note above). Only
+    one compose variant is published (no GPU/CPU or sqlite/postgres
+    split); it bundles a mysql:8 sidecar service alongside the app
+    container, differing from this recipe's single-container design noted
+    in the summary below.
+
+version_health:
+  latest_version: "4.8.6"
+  latest_release_date: "2026-02-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.8.6 (2026-02-17) is the most recent tagged GitHub release — about
+    5.5 months before today (2026-08-05), which read alone would suggest
+    slowing. But `main` branch commit history shows continuous activity
+    well past that tag: security fixes for stored XSS and an IDOR in the
+    link-management endpoints merged 2026-06-08, a Rel=Me service addition
+    2026-06-29, and further security hardening + cleanup commits through
+    2026-07-06 — a month before today. None of that has been cut into a
+    new tag yet, but the project is clearly not dormant; it is actively
+    triaging security reports and shipping fixes to main between releases.
+    The Docker Hub image's "latest" tag was itself rebuilt ~6 months ago
+    (aligning with the 4.8.6 release), and a newer "laravel12" tag exists
+    from ~8 months ago, suggesting an in-progress framework upgrade branch.
+    Repo is not archived, has no EOL notice, and shows an actively engaged
+    Discord community per the project's own docs.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers link-in-bio /
+    personal-profile-page publishing. It's a distinct category from our
+    existing productivity/security/media tools — a customer-facing,
+    public marketing/social page rather than an internal admin tool,
+    which is a different value proposition (something to point a
+    branded custom domain at and share publicly) than anything else we
+    offer today.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-known, popular open-source Linktree alternative (3.7k GitHub
+    stars) with genuine demand — link-in-bio pages are a common ask for
+    creators and small businesses, and self-hosting one under a
+    customer's own domain is a natural AF use case. Usefulness is medium
+    rather than high because it's a fairly narrow single-purpose tool
+    (one static-ish public page) compared to broader admin/infra tools
+    already in the catalogue, and there is meaningful competition from
+    free hosted alternatives (including LinkStack's own hosted tier) that
+    reduces the self-hosting incentive for casual users.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LinkStack is a single-container app (linkstackorg/linkstack, Apache2 +
+  PHP, listening on 80/443, config and app files persisted in a single
+  /htdocs volume, no separate database service) — structurally as simple
+  to deploy as uptime-kuma or vaultwarden and fully reverse-proxy
+  compatible behind Traefik on linkstack.<base_domain>. Authentication is
+  handled entirely through the app's own in-browser first-run setup
+  wizard, where the customer creates their own admin account
+  interactively — the same self-serve pattern already used by
+  uptime-kuma/lidarr/immich, so no generated_from projection or Traefik
+  basic_auth gate is required to avoid shipping an open-by-default
+  install. installable_today is true with zero blocking issues, and the
+  app fills a genuinely new category (public link-in-bio pages) not
+  covered by any existing recipe, making it a reasonable build_now
+  candidate.
+# ci-test: unhappy path (should fail, existing YAML syntax error untouched)

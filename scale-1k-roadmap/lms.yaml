@@ -1,0 +1,101 @@
+slug: lms
+name: LMS
+source_description: "Lightweight self-hosted music streaming server with Subsonic API"
+
+upstream:
+  url: https://github.com/epoupon/lms
+  repo_url: https://github.com/epoupon/lms
+  license: GPL-3.0
+  docker_image: epoupon/lms
+  compose_file_url: null
+  compose_file_notes: >-
+    No official docker-compose file exists. INSTALL.md points only to
+    https://hub.docker.com/r/epoupon/lms, which itself documents a single
+    `docker run` invocation (image, port 5082, a rw persistent-data volume,
+    a ro music volume) — no compose file is linked or embedded. The repo
+    root and its `conf/`, `cmake/modules/`, `approot/`, `docroot/`
+    directories contain no docker-compose.yaml/.yml, only three
+    Dockerfile-build-*/Dockerfile-release build files. GitHub issue #161
+    ("docker-compose?") shows a user asking for one with no maintainer
+    response, corroborating that none is provided upstream. Community
+    forks (e.g. mesenev/lms) and awesome-docker-compose.com host
+    third-party compose files, but those are not official and were not
+    adopted here.
+
+version_health:
+  latest_version: "3.79.0"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v3.79.0 shipped 2026-07-18, about 2.5 weeks before today (2026-08-05).
+    Prior releases: v3.78.0 (2026-06-23), v3.77.0 (2026-06-06), v3.76.0
+    (2026-03-15), v3.75.0 (2026-02-28), v3.74.0 (2026-01-04), v3.73.0
+    (2025-12-08), v3.72.1 (2025-11-17), v3.72.0 (2025-11-16), v3.71.0
+    (2025-09-22) — roughly monthly cadence with no gaps over a year.
+    Docker Hub tags track releases closely (3.79.0 pushed same day as the
+    GitHub release). Repo is not archived, 87 open issues still being
+    triaged. No EOL or maintenance-mode signal.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue covers personal music
+    streaming — Immich is the closest neighbour but is photo/video
+    focused. LMS is a small C++ single-binary Subsonic/OpenSubsonic-API
+    server: point it at a music library (read-only bind mount) and stream
+    to any Subsonic-compatible client (DSub, Symfonium, Sublime Music,
+    Substreamer, play:Sub, etc.), with a lightweight web UI for browsing,
+    admin, and scan/library management. This is the same
+    self-hosted-music-streaming niche already surfaced by prior gap
+    analyses on Gonic ([[gonic]]), Airsonic Advanced ([[airsonic-advanced]]),
+    and Ampache ([[ampache]]) — LMS is a fourth, distinct candidate in that
+    space rather than a new category.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, distinct use case with a healthy, actively-developed upstream
+    (monthly release cadence, no abandonment signal) and a very light
+    footprint (C++ binary). Ceiling is medium rather than high because it's
+    only useful to a customer who already has a personal music library to
+    mount, a narrower audience than general-purpose tools, and because it
+    would be the fourth Subsonic-API candidate analyzed for this catalogue
+    — the value of adding a specific one depends more on picking the best
+    of the four than on this slot being uniquely compelling.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  LMS is a healthy, actively-maintained project (monthly tagged releases,
+  most recently 2.5 weeks before this analysis) and is mechanically
+  installable today. Unlike Gonic/Airsonic Advanced, it ships with no
+  fixed default admin credential at all — on first HTTP request an
+  interactive setup wizard lets whoever visits first create the admin
+  username/password, stored internally (bcrypt) with no env var or
+  config-file input to pre-seed it. That means `generated_from`
+  root-password projection has no channel to hit (there is no parameter
+  to project into before the wizard runs), and more importantly the app
+  would sit open on the internet for anyone to race the customer to that
+  wizard and claim the admin account. The recipe should gate the whole
+  app behind Traefik `basic_auth: true` (projected from the customer's
+  root password) the same way n8n and WUD do, closing that race entirely;
+  the customer then completes LMS's own admin setup wizard themselves
+  once behind the gate. Single HTTP port (5082 by default), documented
+  `behind-reverse-proxy`/`trusted-proxies` config options, so it sits
+  cleanly behind Traefik on `<slug>.<base_domain>` with no extra raw
+  ports. Needs at least two volumes (persistent working data, read-only
+  music directory) — how the customer's library gets into the container
+  is an open design question for a real recipe pass, out of scope here.
+  Net: build_now, but worth comparing against the other three
+  Subsonic-API candidates already analyzed (Gonic, Airsonic Advanced,
+  Ampache) before committing engineering time to more than one.

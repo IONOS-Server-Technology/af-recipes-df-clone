@@ -1,0 +1,120 @@
+slug: mattermost
+name: Mattermost
+source_description: "Open-source team collaboration platform with messaging, file sharing, and integrations"
+
+upstream:
+  url: https://mattermost.com
+  repo_url: https://github.com/mattermost/mattermost
+  license: AGPL-3.0
+  docker_image: mattermost/mattermost-team-edition
+  compose_file_url: https://raw.githubusercontent.com/mattermost/docker/main/docker-compose.yml
+  compose_file_notes: >
+    Official — mattermost/docker is Mattermost's own maintained Docker
+    deployment repo (successor to the now-archived mattermost-docker repo),
+    linked from the official docs at
+    docs.mattermost.com/deployment-guide/server/containers/install-docker.html.
+    This is a rolling reference to the default branch (`main`), not a
+    version-pinned tag or release asset — the repo has no tagged releases of
+    its own, since it's a deployment wrapper (compose + nginx config) rather
+    than the versioned server itself, so a rolling link is the only variant
+    that exists. The repo also ships `docker-compose.without-nginx.yml` and
+    `docker-compose.nginx.yml` as optional add-ons; the base
+    `docker-compose.yml` (app + Postgres, no nginx) was picked as the
+    minimal/core variant, matching how this analysis's own
+    `installability` section already characterizes the stack (single Go
+    app + Postgres, one HTTP port).
+
+version_health:
+  latest_version: "11.10.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11.10.0 landed 2026-08-04, 2 days before today (2026-08-06), confirmed
+    against Docker Hub tag push timestamps for
+    mattermost/mattermost-team-edition. Mattermost ships a new minor server
+    version roughly monthly (11.10.0 2026-08-04, 11.7.8 patch 2026-07-31,
+    11.9.0 ~2026-07-08) alongside an Extended Support Release track (11.7.x)
+    that gets its own parallel patch cadence for customers who don't track
+    monthly releases. This is a large, commercially-backed project (in the
+    Slack/Teams alternative space) with a fast, structured release cadence
+    and no signs of slowing.
+
+catalogue_fit:
+  categories: [collaboration, messaging, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers team chat/messaging — this would be a
+    genuinely new category, distinct from the sync/file/dev tools already
+    in the catalogue (n8n, gitea, opengist, syncthing, etc.). It's the
+    self-hosted Slack/Teams alternative, a very commonly requested
+    self-hosting workload.
+  usefulness: high
+  usefulness_rationale: >
+    Team chat is a mainstream self-hosting use case with broad appeal
+    (businesses wanting to avoid Slack/Teams SaaS pricing or data
+    residency). Single Go binary + Postgres, one HTTP port, no unusual
+    runtime needs beyond the admin-provisioning issue below — otherwise a
+    clean architectural fit for the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the official mattermost/docker compose stack
+      (docker-compose.yml + env.example) and Mattermost's own auth docs:
+      there is no admin-username/admin-password environment variable or
+      config field. `EnableOpenServer` (self-registration) actually
+      defaults to false, not true — but that doesn't avoid the problem,
+      it relocates it: the documented way to bootstrap a fresh install is
+      to explicitly set `MM_TEAMSETTINGS_ENABLEOPENSERVER=true` (our
+      install.sh would have to do this) so the first visitor can reach the
+      signup form at all, at which point that first account is
+      automatically promoted to System Admin with no email round-trip
+      required (`RequireEmailVerification` defaults to false). This is the
+      same shape of problem
+      documented in apps-gaps/airtrail.yaml, apps-gaps/2fauth.yaml and
+      apps-gaps/activepieces.yaml: the credential is created client-side
+      via self-registration, so there is no `type: password` parameter on
+      Mattermost's own login to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`.
+    - >
+      Per the AirTrail precedent, a Traefik `basic_auth: true` gate closes
+      the "random internet stranger races to register first" version of
+      this problem but does not resolve it: today's mechanism has no
+      channel to hand the customer a *second*, distinct credential for the
+      in-app signup form beyond the single root-password projection already
+      consumed by the gate. Mattermost makes this worse than a single-user
+      tool like AirTrail — it is explicitly multi-user team collaboration
+      software, so a *permanent* basic_auth gate over the whole domain
+      would also block every teammate the customer invites, since none of
+      them know the customer's root password. Leaving the gate on defeats
+      the product; removing it after bootstrap requires a manual
+      out-of-band step our install flow doesn't support today.
+    - >
+      Not required to boot, but standard operation (email invites to
+      teammates, password-reset flows) depends on customer-supplied
+      external SMTP credentials, which have no input channel in `/compose`
+      today. Secondary to the admin-provisioning blocker above.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mattermost is a high-value, actively maintained, architecturally clean
+  candidate (single Go app + Postgres, one HTTP port, Traefik-compatible)
+  that would fill a genuine team-chat gap in the current 24-recipe
+  catalogue. It is blocked today for the same structural reason as
+  AirTrail/2FAuth/Activepieces: there is no env-var or config channel to
+  preset the initial admin account, so the app relies on an open,
+  first-visitor self-registration screen. Unlike those single-user tools,
+  a Traefik basic_auth gate is an even worse fit here because Mattermost is
+  explicitly multi-user — gating the whole domain would also lock out every
+  invited teammate. Revisit once upstream adds an env-var-driven initial-admin
+  flow or the platform gains a way to surface a platform-generated first-boot
+  credential to the customer.

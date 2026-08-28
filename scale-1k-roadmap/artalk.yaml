@@ -1,0 +1,86 @@
+slug: artalk
+name: Artalk
+source_description: "Lightweight self-hosted comment system with Go backend and embeddable JS widget"
+
+upstream:
+  url: https://artalk.js.org/
+  repo_url: https://github.com/ArtalkJS/Artalk
+  license: MIT
+  docker_image: artalk/artalk-go
+  compose_file_url: https://raw.githubusercontent.com/ArtalkJS/Artalk/master/docker-compose.yml
+  compose_file_notes: >-
+    Official docker-compose.yml lives at the root of the ArtalkJS/Artalk
+    repo (not linked from the README, which only shows a bare `docker run`
+    command). This is a rolling reference to the default branch (master),
+    not version-pinned — there is no per-release compose asset published
+    (no equivalent of a `/releases/latest/download/...` link). Only one
+    variant is shipped; it also includes a `build:` block pointing at the
+    repo's own Dockerfile alongside the `image:` field, and its example
+    environment values (ATK_LOCALE=zh-CN, a Chinese ATK_SITE_DEFAULT,
+    TZ=Asia/Shanghai) are clearly just the maintainer's own defaults, not
+    generic placeholders.
+
+version_health:
+  latest_version: "2.10.0"
+  latest_release_date: "2026-07-24"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    v2.10.0 (2026-07-24) is the latest tagged release, about 12 days before
+    today (2026-08-05). Before it, the previous stable, v2.9.1, shipped
+    2024-09-18 — a roughly 22-month gap with nothing tagged in between,
+    so the release cadence itself is sporadic. However commit history
+    shows a real activity burst in the run-up to 2.10.0 (multiple commits
+    2026-07-22 through 2026-07-24 covering API fixes, caching, config, and
+    UI, plus a nightly build channel published right after), so this reads
+    as an actively-maintained project that ships in infrequent bursts
+    rather than a dormant or abandoned one. No archival or EOL notice on
+    the repo.
+
+catalogue_fit:
+  categories: [productivity, comments, widget]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes cover embeddable comment/discussion
+    widgets for third-party sites (blogs, static sites, docs). Artalk is a
+    single Go binary serving both the API and an admin dashboard on one
+    HTTP port, with SQLite as the zero-config default database — a
+    genuinely new niche for the catalogue, not an overlap with anything
+    existing.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, well-understood use case (self-hosted Disqus alternative for
+    bloggers/static-site owners) and operationally simple: one container,
+    no mandatory external DB, single public port. Held to medium rather
+    than high because the addressable customer is narrower than a
+    general-purpose app (mainly people who run a separate blog/site and
+    want to embed comments there, which is a smaller slice of our
+    self-hosting audience than e.g. password managers or file sync).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ATK_ADMIN_USERS_0_PASSWORD]
+  secrets_expressible_today:
+    - secret: ATK_ADMIN_USERS_0_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Artalk ships as a single official image (`artalk/artalk-go`, tags track
+  GitHub releases 1:1) serving both its API and admin dashboard on one
+  HTTP port (23366 internally), with SQLite as the default embedded
+  database — fits the Traefik/single-domain reverse-proxy pattern cleanly,
+  same shape as Vaultwarden. Its one admin login is configured entirely via
+  env vars at container start (`ATK_ADMIN_USERS_0_NAME`,
+  `ATK_ADMIN_USERS_0_EMAIL`, `ATK_ADMIN_USERS_0_PASSWORD`), and the
+  password field explicitly accepts a pre-hashed value in the form
+  `(bcrypt)$2y$10$...`, which projects onto `generated_from:
+  "bcrypt:ROOT_PASSWORD"` the same way Vaultwarden's `ADMIN_TOKEN` does —
+  no platform blocker, modulo confirming at implementation time that the
+  `(bcrypt)` literal prefix can be baked into the recipe's env template
+  around the projected hash. Recommend build_now: mechanically installable
+  today with no blocking issues.

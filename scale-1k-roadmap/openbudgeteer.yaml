@@ -1,0 +1,99 @@
+slug: openbudgeteer
+name: OpenBudgeteer
+source_description: "Open-source bucket budgeting app for personal finance management"
+
+upstream:
+  url: https://github.com/TheAxelander/OpenBudgeteer
+  repo_url: https://github.com/TheAxelander/OpenBudgeteer
+  license: AGPL-3.0
+  docker_image: axelander/openbudgeteer
+  compose_file_url: https://axelander.dev/latest/quick-start/
+  compose_file_notes: >
+    No official standalone/downloadable docker-compose.yaml exists in the
+    repo or on the docs site — this is the project's own official docs
+    page (linked directly from the GitHub README's "Quick Start" section),
+    which embeds a complete compose example inline rather than linking a
+    file. Picked the Quick Start page's MariaDB + Redis + phpMyAdmin
+    variant (image tag "latest", CONNECTION_PROVIDER=mariadb) over the
+    Postgres variant shown on the separate Install page, since MariaDB is
+    the default the docs lead with and matches this recipe's summary. The
+    embedded example uses the rolling "latest" image tag, so it tracks
+    whatever the docs maintainer currently documents as current, not a
+    pinned release. Note the repo also has examples/compose-mariadb.yaml,
+    examples/compose-mysql.yaml, and examples/compose-postgres.yaml, but
+    those are stale (last touched 2023-07-09, predate the Redis dependency
+    and use a hardcoded "pre-release" image tag with an external network
+    requirement) and were not used as the source of truth.
+
+version_health:
+  latest_version: "v1.11"
+  latest_release_date: "2025-12-17"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest tag v1.11 published 2025-12-17, ~7.5 months before today
+    (2026-08-05). Not archived, still a single-maintainer project with
+    ongoing commits/releases. Cadence has clearly slowed over time: patch
+    releases were days-to-weeks apart in 2022/2024 (v1.8 -> v1.8.3 in about
+    two months), but the last three feature releases are 7-8 months apart
+    each (v1.8.3 2024-05-20 -> v1.9 2025-01-04 -> v1.10 2025-04-30 -> v1.11
+    2025-12-17, with a quick v1.9.1 patch in between). Today's elapsed gap
+    (7.5 months) is right at the upper end of that recent pattern rather
+    than clearly overdue, so this reads as "slowing" (small team, low
+    cadence) rather than dormant/EOL.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [actual-budget]
+  differentiation: >
+    Both target self-hosted personal budgeting and would sit in the same
+    "finance" category as an existing apps-gaps candidate (actual-budget,
+    not yet built). Per catalogue policy, overlap alone isn't a rejection
+    reason — OpenBudgeteer's "bucket budgeting" model (inspired by YNAB /
+    Buckets, envelope-style buckets/bucket groups with reporting) is a
+    distinct product angle from Actual's envelope budgeting, and some
+    customers will prefer one UI/methodology over the other. It would be
+    the second finance-category recipe rather than the first, competing
+    directly with actual-budget for the same shelf slot.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal budgeting has broad consumer appeal, but OpenBudgeteer is a
+    much heavier install than the category's likely first pick
+    (actual-budget is a single container with bundled SQLite; OpenBudgeteer
+    mandatorily needs a separate MariaDB/Postgres and a separate Redis
+    service). Smaller community (single maintainer, ~1k GitHub stars) and
+    slower release cadence than Actual Budget. Worth having as a second
+    option in the category, but not the priority pick.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OpenBudgeteer is a .NET/Blazor Server web app that mandatorily requires a
+  SQL database (MariaDB or Postgres) plus Redis alongside the app container
+  — a three-service stack, heavier than Actual Budget's single container
+  but structurally similar to n8n's app+Postgres pattern. It exposes a
+  single HTTP port (8080) and is Traefik-friendly. All database/Redis
+  credentials can be generated server-side with zero customer input.
+  OpenBudgeteer does ship its own optional login (APPSETTINGS_AUTH_ENABLED,
+  added in v1.11), but it's disabled by default and takes username/password
+  as plaintext env vars with no hash-based option, so `generated_from`
+  can't drive it — the recipe should leave it disabled and instead gate the
+  app with a mandatory Traefik basic_auth (same pattern as Adminer/n8n),
+  which is expressible today. That keeps the customer-facing credential
+  need to just the basic_auth password, clearing the current /compose
+  constraint with no blocking issues. Release
+  cadence has slowed to roughly two releases a year but the project remains
+  actively maintained, not EOL. Recommend building now, understanding it
+  would be the catalogue's second finance-category recipe alongside the
+  not-yet-built actual-budget candidate and a heavier install for a
+  somewhat smaller upstream community.

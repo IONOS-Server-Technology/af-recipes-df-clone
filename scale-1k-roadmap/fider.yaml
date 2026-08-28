@@ -1,0 +1,100 @@
+slug: fider
+name: Fider
+source_description: "Open-source feedback platform for collecting and managing user feedback"
+
+upstream:
+  url: https://fider.io/
+  repo_url: https://github.com/getfider/fider
+  license: AGPL-3.0
+  docker_image: getfider/fider
+  compose_file_url: https://docs.fider.io/hosting-instance/
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml file is published as a standalone,
+    linkable file. The official docs page "Hosting on Docker"
+    (docs.fider.io/hosting-instance/) embeds a compose snippet inline in
+    prose (a `services: db / app` block using `image: getfider/fider:stable`
+    and `postgres:17`) that the reader is instructed to copy into their own
+    `/var/fider/docker-compose.yml` — there is no separate raw/release-asset
+    URL for it. This embedded snippet is a rolling reference to the docs'
+    current content (no version pin in the URL itself), though the `app`
+    service it shows pins to the `stable` image tag rather than a specific
+    version tag. Note the repo also has a `docker-compose.yml` at
+    github.com/getfider/fider/blob/main/docker-compose.yml, but that one is
+    the project's own dev/test harness (mailhog + pgdev/pgtest/minio
+    containers), not a deployment file, so it was not used here.
+
+version_health:
+  latest_version: "v0.36.1"
+  latest_release_date: "2026-07-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged releases roughly every 3-6 weeks over the past year (v0.28.1
+    2025-07-19, v0.29.0 2025-09-10, v0.30.0 2025-10-28, v0.31.0
+    2025-11-17, v0.32.0 2025-12-05, v0.33.0 2026-03-05, v0.34.0
+    2026-04-24, v0.35.0 2026-05-05, v0.36.0 2026-06-23, v0.36.1
+    2026-07-03 as a same-week patch). Latest release was 33 days before
+    today (2026-08-05), and the repo has active PR/commit traffic beyond
+    the tagged releases. No archival or EOL signal — actively maintained.
+    Note: the project briefly moved to an "open core"/commercial-licensed
+    model around v0.33.0 (March 2026) before reverting to fully
+    open-source at v0.34.0 (April 2026) — worth flagging as a licensing
+    stability caveat even though current state is clean AGPL-3.0.
+
+catalogue_fit:
+  categories: [productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers customer/user feedback and
+    feature-request/roadmap boards — this is a genuinely new category.
+    Closest neighbors by shape are single-container-plus-Postgres apps
+    like n8n/paperless-ngx, but none address feedback collection.
+  usefulness: high
+  usefulness_rationale: >
+    Feedback/feature-request boards (the "UserVoice/Canny" self-hosted
+    category) are a common ask for SaaS builders and open-source
+    maintainers wanting to keep feedback data off a third-party service,
+    and no recipe today covers this space.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - EMAIL/SMTP relay credentials (host, port, username, password) or an
+      equivalent transactional-email provider (e.g. Mailgun) API key
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Fider has no built-in username/password login at all. Every sign-in
+      (including creating the first admin/tenant on initial visit) goes
+      through either (a) an email verification-code/magic-link flow,
+      which upstream docs state is mandatory to configure or the app
+      "will see panic errors" at startup, or (b) OAuth (Google/GitHub/
+      Facebook) app registration. Both require an external, customer-
+      supplied credential (SMTP relay or transactional-email-provider API
+      key, or an OAuth client id/secret) that has no projection channel
+      today — there is no admin password field to hash via
+      `generated_from`, and gating the site behind Traefik `basic_auth`
+      does not help because the customer still cannot complete the
+      in-app sign-up/sign-in flow without a working mail relay.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Fider is a single Go binary web app (plus a required Postgres database)
+  that would otherwise fit our recipe mechanism well — one HTTP port,
+  reverse-proxy compatible, active upstream (releases every few weeks,
+  latest 33 days old, currently clean AGPL-3.0 after a brief and since-
+  reverted open-core detour). It fails installability today for a
+  structural reason distinct from a missing password-projection channel:
+  Fider has no password login of its own to begin with, and both of its
+  auth paths (email verification code, requiring a working SMTP/email-API
+  relay, or OAuth app registration) need an external credential the
+  customer would have to supply with no input channel in `/compose`
+  today. This is not fixed by Traefik `basic_auth` gating, since the
+  customer still couldn't complete Fider's own sign-up flow behind that
+  gate. Recommend `blocked_on_platform` — worth revisiting if/when an
+  SMTP-relay-credential or OAuth-registration input channel is added to
+  the bootstrap mechanism, or if Fider ever ships a password-based auth
+  option.

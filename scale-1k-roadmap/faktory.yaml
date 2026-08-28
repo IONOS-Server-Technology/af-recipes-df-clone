@@ -1,0 +1,98 @@
+slug: faktory
+name: Faktory
+source_description: "High-performance background job server with web UI for job management"
+
+upstream:
+  url: https://contribsys.com/faktory/
+  repo_url: https://github.com/contribsys/faktory
+  license: AGPL-3.0 (open-source edition; a separate proprietary "Faktory Enterprise" tier also exists, dual-licensed under COMM-LICENSE — not evaluated here)
+  docker_image: contribsys/faktory:1.9.4
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file, official or community, exists in the repo
+    (root, docker/, deploy/, contrib/, packaging/) or on the wiki. The
+    project's own install docs (github.com/contribsys/faktory/wiki/Docker
+    and .../wiki/Installation) only document plain `docker run` commands —
+    one variant with a persistent volume mount for production, one without
+    for development — with no compose file linked or embedded anywhere.
+
+version_health:
+  latest_version: "1.9.4"
+  latest_release_date: "2025-02-19"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v1.9.4 (2025-02-19) — about 17.5 months before
+    today (2026-08-05). Release cadence was already slow before that
+    (1.9.3 2024-07-22, 1.9.2 2024-05-19, 1.9.1 2023-09-11, 1.9.0 2023-05-20),
+    averaging roughly one release every 6-9 months even at its most active.
+    Repo is not archived and the maintainer (Mike Perham, also of Sidekiq)
+    was still editing the project wiki as recently as 2026-02, so this reads
+    as a stable, low-churn single-maintainer project in long-term
+    maintenance mode rather than an abandoned one — but the release cadence
+    itself has effectively stalled for a year and a half.
+
+catalogue_fit:
+  categories: [developer-tools, background-jobs, queue]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers a language-agnostic background job queue;
+    n8n is workflow automation, not a generic job server for developers'
+    own applications. Faktory's actual value only exists once a customer
+    plugs their own app's producer/worker code into it over its native TCP
+    protocol — it is not a standalone end-user tool the way most of the
+    current catalogue is.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for developers self-hosting an app that needs a job queue, but
+    it's infrastructure plumbing for a customer's own codebase rather than
+    a self-contained product, which is a narrower audience than most of the
+    current 24 recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [FAKTORY_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      FAKTORY_PASSWORD is a single shared secret gating both the raw TCP
+      worker/producer protocol (port 7419) and the web UI's HTTP Basic Auth
+      (port 7420). The client auth handshake requires the plaintext
+      password (client computes a nonce-based pwdhash from it, e.g.
+      `tcp://:mypassword@host:7419`) — it is not a login form the server
+      hashes on submit, so `generated_from` (which only ever projects a
+      hash, never plaintext) cannot supply it. This matches the schema's
+      "genuine requirement for the plaintext password" case, a structural
+      blocker rather than an unsupported-algorithm gap.
+    - >
+      Gating the web UI alone behind Traefik `basic_auth` doesn't solve
+      this: Faktory's actual purpose is other services connecting to the
+      job queue over port 7419's binary protocol, and the customer has no
+      way today to learn or set the plaintext FAKTORY_PASSWORD their own
+      worker code needs to authenticate with. A server-generated random
+      secret "nothing customer-facing reads" doesn't apply here since the
+      customer's own application code is exactly what needs to read it.
+    - >
+      Port 7419 is a raw TCP protocol, not HTTP — not reverse-proxy
+      compatible with the Traefik-on-`<slug>.<base_domain>` pattern the
+      rest of the catalogue relies on; exposing it would need a separate
+      raw-TCP exposure mechanism (e.g. NodePort) independent of the secret
+      question above.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Faktory is a solid, stable, single-maintainer background job server, but
+  it fills a gap the AF catalogue doesn't currently target (job-queue
+  infrastructure for a customer's own app code, not an end-user product)
+  and its auth model requires a plaintext shared secret for both the wire
+  protocol and web UI — something our root-password-hash projection and
+  Traefik basic_auth mechanisms cannot supply. It would need a new
+  "customer-visible generated plaintext secret" input channel (distinct
+  from a login-hash) before it's installable, plus a raw-TCP exposure story
+  for port 7419. Release cadence has also stalled for ~1.5 years, though
+  the project does not appear abandoned. Not recommended to build now;
+  revisit if a plaintext-secret channel and non-HTTP port exposure both
+  land on the platform.

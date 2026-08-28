@@ -1,0 +1,129 @@
+slug: steel-browser
+name: Steel Browser
+source_description: "Open-source browser API for AI agents with full Chrome DevTools Protocol access"
+
+upstream:
+  url: https://steel.dev
+  repo_url: https://github.com/steel-dev/steel-browser
+  license: Apache-2.0
+  docker_image: ghcr.io/steel-dev/steel-browser
+  compose_file_url: https://raw.githubusercontent.com/steel-dev/steel-browser/main/docker-compose.yml
+  compose_file_notes: >
+    Official file, at the root of the steel-dev/steel-browser repo (the
+    same repo whose README documents `docker compose up` as the
+    self-hosting method). It is a rolling reference to the default branch
+    (`main`), not version-pinned to a release tag — both images it
+    references (`ghcr.io/steel-dev/steel-browser-api` and
+    `-steel-browser-ui`) are pulled as `:latest`, matching the "no
+    version-pinned tags exist upstream at all" finding already recorded
+    under installability.blocking_issues. Picked this file over the
+    sibling `docker-compose.dev.yml` (also at repo root): the dev variant
+    builds both images from local source (`build: ./api`, `build: ./ui`)
+    for local development rather than pulling the published GHCR images,
+    so it isn't a deployment file for the published image the way this one
+    is.
+
+version_health:
+  latest_version: "v0.5.3-beta"
+  latest_release_date: "2026-04-24"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Confirmed against the GitHub API (steel-dev/steel-browser). Releases
+    were roughly monthly through late 2025/early 2026 (v0.4.0 Sep 18, v0.4.1
+    Sep 24, v0.4.2 Sep 29, v0.4.3 Oct 14, v0.4.4 Oct 19, v0.4.5 Nov 4, v0.5.0
+    Nov 10, v0.5.1 Nov 19, v0.5.2 2026-03-15, v0.5.3-beta 2026-04-24), but no
+    tag has been cut since v0.5.3-beta — over 3.5 months as of today
+    (2026-08-05). That gap is on tagging only, not on the project itself:
+    `pushed_at` is 2026-08-05 and the most recent commit is dated
+    2026-07-20, so main is still actively developed. Repo is not archived,
+    has 7.4k stars and 54 open issues. Called `release_cadence: slowing`
+    (tag cadence dropped from monthly to none in 3.5+ months) while
+    `eol_status: active` (commit activity is current and heavy). All
+    releases to date are tagged `-beta`; the project self-describes as
+    "public beta and evolving every day," so treat the API/schema as not
+    yet stable.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does headless-browser
+    automation. n8n can drive browser-automation nodes but is a general
+    workflow engine, not a dedicated Chrome/CDP sandbox; openclaw and
+    hermes-agent are messaging-app-first AI agent runtimes with no browser
+    control at all. Steel Browser fills a distinct niche: a self-hosted
+    Puppeteer/Playwright/Selenium-compatible remote Chrome instance
+    (session management, proxy rotation, stealth/anti-detection, screenshot
+    /PDF/markdown page conversion) that a customer's own AI agent code
+    or n8n workflow can point at instead of a paid cloud browser API
+    (Steel Cloud, Browserless, Browserbase).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely novel capability for the catalogue and popular upstream (7.4k
+    stars), but it is infrastructure a customer's own code calls into via
+    API/SDK rather than an app they use directly day-to-day — the built-in
+    "UI" is a debugging/session-inspection dashboard, not a product surface
+    on its own. Value is real but narrower (developers building agents/
+    scrapers) than a typical high-usefulness recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Confirmed against upstream README, docs.steel.dev self-hosting docs,
+      and the shipped docker-compose.yml: the self-hosted app has no login
+      of its own at all. The REST API (session creation, page navigation,
+      JS execution, screenshots, proxy configuration) and the debug UI at
+      `/ui` are both served unauthenticated. This is a materially higher-
+      risk "no auth" case than a typical dashboard: an open Steel instance
+      lets anyone drive a full Chrome browser as an open relay/scraper from
+      the server's IP, which is an abuse and SSRF surface, not just an
+      information-disclosure one. A mandatory Traefik `basic_auth` gate on
+      the public port is not optional here the way it might be judgment-call
+      elsewhere — same pattern as Adminer/WUD, fully expressible today via
+      `generated_from` → root-password hash → basic_auth gate.
+    - >
+      Confirmed against the GHCR registry API: `ghcr.io/steel-dev/
+      steel-browser`, `steel-browser-api`, and `steel-browser-ui` each
+      publish only a single `latest` tag — no version-pinned tags exist
+      upstream at all. RFC-002's image-tag-pinned rule requires a pinned,
+      current stable tag, never `:latest`. The only way to pin today would
+      be a content digest (`@sha256:...`), which silently tracks whatever
+      commit was HEAD at pin time rather than a named, upstream-published
+      version — a materially worse pin than every other recipe in the
+      catalogue has. Not a hard blocker (a digest pin is technically
+      possible) but a real caveat against `build_now`.
+    - >
+      Two ports are involved: 3000 (combined REST API + `/ui` dashboard,
+      including the CDP-over-websocket endpoint that Puppeteer/Playwright
+      clients actually connect to) and 9223 (a secondary "console debugger"
+      CDP redirect for `chrome://inspect`-style tooling). Confirmed via
+      docs.steel.dev that browser-automation clients use the port-3000
+      websocket, so only port 3000 needs to be public and Traefik-fronted;
+      9223 can stay internal-only. Single public port keeps this reverse-
+      proxy compatible, but a recipe author should not assume both ports
+      need exposing just because the upstream docker-compose.yml maps both.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Steel Browser is mechanically installable today: it needs no external API
+  key or OAuth registration to boot, and its total lack of built-in auth is
+  fully covered by gating the single public port (3000) behind Traefik
+  `basic_auth`, the same pattern already used for Adminer/WUD/Agent Zero.
+  The catalogue gap is real — nothing else offers a self-hosted remote
+  Chrome/CDP sandbox — but two caveats keep this at `build_with_caveats`
+  rather than a clean `build_now`: upstream publishes no version-pinned
+  Docker tags at all (only `latest` on all three images), forcing a digest
+  pin instead of a normal version pin, and the project has gone 3.5+ months
+  without cutting a release despite continuous active commits, so recipe
+  maintenance would need to track main via digest bumps rather than tagged
+  releases. Usefulness is capped at medium since this is developer
+  infrastructure consumed via API/SDK rather than an app used directly.

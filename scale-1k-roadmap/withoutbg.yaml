@@ -1,0 +1,101 @@
+slug: withoutbg
+name: withoutBG
+source_description: "Self-hosted AI background removal with local models and no per-image fees"
+
+upstream:
+  url: https://withoutbg.com/
+  repo_url: https://github.com/withoutbg/withoutbg-inference
+  license: Apache-2.0 (repo code and withoutBG portions of the model); the bundled ONNX weights are under the "withoutBG Open Model License" — Apache-2.0 for withoutBG's own contribution plus the Meta DINOv3 License for the DINOv3 backbone weights the model is built on
+  docker_image: withoutbg/withoutbg-openweights-v3-app-cpu
+  compose_file_url: https://github.com/withoutbg/withoutbg-inference/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official, found at the repo root (withoutbg/withoutbg-inference). It's a
+    rolling reference to the default branch (main) — no version-pinned
+    release tag or tagged-commit link exists, matching the version_health
+    note that this repo has no GitHub Releases/semver tags yet. The file
+    defines four services (service-cpu, app-cpu, service-gpu, app-gpu; the
+    GPU pair gated behind a `profiles: [gpu]` compose profile); app-cpu
+    matches the docker_image above and is the CPU/web-UI+API variant this
+    recipe targets. Caveat: every service in this file is set to
+    `pull_policy: never`, meaning it's written for the project's own
+    "bake locally, then `docker compose up app-cpu`" workflow rather than
+    pulling the published `withoutbg/withoutbg-openweights-v3-app-cpu`
+    image straight from Docker Hub — a recipe's own compose file should
+    drop or override that setting to pull the published image instead of
+    copying this file verbatim.
+
+version_health:
+  latest_version: "sha-73bcf63 (no semver tags/GitHub Releases published; images are tagged by git commit SHA)"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    withoutbg/withoutbg-inference (the Docker self-host repo) was created
+    2026-06-26 — about 6 weeks old as of 2026-08-05 — with near-daily
+    commits since (GPU support added 2026-07-01, arm64 base-image fix
+    2026-07-16, README/docs polish 2026-07-23). No GitHub Releases and no
+    semver tags exist; Docker Hub only publishes `latest` plus
+    content-addressed `sha-<commit>` tags, so there is nothing traditional
+    to pin beyond a specific commit SHA. This reads as a young, actively
+    developed project rather than dormant — the opposite concern (churn/
+    breaking changes before it stabilizes) is more relevant here than
+    staleness.
+
+    Naming note: the wider withoutBG GitHub org (github.com/withoutbg) has
+    several separate repos — withoutbg-python (SDK, formerly at the
+    `withoutbg/withoutbg` slug, which now redirects here), withoutbg-mac
+    (native macOS app), withoutbg-gimp (GIMP plugin), and
+    withoutbg-inference (Docker images + FastAPI service, the only one
+    relevant to a self-hosted recipe). Picked withoutbg-inference as the
+    upstream for this analysis; the others are non-Docker client surfaces
+    for the same underlying open-weights model.
+
+catalogue_fit:
+  categories: [ai, media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe does image processing/AI media editing — Immich is
+    photo library management (storage, albums, search), not on-demand
+    background removal, and Ollama/Open WebUI are general-purpose LLM
+    chat/inference, not a purpose-built image tool. withoutbg fills a
+    distinct niche: a drag-and-drop web UI (plus a matching HTTP API) that
+    replaces paid SaaS tools like remove.bg with a self-hosted, per-image-
+    fee-free alternative running entirely on the customer's own server.
+  usefulness: medium
+  usefulness_rationale: >
+    Background removal is a common, recognizable task (e-commerce product
+    photos, headshots, marketing assets) with an established paid-SaaS
+    market, so the value proposition ("no per-image fees, your own
+    server") is easy to explain to a customer. It's narrower in scope than
+    most of the current catalogue (a single-purpose tool, not a platform),
+    which caps it at medium rather than high usefulness.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  withoutbg's `withoutbg-openweights-v3-app-cpu` image is a single
+  container serving a web UI plus API on one HTTP port (8080, CPU-only
+  variant needs no GPU/NVIDIA toolkit), which sits cleanly behind Traefik
+  on <slug>.<base_domain> — no database, no extra ports, no customer-
+  supplied API key or OAuth needed since the model runs fully locally and
+  the ~455MB weights are baked into the image at build time. The app has
+  no login of its own, so it would need a mandatory Traefik basic_auth
+  gate (same pattern as Adminer/WUD) to avoid leaving an open, CPU-hungry
+  image-processing endpoint reachable by anyone on the internet; that
+  gate's password is expressible today via generated_from on the
+  customer's root password. Mechanically installable today with no
+  blocking issues, so build_now: the upstream Docker repo is only ~6 weeks
+  old with no tagged releases yet (only rolling `latest`/commit-SHA tags),
+  which is a real version-pinning risk worth tracking, but it doesn't
+  block installability now — pin to a specific `sha-<commit>` tag rather
+  than `latest`.

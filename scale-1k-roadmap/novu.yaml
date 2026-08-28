@@ -1,0 +1,92 @@
+slug: novu
+name: Novu
+source_description: "Open-source notification infrastructure for email, SMS, and push delivery"
+
+upstream:
+  url: https://novu.co
+  repo_url: https://github.com/novuhq/novu
+  license: "MIT (core, LICENSE-MIT); some Enterprise Edition packages under a separate proprietary license (LICENSE-ENTERPRISE / EE-PACKAGES-LICENSE) — the community self-hosted images used here (ghcr.io/novuhq/novu/{api,worker,ws,dashboard}) are the MIT-licensed community edition, EE features are not enabled without a license key"
+  docker_image: "ghcr.io/novuhq/novu/api:3.18.0 (plus ghcr.io/novuhq/novu/{worker,ws,dashboard}:3.18.0 — a 4-service app stack, not a single image)"
+  compose_file_url: "https://raw.githubusercontent.com/novuhq/novu/next/docker/community/docker-compose.yml"
+  compose_file_notes: >
+    Official file, published by Novu itself under docker/community/ in the
+    main novuhq/novu repo. This is a rolling reference to the `next` branch
+    (not version-pinned to a release tag) — Novu's own bootstrap script
+    (docker/community/setup.sh, also on `next`) hardcodes
+    REPO_BASE=.../novu/next/docker/community and curls this exact file plus
+    its sibling .env.example, so this is the canonical path the project
+    directs self-hosters to via `docs.novu.co/community/self-hosting-novu/deploy-with-docker`.
+    No GPU/CPU or dev/prod variant split was found — this is the single
+    community docker-compose file Novu ships for self-hosting.
+
+version_health:
+  latest_version: "3.18.2 (client packages, released 2026-08-04); core service images (api/worker/ws/dashboard) pinned at 3.18.0 in the official community docker-compose"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active monorepo: repo pushed_at 2026-08-06T07:26 (the day this
+    analysis was written), with per-package releases landing almost daily
+    (e.g. @novu/react@v3.18.2, @novu/react-native@v3.18.2 both on 2026-08-04).
+    No signs of slowdown, archival, or EOL.
+
+catalogue_fit:
+  categories: [developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Purpose-built multi-channel notification infrastructure (email, SMS,
+    push, chat, in-app) with a visual workflow/template editor, subscriber
+    management, digesting/batching, and provider integrations — distinct
+    from n8n (general workflow automation) which has no first-class
+    notification-subscriber model, templating, or delivery-provider
+    abstraction layer. Nothing in the current 24-recipe catalogue covers
+    this ground.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful for a developer/SaaS-builder persona wanting to self-host their
+    product's notification layer rather than pay for Novu Cloud or build
+    one in-house. Less broadly useful than a general productivity or
+    infra tool since it targets developers building on top of it via API,
+    not end users directly — actual email/SMS/push delivery also requires
+    the customer to bring their own provider (SendGrid, Twilio, etc.)
+    credentials via the app's own UI after first login.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JWT_SECRET
+    - STORE_ENCRYPTION_KEY
+    - NOVU_SECRET_KEY
+    - MONGO_INITDB_ROOT_PASSWORD
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: STORE_ENCRYPTION_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: NOVU_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: MONGO_INITDB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Novu is a fast-moving, MIT-licensed (community edition), actively
+  maintained notification-infrastructure platform with no direct overlap in
+  the current catalogue. The stack is heavier than most existing recipes —
+  6 containers (mongodb, redis, api, worker, ws, dashboard) — and the
+  dashboard's frontend talks to the API and WS services on their own
+  origins/ports rather than everything flowing through a single port, but
+  Novu documents GLOBAL_CONTEXT_PATH / API_CONTEXT_PATH / WS_CONTEXT_PATH
+  specifically for single-domain, path-based reverse-proxy setups, so it is
+  Traefik-compatible with some extra routing rules. All first-boot secrets
+  are server-generated random values (JWT_SECRET, STORE_ENCRYPTION_KEY,
+  NOVU_SECRET_KEY, Mongo root password) with no customer input required;
+  the admin account itself is created via Novu's own self-signup flow on
+  first dashboard visit (the same pattern already used by the n8n and
+  Immich recipes), not through /compose. No structural blocker — worth a
+  real af-create-recipe pass, with the multi-service Traefik routing as the
+  main implementation risk to scope up front.

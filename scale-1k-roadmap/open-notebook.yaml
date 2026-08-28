@@ -1,0 +1,92 @@
+slug: open-notebook
+name: Open Notebook
+source_description: "AI-native notebook app for writing, researching, and organizing knowledge in one workspace"
+
+upstream:
+  url: https://www.open-notebook.ai
+  repo_url: https://github.com/lfnovo/open-notebook
+  license: MIT
+  docker_image: lfnovo/open_notebook
+  compose_file_url: https://raw.githubusercontent.com/lfnovo/open-notebook/main/docker-compose.yml
+  compose_file_notes: >
+    Official file, published at the repo root (lfnovo/open-notebook), and
+    the project's own README links this exact raw URL as the quick-start
+    download. It is a rolling reference to the main branch (no version
+    pin/tag), so it tracks whatever is current on main rather than a
+    specific release. Only one deployment variant is offered here (SurrealDB
+    backend, image tag lfnovo/open_notebook:v1-latest); the repo also ships
+    a second, separate file at examples/docker-compose-ollama.yml purely to
+    add a local Ollama sidecar container for API-cost-free model access,
+    not an alternative backend/database variant, so the root file remains
+    the one to record as the base install.
+
+version_health:
+  latest_version: "1.14.0"
+  latest_release_date: "2026-07-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.14.0 tagged 2026-07-21, ~15 days before today (2026-08-05); v1.13.0
+    (2026-07-13), v1.12.0 (2026-07-11) and v1.11.0 (2026-07-10) landed in the
+    same month, and a v1-dev floating image was pushed 4 days ago. Roughly
+    monthly-or-faster tagged releases with continuous dev-channel activity —
+    clearly active, nowhere near maintenance-only or EOL. Project name
+    is ambiguous: there is also an unrelated older "Open Notebook"
+    concept (the "electronic lab notebook" genre, e.g. eLabFTW-style tools)
+    and a separate community fork "eryabyshev/open-notebook-app"; this
+    analysis is scoped to lfnovo/open-notebook, the actively maintained
+    NotebookLM-alternative that matches Hostinger's description and is the
+    project referenced by the Docker Hub image `lfnovo/open_notebook`.
+
+catalogue_fit:
+  categories: [productivity, ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Distinct from existing catalogue entries: open-webui is a generic
+    chat-with-any-model UI, ollama is a raw local model runtime, and
+    paperless-ai layers AI-assisted classification onto a document archive.
+    Open Notebook is a self-hosted Google NotebookLM alternative purpose-built
+    for multi-document research — ingest PDFs/audio/video/web pages into
+    per-project "notebooks," RAG-chat across them, auto-generate notes, and
+    produce multi-speaker AI podcasts from the source material. No recipe in
+    the current catalogue covers this workflow. The app also exposes two
+    HTTP ports (8502 Streamlit UI, 5055 REST API); only the UI needs a public
+    Traefik hostname, the REST API port stays internal-only.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted NotebookLM alternatives are in high demand for
+    privacy-conscious research/knowledge-work users, and this is a
+    fully-featured one (18+ AI provider integrations including local Ollama,
+    podcast generation, structured note extraction) rather than a thin
+    NotebookLM clone.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, encryption_key, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: encryption_key
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Open Notebook (lfnovo/open-notebook, MIT, actively released roughly monthly)
+  is a two-container Docker Compose app (app + SurrealDB) with a single
+  Traefik-friendly web UI port and no hard dependency on any external
+  API key at first boot — Ollama covers the fully-local path, and cloud
+  provider keys are entered inside the app later, not through our install
+  flow. Its own optional password gate isn't hash-comparison based, so it
+  can't be driven by `generated_from`; the fix is simply to leave it
+  disabled and put a Traefik `basic_auth` gate (projected from the
+  customer's root password) in front instead, the same pattern already used
+  for other no-native-login apps. Nothing else needed at boot beyond
+  server-generated DB and encryption secrets. It fills a genuinely new
+  "self-hosted NotebookLM" niche with no overlap in the current 24-recipe
+  catalogue — recommend build_now.

@@ -1,0 +1,100 @@
+slug: metamcp
+name: MetaMCP
+source_description: "MCP aggregator and gateway to manage all your MCP servers in one place"
+
+upstream:
+  url: https://metamcp.com/
+  repo_url: https://github.com/metatool-ai/metamcp
+  license: MIT
+  docker_image: ghcr.io/metatool-ai/metamcp
+  compose_file_url: https://raw.githubusercontent.com/metatool-ai/metamcp/main/docker-compose.yml
+  compose_file_notes: >
+    Official file, committed at the repo root (not docs-embedded). This is
+    a rolling reference to the default branch (main), not a version-pinned
+    tag or release asset — the project has no GitHub Release-attached
+    compose file to point at instead (formal Releases stopped at v2.4.22
+    per version_health below). Only one variant is shipped: app +
+    bundled Postgres 16-alpine, image pinned to the `:latest` tag. There is
+    no separate GPU/CPU or sqlite/postgres variant to choose between.
+
+version_health:
+  latest_version: "v2.5.7-docker-per-mcp (last formal GitHub Release was v2.4.22)"
+  latest_release_date: "2025-12-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Formal GitHub Releases (with changelogs) stopped at v2.4.22 (2025-12-19),
+    about 7.5 months before today (2026-08-05). However, the maintainer
+    (zhjch05) kept tagging and shipping past that point without writing
+    Release notes — tags run at least to v2.5.7-docker-per-mcp, and commit
+    history shows regular commits (dependency bumps, a "quick-bootstrap"
+    feature merged via PR #253, i18n additions) as recently as June 2026.
+    Treat this as an actively maintained single-maintainer project that
+    simply stopped publishing GitHub Release notes, not as a project going
+    dormant — don't let the release-notes gap alone read as a red flag.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue aggregates or gateways MCP
+    servers. MetaMCP lets a customer register multiple MCP servers (local or
+    remote) once, group them into namespaces, and expose each namespace as a
+    single SSE/Streamable-HTTP endpoint that any MCP-capable client (Claude
+    Desktop, Claude Code, Cursor, etc.) can point at. It's complementary to
+    our existing native CLI-agent recipes (recipes/claude-code/,
+    recipes/gemini-cli/) rather than competing with any web-app recipe —
+    those agents are MCP *clients* that could consume a MetaMCP gateway.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable for a customer already running several MCP servers who wants a
+    single managed endpoint instead of wiring each client to each server
+    directly, but it's a fairly niche, developer-facing tool compared to the
+    broader-audience apps already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - BETTER_AUTH_SECRET
+    - BOOTSTRAP_USER_PASSWORD
+    - traefik_basic_auth_gate
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BETTER_AUTH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: BOOTSTRAP_USER_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MetaMCP is an actively developed (if release-notes-quiet since December
+  2025) MIT-licensed MCP aggregator/gateway with an official Docker image, a
+  single reverse-proxy-friendly HTTP port, and a Postgres dependency — all
+  handled the same way our n8n recipe already handles Postgres. It needs no
+  external API key or OAuth registration for core functionality (an
+  OPENAI_API_KEY floated in some quick-start snippets is for an optional
+  semantic tool-search feature, not baseline operation). Its official
+  compose file pre-provisions one bootstrap account from a *plaintext*
+  BOOTSTRAP_USER_PASSWORD env var (default test@user.example / changeme) —
+  that can't take a customer value or a generated_from hash (it needs the
+  raw password, not a hash), so it must be set to a random server-generated
+  string the customer never sees or needs. That's safe because
+  BOOTSTRAP_DISABLE_REGISTRATION_UI defaults to false: the real customer
+  path is registering their own account via MetaMCP's own in-app signup form
+  after first boot, the same owner-setup pattern our n8n and Uptime Kuma
+  recipes already rely on, leaving the bootstrap account an unused,
+  effectively locked-out placeholder. A Traefik basic_auth gate (root-
+  password-derived, per IF-1312) should still front the app to close the
+  window between container start and the customer completing that
+  registration, since anyone reaching the domain first could otherwise
+  self-register as a normal user. No catalogue overlap exists; it's a novel,
+  if niche, addition aimed at customers already running multiple MCP
+  servers. Recommend build_now.

@@ -1,0 +1,120 @@
+slug: paymenter
+name: Paymenter
+source_description: "Open-source billing and subscription management platform for hosting companies"
+
+upstream:
+  url: https://paymenter.org/
+  repo_url: https://github.com/Paymenter/Paymenter
+  license: MIT
+  docker_image: ghcr.io/paymenter/paymenter
+  compose_file_url: https://raw.githubusercontent.com/Paymenter/Paymenter/master/docker-compose.example.yml
+  compose_file_notes: >
+    Official Docker install docs (paymenter.org/docs/installation/docker)
+    instruct users to run `curl -Lo docker-compose.yml
+    https://raw.githubusercontent.com/Paymenter/Paymenter/master/docker-compose.example.yml`,
+    i.e. the project's own docs point directly at this file in its own repo.
+    This is a rolling reference to the default branch (master), not
+    version-pinned to a release tag — there is no versioned/release-asset
+    variant published. Only one variant is offered (MariaDB + Redis +
+    ghcr.io/paymenter/paymenter:latest, plus an opt-in "build" profile
+    asset-builder service for compiling themes/extensions); no separate
+    dev/prod or sqlite/postgres split exists.
+
+version_health:
+  latest_version: "v1.5.7"
+  latest_release_date: "2026-07-25"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.5.7 published 2026-07-25, ~11 days before this analysis (2026-08-05).
+    Prior releases (v1.5.4 through v1.5.6) landed roughly every 2-4 weeks
+    through June-July 2026, a steady active cadence. Repo is not archived,
+    ghcr.io/paymenter/paymenter image is actively pushed alongside tagged
+    releases, and recent releases include ongoing security fixes (e.g.
+    GHSA-5gmm-hjfj-8ff7 in v1.5.7, CVE-2026-55219 in v1.5.5), indicating a
+    maintained project responding to its own vulnerability reports.
+
+catalogue_fit:
+  categories: [billing, subscription-management, business-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes address billing, invoicing, or
+    subscription/order management for a hosting or SaaS business — the
+    closest adjacent tools (n8n for workflow automation, portainer for
+    container ops) don't overlap functionally. Paymenter would be a net-new
+    category: a client portal + invoicing + product/order management +
+    payment-gateway (Stripe/PayPal) system aimed at customers who resell
+    hosting or subscriptions themselves.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely new ground for the catalogue with a plausible customer
+    (hosting resellers, small SaaS operators), but it's a narrower
+    business-vertical tool than most of the current general-purpose
+    self-host catalogue, and its usefulness is gated on a working
+    payment-gateway integration (Stripe/PayPal), which itself needs an
+    external API key our platform has no channel for today (see
+    installability below) — so even a customer who wants it can't finish
+    setup without manually entering that key themselves post-install.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - MYSQL/MariaDB root and app passwords
+    - APP_KEY (Laravel encryption key)
+    - admin username, email, and password (via interactive `php artisan app:user:create`)
+    - payment gateway API credentials (Stripe/PayPal secret keys — needed to actually process billing, the app's core function)
+  secrets_expressible_today:
+    - secret: MYSQL/MariaDB root and app passwords
+      mechanism: server_generated_no_customer_input
+    - secret: APP_KEY (Laravel encryption key)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      There is no env-var or config-file path to pre-seed the first admin
+      account. Per upstream's own Docker install docs, the sequence is:
+      `docker compose exec paymenter php artisan app:init` (interactively
+      prompts for the install URL), `... db:seed --class=CustomPropertySeeder`,
+      then `... php artisan app:user:create`, which interactively prompts
+      for username, email, and password with no documented non-interactive
+      flags. Even if install.sh scripted TTY input, the value it would need
+      to supply is the customer's **plaintext** root password so their
+      normal login works — `generated_from` only ever produces a
+      bcrypt/argon2 hash of that password, and this command hashes whatever
+      string it receives internally, so feeding it a hash would double-hash
+      and silently break login. This is a structural mismatch, not merely a
+      missing algorithm, so it isn't just `blocked_on_platform` on the
+      `generated_from` algorithm list — there is no hash-shaped input this
+      command will accept correctly.
+    - >
+      Traefik `basic_auth` in front of the app does not resolve the above:
+      it would gate the whole site, but `app:init`/`db:seed`/`app:user:create`
+      still need to run once against the container directly at first boot
+      to produce a working install and an admin account at all, independent
+      of any outer HTTP auth gate.
+    - >
+      The core value proposition (processing payments) depends on a
+      customer-supplied Stripe/PayPal API secret with no projection
+      mechanism today — even a customer who gets past admin-account
+      creation cannot make billing functional without manually pasting a
+      gateway key into the admin UI after the fact.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Paymenter is an actively maintained (releases roughly every 2-4 weeks,
+  latest v1.5.7 on 2026-07-25), reverse-proxy-compatible, MIT-licensed
+  billing/subscription platform that would fill a genuinely uncovered
+  business-tools niche in the catalogue. It is not installable under the
+  current mechanism, however: first-boot setup requires a multi-step
+  interactive `php artisan` sequence (init → seed → user:create) with no
+  env-var or non-interactive path to plant an admin account, and the
+  password that command needs is plaintext (to match the customer's real
+  login), which `generated_from` structurally cannot supply since it only
+  ever produces a hash. On top of that, the app's actual purpose (processing
+  payments) needs a customer's own Stripe/PayPal key with no input channel
+  at all. Revisit as blocked_on_platform if the platform gains either a
+  scripted/non-interactive admin-bootstrap path plus a plaintext credential
+  channel, or a general external-API-key input mechanism — building today
+  would ship an app customers can't finish setting up.

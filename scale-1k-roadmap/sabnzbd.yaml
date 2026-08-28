@@ -1,0 +1,106 @@
+slug: sabnzbd
+name: SABnzbd
+source_description: "SABnzbd is an automated Usenet downloader for binary newsgroup content"
+
+upstream:
+  url: https://sabnzbd.org
+  repo_url: https://github.com/sabnzbd/sabnzbd
+  license: GPL-2.0
+  docker_image: lscr.io/linuxserver/sabnzbd (pin a version tag, e.g. 5.0.4-ls265 — never :latest, and avoid the "unstable"/"nightly" tags that currently track 5.1.0RC2)
+  compose_file_url: null
+  compose_file_notes: >
+    SABnzbd upstream (sabnzbd.org and github.com/sabnzbd/sabnzbd) ships no
+    Docker packaging of its own at all — no docker-compose.yml/yaml
+    anywhere in the repo root, docker/, deploy/, or contrib/, and the
+    README's install instructions are for running SABnzbd.py directly
+    (native Python), not Docker. The project's own wiki NAS install page
+    (sabnzbd.org/wiki/installation/install-nas) only says "Install through
+    Docker (if supported on your platform)" for Synology/QNAP/ASUSTOR with
+    no compose content, and defers Docker specifics elsewhere. All Docker
+    distribution — image and any compose examples — comes from the
+    third-party linuxserver.io project (linuxserver/docker-sabnzbd), which
+    is already reflected in this file's `docker_image` field; per repo
+    convention that community packaging is not adopted here as if it were
+    official. No official compose file exists to link.
+
+version_health:
+  latest_version: "5.0.4"
+  latest_release_date: "2026-06-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05) the current stable release is 5.0.4
+    (2026-06-11), i.e. about 8 weeks old, and sabnzbd.org still advertises
+    it as the "mature and stable" download. The 5.0.x line landed in a
+    tight burst this year — 5.0.0 and 5.0.1 (2026-05-01), 5.0.2
+    (2026-05-14), 5.0.3 (2026-05-15), 5.0.4 (2026-06-11) — and the 5.1.0
+    cycle is already in public testing (Beta1 2026-06-14 through RC2
+    2026-08-03, two days before today). The repo is not archived, has
+    ~10.2k commits with ongoing activity on `develop`, and a small open
+    issue count (~14), so it is genuinely maintained rather than
+    maintenance-only. linuxserver.io mirrors it promptly: their
+    5.0.4-based tag is current and their `unstable` tag already carries
+    5.1.0RC2. No EOL or hand-over signals. Note the project name is not
+    ambiguous, but the download domain is: sabnzbd.org is the live site;
+    sabnzbd.net (the old changelog host) did not resolve during this
+    research — use .org for links.
+
+catalogue_fit:
+  categories: [downloads, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers Usenet or any other
+    media-acquisition role — there is no *arr app, no indexer and no
+    download client of any kind. SABnzbd would be the first, and it is the
+    reference implementation of the category: a single Python container
+    serving one HTTP port (8080) with its own web UI, no companion database
+    or worker services. It sits behind Traefik on
+    `sabnzbd.<base_domain>` with no raw protocol port needed at all —
+    unlike qBittorrent/Syncthing, all Usenet traffic is outbound NNTP, so
+    this is a cleaner reverse-proxy fit than the BitTorrent candidates.
+    Separate candidates exist for NZBGet (`apps-gaps/nzbget.yaml`) and the
+    *arr/indexer apps, which cover adjacent or overlapping ground; per
+    repo convention that overlap is not itself a reason to reject this one.
+  usefulness: medium
+  usefulness_rationale: >
+    SABnzbd is the best-known and most widely deployed Usenet downloader,
+    and it is the app the *arr ecosystem integrates with first, so it is a
+    natural anchor if we ever build out media automation. Appeal is
+    nonetheless bounded: the customer must already hold a paid Usenet
+    provider account and an indexer to get any value, and we ship no
+    companion Sonarr/Radarr/Prowlarr recipes to pair it with yet — a
+    narrower audience than broad-appeal recipes like Vaultwarden or
+    Uptime Kuma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SABnzbd is a single-container, single-HTTP-port (8080) web app on the
+  well-maintained lscr.io/linuxserver/sabnzbd image, with only PUID/PGID/TZ
+  as environment inputs and /config plus download volumes — structurally
+  the same shape as recipes/uptime-kuma and recipes/syncthing, and simpler
+  than either since all Usenet traffic is outbound NNTP and no inbound raw
+  port is required. Its own login is disabled by default (fresh installs
+  serve the setup wizard to anyone who reaches them) and the image exposes
+  no env var for credentials, so a Traefik `basic_auth: true` gate
+  projected from the root-password hash is mandatory, not optional, and is
+  the only secret needed (IF-1312); the app's API key is self-generated and
+  never customer-supplied. Two implementation caveats for whoever builds
+  it: SABnzbd's hostname-verification check rejects requests whose Host
+  header is not in `host_whitelist`, so install.sh must seed
+  `host_whitelist = <APP_DOMAIN>` into sabnzbd.ini before first start (the
+  `HOST_WHITELIST_ENTRIES` env var belongs to third-party images, not the
+  linuxserver one), and the recipe must pin a stable tag such as
+  5.0.4-ls265 because the image's `unstable`/`nightly` tags currently carry
+  5.1.0RC2. Recommend build_now — mechanically installable today with no
+  blocking issues, and upstream is healthy.

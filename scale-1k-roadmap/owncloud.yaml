@@ -1,0 +1,117 @@
+slug: owncloud
+name: ownCloud
+source_description: "Self-hosted file sync, sharing, and collaboration platform for teams"
+
+upstream:
+  url: https://owncloud.com
+  repo_url: https://github.com/owncloud/ocis
+  license: Apache-2.0 (Infinite Scale / ocis core; the older Classic PHP server at github.com/owncloud/core is AGPL-3.0)
+  docker_image: owncloud/ocis
+  compose_file_url: https://raw.githubusercontent.com/owncloud/ocis/stable-8.0/deployments/examples/ocis_full/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the exact file ownCloud's own admin docs
+    (doc.owncloud.com, "Ubuntu with Docker Compose" deployment examples,
+    "Local Production Setup" page) tell an installer to download, via a
+    download-directory.github.io zip link pointed at
+    github.com/owncloud/ocis/tree/stable-8.0/deployments/examples/ocis_full.
+    Version-pinned, not a rolling default-branch reference: it lives on the
+    stable-8.0 branch (the docs page says explicitly this "contains patches
+    for release: 8.0.0"), which the ocis repo maintains as a patch line
+    separate from master, so it tracks 8.0.x fixes rather than following
+    HEAD. The ocis_full example is ownCloud's "batteries-included"
+    variant (Traefik reverse proxy with Let's Encrypt, ClamAV, Collabora,
+    OnlyOffice, Tika, mail, monitoring/tracing all wired in via docker
+    compose file overlays) rather than a minimal single-container example;
+    it is the one the official docs actually walk through, so it was
+    picked over hand-composing a smaller file from ocis.yml alone. Within
+    the same directory the project also ships s3ng.yml (S3-backed storage)
+    and other optional overlays selectable at compose-up time; the plain
+    docker-compose.yml here is the base file the docs use by default
+    (filesystem storage, not S3).
+
+version_health:
+  latest_version: "8.1.0"
+  latest_release_date: "2026-07-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ownCloud today ships two distinct products under one brand, and both are
+    still being actively released as of 2026-08-05:
+    - ownCloud Infinite Scale (ocis) — the Go rewrite, current flagship.
+      v8.1.0 stable released 2026-07-06 (~1 month before today), with a
+      v8.0.7 patch release 2026-07-31 (~5 days before today) and a
+      v8.2.0-rc.1 already in testing. owncloud/ocis Docker Hub image is
+      rebuilt in lockstep with each tag.
+    - ownCloud Classic (PHP, owncloud/server image) — the original codebase.
+      v10.16.4 pushed 2026-08-02 (~3 days before today), with a v11.0.0
+      migration release also being built in parallel. Officially positioned
+      by ownCloud itself as a transitional product: Classic is being kept
+      alive (recently even backported to run on PHP 8.3) explicitly so
+      customers have time to migrate to Infinite Scale, not as a
+      long-term parallel product.
+    Ownership/organizational context matters here: Kiteworks acquired
+    ownCloud in March 2025, and in January 2025 ~15 of the engineers who
+    built Infinite Scale left to found OpenCloud (already gap-analyzed in
+    this catalogue as apps-gaps/opencloud.yaml) over concerns about
+    long-term open-source commitment post-acquisition. ownCloud's own
+    blog states the remaining team kept shipping Infinite Scale through
+    that departure (progressing from 4.0 to the current 8.x line). Both
+    the original brand and its fork are therefore live, separately
+    maintained projects today — see the "ambiguous name" note below.
+
+catalogue_fit:
+  categories:
+    - productivity
+    - file-storage
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No app in the current 24-recipe catalogue covers general-purpose
+    self-hosted file sync/sharing with a web UI. Syncthing
+    (recipes/syncthing/) is P2P device-to-device sync with no server-side
+    web UI or link sharing; Immich is media-specific; Paperless-ngx is
+    scanned-document-specific. ownCloud (via Infinite Scale) would fill the
+    same "self-hosted Google-Drive-alternative" niche already identified as
+    a gap for Nextcloud (apps-gaps/nextcloud.yaml) and OpenCloud
+    (apps-gaps/opencloud.yaml) — none of the three are actual recipes yet,
+    so there is no catalogue overlap to reject on, but a human reviewer
+    should be aware all three gap-analyses target the same customer need
+    and likely only one (at most a couple) would get built, per this repo's
+    build-bandwidth-is-a-later-decision stance.
+  usefulness: high
+  usefulness_rationale: >
+    ownCloud is one of the most recognized names in self-hosted file
+    sync/sharing, with a large existing install base and brand recognition
+    comparable to Nextcloud. Infinite Scale in particular is a modern,
+    single-binary/single-container deployment ("all batteries included: no
+    external database, no external IDP needed") that is easy to stand up
+    behind a reverse proxy.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ownCloud Infinite Scale (owncloud/ocis, pin to a stable tag like 8.1.0,
+  not :latest or the rolling floating tag) is a single container exposing
+  its whole web UI + WebDAV/CS3 API on one HTTP port (9200), needs no
+  external database or IDP for a basic deployment, and takes its only
+  first-boot secret — ADMIN_PASSWORD for the built-in admin account — as a
+  plain env var, a direct fit for generated_from root-password projection.
+  Mechanically this is installable_today with no blockers. ownCloud,
+  Nextcloud, and OpenCloud (the last a literal 2025 fork of ownCloud's own
+  Infinite Scale team) are three actively-developed products that overlap
+  in covering the "self-hosted file sync and sharing" need, and ownCloud's
+  own brand carries the added context of a recent ownership acquisition
+  (Kiteworks, closed March 2025) and a team split — worth noting for a
+  reviewer, but not a reason to hold back the recommendation. Recommend
+  build_now: installability is mechanically clean with no blocking issues,
+  and which of the three overlapping candidates actually get built is a
+  separate later prioritization call, not an input to this recommendation.

@@ -1,0 +1,95 @@
+slug: librephotos
+name: LibrePhotos
+source_description: "Self-hosted photo management with face recognition and AI-powered search"
+
+upstream:
+  url: https://librephotos.com
+  repo_url: https://github.com/LibrePhotos/librephotos
+  license: MIT
+  docker_image: reallibrephotos/librephotos
+  compose_file_url: https://raw.githubusercontent.com/LibrePhotos/librephotos/dev/deploy/compose/docker-compose.yml
+  compose_file_notes: >
+    Official — docs.librephotos.com's standard-install guide has the
+    customer clone the monorepo and use deploy/compose/docker-compose.yml
+    (plus its sibling librephotos.env template) directly; there is no
+    separate release-asset link. Rolling reference to the repo's default
+    branch (dev), not version-pinned — main/master do not exist on this
+    repo, dev is the default branch. Only one compose variant is offered
+    (single docker-compose.yml driven by env vars for scan directory, data
+    dir, http port, image tag, and Postgres creds); the now-archived
+    librephotos-docker repo previously shipped an alternate compose setup
+    but is superseded by this monorepo path and not used here.
+
+version_health:
+  latest_version: "1.0.3"
+  latest_release_date: "2026-06-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.0.3 released 2026-06-27, about 5.5 weeks before today (2026-08-05).
+    The project moved to a monorepo in June 2026 (release 2026w25,
+    2026-06-21), consolidating backend/frontend/mobile/docs/deploy from five
+    previously separate repos and switching from weekly calendar-versioned
+    snapshots to semantic versioning starting at 1.0.0 (2026-06-26), with
+    1.0.1-1.0.3 following within a day for GPU-image fixes. The old
+    librephotos-docker repo was archived 2026-04-23 as part of that
+    consolidation — not a sign of abandonment, just the deploy config moving
+    into the monorepo's deploy/ directory. A dev update posted 2026-06-21
+    (docs.librephotos.com/blog/2026w25) describes an active face-recognition
+    pipeline rewrite (dlib to InsightFace/ArcFace on ONNX Runtime) and other
+    ongoing feature work. Clearly active.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Functionally near-identical to Immich: both are self-hosted photo/video
+    libraries with AI face recognition, object/scene classification, and
+    semantic search, both single-HTTP-port web apps fronted the same way.
+    LibrePhotos' distinguishing angle is Django/Postgres vs. Immich's
+    Node/Postgres+pgvector stack and a slightly different feature emphasis
+    (e.g. multi-user family libraries, timeline/map view), but it does not
+    cover a customer need Immich doesn't already address in this catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Photo backup/organization with AI search is a real self-host use case,
+    but we already ship Immich for exactly this, and Immich is the more
+    widely adopted, actively-developed option (larger community, native
+    mobile apps, faster release cadence historically). Adding LibrePhotos
+    would mostly split customer choice within one slot rather than open a
+    new one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the current monorepo deploy config
+      (deploy/compose/librephotos.env and deploy/compose/docker-compose.yml,
+      dev branch): there is no ADMIN_USERNAME/ADMIN_PASSWORD/ADMIN_EMAIL
+      environment variable in the current setup. Per docs.librephotos.com's
+      standard-install guide, the app boots with no admin account and the
+      first visitor is guided through a "First Time Setup Wizard" that
+      creates the admin account interactively in the browser — no
+      customer-supplied secret needs an input channel at boot. (An older,
+      now-archived librephotos-docker repo did wire ADMIN_USERNAME/
+      ADMIN_PASSWORD/ADMIN_EMAIL into a startup script that called Django's
+      set_password() — a genuine-plaintext requirement that would have been
+      a structural blocker — but that path is superseded by the current
+      monorepo deploy config and is not what a new recipe would use.)
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LibrePhotos is mechanically installable today: a single reverse-proxy-
+  compatible web UI, self-hosted admin signup wizard (no env-injected
+  credential needed), and only a server-generated DB password as a secret.
+  It is also an actively developed, MIT-licensed project with a healthy
+  release cadence. It overlaps with Immich, which already covers self-
+  hosted AI-powered photo/video management in this catalogue, but that is a
+  catalogue-fit consideration, not an installability blocker. Build now.

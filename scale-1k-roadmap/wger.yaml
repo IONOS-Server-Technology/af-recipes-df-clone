@@ -1,0 +1,125 @@
+slug: wger
+name: wger
+source_description: "Self-hosted fitness, workout, and nutrition tracker with native mobile apps"
+
+upstream:
+  url: https://wger.de
+  repo_url: https://github.com/wger-project/wger
+  license: AGPL-3.0-or-later (app code; exercise/ingredient data is CC-licensed per entry, docs under CC-BY-SA-4.0)
+  docker_image: docker.io/wger/server:2.6.0
+  compose_file_url: https://github.com/wger-project/docker/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official: the wger-project/wger README installation section points to
+    "the provided docker compose file" in the separate wger-project/docker
+    repo, and wger's own docs
+    (wger.readthedocs.io/en/latest/installation/docker.html) document this
+    same file as the supported production install path. This is a rolling
+    reference to the default (master) branch, not version-pinned — the
+    file itself pulls docker.io/wger/server:latest, and the docs explicitly
+    tell operators to "regularly pull the latest version of the compose
+    file" since new config/env vars get added over time. Picked the root
+    docker-compose.yml (production variant: app server, nginx reverse
+    proxy, Postgres, Redis cache, Celery worker+beat) over the repo's
+    docker-compose.override.example.yml (an example override, not a
+    standalone stack) and over the dev/ and dev-postgres/ subfolder
+    compose files, which are explicitly dev-only (SQLite or dev-Postgres,
+    no nginx/prod hardening) — the production file matches the multi-service
+    footprint already described in this recipe's summary.
+
+version_health:
+  latest_version: "2.6.0"
+  latest_release_date: "2026-06-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. Latest tagged release 2.6 published 2026-06-17
+    (~7 weeks ago), with a 2.7.0-alpha1 image already pushed to Docker Hub
+    ~1 day before this analysis, confirming the next release is already in
+    flight. Recent release cadence: 2.4 (2026-01-18) -> 2.5 (2026-04-15,
+    ~3 months) -> 2.6 (2026-06-17, ~2 months) — tightening, not slowing.
+    Commit history via GitHub API shows daily activity through
+    2026-08-06 (Weblate translation syncs, dependabot dependency bumps,
+    and direct feature commits from the lead maintainer), so this is not
+    a "released once and gone quiet" project. Clearly active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [fitness, health, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal fitness/workout
+    tracking. wger combines workout-routine planning, an exercise
+    database, nutrition/meal tracking, body-weight/measurement logging,
+    and a progress gallery behind one web UI, plus first-party Android/iOS/
+    desktop apps that sync against the same server (via a REST API and,
+    as of 2.6, an offline-first PowerSync channel) — a genuinely different
+    pitch ("own your workout and nutrition data, with real mobile apps")
+    than anything currently shipping. No existing recipe was found that
+    overlaps this ground closely enough to note here.
+  usefulness: high
+  usefulness_rationale: >
+    Fitness/workout tracking is a broad-appeal consumer category (unlike
+    niche developer tools already in the catalogue), and the native
+    mobile app ecosystem gives it a stickiness beyond a browser tab —
+    customers get an app they'd actually use daily. Backed by an
+    unusually well-documented, actively iterated upstream (dedicated
+    read-the-docs site, published Docker images, first-class
+    docker-compose support).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - SECRET_KEY
+    - POSTGRES_PASSWORD
+    - JWT_PRIVATE_KEY
+    - JWT_PUBLIC_KEY
+    - basic_auth_password
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_PRIVATE_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_PUBLIC_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      wger's own admin account is not customer-provisionable at boot: the
+      `wger bootstrap` entrypoint step (`wger/tasks.py`,
+      `create_or_reset_admin`) always creates/resets a hardcoded
+      `admin` / `adminadmin` account via a fixtures file — there is no
+      env var to set a different initial admin username or password, and
+      the resulting password is a plain Django-hashed value, not
+      something `generated_from` (which only ever carries an argon2/bcrypt
+      hash meant for an app's own hash-compatible login field) could
+      project into it anyway. This is not a hard blocker per the
+      "fixed/default/hardcoded admin credential" case in SCHEMA.md: gate
+      the whole app behind a mandatory Traefik `basic_auth: true`
+      (password projected from the customer's root password), the same
+      pattern already used for apps with no native login. The instance
+      stays closed to the internet even though the well-known
+      `admin`/`adminadmin` pair sits behind it; install.sh should
+      document that the customer should change that in-app password after
+      first login regardless.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  wger is a mature, actively developed fitness/workout/nutrition tracker
+  with a real multi-service stack (Django/gunicorn web app, Postgres,
+  Redis, Celery worker + beat, nginx, plus an optional PowerSync service
+  for mobile offline sync) — heavier than most of the current catalogue's
+  single- or two-container recipes, closer to paperless-ngx/immich in
+  shape. All boot-time secrets except the app's own admin login are
+  patternless values the server can generate with no customer input; the
+  admin login is a hardcoded `admin`/`adminadmin` default with no env-var
+  override, which is expressible today via a mandatory Traefik
+  `basic_auth` gate rather than blocked. Recommend `build_with_caveats`:
+  worth building given the broad consumer appeal and native mobile apps,
+  but plan for the wider service footprint and document the
+  basic-auth-plus-default-admin double-gate clearly for the customer.

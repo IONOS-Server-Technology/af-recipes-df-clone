@@ -1,0 +1,94 @@
+slug: galaxy
+name: Galaxy
+source_description: "Galaxy is an open-source web platform for reproducible bioinformatics workflows"
+
+upstream:
+  url: https://galaxyproject.org/
+  repo_url: https://github.com/galaxyproject/galaxy
+  license: MIT (project relicensed from Academic Free License 3.0 to MIT on 2026-02-25)
+  docker_image: quay.io/bgruening/galaxy
+  compose_file_url: null
+  compose_file_notes: >
+    The official bgruening/docker-galaxy-stable repo does ship a
+    docker-compose setup (compose/docker-compose.yml, rolling reference to
+    the default `master` branch, no pinned tag), but its own README
+    explicitly flags it as unmaintained: "The compose version of this
+    project is currently not maintained. We update the files and versions
+    as we have time, but it's not a priority at the moment. We will
+    concentrate on the single-container version." Recording compose_file_url
+    as null rather than adopting it, consistent with the recipe summary's
+    call to use the supported single-container image
+    (quay.io/bgruening/galaxy) instead.
+
+version_health:
+  latest_version: "26.0"
+  latest_release_date: "2026-04-09"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Galaxy core itself releases on a roughly 6-month cadence (25.0 in
+    2025-06, 25.1 in 2025-12, 26.0 in 2026-03/04) and is clearly active —
+    26.0 shipped a built-in AI assistant and a full client build-tooling
+    overhaul, so upstream is healthy. The community Docker image
+    (bgruening/docker-galaxy, published to quay.io/bgruening/galaxy) is a
+    separate, thinner-maintained project: the legacy Docker Hub image
+    (bgruening/galaxy-stable) has been frozen since tag 20.09 (~2021),
+    and the quay.io successor sat still for ~4 years before catching up
+    with a 24.1 release in 2024-11, then 24.2 (2025-02), 25.1 (2026-01,
+    an ~11-month gap after 24.2), 25.1.1 (2026-01), and 26.0 (merged
+    2026-04-09 — about 4 months before today, 2026-08-05). Treat the image
+    build as "slowing"/lagging relative to core even though core itself is
+    active; a customer pinning to this image inherits whatever gap exists
+    between a core release and the next community image build.
+
+catalogue_fit:
+  categories: [science, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches scientific/bioinformatics
+    computing. Galaxy would be a genuinely new category — a workflow
+    platform for running and chaining bioinformatics tools (sequence
+    alignment, variant calling, etc.) against uploaded datasets, aimed at
+    researchers/bioinformaticians rather than the general
+    productivity/monitoring/automation audience the rest of the catalogue
+    serves.
+  usefulness: low
+  usefulness_rationale: >
+    Technically installable, but the addressable audience among typical
+    IONOS/Hostinger self-hosting customers is very narrow (research labs,
+    bioinformatics students/teams) compared to the broad-appeal apps
+    already shipped. It's also one of the heavier recipes in the
+    catalogue by design — real workflow runs need substantial CPU/RAM/disk
+    for tool execution and reference data, well above what a shared/small
+    VPS tier would comfortably support, and the platform is meant to
+    dispatch jobs to external compute (clusters/cloud) for serious use,
+    which a single-VM recipe can't provide.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Galaxy ships as a single all-in-one container (quay.io/bgruening/galaxy)
+  bundling its web UI, internal Postgres, and job/tool infrastructure
+  behind one HTTP port (80); the upstream docker-compose orchestration for
+  a split multi-container deployment is explicitly unmaintained, so the
+  single-container image is the only supported Docker path today.
+  Non-HTTP extras (FTP/SFTP upload, a Supervisor UI, an interactive-tools
+  proxy) can be disabled via NONUSE so only the web port needs to be
+  public, keeping it Traefik-compatible. The image provisions a
+  hardcoded default admin account (admin@example.org / password) unless a
+  plaintext GALAXY_DEFAULT_ADMIN_PASSWORD is supplied — since our platform
+  has no channel to inject a customer-chosen plaintext password, the
+  recipe should leave that default in place and gate the entire app
+  behind Traefik basic_auth (root-password-hash projected), the same
+  pattern used for Adminer/n8n/WUD. That makes it mechanically installable
+  today with no blocking issues.

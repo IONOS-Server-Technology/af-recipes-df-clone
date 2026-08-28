@@ -1,0 +1,97 @@
+slug: coder
+name: Coder
+source_description: "Open-source platform for provisioning self-hosted cloud development environments"
+
+upstream:
+  url: https://coder.com
+  repo_url: https://github.com/coder/coder
+  license: AGPL-3.0 (core), with a paid Enterprise license layer for SSO/audit-log/high-availability features
+  docker_image: ghcr.io/coder/coder
+  compose_file_url: https://raw.githubusercontent.com/coder/coder/main/compose.yaml
+  compose_file_notes: >
+    Official file, shipped at the repo root as `compose.yaml` (Coder's own
+    docs at coder.com/docs/install/docker link to it directly: "Download
+    the docker-compose.yaml file", with a relative link resolving to this
+    same path). The docs page's rendered version happens to pin to a
+    release tag (currently v2.36.0, matching this analysis's
+    latest_version), but the underlying repo file is unversioned at the
+    canonical path — the URL recorded here follows the `main` branch and
+    is a rolling reference, not pinned to a release. Only one variant
+    exists: a single Postgres-backed compose file with the Coder server
+    and a `postgres:17` database service; there's no separate GPU/CPU or
+    dev/prod split to choose between. A sibling `compose.dev.yaml` also
+    exists in the repo but is for Coder's own contributor/development
+    workflow, not for end-user deployment, so it was not selected.
+
+version_health:
+  latest_version: "v2.36.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest mainline release shipped one day before this analysis
+    (2026-08-04, analysis date 2026-08-05). Release history shows a weekly
+    cadence across both mainline (2.34.x/2.35.x/2.36.x) and stable-patch
+    branches (v2.36.0, v2.35.3, v2.34.7, v2.35.2, v2.34.6, v2.35.1, v2.35.0
+    all within the two weeks before this analysis). Clearly active,
+    well-funded, no signs of slowdown.
+
+catalogue_fit:
+  categories: [development, devops]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue provisions cloud development
+    environments. Portainer and Guacamole are the nearest neighbors
+    structurally, but neither does workspace/IDE provisioning: Portainer
+    manages arbitrary Docker resources (and, like Coder, needs
+    docker.sock mounted to do so), while Guacamole just proxies existing
+    remote desktops over RDP/VNC/SSH with no privileged host access at
+    all. Coder's actual
+    product is spinning up per-developer dev containers/VMs on demand from
+    Terraform-defined templates, with browser-based VS Code / SSH access —
+    a genuinely distinct capability for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted cloud dev environments, and unlike
+    Autobase's fleet-orchestration model, Coder's default "Docker template"
+    workspace provisioning targets the *same host* the Coder server runs
+    on — so the product's core loop does map onto a single-instance
+    recipe. The ceiling is lower than build_now-grade apps, though: it
+    needs the Docker socket mounted into the app container (see below),
+    which is a materially higher blast-radius ask than most of the
+    catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - Traefik basic-auth gate credential
+    - POSTGRES_PASSWORD
+  secrets_expressible_today:
+    - secret: Traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Coder is active, well-maintained, reverse-proxy-friendly on its single
+  HTTP port, and fills a real gap (no dev-environment provisioning tool in
+  the catalogue today). First-admin creation is a self-service web form
+  (email/password chosen by whoever gets there first) with no
+  environment-variable or hash-based seeding path — the official
+  `coder server create-admin-user` CLI only accepts a plaintext password,
+  which `generated_from` (hash-only) cannot supply. That makes it
+  structurally identical to n8n/Open WebUI-style apps: gate the whole app
+  behind Traefik `basic_auth` so only the customer reaches the setup page
+  and claims the first-admin slot themselves, with no secret ever passed
+  through our side. Coder's workspace provisioning needs
+  `/var/run/docker.sock` mounted into its own container to spin up
+  dev-environment containers on the host — the same privileged-access
+  class as our Portainer recipe, which this catalogue currently ships with
+  `enabled: false`. That's a real operational precedent worth a reviewer's
+  attention, but it's not a blocking issue: no secrets are missing a
+  mechanism and there's no upstream health problem, so this is build_now.

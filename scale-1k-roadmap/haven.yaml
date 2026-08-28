@@ -1,0 +1,142 @@
+slug: haven
+name: Haven
+source_description: "Private self-hosted blog for personal journals shared with invited readers"
+
+upstream:
+  url: https://havenweb.org/
+  repo_url: https://github.com/havenweb/haven
+  license: MIT
+  docker_image: ghcr.io/havenweb/haven:latest
+  compose_file_url: https://raw.githubusercontent.com/havenweb/haven/master/deploymentscripts/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo. Haven ships two docker-compose
+    files at the repo root vs. deploymentscripts/: the root
+    docker-compose.yml builds the Rails app image from source (Dockerfile
+    build, no pinned base beyond .ruby-version), while
+    deploymentscripts/docker-compose.yml uses the pre-built
+    ghcr.io/havenweb/haven:latest image plus postgres:13.2-alpine — the
+    same pre-built-image variant this recipe's docker_image field already
+    reflects, so that's the one recorded here. Both files are rolling
+    references to the `master` branch (no release tags/versions exist for
+    this repo per version_health below, so there is no version-pinned
+    alternative to prefer) and both hardcode the same fixed default admin
+    credential (HAVEN_USER_EMAIL=changeme@havenweb.org,
+    HAVEN_USER_PASS=ChangeMeN0W) called out as the installability blocking
+    issue.
+
+version_health:
+  latest_version: "latest (no semver tags/releases exist)"
+  latest_release_date: null
+  release_cadence: active
+  eol_status: active
+  notes: >
+    havenweb/haven has never cut a GitHub Release or a git tag (both
+    `/releases` and `/tags` return empty) — it ships purely as a rolling
+    `master` branch, rebuilt to `ghcr.io/havenweb/haven:latest` (plus a
+    per-commit short-SHA tag) on every push via
+    `.github/workflows/docker-image.yml`. There is no "pinned, current
+    stable tag" in the sense our other recipes use; the closest available
+    pin is a specific commit SHA tag, not a vetted release. Commit history
+    is genuinely active: pushed_at 2026-07-31, updated_at 2026-08-04 (1-5
+    days before this analysis on 2026-08-05), with real feature/fix
+    commits roughly weekly-to-monthly over the past year (e.g. "Fix
+    Indieauth" 2026-07-14, "Refactor post editing validations" 2026-07-07,
+    RSS relative-link fix 2026-06-30, Rails 7.1/7.2 upgrades 2026-07-07,
+    routine dependency bumps in between). Not archived, not dormant. It is,
+    however, effectively a one-person project: of ~470 commits attributed
+    to contributors, 356 (76%) are from a single maintainer (mawise), with
+    72 more from dependabot; only a handful of one-off external
+    contributions. 798 GitHub stars, 17 open issues. Small but real
+    maintenance risk if that one maintainer stops.
+
+catalogue_fit:
+  categories: [blogging, journaling, publishing, rss-reader]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes covers personal blogging/journaling.
+    Haven is deliberately narrow and different from apps-gaps/ghost.yaml
+    and apps-gaps/halo.yaml (also unbuilt candidates): it is not a
+    publishing/CMS platform aimed at public audiences or monetization —
+    it has no plugin marketplace, no themes marketplace, no
+    newsletter/payments story. It's explicitly a *private* journal shared
+    only with people the author invites (access-controlled posts,
+    IndieAuth/Micropub support, a built-in private RSS-style reader for
+    following other Havens/blogs). Closest existing recipe by shape is
+    Gitea/Opengist (small Rails/Go app + Postgres, single admin-managed
+    user base) but neither of those is a writing/publishing tool. Also
+    distinct from recipes/anytype-server (structured notes/wiki for
+    yourself) — Haven's whole premise is "write posts, choose specific
+    people to share them with," a social-but-private use case anytype-server
+    doesn't address.
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a real, currently-empty niche (private family/friends journal,
+    not a public blog), and MIT-licensed with an active-enough maintainer.
+    But it's a small, single-maintainer hobby project with no formal
+    release process and a much smaller audience/brand than Ghost or Halo,
+    so expected customer demand is lower — this is a nice-to-have addition
+    to round out the publishing category, not a must-have on its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - postgres_db_password (HAVEN_DB_PASSWORD)
+    - initial_admin_password (HAVEN_USER_PASS, consumed as plaintext at container boot to create the sole admin user)
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: postgres_db_password (HAVEN_DB_PASSWORD)
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      HAVEN_USER_EMAIL/HAVEN_USER_PASS are read by
+      deploymentscripts/lib/ruby/create_user.rb at boot and passed straight
+      into `User.create!(password: PASS, ...)` — Devise/bcrypt hashes it
+      internally, but the *input* the app requires is a plaintext
+      password, not a pre-computed hash. This is the exact "genuine
+      plaintext requirement" SCHEMA.md calls a hard blocker for
+      `generated_from`, which only ever carries a hash of the customer's
+      root password. Unlike Ghost/Halo (apps-gaps/ghost.yaml,
+      apps-gaps/halo.yaml), this isn't a first-visitor claim race on an
+      unauthenticated setup wizard — Haven's admin account is created
+      deterministically at container start from these env vars, so a
+      recipe would have to bake in a fixed, non-customer-specific default
+      password (documented in metadata.yaml for the customer to change
+      post-install). That is workable in principle: gate the app behind
+      Traefik basic_auth (projected from the customer's root-password
+      hash) so the fixed default credential is never internet-reachable,
+      then have the customer log in with the documented default and change
+      it themselves via Haven's own Devise `/users/edit` page before
+      disabling the gate — the same "temporary claim-race-style
+      protection, customer disables it once done" tradeoff already
+      accepted for Ghost/Halo. Flagging as a blocking issue here (rather
+      than marking installable_today: true outright) because, unlike
+      those two, the fixed credential is knowable in advance from the
+      published recipe source itself (not just racing an anonymous
+      visitor), so this needs an explicit product/security call before
+      treating it as equivalent.
+  installable_today: false
+  recommendation: build_with_caveats
+
+summary: >
+  Haven is a small, MIT-licensed, actively-committed-to (weekly-to-monthly
+  real commits, last push 2026-07-31) but single-maintainer private
+  blogging app with no formal release process — only a rolling `latest`
+  image and per-commit SHA tags, no version to pin against in the usual
+  sense. It fills a real gap (personal/family journal sharing, distinct
+  from the public-CMS Ghost/Halo candidates and from anytype-server's
+  personal-notes use case) and is structurally simple: one Rails
+  container (ghcr.io/havenweb/haven, port 3000) plus Postgres, reverse-proxy
+  friendly. The installability wrinkle is that its only admin-provisioning
+  path (HAVEN_USER_EMAIL/HAVEN_USER_PASS env vars) takes a plaintext
+  password baked into the recipe rather than a customer-supplied hash, so
+  clearing it the same way accepted for Ghost/Halo (Traefik basic_auth
+  gate + customer changes the fixed default password post-install) works
+  mechanically but ships a recipe-wide-known default credential rather
+  than a per-customer-random one, which is a materially different risk
+  profile worth a deliberate call rather than defaulting to yes. Marked
+  build_with_caveats: worth building once that call is made, but not
+  installable_today without it.

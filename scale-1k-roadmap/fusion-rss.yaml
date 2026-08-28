@@ -1,0 +1,80 @@
+slug: fusion-rss
+name: Fusion
+source_description: "Lightweight self-hosted RSS reader with Fever API and keyboard-driven reading"
+
+upstream:
+  url: https://github.com/0x2E/fusion
+  repo_url: https://github.com/0x2E/fusion
+  license: MIT
+  docker_image: ghcr.io/0x2e/fusion
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    repo (root, docker/, deploy/, contrib/) or docs/ directory. The
+    project's README documents Docker deployment via an inline
+    docker-compose snippet embedded directly in the markdown (a
+    "version: 3" example running ghcr.io/0x2e/fusion:latest with
+    FUSION_PASSWORD and a ./data volume mount) rather than a file the
+    project publishes and updates on its own — there is nothing to link
+    to as an official compose file per the Immich-style bar this field
+    requires.
+
+version_health:
+  latest_version: "v1.2.1"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    8 days since the last release as of 2026-08-05. Release history: v1.0.0
+    (2026-02-20), v1.1.0 (2026-02-22), v1.1.1 (2026-02-23), then a ~4.5-month
+    gap before v1.2.0 (2026-07-12) and v1.2.1 (2026-07-28), the latter a
+    same-week follow-up fix. Repo is not archived; two releases in the last
+    month indicate active development, not just maintenance patches.
+
+catalogue_fit:
+  categories: [productivity, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing currently in recipes/ covers RSS/Atom aggregation. Fusion
+    targets the same niche as FreshRSS (analyzed separately in
+    apps-gaps/freshrss.yaml, not yet built as a recipe) but is a much
+    lighter single Go binary/container with no PHP/DB stack, plus built-in
+    Fever API support for third-party mobile clients (Reeder, Unread,
+    FeedMe) and Google Reader-style keyboard shortcuts aimed at
+    power-user/developer reading workflows rather than FreshRSS's
+    multi-user/OPML feature breadth.
+  usefulness: medium
+  usefulness_rationale: >
+    RSS reading is a smaller niche than the automation/monitoring/media
+    apps already in the catalogue, but Fusion is trivially cheap to run
+    (single container, SQLite, tiny footprint) and the Fever API makes it
+    immediately useful with existing mobile RSS clients, which broadens
+    appeal beyond a bare web UI.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Fusion is a single-container, single-HTTP-port (8080) app with SQLite
+  storage and no separate DB service, well suited to sit behind Traefik.
+  Its own login is gated by FUSION_PASSWORD, but the source
+  (backend/internal/handler/handler.go, backend/internal/auth/password.go)
+  confirms the app bcrypt-hashes that env var itself at startup — it needs
+  the plaintext password, not a pre-computed hash, so `generated_from`
+  cannot feed it directly. The documented workaround is exactly the
+  pattern our mechanism already supports for logins-less apps: set
+  FUSION_ALLOW_EMPTY_PASSWORD=true to disable Fusion's own auth (only
+  takes effect with OIDC unconfigured, which is the default) and put a
+  Traefik `basic_auth: true` gate in front instead, using
+  `generated_from` on the gate credential. Actively maintained MIT project
+  with no catalogue overlap; recommend building the recipe now with the
+  basic_auth-gate approach rather than FUSION_PASSWORD.

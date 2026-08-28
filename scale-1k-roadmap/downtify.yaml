@@ -1,0 +1,84 @@
+slug: downtify
+name: Downtify
+source_description: "Download Spotify music from YouTube with album art, lyrics, and metadata"
+
+upstream:
+  url: https://downtify.henriquesebastiao.com/
+  repo_url: https://github.com/henriquesebastiao/downtify
+  license: GPL-3.0
+  docker_image: ghcr.io/henriquesebastiao/downtify
+  compose_file_url: https://github.com/henriquesebastiao/downtify/blob/main/README.md
+  compose_file_notes: >
+    No standalone compose file is published for deployment. The repo root
+    does have a docker-compose.yml, but it builds the image from source
+    (build: ., bind-mounts ./docker/downloads and ./docker/data, overrides
+    DNS) — that's the project's own dev/test setup, not an
+    end-user-facing deploy artifact, so it isn't used here. The official
+    deployment compose is the snippet embedded directly in README.md's
+    "Docker Compose" section under Quick Start, which uses the published
+    ghcr.io/henriquesebastiao/downtify:latest image with /downloads and
+    /data volumes — matching the "docker run" quick-start command right
+    above it. This is a rolling reference to the main branch (the
+    embedded snippet pins the `latest` tag, not a specific release), not
+    version-pinned.
+
+version_health:
+  latest_version: "2.9.1"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 2.9.1 released 2026-07-16 — about 3 weeks before today
+    (2026-08-05). Release cadence is very fast: 2.9.0 (2026-07-12), 2.8.0
+    (2026-06-02), 2.7.0 (2026-05-11), 2.6.1 (2026-05-05), 2.6.0 (2026-05-03),
+    2.5.0 (2026-05-02), 2.4.3/2.4.2/2.4.1 (all late April 2026) — multiple
+    releases per month, several in the same week. Clearly active,
+    single-maintainer development, not maintenance-only.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does music acquisition/download —
+    closest adjacent recipes (Immich for photos, Paperless-ngx/Paperless-AI
+    for documents) are unrelated media types. Downtify would be a genuinely
+    new category: paste a Spotify link, get a tagged audio file (with album
+    art, lyrics, metadata) resolved via YouTube Music/yt-dlp, no Spotify
+    account or API key involved.
+  usefulness: medium
+  usefulness_rationale: >
+    Functionally novel and actively maintained, but its entire purpose is
+    routing around Spotify's licensing by re-fetching the same audio from
+    YouTube — the project's own README carries an explicit "users are
+    responsible for legal consequences" disclaimer. That is a meaningfully
+    different risk profile from the rest of the catalogue (infra tools,
+    self-hosted productivity apps) and worth a deliberate legal/ToS call by
+    IONOS before treating this as just another recipe, independent of the
+    mechanical installability question below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Downtify is mechanically simple to ship: a single container
+  (ghcr.io/henriquesebastiao/downtify, pin 2.9.1), one HTTP port (8000,
+  configurable via DOWNTIFY_PORT), two volumes (/downloads, /data), no
+  Spotify API key or account needed, and no built-in login — so it fits the
+  same "gate the whole thing behind Traefik basic_auth" pattern already used
+  for WUD and Immich, with no external-credential blocker. Upstream is
+  active (multiple releases per month, latest 2.9.1 on 2026-07-16). The
+  app's sole function is downloading Spotify-catalogued audio via YouTube
+  Music without Spotify's involvement, and upstream itself disclaims
+  responsibility for the legal consequences of that — a fact worth flagging
+  for a separate, non-technical legal/ToS call — but that reputational
+  concern is not an installability blocker, so on mechanism alone this is
+  build_now: installable_today with no blocking_issues.

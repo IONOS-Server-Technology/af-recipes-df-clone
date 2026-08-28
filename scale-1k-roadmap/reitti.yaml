@@ -1,0 +1,81 @@
+slug: reitti
+name: Reitti
+source_description: "Self-hosted location tracking and timeline as a Google Timeline alternative"
+
+upstream:
+  url: https://github.com/dedicatedcode/reitti
+  repo_url: https://github.com/dedicatedcode/reitti
+  license: AGPL-3.0
+  docker_image: dedicatedcode/reitti:5.1.0
+  compose_file_url: https://raw.githubusercontent.com/dedicatedcode/reitti/refs/heads/main/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the exact file the project's own README quickstart
+    tells users to `wget` before `docker compose up -d`
+    (github.com/dedicatedcode/reitti README). Rolling reference to the
+    `main` branch, not version-pinned (the image tag inside floats too:
+    `dedicatedcode/reitti:5`, not `:5.1.0`). The repo root also has
+    `docker-compose-dev.yml` and `docker-compose-minimal.yml` siblings;
+    picked the plain `docker-compose.yml` since it's the one the README's
+    quickstart section links, and it matches the full postgis+redis+
+    tile-cache shape this recipe already assumes, whereas -minimal likely
+    drops one or more of those services and -dev is for local development.
+
+version_health:
+  latest_version: "5.1.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: v5.0.0 shipped 2026-07-05, followed by 5.0.1, 5.0.2, and
+    5.1.0 within eight days (last one 2026-07-13, ~3 weeks before today,
+    2026-08-05). Prior major cycle (v4.0.0 → v4.0.5) ran 2026-04-12 through
+    2026-05-05 at a similar 1-3 day patch cadence. A `develop` image tag was
+    updated ~8 hours before this check, confirming ongoing active
+    development, not just tagged releases. No signs of maintenance-only or
+    slowing status.
+
+catalogue_fit:
+  categories: [productivity, privacy]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Nothing in the current 24 recipes does personal location/timeline
+    tracking — this is a genuinely new category (a self-hosted Google
+    Timeline replacement: GPX/Google-Takeout import, OwnTracks/GPSLogger
+    live ingestion, visit/trip analysis, map timeline). The only existing
+    recipe it brushes against is Immich, which Reitti can optionally pull
+    photos from to overlay on the timeline by location — that's an
+    integration, not a functional overlap; Immich doesn't do location
+    analytics and Reitti doesn't do photo storage.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal location history / lifelogging has a real niche audience
+    (privacy-conscious users replacing Google Timeline after Google moved
+    it on-device-only), and pairs naturally with a self-hosted Immich
+    instance on the same account. Narrower appeal than general-purpose
+    tools like n8n or Vaultwarden, but a clean, single-purpose fit with no
+    direct catalogue competitor.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Reitti is a single-HTTP-port (8080), Traefik-friendly Java app backed by
+  PostGIS and Redis (plus an optional nginx tile-cache sidecar) — same
+  shape as recipes/immich or recipes/paperless-ngx. It has no env-var-based
+  admin credential to project a root-password hash into; instead, like
+  Immich (already in our catalogue), it shows a first-visit setup wizard
+  where whoever loads the URL first claims the admin account and sets
+  their own password interactively. Since we already accept that pattern
+  for Immich without requiring a Traefik basic_auth gate, the same
+  precedent applies here: no customer-supplied secret is needed at first
+  boot (Postgres/Redis credentials are internal and can be server-
+  generated), so nothing blocks installability under the current
+  /compose mechanism. Combined with an active release cadence and a clean,
+  non-overlapping niche, this is a good build_now candidate.

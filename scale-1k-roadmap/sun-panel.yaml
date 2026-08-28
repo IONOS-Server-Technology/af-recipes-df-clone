@@ -1,0 +1,120 @@
+slug: sun-panel
+name: Sun-Panel
+source_description: "Server and NAS navigation panel with customizable homepage and app launcher"
+
+upstream:
+  url: https://sun-panel.top
+  repo_url: https://github.com/hslr-s/sun-panel
+  license: MIT (as stated in the repo/docs, but see notes below on how much of the shipped image this actually covers)
+  docker_image: hslr/sun-panel
+  compose_file_url: https://raw.githubusercontent.com/hslr-s/sun-panel/master/docker-compose.yml
+  compose_file_notes: >-
+    Official: this is the repo root docker-compose.yml in hslr-s/sun-panel
+    (default branch is `master`, not `main`). Rolling reference to that
+    default branch — not version-pinned — and it pulls
+    `hslr/sun-panel:latest` rather than a pinned tag, so both the compose
+    file and the image reference float with upstream. The README's linked
+    "Deployment Tutorial" doc page
+    (sun-panel-doc.enianteam.com/usage/quick_deploy.html) embeds a second,
+    slightly different "v1.4.0+" compose snippet inline (no linkable file)
+    that swaps out the repo root's ./uploads and ./database bind mounts
+    for an uncommented `/var/run/docker.sock:/var/run/docker.sock` mount
+    (for container status/launch cards) plus a commented-out host-drive
+    mount — i.e. the docs show an optional, more privileged variant of the
+    same base file rather than a separate release. Picked the repo root
+    file over the docs snippet because it's a directly linkable, actually
+    shipped file rather than inline docs markup, and because AF's
+    installability analysis already excludes the Docker-socket-mounting
+    variant for security reasons (see installability.blocking_issues).
+
+version_health:
+  latest_version: "1.8.1"
+  latest_release_date: "2025-12-31"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >-
+    v1.8.1 is the latest stable Docker Hub tag (pushed 2025-12-31), about 7
+    months before today (2026-08-05). On the surface this looks like a
+    normally-paced project (v1.6.0 2024-11-10, v1.6.1 2024-12-23, v1.7.0
+    2025-03-26, v1.8.0 2025-10-28, v1.8.1 2025-12-31), but the GitHub tags
+    for v1.6.0 through v1.8.1 all point at the exact same commit
+    (25f46209, authored 2024-04-26 "Update README.md") — the public source
+    repository has not received a real commit since April 2024, even
+    though four "releases" have been tagged against it since. Docker Hub
+    tells a different story: past the 1.8.1 stable line there is an active
+    `2.0.0-dev-*` series with builds as recent as 2026-06-08 (about 2
+    months before today), i.e. the maintainer is still actively building
+    and shipping newer compiled images, just not against the public
+    open-source tree. The project's own README states "the author added
+    some [PRO] function, so the project temporarily entered a closed
+    source state," with the "latest open-source version" pinned at v1.3.0
+    — meaning even the v1.4.0-1.8.1 Docker images already ship
+    closed-source code layered on the last public commit, and the upcoming
+    2.0 line continues that pattern. Repo is not archived and still has
+    159 open issues, so this is not abandonment, but it is functionally a
+    closed-source product distributed as a Docker image with an
+    increasingly stale open-source facade — worth flagging as a real
+    concession versus a clean stable OSS release cadence.
+
+catalogue_fit:
+  categories: [dashboard, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes is a bookmark/homepage-style
+    navigation dashboard (the space occupied by Homepage, Homarr, Heimdall,
+    Dashy). Portainer manages Docker containers directly rather than
+    presenting a customizable launcher grid, and none of the monitoring or
+    productivity recipes overlap conceptually. Sun-Panel would be a
+    genuinely new, easily-explained category for customers running several
+    other self-hosted services who want one landing page linking to all of
+    them.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, recognizable self-hosted-app category with broad appeal to
+    anyone running multiple services (which describes most AF customers).
+    Capped at medium rather than high because of the version-health
+    concerns above — the public source is effectively frozen while paid
+    "PRO" development continues elsewhere, so the long-term openness and
+    support trajectory of the free image is uncertain, and the optional
+    Docker-socket-mounting feature (for container status/launch cards)
+    would need to be left out of an AF deployment for security reasons,
+    losing one of its differentiating features.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      Sun-Panel ships with a fixed, hardcoded default admin account
+      (admin@sun.cc / 12345678, per the official quick-deploy docs) and no
+      documented environment variable to set or override it at container
+      start — the only way to change it post-boot is the in-app "reset
+      password" flow or a `-password-reset` CLI flag run inside the
+      container. Per the schema's guidance this is not a hard blocker: a
+      mandatory Traefik `basic_auth` gate projected from the customer's
+      root password in front of the whole app makes the fixed internal
+      default a non-issue, since the actual customer-facing auth boundary
+      becomes the gate rather than Sun-Panel's own login.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Sun-Panel is a single-container Docker/NAS navigation dashboard (port
+  3002, config/uploads/database volumes, no external DB) that would fill a
+  real gap in the catalogue — nothing else offers a customizable
+  homepage/app-launcher. It is mechanically installable today by gating the
+  whole app behind a Traefik `basic_auth` credential in front of its own
+  fixed default admin login, the same pattern already used for
+  Adminer/HertzBeat. The open concern is upstream health: the public GitHub
+  source has been frozen at an April 2024 commit for well over a year while
+  four version tags were still cut against it, and the maintainer has
+  explicitly moved active (2.0-line) development into a closed-source "PRO"
+  track distributed only as compiled Docker images. Recommend
+  build_with_caveats — worth shipping given the clear customer-facing use
+  case, but flag the closed-source drift as a reason to re-check upstream
+  health before or shortly after building.

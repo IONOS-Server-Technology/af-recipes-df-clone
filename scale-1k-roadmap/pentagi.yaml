@@ -1,0 +1,113 @@
+slug: pentagi
+name: PentAGI
+source_description: "Autonomous AI agents that plan and run complex penetration testing engagements"
+
+upstream:
+  url: https://github.com/vxcontrol/pentagi
+  repo_url: https://github.com/vxcontrol/pentagi
+  license: MIT
+  docker_image: vxcontrol/pentagi
+  compose_file_url: https://raw.githubusercontent.com/vxcontrol/pentagi/master/docker-compose.yml
+  compose_file_notes: >
+    Official — the project's own README (Manual Installation section)
+    instructs users to `curl -O` this exact URL and run `docker compose up
+    -d`. Rolling reference to the `master` branch, not version-pinned (no
+    tagged/release-asset URL is offered as an alternative). This is the
+    single primary stack; the repo also ships optional add-on compose
+    files (docker-compose-langfuse.yml, docker-compose-graphiti.yml,
+    docker-compose-observability.yml, docker-compose.e2e.yml) layered on
+    top via `-f` for optional features (tracing, knowledge-graph memory,
+    monitoring, end-to-end tests) — those are not alternatives to the base
+    file, so the base docker-compose.yml was picked as the recorded file.
+
+version_health:
+  latest_version: "v2.1.0"
+  latest_release_date: "2026-05-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.1.0 published 2026-05-29 (confirmed via GitHub commit metadata for
+    the tagged commit), 68 days before today (2026-08-05). Release history
+    shows a steady ~5-6 week cadence through 2026: v1.0.0 (2025-12-31),
+    v1.0.1 (2026-01-06), v1.1.0 (2026-01-17), v1.2.0 (2026-02-25), v2.0.0
+    (2026-04-11), v2.1.0 (2026-05-29). No release in the ~2.5 months since
+    v2.1.0 is not unusual given the prior gaps between releases; repo shows
+    ongoing commits/issues and is not archived. Treated as active rather
+    than slowing.
+
+catalogue_fit:
+  categories: [ai, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers offensive-security/pentesting automation. The
+    catalogue's existing AI-agent entries (openclaw, hermes-agent) are
+    general-purpose messaging-first assistants; PentAGI is a purpose-built
+    autonomous pentesting platform (13+ specialized agents driving Nmap,
+    Metasploit, and similar tooling inside sandboxed containers, producing
+    vulnerability reports with exploitation guides). Genuinely distinct
+    audience (security professionals/red teams) and use case, not a
+    reskin of anything already in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiator and actively developed, but a narrow, specialist
+    audience compared to general self-hosting customers, and running
+    offensive-security tooling from a hosted VM raises acceptable-use
+    considerations for the customer (authorization to test the target) that
+    are outside the recipe's control. Capped at medium rather than high for
+    audience narrowness, not for lack of technical merit.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [llm_provider_api_key, admin_login_gate_credential, postgres_password, cookie_signing_salt]
+  secrets_expressible_today:
+    - secret: admin_login_gate_credential
+      mechanism: traefik_basic_auth
+    - secret: postgres_password
+      mechanism: server_generated_no_customer_input
+    - secret: cookie_signing_salt
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      PentAGI will not function without at least one LLM provider
+      credential configured before the container starts (one of
+      OPEN_AI_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, AWS Bedrock creds,
+      Ollama endpoint, etc. — confirmed in upstream README and
+      docker-compose.yml). Unlike openclaw/hermes-agent, PentAGI's web UI
+      "Settings -> Providers" screen only manages provider *profiles*
+      (model selection, routing, pricing metadata) for an already-configured
+      backend; it does not accept raw API keys post-boot — those remain
+      env-var/config-file only. There is no channel today for a customer to
+      supply an external API key at order time, and no deferred
+      post-provision path either (the key gap vs. the openclaw/hermes-agent
+      pattern). This is a hard blocker on its own.
+    - >
+      The main app ships a fixed built-in admin account
+      (admin@pentagi.com / admin) with no env var to override it — not
+      itself a blocker per the schema's fixed-default-credential guidance;
+      it can be handled the same way as Adminer/n8n/OpenClaw by gating the
+      single public port with Traefik `basic_auth: true` projecting the
+      root-password hash, leaving the app's own fixed login as a
+      non-customer-facing detail behind that gate.
+    - >
+      The pentagi service mounts the host's /var/run/docker.sock to spawn
+      sandboxed task containers. Not a novel blocker — the same pattern is
+      already shipped in portainer, wud, and runtipi — but worth flagging
+      as an operational caveat given the app's purpose is running
+      attack/exploit tooling.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  PentAGI is an active, differentiated addition (autonomous AI-driven
+  pentesting, no overlap with existing recipes) but is blocked today by a
+  hard requirement for an external LLM provider API key that must be
+  present as an env var before first boot, with no post-provision UI path
+  to add it later (unlike openclaw/hermes-agent, whose provider keys are
+  optional at boot and settable via the authenticated dashboard
+  afterward). The fixed default admin login is not a blocker on its own —
+  it can be gated behind Traefik basic_auth like Adminer — but the missing
+  API-key input channel is. Revisit once a customer-supplied-secret
+  mechanism beyond root-password hashing exists, or if PentAGI's UI adds a
+  way to set provider credentials after boot.

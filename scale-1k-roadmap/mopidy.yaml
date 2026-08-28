@@ -1,0 +1,81 @@
+slug: mopidy
+name: Mopidy
+source_description: "Extensible music server unifying local files, Spotify, SoundCloud, and radio"
+
+upstream:
+  url: https://mopidy.com/
+  repo_url: https://github.com/mopidy/mopidy
+  license: Apache-2.0
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists, by definition — mopidy/mopidy
+    ships no official Docker image at all (see installability.blocking_issues),
+    and neither the repo (github.com/mopidy/mopidy, checked at the current
+    HEAD) nor the project's own docs (docs.mopidy.com) contain any
+    docker-compose/Dockerfile artifact or reference. The community images
+    referenced elsewhere in this file (wernight/mopidy, jee-r/docker-mopidy,
+    firefrei/docker-mopidy) are third-party and are not adopted here as if
+    official.
+
+version_health:
+  latest_version: "4.0.1"
+  latest_release_date: "2026-05-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.0.0 (major, Pydantic-based data-model rewrite) shipped 2026-04-24,
+    followed by the 4.0.1 patch release 2026-05-16 — under 3 months before
+    today (2026-08-05). Commit activity on mopidy/mopidy as recent as
+    2026-07-29 and mopidy-spotify as recent as 2026-07-22, so upstream is
+    actively maintained, not just tagging occasional releases.
+
+catalogue_fit:
+  categories: [media, music]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers self-hosted music/media streaming; this would
+    be the first in that category. Core value is unifying local audio files
+    and internet radio behind one server, with the ability to bridge into
+    Spotify/SoundCloud when the operator supplies their own service
+    credentials.
+  usefulness: low
+  usefulness_rationale: >
+    Mopidy itself ships no web UI or auth — a UI (e.g. the community Iris
+    extension) has to be installed on top, and the two headline
+    integrations named in Hostinger's own description, Spotify and
+    SoundCloud, require an OAuth app registration / API key per customer
+    that our platform has no channel to collect (see installability below).
+    What's left after stripping those out — local-file playback and
+    internet radio via MPD/HTTP — is a narrow, hobbyist niche compared to
+    the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No official Docker image. mopidy/mopidy ships no container at all; the community images found (wernight/mopidy, jee-r/docker-mopidy, firefrei/docker-mopidy) are third-party, and the most visible one (wernight/mopidy) hasn't been updated in ~5 years — building a recipe would mean either adopting an unmaintained image or maintaining our own Dockerfile, neither of which matches how the rest of the catalogue pins to a vetted official tag."
+    - "Mopidy's HTTP frontend (the interface any web UI, e.g. Iris, is served over) has no built-in authentication by design — upstream's own docs say to put it behind a reverse proxy that handles auth. This is expressible today via Traefik basic_auth, so it is not a hard blocker, but it must be treated as mandatory, not optional, or the JSON-RPC control API sits open."
+    - "Mopidy also exposes the MPD protocol (port 6600), a raw TCP protocol many desktop/mobile MPD clients use directly, not through the web UI. Traefik in this catalogue routes HTTP(S) by hostname; there's no mechanism today to expose a second raw-TCP port per customer, so MPD-native clients would be unusable and only the HTTP/web-UI path could ship."
+    - "Spotify and SoundCloud integration — the two most-marketed capabilities in Hostinger's own description — each require the customer's own third-party API key/OAuth app registration (mopidy-spotify needs a Spotify Client ID/Secret; mopidy-soundcloud needs a SoundCloud auth token). No customer-supplied-value channel exists for either, so a shipped recipe could only offer local-file playback and radio streams, not the headline features."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Mopidy is actively maintained (4.0.1 shipped 2026-05-16, commits as recent
+  as 2026-07-29) and would be the first music/media recipe in the catalogue.
+  It has no official Docker image — a recipe would have to adopt an
+  unmaintained third-party image (wernight/mopidy, ~5 years stale) or
+  maintain our own Dockerfile — and no built-in web UI or auth, requiring a
+  mandatory Traefik basic_auth gate. Its MPD protocol (port 6600) can't be
+  exposed through Traefik's HTTP(S)-only routing, and its two headline
+  features, Spotify and SoundCloud, need per-customer API credentials our
+  platform has no channel to collect, leaving only local-file/radio
+  playback and the HTTP/web-UI path shippable. It's mechanically
+  installable today with these caveats, so it's a build_with_caveats
+  candidate rather than blocked.

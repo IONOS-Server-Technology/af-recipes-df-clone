@@ -1,0 +1,111 @@
+slug: cockpit-cms
+name: Cockpit CMS
+source_description: "Lightweight headless CMS platform for content management and APIs"
+
+upstream:
+  url: https://getcockpit.com
+  repo_url: https://github.com/Cockpit-HQ/Cockpit
+  license: MIT
+  docker_image: cockpithq/cockpit
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose file is published anywhere in the
+    Cockpit-HQ/Cockpit repo (checked repo root and docker/, deploy/,
+    contrib/ — all 404 on the develop branch) or on the docs site. The
+    README's "🐳 Docker" section only embeds a docker-compose.yml snippet
+    inline as documentation text (a production example wiring the
+    `cockpithq/cockpit:core-latest` image to a `mongo:8` service via
+    COCKPIT_DATABASE_SERVER/COCKPIT_DATABASE_NAME env vars, plus a simpler
+    single-container `docker run` quick-start using SQLite) — there is no
+    URL to point at, version-pinned or otherwise, because the file itself
+    doesn't exist as a repo artifact.
+
+version_health:
+  latest_version: "2.14.0"
+  latest_release_date: "2026-03-30"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v2.14.0 shipped 2026-03-30 (confirmed via the GitHub releases Atom feed,
+    which carries real ISO timestamps — a plain page fetch of the releases
+    list returned garbled/inconsistent relative dates and should not be
+    trusted for this repo). That is ~4.2 months before today (2026-08-05),
+    with no newer tag since. Looking at the run-up: 2.13.5 (2026-03-09),
+    2.13.4 (2026-01-29), 2.13.3 (2026-01-09), 2.13.2 (2025-12-31), 2.13.1
+    (2025-12-26), 2.13.0 (2025-12-21), 2.12.1 (2025-10-26), 2.12.0
+    (2025-08-01) — releases landed every 2-6 weeks for roughly eight months,
+    then went quiet for the longest gap in that entire window right after
+    2.14.0. Repo is not archived and the maintainer (aheinze) is still the
+    sole release author throughout, consistent with a single-maintainer
+    project rather than an abandoned one, but the recent gap is enough to
+    flag as `slowing` rather than a clean `active`, pending a newer release.
+    Also note: this is the *second* upstream identity for this project —
+    the original repo (agentejo/cockpit, same MIT-licensed "Cockpit Core")
+    stopped at v0.12.2 (Docker Hub, pushed ~5 years ago) and now displays a
+    banner pointing to Cockpit-HQ/Cockpit as "Cockpit's next iteration."
+    Cockpit-HQ/Cockpit (this analysis's pick) is the actively maintained
+    continuation and the correct upstream to track; the old agentejo/cockpit
+    image/tags are stale and should not be used.
+
+catalogue_fit:
+  categories: [developer-tools, content-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue is a content-modeling /
+    headless-CMS backend. Cockpit lets a developer define custom content
+    collections/singletons/trees and consume them over REST or GraphQL from
+    an external frontend (static site, mobile app, JAMstack build) — a
+    different product shape from anything already offered (Gitea is source
+    control, OpenGist is snippets, n8n is workflow automation). This exact
+    niche (structured-content backend with a REST/GraphQL API) was already
+    flagged as a gap by a separate candidate in this same gap-analysis pass
+    — see apps-gaps/atomic-server.yaml, which reached the same "no headless-
+    CMS recipe exists" conclusion for Atomic Server. Cockpit and Atomic
+    Server are not identical (Cockpit is PHP/SQLite-or-MongoDB with a more
+    classic CMS-admin feel; Atomic Server is Rust-based with a graph-data
+    model and its own type system) but they compete for the same catalogue
+    slot — a reviewer choosing between the two candidates should treat them
+    as alternatives, not additive.
+  usefulness: medium
+  usefulness_rationale: >
+    Headless CMS is a real, recognizable self-hosting use case (Strapi/
+    Directus/Cockpit-class tools have a dedicated audience of developers
+    building custom frontends), and Cockpit is lightweight (single PHP
+    container, SQLite by default, no mandatory external DB) which fits our
+    resource-floor profile well. It's medium rather than high because the
+    audience is narrower and more technical than our UI-first recipes
+    (Vaultwarden, Immich, Uptime Kuma) — a customer needs their own frontend
+    project to get value out of it, it's not useful standalone — and because
+    of the `slowing` release-cadence flag and the competing Atomic Server
+    candidate for the same catalogue slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential (protects the unauthenticated /install first-run setup wizard, which is where the customer creates their own Cockpit admin username/password — the cockpithq/cockpit image has no env var to pre-set or inject an admin credential)"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential (protects the unauthenticated /install first-run setup wizard, which is where the customer creates their own Cockpit admin username/password — the cockpithq/cockpit image has no env var to pre-set or inject an admin credential)"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Cockpit CMS (Cockpit-HQ/Cockpit, the actively-maintained continuation of
+  the original agentejo/cockpit project) is a single-container, MIT-
+  licensed headless CMS with an official `cockpithq/cockpit` image, SQLite
+  by default (no mandatory external database), one HTTP port, and full
+  Traefik reverse-proxy compatibility — mechanically easy to ship. It has no
+  admin-credential env var of its own; first boot lands on an open `/install`
+  wizard where the customer sets their own admin login, so that surface must
+  be gated with a Traefik `basic_auth` credential projected from the
+  customer's root password, the same reasoning already applied to the
+  Baikal and BookStack gap-analysis candidates (apps-gaps/baikal.yaml,
+  apps-gaps/bookstack.yaml — neither is an existing recipe yet) — that
+  clears `installable_today` with zero hard blockers. The catalogue gap it fills (structured-content/headless-CMS
+  backend) is real but narrow, and it overlaps with Atomic Server (also
+  flagged as a gap in this pass) for the same slot — a fact for a reviewer
+  choosing between candidates, not a reason to downgrade this recommendation.
+  With no blocking issues, this is `build_now`.

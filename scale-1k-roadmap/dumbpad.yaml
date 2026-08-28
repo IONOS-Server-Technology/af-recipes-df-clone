@@ -1,0 +1,95 @@
+slug: dumbpad
+name: DumbPad
+source_description: "Stupid-simple self-hosted shared notepad with real-time collaboration"
+
+upstream:
+  url: https://github.com/DumbWareio/DumbPad
+  repo_url: https://github.com/DumbWareio/DumbPad
+  license: GPL-3.0
+  docker_image: dumbwareio/dumbpad
+  compose_file_url: https://raw.githubusercontent.com/DumbWareio/DumbPad/main/docker-compose.yml
+  compose_file_notes: >
+    Official compose file lives at the repo root (DumbWareio/DumbPad,
+    docker-compose.yml) and is what the README's "Create a
+    docker-compose.yml file" installation section walks through verbatim.
+    This is a rolling reference to the default branch (main), not
+    version-pinned to a release tag — there is no versioned/release-asset
+    variant to prefer instead. Only one variant is shipped (single
+    dumbpad service, image dumbwareio/dumbpad:latest); no GPU/CPU or
+    sqlite/postgres split exists for this app.
+
+version_health:
+  latest_version: "1.0.5"
+  latest_release_date: "2025-12-31"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    Docker Hub's most recent pinned tag is 1.0.5, last pushed 2025-12-31 —
+    about 7.2 months before today (2026-08-05). Oddly, that tag has no
+    matching GitHub release or git tag: the GitHub Releases and Tags APIs
+    both stop at v1.0.4 (2025-07-15); v1.0.1 (2025-07-01) and v1.0.0
+    (initial release, 2025-05-16) precede it. The repo's own `pushed_at`
+    (2025-12-31) matches the 1.0.5 image push, so a commit did land around
+    then, just without a corresponding GitHub Release/tag — a minor
+    release-hygiene gap worth flagging to a reviewer, not by itself a
+    blocker. Net effect: zero commits and zero releases in the ~7 months
+    since, on a project that is barely over a year old and only ever
+    shipped 4 versions in that lifetime (weekly-ish in its first 2 months,
+    then nothing). Not archived, no EOL announcement, 463 stars, 9 open
+    issues still visible — hence eol_status "active" rather than
+    "archived"/"eol" — but the release/commit trend reads as dormant, not
+    merely slowing.
+
+catalogue_fit:
+  categories: [productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a general-purpose shared
+    notepad. OpenGist is code-snippet/file pastebin backed by Git, a
+    developer tool with syntax highlighting and SSH clone access, not a
+    freeform collaborative scratchpad. The unbuilt apps-gaps/cryptpad.yaml
+    candidate is the closer conceptual neighbor (real-time collaborative
+    editing) but is a full E2E-encrypted office suite requiring two
+    customer-facing domains and is blocked_on_platform; DumbPad is a much
+    smaller, single-container, single-domain tool with no encryption and no
+    accounts — a lightweight "open a URL, start typing together" utility,
+    not a duplicate of anything shipped or gapped so far.
+  usefulness: medium
+  usefulness_rationale: >
+    Solves a narrow, real need (a disposable or semi-persistent shared
+    scratchpad, e.g. for pasting text between devices or light live
+    note-taking) with essentially zero setup cost — no database, no
+    accounts, one container. It's a nice-to-have utility rather than a
+    strong draw on its own; value is in simplicity and the "we don't have
+    anything like this yet" gap, not depth of features.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DumbPad is a single-container, single-HTTP-port (3000) Node.js app with
+  file-based storage and no accounts. Its only built-in access control is
+  an optional DUMBPAD_PIN (a 4-10 digit numeric code compared server-side,
+  not a hash) — not present by default, meaning the app ships wide open
+  with no login unless a deployer opts in. Because DUMBPAD_PIN wants a
+  plaintext numeric PIN rather than a password hash, it isn't a fit for
+  generated_from projection anyway; the clean path, same as other
+  no-built-in-auth apps in this catalogue (n8n, Adminer-style), is to leave
+  DUMBPAD_PIN unset and gate the whole app behind Traefik basic_auth with
+  the customer's root-password hash, which fully satisfies the /compose
+  constraint today with no blocking issues. Upstream health is worth
+  watching: the project is barely a year old, shipped only 4 versions, and
+  has had no commits or releases in roughly 7 months (last Docker tag
+  1.0.5, pushed 2025-12-31, with no matching GitHub release/tag) — not
+  archived or EOL, but trending dormant. That's a monitoring note, not a
+  blocking issue: recommend build_now, mechanically installable today with
+  no blocking issues.

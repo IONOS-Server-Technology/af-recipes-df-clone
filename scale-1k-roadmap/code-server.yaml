@@ -1,0 +1,83 @@
+slug: code-server
+name: Code-Server
+source_description: "VS Code running in the browser for remote development from any device"
+
+upstream:
+  url: https://coder.com/docs/code-server/
+  repo_url: https://github.com/coder/code-server
+  license: MIT
+  docker_image: codercom/code-server
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Both the docs site
+    (coder.com/docs/code-server/install, Docker section) and the GitHub
+    repo README document only a bare `docker run` command
+    (codercom/code-server image, mounting a project directory and
+    ~/.local/share/code-server) — no docker-compose.yaml/.yml is linked,
+    embedded, or present at the repo root or under any docker/, deploy/,
+    or contrib/ directory. Several community-maintained compose files
+    exist (e.g. mko-x/docker-compose-code-server,
+    gvoze32/code-server-docker-deploy) but none are published or endorsed
+    by the coder/code-server project itself, so none are adopted here.
+
+version_health:
+  latest_version: "4.131.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v4.131.0 published 2026-08-03, 2 days before today
+    (2026-08-05). Confirmed via the GitHub releases Atom feed (not a
+    training-data guess). Releases track upstream VS Code version-for-
+    version on a steady weekly-to-10-day cadence: v4.130.0 (2026-07-23),
+    v4.129.0 (2026-07-17), v4.128.0 (2026-07-11), v4.127.0 (2026-07-02),
+    v4.126.0 (2026-06-24). Maintained by Coder (also behind coder/coder),
+    ~75k GitHub stars, no dormancy signal whatsoever.
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes provides a remote development
+    environment. Gitea (git hosting) and the native claude-code/gemini-cli
+    CLI recipes are developer-adjacent but structurally different — none
+    of them give a customer an actual editor/IDE with a terminal, file
+    tree, and extension support running against files on the box itself.
+    Code-server fills a genuinely distinct "browser-based VS Code on my
+    own VM" use case (edit code, run dev servers, use it as a lightweight
+    cloud workstation) that none of the existing recipes cover.
+  usefulness: high
+  usefulness_rationale: >
+    "VS Code in the browser" is one of the most commonly self-hosted
+    developer tools and a natural fit for a VM-based Application Factory
+    catalogue — it turns the VM itself into a usable remote dev box with
+    zero local setup. Single official container, low resource footprint
+    (per upstream docs: 1 GB RAM / 2 vCPU minimum), and no external
+    dependencies (no DB, no cache) make it cheap to operate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [HASHED_PASSWORD]
+  secrets_expressible_today:
+    - secret: HASHED_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Code-server ships as a single official container (codercom/code-server,
+  pin to 4.131.0) that listens on 0.0.0.0:8080 by default inside the
+  container — no volumes or extra services required beyond a data
+  directory for user config/extensions, and no raw ports outside HTTP, so
+  it sits cleanly behind Traefik. Its own login is a single password
+  field, and upstream explicitly documents an HASHED_PASSWORD env var
+  taking an argon2 hash (auth: password / hashed-password in
+  config.yaml), which maps directly onto the platform's
+  generated_from: "argon2:ROOT_PASSWORD" mechanism — no blocking secret
+  gap once IF-1420 lands. Upstream is very actively maintained (releases
+  every ~1-1.5 weeks, latest just 2 days old) and fills a real, currently
+  absent category in the catalogue: a browser-based remote dev
+  environment. Recommend build_now.

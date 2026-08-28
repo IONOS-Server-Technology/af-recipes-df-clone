@@ -1,0 +1,115 @@
+slug: mirofish
+name: MiroFish
+source_description: "AI prediction engine powered by multi-agent swarm intelligence simulation"
+
+upstream:
+  url: https://github.com/666ghj/MiroFish
+  repo_url: https://github.com/666ghj/MiroFish
+  license: AGPL-3.0
+  docker_image: ghcr.io/666ghj/mirofish
+  compose_file_url: https://raw.githubusercontent.com/666ghj/MiroFish/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root (referenced directly by the README's
+    "docker compose up -d" quick-start). This is a rolling reference to the
+    `main` branch, not version-pinned: no tagged release (v0.1.0/v0.1.1/
+    v0.1.2) publishes its own release-asset compose file, so `main` is the
+    only variant available. The file itself offers a commented-out mirror
+    image line (ghcr.nju.edu.cn) for faster pulls in some regions, but only
+    one image/service is defined — no separate GPU/CPU or sqlite/postgres
+    variants to choose between.
+
+version_health:
+  latest_version: "v0.1.2"
+  latest_release_date: "2026-03-07"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Three tagged releases exist: v0.1.0 (2025-12-22), v0.1.1 (2026-01-22),
+    v0.1.2 (2026-03-07) — roughly monthly at first. Since then, no new tag
+    in the ~5 months up to today (2026-08-05), even though `main` keeps
+    receiving commits (last observed 2026-08-03, with several commits that
+    same week). So the project itself is not dormant, but the *published,
+    pinnable* artifact (image tag v0.1.2 / GHCR digest for that tag) is
+    already ~5 months behind active development on main, with no
+    indication a v0.1.3 is imminent. Repo is not archived and shows open
+    issues/PRs being worked.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Conceptually distinct from anything currently in the catalogue: this is
+    a scenario/prediction simulator (seed a "digital world" with thousands
+    of LLM-driven agents with personalities and memory, then forecast how a
+    situation plays out), not a chat frontend (open-webui), an automation
+    agent (n8n, openclaw, hermes-agent), or a general dev-agent framework
+    (agent-zero). No existing recipe covers this niche.
+  usefulness: low
+  usefulness_rationale: >
+    The idea is novel, but the implementation is immature: the shipped
+    Docker image starts the app via `npm run dev` (a dev server, not a
+    production build) inside a single container that exposes two separate
+    HTTP ports (3000 frontend, 5001 backend) with no reverse proxy tying
+    them together, and the app is completely non-functional without a
+    customer-supplied third-party LLM key and a third-party Zep Cloud key.
+    Also worth a caution flag independent of the technical picture: the
+    repo shows 70.1k stars and 10.9k forks against only ~318 commits and a
+    ~8-month history, and a GitHub search for "MiroFish" surfaces several
+    unrelated low-activity accounts (abhi6982, bigmansablo, arshmakker,
+    mahi80, mvellas) that have each pushed their own same-named
+    "MiroFish"/"MiroFish-EN" clone within the same short window — a pattern
+    consistent with a hype-driven clout/star-farming cycle rather than
+    organic adoption. None of those forks are the upstream; 666ghj/MiroFish
+    is the original and the one evaluated here, but the surrounding noise
+    is a reason for skepticism about how durable this project actually is.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LLM_API_KEY, ZEP_API_KEY, basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      LLM_API_KEY (plus LLM_BASE_URL/LLM_MODEL_NAME) is mandatory at first
+      boot — the app cannot run a single simulation without a working
+      OpenAI-SDK-compatible LLM provider key (docs recommend Alibaba
+      Qwen-plus via DashScope). This is a third-party credential with no
+      customer-input channel in `/compose` today.
+    - >
+      ZEP_API_KEY is mandatory at first boot for the agent long-term-memory
+      layer (Zep Cloud). Same problem: a third-party account credential
+      with no input channel.
+    - >
+      The app ships no login/admin account of its own (nothing in the
+      README or compose file references an auth env var), so it would need
+      a Traefik `basic_auth` gate just to avoid sitting open — that part is
+      expressible today, but it doesn't fix the two API-key blockers above.
+    - >
+      Architecturally split across two separately-exposed HTTP ports
+      (3000 frontend, 5001 backend) with no reverse proxy or `/api` rewrite
+      in front of them, unlike every current recipe's single public port —
+      would need two routed hostnames/ports through Traefik, a pattern not
+      yet used anywhere in the catalogue.
+    - >
+      The shipped image runs the app via `npm run dev` (confirmed in the
+      Dockerfile CMD), i.e. a development server, not a production build —
+      a quality/stability concern independent of the secrets issue.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  MiroFish is a novel idea with no catalogue overlap, but it is not
+  installable today: it hard-requires a third-party LLM API key and a
+  third-party Zep Cloud API key at first boot, neither of which has a
+  customer-input channel under the current `/compose` mechanism, and it
+  also runs a dev-mode server across two separately exposed ports with no
+  built-in auth. Even setting the platform blockers aside, the project's
+  immaturity (single ~5-month-stale pinnable release despite active main
+  development, `npm run dev` in production, and a star count that looks
+  disproportionate to its age/commit history amid several same-named
+  copycat repos from unrelated accounts) argues for treating this as
+  low-priority even if a generic external-API-key channel is eventually
+  built.

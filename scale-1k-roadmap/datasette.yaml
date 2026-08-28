@@ -1,0 +1,95 @@
+slug: datasette
+name: Datasette
+source_description: "Explore and publish SQLite databases as interactive websites and APIs"
+
+upstream:
+  url: https://datasette.io/
+  repo_url: https://github.com/simonw/datasette
+  license: Apache-2.0
+  docker_image: datasetteproject/datasette:0.65.2
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The project's own installation
+    docs (docs.datasette.io/en/stable/installation.html) and the GitHub
+    README (github.com/simonw/datasette) only document a plain `docker run`
+    invocation against the `datasetteproject/datasette` Docker Hub image
+    (e.g. `docker run -p 8001:8001 -v `pwd`:/mnt datasetteproject/datasette
+    datasette -p 8001 -h 0.0.0.0`); the repo ships a `Dockerfile` but no
+    `docker-compose.yaml`/`.yml` at root or under any docker/deploy/contrib
+    directory. Community sites (e.g. awesome-docker-compose.com) publish
+    their own unofficial compose snippets wrapping that same image, but
+    those are not adopted here per the "official only" rule.
+
+version_health:
+  latest_version: "1.0a37 (source, GitHub, 2026-07-14); 0.65.2 (last version actually published to the official Docker Hub image, 2025-11-05)"
+  latest_release_date: "2026-07-14"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Upstream GitHub is genuinely active: 1.0a28 through 1.0a37 shipped
+    roughly every 1-4 weeks from 2026-04-17 through 2026-07-14 (~3 weeks
+    before today, 2026-08-05) — no dormancy signal on the source repo. But
+    the project has been in "1.0 alpha" for years without cutting a stable
+    1.0, and more importantly the official `datasetteproject/datasette`
+    Docker Hub image (the one the project's own docs point installers at)
+    has NOT kept pace: its newest tag is `0.65.2`, pushed 2025-11-05 —
+    about 9 months stale relative to the current `1.0a37` source release,
+    and two full major-line versions behind (0.65.x predates the entire
+    1.0-alpha rewrite of the admin/editing UI). A recipe pinning to the
+    official image today ships a meaningfully older, less-capable build
+    than what "latest Datasette" means upstream, with no official image
+    tracking the alpha line at all.
+
+catalogue_fit:
+  categories: [data, developer-tools, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does ad-hoc SQLite
+    exploration/publishing — this is closer in spirit to Adminer (generic
+    DB browser) but SQLite-specific, read-oriented, and adds an
+    auto-generated JSON API plus faceted browsing/CSV export on top of
+    raw table browsing, which Adminer does not offer. Distinct niche from
+    n8n/paperless-ngx (those operate on their own managed data stores, not
+    an arbitrary customer-supplied SQLite file).
+  usefulness: low
+  usefulness_rationale: >
+    Real tool with a devoted niche following (data journalists, analysts
+    publishing small open datasets), but it is fundamentally a
+    bring-your-own-SQLite-file tool: out of the box with no database
+    mounted it is an empty shell with nothing to explore. Customer value
+    depends entirely on them getting their own .db file onto the host
+    after boot (via SSH/SFTP/file manager, not via any AF-recipe input
+    channel), which is a much higher-friction "first 5 minutes" than
+    almost everything else in the catalogue. Niche audience size and that
+    friction, not health or license, are why this is rated low rather
+    than medium.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DATASETTE_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: DATASETTE_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Datasette is mechanically installable today: it's a single container on
+  one HTTP port, has no login of its own (unauthenticated by default,
+  read-only SQL by design — auth is entirely plugin-based, e.g.
+  datasette-auth-github, none shipped by default), so a Traefik
+  `basic_auth` gate cleanly covers the one secret it needs, exactly like
+  Adminer. The real caveats are upstream-side, not mechanism-side: (1) the
+  official Docker Hub image is ~9 months stale (0.65.2) against the
+  actively-developed but still perpetually-alpha 1.0 line (1.0a37,
+  2026-07-14), so the recipe would ship a materially older build than
+  "current Datasette"; (2) the app delivers near-zero value at first boot
+  because it needs the customer's own SQLite file, which has no
+  `/compose`-time input channel — it's a post-boot file-drop, not a
+  secret, so it doesn't block `installable_today`, but it does mean the
+  out-of-box experience is an empty browser until the customer manually
+  populates data. Neither of these blocks `installable_today`, so this is
+  a clean build_now.

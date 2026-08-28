@@ -1,0 +1,100 @@
+slug: yacy
+name: YaCy
+source_description: "Distributed peer-to-peer web search engine with privacy-first design"
+
+upstream:
+  url: https://yacy.net/
+  repo_url: https://github.com/yacy/yacy_search_server
+  license: GPL-2.0-or-later (LGPL-2.0-or-later for source/net/yacy/cora)
+  docker_image: yacy/yacy_search_server:latest
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone, fetchable docker-compose.yaml/.yml file is shipped in
+    the repo (no such file exists at the root or under docker/, which only
+    contains Dockerfiles, DockerImageTags.md, and README.md). The official
+    docker/README.md does embed a docker-compose.yml example inline ("You
+    can also use Docker Compose to run the YaCy container"), so this is
+    the project's own documented compose approach, not a third-party
+    template — but it is an inline snippet in a docs page, not a
+    standalone/pinnable file, so compose_file_url is null rather than
+    pointing at that page. That embedded example pins nothing: it
+    references yacy/yacy_search_server:latest, a rolling/floating tag on
+    the default branch's docs, consistent with the "no pinnable Docker
+    tag" blocking issue already recorded below.
+
+version_health:
+  latest_version: Release_1.941
+  latest_release_date: 2026-03-29
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), Release_1.941 is about 4 months old, but
+    formal GitHub tags are infrequent and irregular: 1.940 (2024-05-19),
+    1.930 (2023-08-31), 1.926 (2022-10-04), 1.925 (2021-03-06) — gaps of
+    roughly one to two years between tagged releases historically, so
+    1.941 landing ~22 months after 1.940 is consistent with that sporadic
+    cadence rather than a sign of slowdown. Underlying development is
+    genuinely active: commits to master run daily/near-daily, with the most
+    recent commit on 2026-07-14, only about 3 weeks before today. So the
+    project itself is healthy and active; it is the *packaged release/tag*
+    cadence that is sporadic, not the codebase.
+
+catalogue_fit:
+  categories: [search, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a search engine of any
+    kind. YaCy would be a genuinely new category: a self-hosted, federated
+    web/intranet search index a customer could point at their own sites or
+    join to the wider peer-to-peer YaCy network, without relying on a
+    third-party search API or search-as-a-service product.
+  usefulness: medium
+  usefulness_rationale: >
+    Distributed P2P web search is a niche but real use case (privacy-
+    conscious search, self-hosted site/intranet search, contributing a node
+    to a decentralized index). It has a real web UI and a single documented
+    HTTP port, so it fits our reverse-proxy model mechanically, but the
+    audience is narrower and more technical than most of our current
+    catalogue (monitoring, password vaults, home automation) and the value
+    proposition (participating in a P2P search mesh) is less immediately
+    obvious to a typical hosting customer than, say, Uptime Kuma or
+    Vaultwarden.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No pinnable, current Docker tag exists. Docker Hub only offers
+      floating tags (latest, latest-ubuntu, latest-alpine, all updated ~24
+      days ago) plus stale artifacts (a "1.93" version tag and two
+      commit-sha tags, all ~1-2 years old, none corresponding to the
+      current Release_1.941 codebase). This is a release-packaging gap
+      upstream, not a customer-input-channel problem, but it still means
+      there is nothing to pin per the standard "never :latest" rule.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  YaCy is a single-container search engine/index (yacy/yacy_search_server,
+  official image) on one HTTP port (8090), GPL/LGPL-licensed, with a web UI
+  and no other raw ports documented for its core function — structurally
+  reverse-proxy-compatible like Uptime Kuma or Vaultwarden. It would fill a
+  genuinely open niche (self-hosted/P2P web search) not covered by any of
+  the current 24 recipes, and upstream development is active (near-daily
+  commits, a release as recently as March 2026). Its login story is
+  expressible today: YaCy has no boot-time way to set its own admin
+  account (that's a manual post-boot step in its UI), but a mandatory
+  Traefik basic_auth gate in front, the same pattern used for Adminer/WUD,
+  covers it. Despite that, this is not recommended right now: Docker Hub
+  offers no current pinnable version tag — only floating latest* tags (all
+  ~24 days old) and stale, unrelated artifacts (a "1.93" tag and two
+  commit-sha tags, all 1-2 years old, none matching the current
+  Release_1.941 codebase) — so there is nothing to pin per the standard
+  "never :latest" recipe rule. Revisit once upstream cuts a versioned
+  Docker tag matching a real release.

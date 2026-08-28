@@ -1,0 +1,98 @@
+slug: dawarich
+name: Dawarich
+source_description: "Self-hosted location history tracker with heatmaps and travel statistics"
+
+upstream:
+  url: https://dawarich.app
+  repo_url: https://github.com/Freika/dawarich
+  license: AGPL-3.0
+  docker_image: freikin/dawarich (pin to a version tag, e.g. 1.11.0 — upstream's own docker-compose.yml uses :latest, which we would not follow)
+  compose_file_url: https://raw.githubusercontent.com/Freika/dawarich/master/docker/docker-compose.yml
+  compose_file_notes: >
+    Official, maintained by the project itself: README.md's "How to Start
+    Dawarich Locally" section points to `docker/docker-compose.yml` (path
+    `docker compose -f docker/docker-compose.yml up`), and the file itself
+    links back to the project's own environment-variable docs
+    (dawarich.app/docs/self-hosting/environment-variables/). There is no
+    compose file at the repo root despite one older doc page
+    (docs/How_to_install_Dawarich_using_Docker.md) still referencing
+    "../docker-compose.yml" from project root — that page is stale; the
+    README is current and correct. This is a rolling reference to the
+    default branch (master), not version-pinned to a release tag — no
+    per-release compose asset is published. Only one variant is shipped;
+    the only fork point is an inline commented-out `imresamu/postgis`
+    image swap for ARM architecture on the `dawarich_db` service, not a
+    separate file.
+
+version_health:
+  latest_version: "1.11.0"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05/06), the latest release (1.11.0) shipped only
+    3-4 days ago. Recent history is dense and regular: 1.10.3 (2026-07-28),
+    1.10.2 (2026-07-27), 1.10.1 (2026-07-19), 1.10.0 (2026-07-15) — point
+    releases roughly every few days to a couple of weeks, with substantive
+    changes each time (Poster Studio, Map v2, PWA install, Google Photos
+    import, track-generation rework). This is a healthy, fast-moving,
+    single-maintainer-led open-source project, not a maintenance-only or
+    dormant one.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers personal location
+    history / GPS-trail tracking. Dawarich is a self-hosted alternative to
+    Google Timeline: it ingests location pings from mobile apps (Overland,
+    OwnTracks, GPSLogger, Dawarich's own companion app) or bulk imports
+    (Google Takeout, GPX, GeoJSON), then renders heatmaps, per-trip
+    visualizations, and travel statistics (distance, countries/cities
+    visited, "Poster Studio" printable trip posters). This is a genuinely
+    different use case from our existing media (Immich), productivity
+    (Paperless-ngx), and automation recipes — closest conceptually to
+    Immich in "self-host what Google used to do with your personal data"
+    positioning, but the data type (GPS trails vs. photos) doesn't overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, well-defined niche (privacy-conscious users replacing Google
+    Location History) with an actively maintained, popular upstream
+    (widely covered in the self-hosted community, 5M+ Docker pulls on the
+    app image per Docker Hub). Narrower audience than a photo manager or
+    password manager, but a natural complement to Immich-style "own your
+    personal data" customers already drawn to this catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_KEY_BASE, POSTGRES_PASSWORD, BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dawarich is a 4-container stack (Rails app, Sidekiq worker, Postgres+PostGIS,
+  Redis) behind a single HTTP port (3000), so it is reverse-proxy compatible
+  the same way Immich and Paperless-ngx are. It fills a real gap in the
+  catalogue (no personal location-history app today) and upstream is
+  actively developed with releases every few days. The one installability
+  wrinkle: Dawarich seeds its own admin login as a fixed, publicly-known
+  demo account (demo@dawarich.app / safepassword) with no environment
+  variable to override it at first boot — the customer is expected to
+  change it manually after logging in. That is exactly the "no login
+  channel of its own to project a customer secret into" case the schema
+  describes: the fix is a Traefik `basic_auth` gate (projected from the
+  root-password hash) in front of the app, so the well-known default
+  credential is never reachable by anyone but the customer. With that gate,
+  and auto-generated `SECRET_KEY_BASE`/`POSTGRES_PASSWORD` needing no
+  customer input at all, this is installable today — recommend
+  `build_now`.

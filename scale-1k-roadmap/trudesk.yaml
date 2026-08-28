@@ -1,0 +1,119 @@
+slug: trudesk
+name: Trudesk
+source_description: "Open-source help desk and ticketing system built on Node.js and MongoDB"
+
+upstream:
+  url: https://trudesk.io/
+  repo_url: https://github.com/polonel/trudesk
+  license: Apache-2.0
+  docker_image: polonel/trudesk:1.2.11
+  compose_file_url: https://raw.githubusercontent.com/polonel/trudesk/master/docker-compose.yml
+  compose_file_notes: >
+    Official: the project's own docs site (docs.trudesk.io/v1.2, "Deploy
+    with Docker-Compose" section) instructs users to run
+    `wget https://raw.githubusercontent.com/polonel/trudesk/master/docker-compose.yml`
+    against the GitHub repo, so this is the file the project itself
+    publishes and directs customers to, not a third-party template. It is
+    a rolling reference to the `master` branch's HEAD, not pinned to a
+    release tag — there is no versioned/release-asset variant offered.
+    Only one variant is shipped (no GPU/CPU or sqlite/postgres split): it
+    defines all three services the app requires (`trudesk`, `mongo`,
+    `elasticsearch`), pinning `polonel/trudesk:1` (rolling major-version
+    tag, not the exact `1.2.11` release), `mongo:5.0-focal`, and
+    `elasticsearch:8.0.0`.
+
+version_health:
+  latest_version: "v1.2.11"
+  latest_release_date: "2024-07-24"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Latest tagged release (v1.2.11) and the matching Docker Hub image
+    (`polonel/trudesk:1.2.11`, and `:latest`/`:1`/`:1.2`) were all published
+    on 2024-07-24 — just over 2 years before today, 2026-08-05. The last
+    commit on any branch (develop: "chore(deps): update node-sass") landed
+    2025-01-24, about 18.4 months ago, and nothing since. A `v1.3.0-beta1`
+    prerelease (React-frontend rewrite, APIv2) shipped 2023-06-19 and never
+    reached a stable release — the `next`/`ui-next` branches for that
+    rewrite have had no visible follow-through since. The repo itself is
+    not archived (`archived: false`, `pushed_at` shows sporadic pushes as
+    recently as 2026-05-11, likely CI/dependency housekeeping rather than
+    feature work) and still has 1,492 stars and 12 open issues, so this is
+    not a dead/archived repo — but it is functionally stalled: no release,
+    no meaningful commit activity, in ~2 years. The README states this is
+    "the source for Trudesk Community Edition" and points users to
+    "Trudesk Cloud" (trudesk.io) as "the more comprehensive, cloud-hosted
+    version" — strongly suggesting the vendor's attention and any real
+    development effort has moved to the paid SaaS product, leaving the
+    self-hosted OSS edition in maintenance-only mode.
+
+catalogue_fit:
+  categories: [productivity, business, support]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers help desk / customer-support
+    ticketing. It is a genuinely distinct category — closest neighbors by
+    stack shape are n8n and paperless-ngx (multi-container Node/Postgres-
+    or-Mongo-backed web apps), but none of them address ticket queues,
+    SLAs, or support-agent workflows.
+  usefulness: medium
+  usefulness_rationale: >
+    Help desk/ticketing is a plausible small-business use case with broad
+    appeal, and the app is architecturally simple to run behind a reverse
+    proxy (single HTTP port, no raw protocols). Capped at medium rather
+    than high because the upstream project is functionally dormant (see
+    version_health) — a customer adopting this in 2026 would be running
+    software the vendor has stopped meaningfully improving for ~2 years,
+    with the vendor's real effort steered toward its paid cloud product
+    instead.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [setup_wizard_gate_basic_auth]
+  secrets_expressible_today:
+    - secret: setup_wizard_gate_basic_auth
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Trudesk has no admin-credential env var at all (confirmed against
+      `src/controllers/install.js`): first boot serves an interactive,
+      multi-step HTML install wizard where the customer types their own
+      `account[username]` / `account[password]` / `account[cpassword]` /
+      `account[email]` directly into a web form, and the app hashes and
+      stores whatever they typed. This is actually a better fit for our
+      model than most apps — no plaintext secret needs to flow through
+      `/compose` at all, since the customer's own login is created
+      in-band, in the app's own UI, with the plaintext never touching our
+      platform. The Docker image's bundled MongoDB env var config
+      (`polonel/trudesk` docker-compose ships `MONGODB_URI` pointed at a
+      `mongo` service) skips the wizard's DB-connection step, so the only
+      wizard step a customer sees is admin-account creation.
+    - >
+      The gap is exposure, not a missing input channel: between container
+      start and the customer completing that wizard, the unauthenticated
+      install-wizard endpoint is reachable by anyone who requests the
+      domain first and could claim the "Admin" account themselves. A
+      Traefik `basic_auth: true` gate (keyed off a hash of the customer's
+      root password, per IF-1312) closes that race window during setup;
+      it can be safely lifted or left in place afterward since Trudesk's
+      own login screen takes over once the wizard completes.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Trudesk is mechanically installable today — its admin account is created
+  by the customer directly through its own first-run web wizard, so unlike
+  most apps we evaluate it needs no secret projected through `/compose` at
+  all, only a temporary Traefik `basic_auth` gate to prevent someone else
+  from reaching the unauthenticated wizard first. It would also be a new
+  category for the catalogue (help desk/ticketing, currently uncovered).
+  The blocker to actually shipping it is upstream health, not the platform:
+  the last release and Docker image are both from 2024-07-24 (~2 years
+  ago), the last commit anywhere is from 2025-01-24 (~18 months ago), and
+  the README itself redirects users to a paid "Trudesk Cloud" product —
+  this reads as a vendor who has moved on from the self-hosted edition.
+  Recommend revisiting only if upstream shows renewed release activity;
+  shipping it now means putting a stalled help-desk app in front of
+  customers who need active support-tooling maintenance.

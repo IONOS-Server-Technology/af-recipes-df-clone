@@ -1,0 +1,98 @@
+slug: apache-hop
+name: Apache Hop
+source_description: "Visual data orchestration platform and modern successor to Pentaho Kettle"
+
+upstream:
+  url: https://hop.apache.org
+  repo_url: https://github.com/apache/hop
+  license: Apache-2.0
+  docker_image: apache/hop-web
+  compose_file_url: null
+  compose_file_notes: >-
+    No official docker-compose file exists for running Hop Web itself.
+    hop.apache.org's install docs (getting-started/hop-download-install.html)
+    describe only a manual unzip-and-run Java install; the Docker how-to
+    (how-to-guides/apache-hop-web-services-docker.html) and
+    tech-manual/latest/docker-container.html both document `docker pull`
+    and `docker run` commands only, with docker-compose mentioned in prose
+    as an option for testing but no compose file provided or linked. The
+    apache/hop GitHub repo's docker/ directory ships Dockerfiles and shell
+    scripts (build-hop-images.sh, run-hop-web-local*.sh) but no
+    docker-compose.yaml for the product; the only docker-compose-shaped
+    YAML files in the repo (docker/integration-tests/*.yaml) are CI
+    fixtures for testing against databases/Kafka/Neo4j/etc., not a
+    deployment artifact for Hop Web, so they don't qualify as an official
+    compose file either.
+
+version_health:
+  latest_version: "2.18.1"
+  latest_release_date: "2026-06-18"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~1.6 months between 2.18.1 (2026-06-18) and today (2026-08-05). 2.18.1 is
+    a patch release fixing regressions in 2.18.0 (released 2026-06-01, three
+    months after 2.17.0 on 2026-02-06). That's a steady quarterly
+    major/minor cadence with prompt patch follow-ups, and Docker Hub also
+    carries active `Development`/`2.19.0-SNAPSHOT` builds updated within the
+    last few hours at time of research. Apache Hop is a top-level ASF
+    project under normal governance, not an incubator or dormant project —
+    no EOL or maintenance-only signal.
+
+catalogue_fit:
+  categories: [data, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Apache Hop is a visual ETL/data-pipeline design and orchestration tool
+    (successor to Pentaho Kettle) — drag-and-drop pipelines and workflows
+    that move and transform data between databases, files, and APIs. n8n is
+    the closest existing recipe (also visual, node-based, automation-
+    flavored) but n8n is oriented around app/API integration triggers, not
+    ETL-style batch data transformation with typed steps, JDBC drivers, and
+    metadata-driven pipelines. No current recipe covers dedicated ETL
+    tooling, so this would be a genuinely new category if it fit the
+    platform's constraints.
+  usefulness: medium
+  usefulness_rationale: >-
+    ETL/data-orchestration is a real, distinct niche from anything in the
+    current 24-recipe catalogue and Pentaho/Kettle's install base gives it
+    an existing audience actively looking for a hosted successor. Usefulness
+    caps at medium rather than high because Hop Web alone (the only piece
+    that's a browser UI) is a pipeline *designer*; without also standing up
+    Hop Server or a Beam/Spark execution engine and JDBC drivers for the
+    customer's actual data sources, it's a design surface with nothing
+    connected on first boot — a typical AF customer would need real
+    follow-up setup work before it does anything useful.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Apache Hop is an actively-released ASF project (quarterly cadence, no EOL
+  signal) with an official, regularly-updated Docker image (`apache/hop-web`,
+  pinned tags like `2.18.1` on Docker Hub) that serves its browser-based
+  pipeline designer on a single port (8080) with no path prefix or extra raw
+  ports — reverse-proxy-compatible behind Traefik on `<slug>.<base_domain>`.
+  Critically, Hop Web ships with no authentication of its own out of the box
+  (the docs describe *manually* wiring Tomcat's `tomcat-users.xml`/`web.xml`
+  for auth, which isn't something a recipe's boot flow can automate), so it
+  is installable today only by treating the entire app as needing a
+  mandatory Traefik `basic_auth` gate — same pattern as Adminer. That makes
+  it mechanically installable now (`build_now`). The value delivered on
+  first boot is limited to a design surface with no execution backend or
+  data-source drivers configured (a customer gets a working pipeline
+  editor, not a working data pipeline, without further manual setup), but
+  that's a usefulness/scope note, not an installability blocker. Note this
+  recipe would target `apache/hop-web` specifically — the
+  separate `apache/hop` image (Hop Server / CLI pipeline runner, default
+  `cluster`/`cluster` plaintext credentials) is a different, non-web-UI
+  artifact not covered by this analysis.

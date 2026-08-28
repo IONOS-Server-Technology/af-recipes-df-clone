@@ -1,0 +1,133 @@
+slug: casibase
+name: Casibase
+source_description: "Open-source AI knowledge base and chat platform powered by LLMs"
+
+upstream:
+  url: https://www.casibase.org/
+  repo_url: https://github.com/casibase/casibase
+  license: Apache-2.0
+  docker_image: casbin/casibase
+  compose_file_url: https://raw.githubusercontent.com/casibase/casibase/v1.772.0/docker-compose.yml
+  compose_file_notes: >
+    IMPORTANT CAVEAT discovered while looking for this file: the
+    casibase/casibase GitHub repo itself has been renamed/transferred —
+    https://github.com/casibase/casibase now returns a 301 redirect to
+    https://github.com/the-open-agent/openagent, and the project's
+    branding, README, and website content changed from "Casibase" (AI
+    Cloud OS / enterprise knowledge base with Casdoor SSO) to "OpenAgent"
+    (a personal AI assistant with a different pitch). This corroborates
+    the "OpenAgent" confusion flagged as unreliable in version_health
+    above — it was not tooling error, it is a real upstream rename. Every
+    tag from v1.773.0 onward (and the default branch, and the currently
+    "latest" tag observed, v2.87.1) already ships the OpenAgent-branded
+    docker-compose.yml (service renamed `openagent`, port 14000). The URL
+    recorded above is instead pinned to v1.772.0 (tagged 2026-04-24 per
+    `git log`) — the last tag whose root docker-compose.yml still names
+    the service `casibase` and matches the "Casibase" branding described
+    elsewhere in this file. This is a version-pinned raw-file link to a
+    frozen historical tag, not a rolling/default-branch reference — it
+    will not pick up upstream changes, because upstream has moved on from
+    being "Casibase" at all. The repo only ever shipped this one
+    docker-compose.yml at its root (no GPU/CPU or sqlite/postgres
+    variants); it `build:`s the image from source (not the published
+    `casbin/casibase` Docker Hub image) and requires a co-located MySQL
+    8.0.25 container. A human should decide whether the Casibase entry in
+    this catalogue should keep tracking this frozen pre-rename tag or be
+    re-scoped/retired given the upstream project no longer identifies as
+    Casibase.
+
+version_health:
+  latest_version: "unclear — see notes"
+  latest_release_date: "unclear — see notes"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Casibase (casbin org) uses an unusually fast, semantic-release-style
+    auto-versioning scheme where merged PRs bump a patch/minor tag (e.g.
+    releases named `v1.7xx.x` were observed), so "latest version" churns
+    within days rather than months — this is the same pattern the org
+    uses for its sibling project Casdoor. Automated web research tooling
+    in this session repeatedly returned inconsistent and mutually
+    contradictory version/date claims for this repo (at one point
+    conflating it with an unrelated project called "OpenAgent", and
+    producing a suspiciously present-dated "latest release" that could
+    not be corroborated across independent queries) — those specific
+    version numbers and dates are NOT trustworthy and are deliberately
+    omitted above rather than recorded as fact. What is independently
+    corroborated: the GitHub org (casibase/casibase) is real, uses
+    Apache-2.0, ships an official `casbin/casibase` Docker image, is not
+    archived, and shows a live blog with posts as recent as 2026-01-02
+    plus multiple real release tags in the `v1.7xx` series — all
+    consistent with an actively-developed project. A human reviewer
+    should confirm the exact current tag directly from
+    https://github.com/casibase/casibase/releases before any recipe work
+    starts, since this analysis could not reliably pin it.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui]
+  differentiation: >
+    Casibase positions itself as an enterprise "AI Cloud OS" — RAG-backed
+    knowledge base, multi-model chat, MCP/A2A agent management, and admin
+    UI with SSO/user management — on top of the same basic pitch as
+    Open WebUI (self-hosted chat UI over multiple LLM providers). The
+    knowledge-base/RAG and MCP-management angle is a real feature
+    difference, but to a customer picking one self-hosted "chat with my
+    LLM" app, it lands in the same slot Open WebUI already fills.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, actively-developed, reasonably well-known project with a
+    legitimate differentiated feature set (RAG knowledge base, MCP
+    management) beyond a plain chat UI. Usefulness is capped at medium
+    rather than high because it overlaps functionally with an existing
+    recipe (open-webui) and, per installability below, cannot actually be
+    onboarded under the current mechanism.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CASDOOR_CLIENT_ID, CASDOOR_CLIENT_SECRET]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Casibase has no local admin username/password of its own — all
+      login is delegated to Casdoor (casbin's separate SSO/IAM project)
+      via OAuth. `conf/app.conf` requires a Casdoor endpoint URL plus a
+      `clientId`/`clientSecret` pair for an OAuth application that must
+      already exist on a Casdoor instance (either the publicly hosted
+      `door.casdoor.com` or a self-hosted one) before Casibase can start
+      serving logins at all. This is exactly the "OAuth app
+      registration / third-party account linking" case `SCHEMA.md` calls
+      out as having no input channel today — there is no root-password
+      hash to project (`generated_from`) because Casibase has no
+      password field, and a Traefik `basic_auth` gate doesn't help
+      because the missing piece is a functional dependency (Casibase
+      won't run without valid Casdoor client credentials), not just an
+      exposed-without-auth surface.
+    - >
+      Self-hosting Casdoor alongside Casibase (to keep the OAuth
+      dependency in-house) would add a second admin-configured
+      application — registering the Casibase OAuth client inside Casdoor
+      is itself a manual setup step with no automatable input channel via
+      `/compose` today, and would need its own recipe/gap-analysis first.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Casibase is a real, actively-maintained, Apache-2.0 AI knowledge-base
+  and chat platform, but it overlaps functionally with the existing
+  open-webui recipe and, more importantly, has a hard architectural
+  blocker: it delegates all authentication to Casdoor via OAuth and has
+  no local login of its own, so first boot requires a pre-existing
+  Casdoor OAuth client ID/secret that the current `/compose` mechanism
+  has no channel to supply. This is not fixable with `generated_from` or
+  Traefik `basic_auth` — both assume the gated app can run and be
+  configured without an external OAuth registration, which Casibase
+  cannot. Recommend `blocked_on_platform`; revisit only if a Casdoor
+  co-deployment/registration story (or a future af-api input channel for
+  OAuth-style secrets) lands. Note also that automated research tooling
+  in this session produced unreliable, self-contradictory version/date
+  claims for this repo, so `version_health` above is deliberately
+  conservative — a human should re-verify the current release tag
+  directly from GitHub before further work.

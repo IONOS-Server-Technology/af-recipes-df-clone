@@ -1,0 +1,102 @@
+slug: trailarr
+name: Trailarr
+source_description: "Auto-downloads and organizes trailers for Radarr and Sonarr media libraries"
+
+upstream:
+  url: https://nandyalu.github.io/trailarr/
+  repo_url: https://github.com/nandyalu/trailarr
+  license: GPL-3.0
+  docker_image: nandyalu/trailarr (pin to a version tag, e.g. 0.10.2 — do not follow upstream examples that use :latest)
+  compose_file_url: null
+  compose_file_notes: >
+    No official downloadable docker-compose file exists anywhere in the
+    project. The docs site's Docker Compose installation page
+    (nandyalu.github.io/trailarr/getting-started/02-installation/docker-compose/)
+    embeds a docker-compose.yaml as inline docs-page text (a template with
+    placeholder paths/timezone for the reader to copy and edit) with no
+    link to an actual file. The nandyalu/trailarr repo root has no
+    docker-compose.yaml/.yml, and there is no docker/, deploy/, or contrib/
+    directory containing one — the repo instead ships a Dockerfile plus a
+    Python-based install.sh/install.ps1 bootstrap that installs Trailarr
+    as a native systemd-managed service (downloading a release tarball via
+    GitHub, not a container). No community-only compose file was adopted
+    either, since none was found to distinguish from an official one.
+
+version_health:
+  latest_version: "0.10.2"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.10.2 shipped 2026-07-31, 5 days before today (2026-08-05). The five
+    releases before it (0.10.1 on 2026-07-22, 0.10.0 on 2026-07-19, 0.9.9
+    on 2026-07-06, 0.9.8 on 2026-06-29) show a sustained 1-3 week cadence,
+    each with real feature/bugfix content, not just version churn. Docker
+    Hub also publishes a `nightly` tag rebuilt within the last week,
+    confirming continuous development. 437 GitHub stars, 24 forks, ~1,800
+    commits on main, single primary maintainer, active Discord/subreddit,
+    only 3 open issues (well-triaged backlog), no archival notice. Clearly
+    active.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media-library
+    automation. Trailarr fills a narrow niche: it watches a customer's
+    Radarr/Sonarr-managed movie/TV library and auto-downloads matching
+    trailers (via yt-dlp) into the media folders, so libraries have
+    trailers ready for Plex/Emby/Jellyfin. Like Bazarr (already assessed
+    in this catalogue, apps-gaps/bazarr.yaml) it has zero standalone value
+    without Radarr and/or Sonarr, neither of which exists as an AF recipe
+    yet — Radarr's own gap analysis (apps-gaps/radarr.yaml) is the
+    recommended entry point for this "*arr" family before companion apps
+    like Trailarr or Bazarr.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-regarded, actively developed tool with real community traction
+    (500K+ Docker pulls), but structurally identical to Bazarr's situation:
+    entirely dependent on Sonarr/Radarr, which the catalogue doesn't offer.
+    A customer installing Trailarr alone gets a UI with nothing to scan
+    until they separately point it at their own (self-run, off-platform)
+    Radarr/Sonarr/Plex instances. Recommend deciding this alongside Radarr/
+    Sonarr/Bazarr as part of one "media automation stack" call rather than
+    shipping in isolation.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Trailarr is a single-container app (nandyalu/trailarr, port 7889, no
+  separate database service — SQLite lives under /config) that is
+  mechanically simple to deploy behind Traefik, structurally close to
+  Bazarr/uptime-kuma in the catalogue. It does ship its own login (default
+  admin/trailarr), but there is no env var of any kind — plaintext or
+  pre-hashed — to set or override that credential at boot; the only
+  supported way to change it is manually, post-login, via Settings > About
+  > Update Login. That leaves no channel for generated_from (which only
+  ever emits a hash, e.g. argon2/bcrypt, into an env var the app would need
+  to accept) to reach the admin password. Left alone, every install would
+  ship the same well-known default admin/trailarr credential. Per the
+  platform's own precedent (IF-1312), the correct fix
+  is a mandatory Traefik basic_auth gate in front of the app, with that
+  gate's password projected from the customer's root password — the same
+  pattern already used for Bazarr and Adminer — leaving Trailarr's own
+  built-in login as a secondary, unconfigured layer behind it.
+  installable_today is true via that gate with no other blocking issues.
+  The project itself is active (release 5 days ago, consistent 1-3 week
+  cadence). Recommendation is build_now: mechanically installable today
+  with no blocking issues via the basic_auth gate. Its dependence on
+  Radarr/Sonarr (neither currently in the catalogue) is a real fact about
+  its standalone usefulness, but is a build-prioritization question for
+  whoever schedules the work, not a reason to downgrade this
+  recommendation.

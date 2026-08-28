@@ -1,0 +1,103 @@
+slug: file-browser
+name: File Browser
+source_description: "Web-based file manager for browsing, uploading, and managing files on your server"
+
+upstream:
+  url: https://github.com/filebrowser/filebrowser
+  repo_url: https://github.com/filebrowser/filebrowser
+  license: Apache-2.0
+  docker_image: filebrowser/filebrowser
+  compose_file_url: https://raw.githubusercontent.com/filebrowser/filebrowser/v2.63.23/compose.yaml
+  compose_file_notes: >
+    Official — ships at the root of the filebrowser/filebrowser repo itself
+    (introduced by "feat: Add Redis upload cache for multi-replica
+    deployments" #5724, 2026-02-01). URL above is pinned to the latest
+    release tag v2.63.23; content is identical on master at time of writing,
+    so a rolling `.../master/compose.yaml` reference would resolve the same
+    today. Caveat: this is not the file the project's own installation.md
+    documents — that page only shows plain `docker run` commands for the
+    single-container Alpine and S6 images, mounting /srv, /database, and
+    /config. compose.yaml instead demonstrates a specific multi-replica
+    deployment scenario: it mounts a different path (/flux/vault), wires in
+    a companion Redis container via the undocumented-in-installation.md
+    FB_REDIS_CACHE_URL env var, and hardcodes a plaintext Redis ACL password
+    ("filebrowser") inline. There is only one variant shipped (no separate
+    dev/prod or sqlite/postgres split) — this is it, but treat it as an
+    advanced/scaling example rather than the project's recommended default
+    single-node setup.
+
+version_health:
+  latest_version: "v2.63.23"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: eol
+  notes: >
+    v2.63.23 (2026-07-27), a "last planned release" per the maintainers, was
+    tagged only 9 days before today (2026-08-05) — release cadence was
+    active right up to the end. The README now carries an explicit
+    end-of-life notice: "File Browser is winding down and this is the last
+    planned release. The repository is archived on 2026-09-01. After that
+    date there will be no further releases, bug fixes, or security fixes."
+    (a follow-up maintainer post is titled "Goodbye File Browser, for Real
+    This Time"). The project's own docs site, filebrowser.org, has already
+    stopped resolving to its content and now redirects straight to the
+    GitHub repo. The README additionally flags two unpatched vulnerability
+    classes that will never be fixed: command-execution risk in the
+    runner/hooks feature (disabled by default, "would require a complete
+    rewrite") and JWT session handling (sessions cannot be revoked; leaked
+    or logged-out tokens stay valid until they expire). The maintainers'
+    own recommendation is to treat it as "unmaintained software" and not
+    expose it directly to the internet. This is EOL by the project's own
+    announcement, not an inference from silence — archival is dated three
+    weeks after this analysis.
+
+catalogue_fit:
+  categories: [productivity, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue exposes a general-purpose
+    directory browser/upload UI (Syncthing is P2P sync, not a browsable
+    single-tree file manager; OpenGist is code-snippet sharing). File
+    Browser itself would have filled that gap — simple, single-binary,
+    single-directory web file manager — but it directly overlaps two
+    already-analyzed, unbuilt candidates in apps-gaps/: AList
+    (apps-gaps/alist.yaml, actively maintained, aggregates 30+ storage
+    backends) and Dufs (apps-gaps/dufs.yaml, actively maintained, simpler
+    single-directory server). Both cover the same "browse/upload files over
+    HTTP" niche and are not EOL.
+  usefulness: low
+  usefulness_rationale: >
+    The underlying use case (browse/upload files in a directory via a web
+    UI) is genuinely useful, but File Browser specifically is the wrong
+    vehicle for it now: it is EOL with maintainer-acknowledged unpatched
+    vulnerabilities, and AList/Dufs already cover the same need without
+    that baggage.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  File Browser is a single-container, single-HTTP-port Go app
+  (filebrowser/filebrowser) that on first boot creates a fixed "admin" user
+  with a known default password; the documented way to set a real password
+  is a post-start CLI call against the running container (same shape as
+  apps-gaps/alist.yaml's pattern), so ADMIN_PASSWORD could in principle be
+  projected via generated_from:"<algo>:ROOT_PASSWORD" plus a docker-exec
+  setup step — there is no mechanism-level blocker. Separately, the
+  project announced its own end-of-life during this analysis window: the
+  last planned release shipped 2026-07-27, the repo archives 2026-09-01,
+  and the maintainers explicitly call out unpatched command-execution and
+  JWT-session vulnerabilities while recommending against exposing it to
+  the internet (see version_health/catalogue_fit above; AList and Dufs
+  are healthier alternatives covering the same niche). None of that
+  changes installability today: installable_today is true with no
+  blocking_issues, so recommend build_now on mechanism grounds alone.

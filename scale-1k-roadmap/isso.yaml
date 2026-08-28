@@ -1,0 +1,114 @@
+slug: isso
+name: Isso
+source_description: "Lightweight, self-hosted Disqus alternative for blogs and static websites"
+
+upstream:
+  url: https://isso-comments.de/
+  repo_url: https://github.com/isso-comments/isso
+  license: MIT
+  docker_image: ghcr.io/isso-comments/isso:0.14.0
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file for deployment. The docs' "Using
+    Docker" section (isso-comments.de/docs/reference/installation/) only
+    documents a bare `docker run -d ... ghcr.io/isso-comments/isso:release`
+    command with bind-mounted config/db volumes — no compose file is
+    linked or offered as an alternative. The repo does contain a root-level
+    docker-compose.yml (github.com/isso-comments/isso/blob/master/docker-
+    compose.yml), but it is a dev/test harness, not a deployment artifact:
+    it builds the server image from the local Dockerfile rather than
+    pulling the published ghcr.io image, and pairs it with a second
+    "isso-client" service running Jest/Puppeteer end-to-end tests against
+    it. Using it as a customer-facing recipe would mean building from
+    source and shipping a test runner, so it was not adopted.
+
+version_health:
+  latest_version: "0.14.0"
+  latest_release_date: "2026-03-26"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Confirmed via GitHub releases API. Release history is very lumpy: a
+    steady trickle from 0.10 (2016) through 0.13.0 (2022-06-12), then a
+    ~3.75 year gap with no tagged release until 0.14.0 landed 2026-03-26
+    (~4.5 months ago as of 2026-08-05). Repo is not archived; last commit
+    to master was 2026-05-05 (~3 months ago), and it currently has 63 open
+    issues, so development is genuinely ongoing, not dormant. "sporadic"
+    fits better than "active" or "slowing" — cadence is bursty rather than
+    regular, but the project is clearly alive.
+
+catalogue_fit:
+  categories: [blogging, comments, static-site-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers blog/static-site commenting.
+    Isso is a genuinely new category — a lightweight, privacy-friendly
+    Disqus replacement a customer would embed into a Jekyll/Hugo/static
+    site they run (possibly hosted elsewhere), similar in spirit to how
+    Ackee/Plausible-style analytics tools would be a new category too.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, narrow, well-understood use case (static-site owners who want
+    comments without Disqus's tracking) with real recurring demand in the
+    static-site/blogging niche, but it's single-purpose and lower-traffic
+    than broader-appeal recipes like n8n or Vaultwarden. It also needs the
+    admin/moderation UI to be genuinely useful day-to-day, and that UI is
+    exactly what blocks installability today (see below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Isso's admin/moderation interface (`[admin] enabled = true` in
+      isso.cfg) is gated by a single `[admin] password` config value.
+      Confirmed in isso/views/comments.py (the /login handler): the
+      submitted form password is checked with plain string equality
+      against the configured value (`if data["password"] and
+      data["password"] == password:`) — no hashing, no verification
+      function. `generated_from: "<algo>:ROOT_PASSWORD"` only works for
+      apps that verify a *hash* server-side (Vaultwarden's ADMIN_TOKEN
+      pattern); it produces an opaque hash string the customer would have
+      to type back verbatim as their password, which isn't workable, and
+      there is no channel today to hand Isso a plaintext credential the
+      customer actually knows and picked. This is the same structural
+      blocker documented for Ackee's ACKEE_PASSWORD.
+    - >
+      Traefik `basic_auth: true` can't substitute here the way it does for
+      Adminer/n8n: Isso's core purpose is serving a public, unauthenticated
+      commenting widget/API that blog visitors read and post to without
+      logging in. Gating the whole app (or even just the public origin)
+      behind basic_auth would break the actual comment-embedding use case,
+      so basic_auth can only ever protect the /admin path specifically,
+      and Isso's own broken admin login would still sit behind it needing
+      the same plaintext password a customer can't be given today.
+    - >
+      Running with `[admin] enabled = false` avoids the credential problem
+      entirely (moderation then happens purely via emailed HMAC-signed
+      activate/delete links, no login at all) but removes the only
+      in-browser moderation UI, which is most of the point of self-hosting
+      a comment system for a customer who wants to manage comments without
+      digging through email.
+
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Isso is a single-container (SQLite-backed, no external DB), single-HTTP
+  -port (8080) Python app that would fill a genuinely new
+  category — blog/static-site comments — not covered by any of the current
+  24 recipes. It fails installability today on the same credential
+  mechanics as Ackee: its admin/moderation login does a plaintext string
+  comparison against a config value, so neither `generated_from` (produces
+  a hash, not the plaintext the customer typed) nor a blanket Traefik
+  basic_auth gate (would also block the public comment-posting API that
+  must stay open) can wire a customer credential to it safely. Recommend
+  revisiting only if a future mechanism can carry a customer-known
+  plaintext secret through, or defaulting `[admin] enabled = false` and
+  accepting email-only moderation as an explicit product tradeoff. Release
+  cadence is bursty (long 2022-2026 gap before the current 0.14.0) but the
+  project is not dormant or EOL — commits and issue triage are ongoing as
+  of mid-2026.

@@ -1,0 +1,135 @@
+slug: daptin
+name: Daptin
+source_description: "Headless backend that auto-generates REST and GraphQL APIs over any data model"
+
+upstream:
+  url: https://daptin.github.io/docs/
+  repo_url: https://github.com/daptin/daptin
+  license: LGPL-3.0
+  docker_image: daptin/daptin (e.g. daptin/daptin:v0.12.31 — no `latest` tag is published, upstream docs explicitly say to always pin)
+  compose_file_url: https://raw.githubusercontent.com/daptin/daptin/master/docker-compose-examples/daptin-postgres.yml
+  compose_file_notes: >
+    Rolling reference to the default (master) branch, not version-pinned —
+    the repo has no tagged/release-asset compose file to point at instead.
+    The repo root also has a docker-compose.yml, but it is an empty
+    (0-byte) placeholder file, not usable. The docs site
+    (daptin.github.io/docs/setting-up/installation/#docker-compose) embeds
+    a second official compose example inline (MySQL-backed) rather than
+    linking a standalone file, so it can't be pointed at as a URL; picked
+    the repo's docker-compose-examples/daptin-postgres.yml over it because
+    it is an actual file with a direct link, per the preference for a
+    real file over a docs page that merely embeds one. Chose the postgres
+    variant over the docs' inline mysql variant since postgres is the
+    more production-oriented of Daptin's two supported non-sqlite
+    backends and is the only one shipped as a real file in the repo.
+
+version_health:
+  latest_version: "v0.12.31"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v0.12.31 was cut ~1 week before today (2026-08-05). Release
+    history is bursty but recent: v0.12.25/v0.12.24 (2026-06-24), v0.12.22
+    (2026-06-21), v0.12.21/v0.12.20 (2026-06-19), v0.12.19 (2026-06-18),
+    v0.12.15 (2026-05-20), v0.12.13 (2026-05-16), v0.12.12 (2026-05-12) —
+    a ~5-week gap between the June 24 and July 30 releases, then nothing
+    new since, but that's well within normal variance for this project's
+    history and not a dormancy signal. ~1.9k GitHub stars, 119 forks, only
+    13 open issues, 3,294+ commits on master, active PRs/discussions. No
+    corporate backing visible — appears to be maintained by a small
+    group centered on one primary maintainer (artpar), which is a
+    bus-factor risk worth naming but not itself an EOL signal; nothing
+    suggests archival, maintenance-only mode, or an announced EOL date.
+
+catalogue_fit:
+  categories: [developer-tools, backend-as-a-service]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does auto-generated
+    REST/GraphQL APIs over a customer-defined data model (a
+    "backend-as-a-service" / headless-CMS style tool, in the vein of
+    Directus or Supabase, neither of which we carry). n8n is workflow
+    automation between existing apps/APIs, not a place to model and
+    serve new data; nothing else touches this space at all. This would
+    open a genuinely new "instant backend for your own app" category.
+  usefulness: medium
+  usefulness_rationale: >
+    Real utility for a specific audience — developers who want a
+    data-model-to-API layer without hand-rolling a backend — but Daptin
+    itself is a fairly obscure, single-maintainer-leaning project next to
+    the much better-known category leaders (Directus, Supabase, PocketBase)
+    that customers are more likely to search for by name. Docked from
+    "high" mainly on name recognition/audience size, not on functionality
+    or health.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - DAPTIN_GATE_BASIC_AUTH
+    - DAPTIN_JWT_SECRET
+    - DAPTIN_ENCRYPTION_SECRET
+  secrets_expressible_today:
+    - secret: DAPTIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+    - secret: DAPTIN_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: DAPTIN_ENCRYPTION_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Daptin has no env-var-driven admin bootstrap at all. Upstream's
+      documented first-boot flow is three unauthenticated HTTP calls
+      against the running instance: POST /action/user_account/signup
+      (plaintext "password" + "passwordConfirm" fields, which Daptin
+      bcrypts itself server-side), POST /action/user_account/signin to
+      get a JWT, then POST /action/world/become_an_administrator to claim
+      admin. Upstream's own docs state plainly: "On a fresh install,
+      Daptin is WIDE OPEN — anyone can do anything" until that claim
+      happens, after which public signup is disabled. Because Daptin's
+      signup endpoint requires the plaintext password (it does the
+      bcrypting itself), and `generated_from` only ever hands a recipe a
+      pre-computed hash of the customer's root password — never the
+      plaintext — there is no way to script an admin-claim that logs the
+      customer in with their own root-password-derived credential the way
+      CVAT's `createsuperuser --no-input` can. This is exactly the
+      "genuine requirement for the plaintext password" case SCHEMA.md
+      calls a structural blocker, not a workaround-able gap.
+    - >
+      Worked around, not blocked: gate the entire domain behind Traefik
+      `basic_auth` (credential from the root-password hash, same pattern
+      as n8n/WUD/Immich) instead of trying to feed Daptin's own signup
+      flow. This closes the "wide open" window at the ingress — nobody
+      unauthenticated ever reaches the app — and the customer performs
+      the three-call signup/signin/become-admin dance themselves, in
+      their own browser, with their own chosen credentials, after
+      authenticating through the gate. That's ordinary first-use
+      onboarding (like a Vaultwarden user choosing their own vault master
+      password post-install), not a `/compose`-time input problem, so it
+      doesn't need a customer-supplied-value channel at all. Flagging as
+      a caveat rather than folding into `secrets_expressible_today`
+      cleanly: Daptin does have its own login system (unlike Adminer,
+      the canonical no-login basic_auth example), so this is a slight
+      stretch of the pattern's stated intent, even though it is
+      mechanically sound and uses an already-shipped mechanism with no
+      new install.sh pattern required.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Daptin is a real, differentiated addition — nothing else in the
+  24-recipe catalogue does auto-generated REST/GraphQL over a
+  customer-defined data model — and it's a healthy single container
+  behind one HTTP port with active, if bursty, upstream releases and no
+  EOL signal. It clears `installable_today` only via a workaround: its
+  own admin-claim API needs a plaintext password that `generated_from`
+  can never supply (a hash), so the fix is gating the whole domain with
+  Traefik `basic_auth` and letting the customer do the three-call
+  signup/become-admin dance themselves once inside, rather than trying to
+  script their real admin identity into Daptin directly. That's a sound,
+  already-used mechanism, but it is a deliberate reinterpretation of the
+  basic_auth pattern for an app that (unlike its canonical no-login
+  examples) does have its own login — worth a second pair of eyes in
+  Phase 3 before treating it as settled.

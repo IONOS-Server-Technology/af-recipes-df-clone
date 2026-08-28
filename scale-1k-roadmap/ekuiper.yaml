@@ -1,0 +1,105 @@
+slug: ekuiper
+name: eKuiper
+source_description: "SQL and rules engine for real-time IoT stream analytics at the edge"
+
+upstream:
+  url: https://ekuiper.org
+  repo_url: https://github.com/lf-edge/ekuiper
+  license: Apache-2.0
+  docker_image: lfedge/ekuiper
+  compose_file_url: https://raw.githubusercontent.com/lf-edge/ekuiper/master/docs/en_US/installation.md
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file is shipped anywhere in the
+    repo (checked repo root and deploy/docker/, which only holds Dockerfile
+    variants) or on the docs site as a downloadable asset. The only
+    official compose definition is a YAML snippet embedded inline in the
+    "Running eKuiper with management console" section of the project's own
+    installation guide (docs/en_US/installation.md, rendered at
+    ekuiper.org/docs/en/latest/installation.html), which pairs
+    lfedge/ekuiper with the emqx/ekuiper-manager dashboard. Linked here to
+    the raw doc source on the `master` branch — a rolling reference to the
+    default branch, not version-pinned to a release tag — since that is
+    the actual location of the only compose definition the project
+    maintains; both image tags in the snippet are literal `x.x.x`
+    placeholders the reader must fill in themselves, not a runnable file.
+
+version_health:
+  latest_version: "2.4.0"
+  latest_release_date: "2026-05-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.4.0 (stable) tagged 2026-05-26, about 10 weeks before today
+    (2026-08-05), preceded by ten 2.4.0 alpha/beta pre-releases between
+    2025-12-17 and 2026-05-19 — a steady, well-tested release train, not a
+    one-off. Repo `pushed_at` is 2026-08-05 (today), so master is under
+    active daily development. Not archived, 1,726 stars, 48 open issues
+    being triaged. Project lives under the Linux Foundation's LF Edge
+    umbrella (moved there from EMQX Inc.) — an active foundation project,
+    not a single-vendor product at risk of vendor abandonment.
+
+catalogue_fit:
+  categories: [iot, automation, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does streaming SQL /
+    complex-event-processing over IoT data (MQTT, EdgeX, HTTP, Kafka
+    sources) at the edge. Home Assistant (existing recipe) is a consumer
+    smart-home hub with device integrations and a real end-user UI —
+    a different job from eKuiper's developer-facing rule/stream engine.
+    eKuiper would be the catalogue's first CEP/stream-processing entry,
+    but it is fundamentally a headless component meant to be wired up by
+    a developer or integrator, not an app an end customer opens and uses
+    directly.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche (edge IoT stream analytics, e.g. filtering/aggregating
+    MQTT sensor data before forwarding), but the target user is a
+    developer building a pipeline, not a typical self-hoster looking for
+    a ready-to-use app — narrower audience than most of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - TRAEFIK_BASIC_AUTH_CREDENTIAL
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      eKuiper has no web UI of its own — the only browser-facing surface
+      the project ships is `emqx/ekuiper-manager`, a third-party-style
+      Docker image whose last published tag is 1.9.5-plus from
+      2024-04-18 (over 2 years stale vs. today 2026-08-05) and targets
+      eKuiper 1.9.x, three major versions behind the current 2.4.0. It is
+      effectively abandoned and not usable as the customer-facing UI for
+      a recipe pinned to a current eKuiper release.
+    - >
+      Without the manager, what's left is eKuiper's REST management API
+      (default port 9081) and a CLI protocol port (20498) — administered
+      via `curl`/CLI/config-maps, not a browser. That's usable behind
+      Traefik `basic_auth` as a network gate (REST auth is JWT-RSA-keypair
+      based and disabled by default, not a username/password login, so
+      `generated_from` has nothing to project into), but the resulting
+      recipe would hand the customer a bare authenticated JSON API with
+      no UI to actually build or view streams/rules in — a poor fit for
+      the catalogue's "open the domain, see the app" pattern that every
+      other recipe (including the API-only ones we do ship) pairs with at
+      least a minimal web console.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  eKuiper is a genuinely active, foundation-backed project (LF Edge) with
+  a real and growing release cadence, and it would fill an actual gap
+  (edge IoT stream/CEP processing) the catalogue doesn't cover. But it
+  ships no working web UI today — the only dashboard the project ever
+  offered (`emqx/ekuiper-manager`) has been stale since April 2024 and is
+  pinned three majors behind current eKuiper — leaving only a REST/CLI
+  surface that could be mechanically wrapped with Traefik `basic_auth`
+  but would give the customer nothing to look at or click through. Revisit
+  only if a maintained web console reappears (upstream or community); as-is
+  it's a poor experiential fit even though it's not blocked by secrets
+  mechanics.

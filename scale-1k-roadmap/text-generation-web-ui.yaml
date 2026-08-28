@@ -1,0 +1,111 @@
+slug: text-generation-web-ui
+name: Text Generation Web UI
+source_description: "Web interface for running local LLMs with GGUF, GPTQ, and AWQ support"
+
+upstream:
+  url: https://github.com/oobabooga/textgen
+  repo_url: https://github.com/oobabooga/textgen
+  license: AGPL-3.0
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/oobabooga/textgen/main/docker/nvidia/docker-compose.yml
+  compose_file_notes: >
+    Official — ships in the project's own repo under docker/<variant>/
+    (nvidia, amd, intel, cpu), each with its own docker-compose.yml plus a
+    sibling Dockerfile; the README's Docker install section links users to
+    these same paths via a `ln -s docker/{nvidia/docker-compose.yml,...}`
+    step, listing nvidia first. This is a rolling reference to the default
+    branch (main), not version-pinned — there is no tagged/release copy of
+    the compose file, consistent with installability.blocking_issues noting
+    upstream has no pinned image to build against. Picked the nvidia
+    variant (raw link above) as the representative file since it's listed
+    first in the README and is the primary GPU-inference use case; amd,
+    intel, and cpu variants exist at the same path with only the
+    Dockerfile/build args differing (e.g.
+    docker/cpu/docker-compose.yml, docker/amd/docker-compose.yml,
+    docker/intel/docker-compose.yml).
+
+version_health:
+  latest_version: "v4.9"
+  latest_release_date: "2026-05-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active: v4.9 shipped 2026-05-20, less than 3 months before this
+    analysis (2026-08-05), preceded by v4.8 (2026-05-07) and the v4.7.x
+    series (2026-05-03) and v4.6.x series (2026-04-23) — multiple releases
+    per month. Not dormant or EOL. However, the project itself has changed
+    substantially: it was renamed from "text-generation-webui" to "textgen"
+    (repo moved to oobabooga/textgen) and, per its own README as of v4.7.3
+    (2026-05-03), repositioned itself as "a desktop app for local LLMs"
+    bundling an Electron shell as the primary distribution (portable
+    downloads for Linux/Windows/macOS). Headless/Docker/server operation
+    still exists but is now a secondary path, not the project's lead use
+    case — a material shift in direction since the Hostinger listing
+    (slug/description referencing the old "text-generation-web-ui" name and
+    GGUF/GPTQ/AWQ framing) was presumably written.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >
+    Functionally overlaps heavily with open-webui (also a browser-based
+    chat UI for local LLMs, already bundled with Ollama in that recipe) and
+    with ollama itself. TextGen's distinguishing features versus open-webui
+    are backend flexibility (llama.cpp, ExLlamaV3, Transformers,
+    TensorRT-LLM, chosen per-model instead of delegating to a separate
+    Ollama runtime) and built-in LoRA training / image-generation tabs.
+    Notably, current TextGen has dropped GPTQ and AWQ support entirely
+    (neither format appears anywhere in its README or docs) — the exact
+    formats Hostinger's description cites as differentiators no longer
+    apply to the current upstream project.
+  usefulness: low
+  usefulness_rationale: >
+    The "chat with a local LLM in your browser" use case this app targets
+    is already served by open-webui, and open-webui already bundles Ollama
+    for model management — covering the same customer need with a lower
+    resource/operational footprint and a project that has stayed focused on
+    the self-hosted server use case rather than pivoting to desktop-first
+    distribution. TextGen's extra backends/training/image-gen tabs are
+    power-user features unlikely to justify a second, largely-redundant
+    catalogue entry for AF's audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - TEXTGEN_BASIC_AUTH  # Traefik basic-auth gate in front of the Gradio Web UI (no admin login of its own that accepts a hash)
+  secrets_expressible_today:
+    - secret: TEXTGEN_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No official prebuilt Docker Hub image exists to pin a tag against.
+      Upstream only ships Dockerfiles (docker/cpu, docker/nvidia,
+      docker/amd, docker/intel) that build the image at deploy time via
+      `git clone https://github.com/oobabooga/textgen.git` against
+      whatever is on the default branch — there is no tag/version ARG to
+      pin. Every other recipe in the catalogue pulls a pinned, versioned
+      image; adopting TextGen as-is would mean either building and hosting
+      our own pinned image (extra maintenance burden with no upstream
+      equivalent) or accepting an effectively unpinned, floating build.
+    - >
+      The app's own login mechanism (`--gradio-auth username:password`)
+      requires the plaintext password at process start (Gradio checks it
+      directly), so it cannot consume a `generated_from` hash. This is not
+      a hard blocker on its own — the app has no default-on auth, so the
+      standard Traefik `basic_auth` gate pattern (as used for n8n, WUD,
+      Open WebUI) is used instead and native `--gradio-auth` is simply left
+      disabled.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  TextGen (formerly "text-generation-webui") is under active, fast-paced
+  development and is mechanically installable today via a Traefik
+  basic_auth gate. It is recommended as build_with_caveats: upstream ships
+  no official prebuilt Docker Hub image to pin a tag against, only
+  Dockerfiles that build against the default branch at deploy time, so the
+  recipe would need to either build and host our own pinned image or accept
+  an effectively unpinned, floating build — a real deviation from how every
+  other recipe in this catalogue sources its image.

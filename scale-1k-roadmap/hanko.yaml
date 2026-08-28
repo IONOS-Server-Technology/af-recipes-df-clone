@@ -1,0 +1,130 @@
+slug: hanko
+name: Hanko
+source_description: "Open-source passkey-first authentication backend with social login, MFA, and SSO"
+
+upstream:
+  url: https://www.hanko.io/
+  repo_url: https://github.com/teamhanko/hanko
+  license: "AGPL-3.0 (backend); MIT (hanko-elements web components + frontend SDK)"
+  docker_image: ghcr.io/teamhanko/hanko
+  compose_file_url: https://raw.githubusercontent.com/teamhanko/hanko/main/deploy/docker-compose/quickstart.yaml
+  compose_file_notes: >
+    Official — the repo's own `quickstart/README.md` documents running
+    Hanko via `docker compose -f deploy/docker-compose/quickstart.yaml -p
+    "hanko-quickstart" up --build`. This is a rolling reference to the
+    `main` branch, not version-pinned to a release tag (no per-release
+    tag or `/releases/latest/download/...` asset exists for this file).
+    Picked `quickstart.yaml` over sibling files in the same directory
+    (`quickstart-with-redis.yaml`, `quickstart.debug.yaml`,
+    `quickstart.e2e.yaml`, the `todo-*.yaml` framework demos, and the
+    `base.yaml`/`config*.yaml` fragments it composes with) because it's
+    the one the README points to as *the* way to try Hanko locally; the
+    others are debug/e2e/redis/framework-demo variants layered on top of
+    it. Note this file uses `build: ../../backend` (and `../../frontend`,
+    `../../quickstart`) rather than pulling published images — per the
+    README, "Hanko services are not published to a registry yet and will
+    be built locally before the services are started" — so it builds
+    from source rather than referencing the `ghcr.io/teamhanko/hanko`
+    image above.
+
+version_health:
+  latest_version: "backend/v3.0.4"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    backend/v3.0.4 ("Hanko v3: Multitenancy") shipped 2026-07-27, 9 days
+    before today (2026-08-05). Prior tagged releases: v2.7.0 (2026-06-05),
+    v2.6.0 (2026-06-05), v2.5.0 (2026-03-03), v2.4.0 (2026-01-20) — tagged
+    releases land roughly every 1-3 months. Repo `pushed_at` is
+    2026-08-04, `archived: false`, 57 open issues still being triaged, and
+    GHCR shows rolling `main-<commit>-<date>` image builds published
+    within the last few days — main-branch commit activity is daily and
+    clearly active, well beyond the tagged-release cadence alone.
+
+catalogue_fit:
+  categories: [security, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is an authentication-as-a-service
+    backend. Hanko provides a passkey/passwordless/MFA/SSO auth API meant
+    to be embedded into a developer's own application via "Hanko
+    Elements" (embeddable web components) and a frontend SDK — it does
+    not ship a standalone product a customer opens in a browser and uses.
+  usefulness: low
+  usefulness_rationale: >
+    Hanko is a developer-facing auth backend, not an end-user application
+    — there's no bundled dashboard or admin console in the OSS
+    self-hosted build (unlike Hanko Cloud's paid console). To get any
+    value out of it, the customer must already be building their own web
+    or mobile app and wire in hanko-elements/the SDK themselves; simply
+    installing the recipe and opening the domain yields a bare JSON API
+    with a demo "todo app" as the only example UI upstream ships. That's
+    a poor fit for AF's install-and-use model, which the rest of the
+    24-recipe catalogue targets (a working web UI at the customer's
+    domain immediately after install).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SMTP_CREDENTIALS, ADMIN_API_GATE]
+  secrets_expressible_today:
+    - secret: ADMIN_API_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Hanko's default user flows (passcode email verification on signup,
+      account-recovery, security notifications) require a real SMTP
+      relay in production — upstream's own docker-compose quickstart only
+      wires up `mailslurper`, a fake local mail catcher for demos, not a
+      real mail path. A production deployment needs the customer's own
+      SMTP host/port/username/password, which is an external
+      third-party credential with no input channel today (same category
+      as an external API key — not expressible via `generated_from` or
+      Traefik `basic_auth`).
+    - >
+      The Admin API (port 8001, used for user/session/webhook
+      management) ships with no authentication of its own — upstream
+      guidance is to keep it off the public internet entirely, reachable
+      only from a trusted internal network. If a recipe needs to expose
+      it (e.g. so the customer can actually administer their instance),
+      it would need a Traefik `basic_auth` gate; if it's kept
+      internal-only instead, the customer has no way at all to manage
+      users short of calling the raw API by hand, which undercuts the
+      point of a self-service recipe.
+    - >
+      No published image carries a stable semver tag matching Hanko's
+      own GitHub releases (e.g. `v3.0.4`) — GHCR only publishes rolling
+      `main-<commit>-<date>` build tags off the main branch, with no
+      `latest` or version-numbered tag at all. A specific commit tag can
+      still be pinned (satisfies "pinned, not `:latest`"), but there is
+      no clear "current stable" tag to pin to, and every future recipe
+      bump means picking an arbitrary main-branch commit rather than a
+      vetted release build.
+    - >
+      Even setting aside the mechanism gaps above, there is no
+      customer-facing web UI to reverse-proxy: the public API (port
+      8000) and admin API (port 8001) are both bare JSON/REST endpoints,
+      and the "web UI" (hanko-elements) is a component library meant to
+      be embedded into a separate application the customer builds and
+      hosts themselves, not something this recipe can stand up on its
+      own.
+  installable_today: false
+  recommendation: not_recommended
+summary: >
+  Hanko (image `ghcr.io/teamhanko/hanko`, no stable semver tag published —
+  only rolling `main-<commit>-<date>` GHCR builds, latest tagged release
+  backend/v3.0.4 from 2026-07-27) is an actively developed, AGPL-3.0
+  passkey/passwordless/MFA/SSO authentication backend with daily
+  main-branch commits and a healthy tagged-release cadence. It fills a
+  genuine gap versus the current 24 recipes (nothing else is an
+  auth-as-a-service backend), but it is fundamentally a developer
+  integration product, not an end-user web app: the self-hosted OSS build
+  ships no admin dashboard, requires the customer's own SMTP relay
+  credentials for its core email-passcode flows (no input channel today),
+  and its Admin API has no built-in auth of its own and isn't meant to
+  face the public internet. Between the missing customer-facing UI, the
+  external SMTP-credential requirement, and the lack of a stable release
+  image to pin, this doesn't fit the current recipe mechanism or AF's
+  install-and-use model — `not_recommended`.

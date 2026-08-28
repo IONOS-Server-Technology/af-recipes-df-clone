@@ -1,0 +1,154 @@
+slug: scylladb
+name: ScyllaDB
+source_description: "High-throughput NoSQL database compatible with Cassandra and DynamoDB APIs"
+
+upstream:
+  url: https://www.scylladb.com/
+  repo_url: https://github.com/scylladb/scylladb
+  license: >
+    "ScyllaDB Software License Agreement" v1.1 (last updated 2026-04-12) —
+    source-available, NOT open source. Since the December 2024 licensing
+    shift, ScyllaDB OSS AGPL 6.2 was the final AGPLv3 release; everything
+    from ScyllaDB Enterprise 2025.1 onward ships under this single
+    source-available license with a free tier. The free tier is capped at
+    10TB total storage and 50 vCPUs across all deployments/clusters, is
+    restricted to "Never Customers" (no paid ScyllaDB relationship in the
+    preceding 12 months), and explicitly forbids offering the software as
+    a SaaS or commercial DBaaS, or using it to compete with ScyllaDB's
+    existing or future products. (Scylla Manager moved to AGPL separately;
+    the Kubernetes operator is Apache-2.0 — neither covers the database
+    itself.)
+  docker_image: scylladb/scylla
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in the project's
+    ecosystem. The core scylladb/scylladb repo has a `dist/docker`
+    directory, but it holds the Dockerfile/build tooling for producing the
+    scylladb/scylla image itself, not an orchestration compose file — and
+    its docs (docs.scylladb.com run-in-docker page) show only bare
+    `docker run` commands for building a multi-node cluster. The only
+    compose content that exists is an inline `version: '3'` 3-node snippet
+    embedded directly in the scylladb/scylla Docker Hub "Overview" page
+    (hub.docker.com/r/scylladb/scylla) — a docs paragraph, not a
+    linkable/pinned file, with no release tag or commit to watch for
+    changes. (Scylla Manager separately publishes its own inline
+    docker-compose snippet at manager.docs.scylladb.com/stable/docker/,
+    but that's a different product — a fleet-management tool for clusters
+    hosted elsewhere — not a compose file for the database covered by this
+    gap-analysis.)
+
+version_health:
+  latest_version: "2026.2.3 (STS); 2026.1.10 is the current 2026.1 LTS patch"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active. 2026.2.3 was pushed to Docker Hub on 2026-08-05 — the same
+    day as this analysis (today, 2026-08-05) — and the 2026.1 LTS line got
+    2026.1.10 one day earlier (2026-08-04). Patch releases land every 1-3
+    weeks on each maintained line (2026.1.6 2026-06-24, .7 2026-07-01, .8
+    2026-07-09, .9 2026-07-22, .10 2026-08-04; 2026.2.0 2026-06-29, .1
+    2026-07-13, .2 2026-07-26, .3 2026-08-05), the previous 2025.1 LTS and
+    2025.4 lines are still receiving patches, and 2026.3.0-rc1 was tagged
+    2026-08-05. Upstream runs a parallel LTS/STS ladder and the repo is not
+    archived. The 2024-12 license change (AGPL → source-available) is a
+    commercial-model change, not an abandonment signal — development is
+    healthier than ever, the risk here is legal, not decay.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a standalone database — where
+    Postgres/Redis appear (immich, paperless-ngx, n8n) they are private
+    bridge-network backing services the customer never connects to. A
+    ScyllaDB recipe would be the first customer-facing wide-column store,
+    aimed at a developer who wants a Cassandra-CQL- or DynamoDB-API-
+    compatible database to point their own external application at. It is
+    also the only Cassandra-family server the catalogue would have — the
+    separate `cassandra-reaper` gap-analysis covers a repair UI for a
+    cluster hosted elsewhere, not a server.
+  usefulness: low
+  usefulness_rationale: >
+    ScyllaDB is a scale-out database designed for dedicated multi-core,
+    high-memory nodes; the single-container, single-VM, no-tuning shape our
+    recipes deliver is precisely the deployment it is worst suited to (it
+    would need `--developer-mode 1`/`--smp 1`/`--memory` clamps just to
+    boot on a small customer VM, which upstream explicitly labels
+    non-production). It has no web UI of any kind — monitoring is a
+    separate Prometheus/Grafana stack — so there is nothing for Traefik to
+    front, and the audience is a narrow slice of developers rather than the
+    end-user apps that make up most of the catalogue. Structurally the same
+    class as apps-gaps/redis.yaml, apps-gaps/postgresql.yaml and
+    apps-gaps/apache-kvrocks.yaml, with a heavier resource profile than
+    any of them.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [cassandra_superuser_password]
+  secrets_expressible_today:
+    - secret: cassandra_superuser_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      No exposure path. ScyllaDB's primary client interface is CQL on
+      port 9042 (plus 19042 shard-aware, 9160 Thrift, 10000 REST admin,
+      7000/7001 inter-node) — a raw binary protocol, not HTTP. Host port
+      9042 is on RFC-002's `no-public-db-port` forbidden list as an ERROR
+      (rfc/002-recipe-rules.md:220-226, "9042 (Cassandra)"), and Traefik
+      only routes HTTP, so there is no subdomain route and no `basic_auth`
+      gate that could apply. The one useful shape for a standalone
+      ScyllaDB recipe — a client-reachable CQL port — is the shape our own
+      rules forbid.
+    - >
+      The Alternator (DynamoDB API) port 8000 is HTTP and is not on the
+      forbidden list, but it does not rescue the recipe. With
+      `alternator_enforce_authorization: true`, the AWS secret access key
+      IS the CQL role's `salted_hash` from `system_auth.roles` — a
+      server-side, randomly-salted value the customer cannot derive from
+      their own root password. Handing it to them needs an *output*
+      channel for a generated secret, which the recipe mechanism does not
+      have any more than it has an input channel. Leaving authorization
+      off instead (the default) means an unauthenticated public database;
+      and a Traefik `basic_auth` gate is not a substitute, because
+      AWS-SDK/boto3 clients sign SigV4 requests and do not send HTTP basic
+      credentials, so gating 8000 would simply break every supported
+      client.
+    - >
+      Licensing. The ScyllaDB Software License Agreement v1.1 forbids
+      offering the software as a SaaS or commercial DBaaS and forbids using
+      it to compete with ScyllaDB's own products or services — a hosting
+      provider provisioning per-customer ScyllaDB instances as a paid
+      catalogue item reads as exactly that, and directly competes with
+      ScyllaDB Cloud. The free tier is additionally capped at 10TB storage
+      and 50 vCPUs *in aggregate across all deployments* and limited to
+      "Never Customers", so the terms do not even scale to a catalogue,
+      and IONOS's own commercial relationship with ScyllaDB (if any) could
+      void eligibility outright. This needs a commercial agreement with
+      ScyllaDB, not an af-recipes change (cf. the ArangoDB and AFFiNE
+      gap-analyses for milder versions of the same issue).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  ScyllaDB is a vigorously maintained project (2026.2.3 shipped 2026-08-05,
+  the day of this analysis, on a 1-3 week patch cadence across parallel LTS
+  and STS lines) with no overlap in the current 24-recipe catalogue, but it
+  fails our mechanism on two independent counts. Its client interface is CQL
+  on port 9042, a raw binary protocol whose host port RFC-002 forbids
+  outright, and it has no web UI at all, so there is nothing for Traefik to
+  route or gate; the HTTP Alternator/DynamoDB port is no escape hatch,
+  because enforced authorization makes the AWS secret key a server-generated
+  salted hash we have no way to hand the customer, and basic auth in front
+  of it would break SigV4 clients. Notably the *credential* itself would
+  have been expressible — ScyllaDB supports `CREATE ROLE WITH HASHED
+  PASSWORD` in crypt(3) bcrypt format, which `generated_from:
+  "bcrypt:ROOT_PASSWORD"` produces — so unlike Redis/Kvrocks this is not a
+  plaintext-password gap; the exposure model is what blocks it. On top of
+  that, the post-2024 source-available license explicitly forbids SaaS/DBaaS
+  offerings and competing use and caps the free tier at 10TB/50 vCPUs in
+  aggregate, which a per-customer hosting catalogue cannot satisfy. Not
+  recommended: no near-term platform change unblocks it, and the licensing
+  question would need a commercial agreement even if one did.

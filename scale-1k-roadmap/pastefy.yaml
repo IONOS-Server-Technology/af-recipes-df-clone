@@ -1,0 +1,96 @@
+slug: pastefy
+name: Pastefy
+source_description: "Pastefy is a self-hosted pastebin for secure code snippet sharing"
+
+upstream:
+  url: https://pastefy.app
+  repo_url: https://github.com/interaapps/pastefy
+  license: MIT
+  docker_image: interaapps/pastefy
+  compose_file_url: https://raw.githubusercontent.com/interaapps/pastefy/master/docker-compose.yml
+  compose_file_notes: >
+    Official — the file at the repo root (docker-compose.yml), and it is
+    byte-for-byte the same file embedded in the project's own docs at
+    docs/self-hosting/installation/docker-compose.md. Only one variant
+    exists (single web service + MariaDB sidecar); no GPU/CPU or
+    dev/prod split. This is a rolling reference to the default branch
+    (master), not version-pinned — the file pulls interaapps/pastefy:latest
+    rather than a tagged image version, and the raw URL tracks whatever
+    is on master at fetch time rather than a specific commit or release
+    tag. A docker-compose.override.yml also exists at the repo root
+    (adds `build: .` to build from source instead of pulling the image)
+    but is a dev-only override, not part of the documented deployment
+    path.
+
+version_health:
+  latest_version: "7.2.6"
+  latest_release_date: "2026-06-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.2.6 shipped 2026-06-01, roughly 2 months before today
+    (2026-08-05). Prior releases in the same run — 7.2.5/7.2.4/7.2.3 also
+    on 2026-06-01, 7.2.2 on 2026-05-31, 7.2.1 on 2026-03-18, 7.2.0/7.1.7
+    on 2026-03-17, 7.1.6 on 2026-03-01, 7.1.5 on 2025-10-15 — show a
+    steady multi-release cadence with feature work as recent as the
+    latest batch (AI-assisted summaries/comments, i18n for 17 languages).
+    Not archived, not EOL, not slowing.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [opengist]
+  differentiation: >
+    Pastefy is a MySQL/MariaDB-backed pastebin with rich file-type
+    previews (Markdown, Mermaid, SVG, CSV, GeoJSON, diff, calendar),
+    paste forking, folders, an API, and optional AI-generated
+    summaries/comments (via a customer-supplied Anthropic API key).
+    OpenGist — already in the catalogue but currently `enabled: false` —
+    covers the same "self-hosted Gist/pastebin" niche with a Git-backed
+    storage model and SSH clone support, which Pastefy does not offer.
+    The two are close substitutes aimed at the same "share a code
+    snippet" use case; Pastefy's edge is richer previews and forking,
+    OpenGist's is Git-native storage and SSH access.
+  usefulness: medium
+  usefulness_rationale: >
+    Standalone pastebins are a real, recognizable self-hosted-app
+    category and Pastefy has a clean single-page web UI, so it clears
+    the "would a customer want this on its own" bar. But it directly
+    overlaps an existing catalogue entry (OpenGist) for the same job,
+    and — see installability below — Pastefy's account/admin system only
+    works through third-party OAuth, which our platform cannot provision
+    for a customer today. Without OAuth it degrades to a fully open,
+    anonymous, unauthenticated paste box with no working admin panel,
+    which is a materially weaker product than what upstream actually
+    ships.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Pastefy has no local username/password login of its own — the only documented login mechanism is OAuth2 (InteraApps, Google, GitHub, Discord, Twitch) or a custom OIDC provider, each requiring an externally-registered client ID/secret. There is no input channel for that today."
+    - "The admin panel (/admin) is reached by manually editing the `type` column to `ADMIN` in the `pastefy_users` table via direct MySQL access — this presupposes a user account already exists, which itself requires OAuth. With no OAuth provider configured, no accounts (and therefore no admin) can ever be created; the app runs as a fully open, anonymous pastebin with nothing to gate access except a Traefik basic-auth wrapper we add ourselves."
+    - "Optional AI summary/comment features require a customer-supplied AI_ANTHROPIC_TOKEN (external API key) — no input channel for that either, so this feature would have to ship permanently disabled."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Pastefy is mechanically simple to ship: single web container
+  (interaapps/pastefy, pin 7.2.6) plus a MariaDB sidecar, one HTTP port
+  behind Traefik, domain-only to boot, upstream is unambiguously active.
+  But its entire account/admin system is gated behind third-party OAuth
+  registration, which the current /compose mechanism cannot supply — so
+  without OAuth the app has no logins, no admin panel, and no owner
+  control at all, leaving Traefik `basic_auth` as the only expressible
+  access gate. It would ship as a degraded, feature-stripped version of
+  what upstream actually offers (it also overlaps an existing, currently
+  disabled, catalogue entry, OpenGist, covering the same "share a code
+  snippet" use case, though that overlap is not why this is caveated).
+  Recommend `build_with_caveats`: the OAuth-less degraded mode (no
+  logins, no working admin panel, AI features permanently off) should be
+  explicitly accepted before building; this is a good re-candidate for a
+  fuller build once OAuth-app registration gets an input channel.

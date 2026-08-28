@@ -1,0 +1,93 @@
+slug: remark42
+name: Remark42
+source_description: "Privacy-focused self-hosted commenting engine for blogs and static sites"
+
+upstream:
+  url: https://remark42.com/
+  repo_url: https://github.com/umputun/remark42
+  license: MIT
+  docker_image: "umputun/remark42 (mirror: ghcr.io/umputun/remark42)"
+  compose_file_url: https://raw.githubusercontent.com/umputun/remark42/master/docker-compose.yml
+  compose_file_notes: >
+    Repo-root docker-compose.yml on the master branch (also linked from the
+    project's own installation docs at remark42.com/docs/getting-started/installation/).
+    This is a rolling default-branch reference, not version-pinned — no
+    tagged-release compose asset is published. Only one variant exists (no
+    GPU/CPU or dev/prod split); it ships with `build: .` active by default
+    (the file's own comment says to remove that line to use the image
+    instead), most auth-provider env vars commented out/empty, and no ports
+    exposed by default (both direct-expose and reverse-proxy port blocks are
+    commented out), matching the OAuth-only auth model described below.
+
+version_health:
+  latest_version: "v1.16.4"
+  latest_release_date: "2026-07-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.16.4 shipped 2026-07-10, less than a month before this
+    analysis (2026-08-05). Preceding releases (v1.16.0 2026-05-22, v1.16.1
+    2026-06-02, v1.16.2/1.16.3 2026-07-09) show a steady multi-week cadence
+    through 2026, following a slower 2024-2025 period (v1.14.0 2024-10-27,
+    v1.15.0 2025-12-24). Repo is not archived; project is actively maintained.
+
+catalogue_fit:
+  categories:
+    - productivity
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current catalogue covers embeddable comment/discussion
+    widgets for external blogs or static sites — this is a distinct use case
+    from any of the 24 existing recipes (no CMS, forum, or comment-system
+    recipe exists today). It would appeal to customers running a static
+    site or blog elsewhere who want a privacy-respecting Disqus alternative.
+  usefulness: medium
+  usefulness_rationale: >
+    Real niche demand (Disqus-alternative-seekers), but it's an embed
+    widget consumed by an external site rather than a destination app the
+    customer visits directly — narrower audience than a general-purpose
+    tool, and its value is gated behind the OAuth setup described below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - AUTH_GITHUB_CID / AUTH_GITHUB_CSEC (or another OAuth provider's client ID/secret — Google, Facebook, Microsoft, Telegram, GitLab)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Remark42 has no built-in admin username/password. Site visitors log in
+      via OAuth (GitHub/Google/Facebook/Microsoft/Telegram/GitLab client
+      ID+secret) or SMTP-backed email magic links; becoming a comment
+      moderator/admin additionally requires pasting that OAuth-derived user
+      ID into ADMIN_SHARED_ID after a manual first login. None of these
+      credentials are the customer's server root password, and none are a
+      value af-api can derive or generate server-side — there is no input
+      channel for an external OAuth app registration or a customer's own
+      SMTP credentials today.
+    - >
+      Anonymous commenting (AUTH_ANON=true) works without any credential,
+      but nobody can be promoted to admin without first authenticating via
+      one of the OAuth providers above, so the moderation surface is
+      unreachable in a zero-external-credential deployment.
+    - >
+      Gating the whole site behind Traefik basic_auth would not substitute
+      for real admin auth here — the app does have its own login mechanism
+      (OAuth), it's just one we have no channel to configure, so this isn't
+      the "app with no login of its own" case basic_auth is meant to cover.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Remark42 is an actively maintained (latest release 2026-07-10), single
+  small Go binary/container comment-engine widget with no overlap in the
+  current 24-recipe catalogue. It is mechanically simple to run behind
+  Traefik (one HTTP port, no extra protocols), but every path to a working
+  admin/moderator role requires an external OAuth app registration
+  (client ID + secret) or the customer's own SMTP credentials for email
+  login — neither of which has an input channel under the current
+  root-password-projection / basic-auth mechanism. Revisit once a
+  general-purpose "arbitrary customer-supplied API key/secret" channel
+  exists on af-api; until then this is blocked_on_platform, not a
+  not_recommended app.

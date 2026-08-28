@@ -1,0 +1,81 @@
+slug: lychee
+name: Lychee
+source_description: "Self-hosted photo management platform with album organization, EXIF browsing, and granular sharing controls"
+
+upstream:
+  url: https://lycheeorg.dev/
+  repo_url: https://github.com/LycheeOrg/Lychee
+  license: MIT
+  docker_image: ghcr.io/lycheeorg/lychee
+  compose_file_url: https://raw.githubusercontent.com/LycheeOrg/Lychee/master/docker-compose.yaml
+  compose_file_notes: >
+    Official, from LycheeOrg/Lychee repo root. This is a rolling reference
+    to the default `master` branch (no release tag pinning) — the raw URL
+    always resolves to whatever is currently on master, so it must be
+    re-watched for drift rather than treated as a fixed snapshot. The repo
+    ships two variants at root: `docker-compose.yaml` (labeled "Docker
+    (Recommended)" in the README — full production setup with MariaDB,
+    health checks, resource limits, security hardening, and commented-out
+    optional profiles for queue worker/phpMyAdmin/facial-recognition/NSFW)
+    and `docker-compose.minimal.yaml` (labeled a "quick test" template).
+    Picked the recommended full variant since it's the one the project
+    itself points customers to for actual self-hosting, not evaluation.
+
+version_health:
+  latest_version: "v7.7.1"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v7.7.1 shipped 2026-07-13, ~3 weeks before this analysis
+    (2026-08-05). Release history shows near-weekly tags through June-July
+    2026 (v7.5.4, v7.6.0-v7.6.4, v7.7.0-v7.7.1), a healthy active cadence.
+    Note: the current maintained org is LycheeOrg/Lychee, a continuation of
+    the original electerious/Lychee project (last released as v4.3.5 and
+    now dormant) — LycheeOrg is the correct upstream to track, not the
+    original repo. The companion Lychee-Docker (legacy nginx+PHP-FPM image)
+    repo was archived 2026-01-07 in favor of the new FrankenPHP-based image
+    published directly from the main LycheeOrg/Lychee repo.
+
+catalogue_fit:
+  categories: [media, photos]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Lychee is a lighter-weight, classic album/gallery-first photo manager
+    (EXIF browsing, albums, tags, print/webshop features, granular public
+    sharing links) built on Laravel/PHP, versus Immich's heavier mobile-app
+    + auto-backup + AI-search-first design. Optional face-recognition, NSFW
+    classification, and geo-decoding sidecars exist but are opt-in, not
+    core like Immich's ML stack. The core customer need — "store, organize,
+    and share my photos on my own server" — is the same one Immich already
+    serves in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    We already ship Immich for exactly this use case, and Immich is the
+    more actively-promoted, mobile-app-backed option customers are more
+    likely to have heard of. Lychee's differentiators (webshop, print
+    sizing, classic album browsing) are real but niche next to a
+    general-purpose photo-backup tool we already cover; adding it mainly
+    duplicates shelf space rather than filling a gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Lychee is mechanically installable today: it's a reverse-proxy-friendly,
+  single-web-port (8000) app whose Laravel APP_KEY and DB password are
+  purely server-generated secrets no customer ever sees, and its admin
+  account is created interactively via an in-browser setup wizard on first
+  load when ADMIN_USER/ADMIN_PASSWORD env vars are left unset — the same
+  no-secret-needed pattern Immich already uses. Upstream (LycheeOrg/Lychee)
+  is actively maintained with releases roughly every 1-4 weeks. It overlaps
+  with the existing Immich recipe for the same core "self-hosted photo
+  management" need, but with no blocking installability issues this is a
+  build_now recommendation regardless of that overlap.

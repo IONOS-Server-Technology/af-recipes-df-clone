@@ -1,0 +1,104 @@
+slug: 9router
+name: 9Router
+source_description: "AI API routing proxy with token optimization for 40+ LLM providers"
+
+upstream:
+  url: https://github.com/decolua/9router
+  repo_url: https://github.com/decolua/9router
+  license: MIT
+  docker_image: decolua/9router
+  compose_file_url: https://raw.githubusercontent.com/decolua/9router/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (github.com/decolua/9router/blob/master/docker-compose.yml).
+    This is a rolling reference to the default branch (master), not
+    version-pinned to a release tag, and it pulls `decolua/9router:latest`
+    plus `ghcr.io/chopratejas/headroom:latest` for the optional Headroom
+    token-saver sidecar. The project ships only this one variant (no
+    separate GPU/CPU or sqlite/postgres split — 9Router always uses a
+    bundled SQLite file under DATA_DIR). Note DOCKER.md's own docs section
+    doesn't link to this file and instead documents a plain `docker run`
+    command as the primary quick-start; the compose file with the Headroom
+    sidecar is presented there as an inline "Optional Headroom sidecar"
+    snippet that is similar in structure to this root file (same two
+    services, same images) but not verbatim/identical to it: the root file
+    sets container_name and restart: always on both services and the
+    DOCKER.md snippet sets neither; the root file uses a named volume
+    (9router-data:/app/data) plus env_file: [.env] while the DOCKER.md
+    snippet uses a bind mount ($HOME/.9router:/app/data) with no env_file;
+    the root file also sets PORT, HOSTNAME, and NODE_ENV env vars and
+    declares a top-level volumes: block for 9router-data, none of which
+    appear in the DOCKER.md snippet.
+
+version_health:
+  latest_version: "0.5.50"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Repo created 2026-01-05 (about 7 months old as of 2026-08-05) and pushed
+    to the same day this analysis was written. GitHub releases show a
+    multi-times-per-week cadence (v0.5.35 on 2026-07-16, v0.5.20 on
+    2026-07-07, v0.5.18 on 2026-07-03, v0.5.12 on 2026-06-26, v0.5.8 on
+    2026-06-21), and the Docker Hub tag list goes further, with 0.5.50
+    pushed only hours before this analysis. This is a very young,
+    fast-moving project rather than a mature one — high feature velocity
+    but no track record of API/config stability, and no LTS or versioning
+    guarantees observed.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does multi-provider LLM cost/routing
+    optimization. Ollama and Open WebUI run/chat with locally-hosted
+    models; Hermes Agent and OpenClaw are messaging-bot agent runtimes;
+    Paperless-AI calls a single external provider for one document-tagging
+    use case. 9Router is instead a generic OpenAI-compatible gateway that
+    sits in front of 40+ commercial LLM providers (OpenAI, Anthropic,
+    GLM, MiniMax, Kimi, etc. plus OAuth-based coding-tool subscriptions),
+    doing provider fallback and request-token compression. It targets
+    developers/power users who already pay for multiple LLM
+    providers/subscriptions and want one stable self-hosted endpoint plus
+    cost savings, not end users wanting a chat UI.
+  usefulness: medium
+  usefulness_rationale: >
+    Real utility for a technical audience (developers routing Claude
+    Code/Cursor/Copilot-style tools through cheaper or fallback providers),
+    but it is a niche, single-purpose developer tool rather than broad
+    consumer appeal, and its value is entirely dependent on the customer
+    already holding accounts/API keys/subscriptions with third-party LLM
+    providers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [INITIAL_PASSWORD, JWT_SECRET]
+  secrets_expressible_today:
+    - secret: INITIAL_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  9Router is a single-container, single-HTTP-port (20128) Node/Next.js app
+  with its own dashboard login (INITIAL_PASSWORD, default "123456", used
+  only until a password hash exists) plus a JWT_SECRET for session signing
+  — both fit the mechanisms we already support: INITIAL_PASSWORD projects
+  the customer's root-password hash the same way Vaultwarden's ADMIN_TOKEN
+  does, and JWT_SECRET is a patternless server-generated value the customer
+  never needs to see. Crucially, per upstream docs, the 40+ LLM provider
+  connections (API keys and OAuth logins) cannot be pre-configured via env
+  vars or compose at all — they are added entirely through the dashboard
+  UI after boot, by the customer, the same self-service pattern as adding
+  workflow credentials in n8n. That means the provider-credential problem
+  that blocks Paperless-AI (enabled: false, requires an un-projectable
+  OPENAI_API_KEY at compose time) does not apply here. The project is
+  genuinely new and releasing multiple times a week, which is a stability
+  caveat but not a version-pin blocker (MIT-licensed, active, tagged
+  Docker images). Recommend building the recipe, front the dashboard route
+  behind the domain param with INITIAL_PASSWORD projected from the root
+  password, no basic_auth gate needed since the app has its own login.

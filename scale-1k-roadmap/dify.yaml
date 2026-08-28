@@ -1,0 +1,108 @@
+slug: dify
+name: Dify
+source_description: "Open-source platform for building LLM applications with RAG, agents, and workflows"
+
+upstream:
+  url: https://dify.ai
+  repo_url: https://github.com/langgenius/dify
+  license: "Dify Open Source License (Apache-2.0 based, with additional conditions restricting offering Dify itself as a multi-tenant SaaS to third parties without authorization) — source-available, not a plain OSI license"
+  docker_image: langgenius/dify-api:1.16.1 (paired with langgenius/dify-web:1.16.1)
+  compose_file_url: https://raw.githubusercontent.com/langgenius/dify/1.16.1/docker/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives at docker/docker-compose.yaml in the langgenius/dify
+    repo itself, and is the exact file Dify's own self-hosting docs
+    (docs.dify.ai) instruct users to clone/use. Docs' own recommended
+    command clones whatever tag is currently GitHub's "latest release" via
+    the GitHub API, then runs docker compose from the cloned docker/
+    directory — a rolling-by-design flow, not a fixed link. For a stable
+    citation here I picked the raw.githubusercontent.com link pinned to
+    tag 1.16.1 (matching this file's already-recorded docker_image
+    version) rather than a `main`-branch rolling link, since `main` can
+    contain unreleased/in-progress changes. Note the compose file loads
+    additional per-category .env files (databases, vectorstores, security,
+    infra) from the same docker/ directory, and offers multiple optional
+    vector-store services (Weaviate, Qdrant, Couchbase, pgvector, etc.) —
+    it is not a single self-contained minimal file; the recipe build would
+    need to select/trim which services to include.
+
+version_health:
+  latest_version: "1.16.1"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag (1.16.1) was pushed ~9 days before today (2026-08-05); the
+    1.16.0 minor landed 2026-07-17 and 1.16.1 is a hotfix release on top of
+    it. Project ships weekly patch releases and roughly monthly feature
+    releases (1.16.0 introduced the new "Dify Agent" beta). No signs of
+    slowdown — clearly active, well-maintained upstream.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 4 existing AI-category recipes (ollama, open-webui,
+    hermes-agent, openclaw) offer this: Dify is a visual builder for
+    multi-step LLM applications (agents, RAG knowledge bases, workflow
+    orchestration, prompt/app publishing), closer to "n8n for LLM apps"
+    than to a single chat UI or single-agent runtime. Ollama is a bare model
+    runtime, Open WebUI is a chat front-end, hermes-agent/openclaw are
+    fixed-persona messaging agents — none let a customer compose their own
+    RAG pipeline or multi-step agent workflow. Genuine gap-filler.
+  usefulness: high
+  usefulness_rationale: >
+    LLM app-builder platforms are a distinct and popular category (direct
+    competitor set: n8n's AI nodes, Flowise, LangFlow) that IONOS AF
+    currently has no equivalent for. Strong demand signal given the
+    catalogue already leans into AI/automation (ollama, open-webui,
+    hermes-agent, openclaw, n8n).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - REDIS_PASSWORD
+    - SECRET_KEY
+    - SANDBOX_API_KEY
+    - PLUGIN_DAEMON_KEY
+    - INNER_API_KEY_FOR_PLUGIN
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: SANDBOX_API_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: PLUGIN_DAEMON_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: INNER_API_KEY_FOR_PLUGIN
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dify boots cleanly with no customer-supplied secrets: every internal
+  credential (DB/Redis passwords, SECRET_KEY, sandbox/plugin-daemon keys)
+  is a random value the customer never needs to see, so it can be fully
+  server-generated the same way n8n's POSTGRES_PASSWORD/N8N_ENCRYPTION_KEY
+  are today. Admin account creation follows the exact same "first visitor
+  to the fresh domain completes the web setup wizard" pattern already
+  accepted for n8n and Open WebUI — Dify's INIT_PASSWORD env var is
+  optional and, left unset, skips the init-password prompt entirely, so
+  there is no plaintext-password requirement blocking us. This is
+  upstream's heaviest stack in the catalogue (nginx + web + api + worker +
+  worker_beat + redis + postgres + sandbox + plugin_daemon, optionally a
+  vector DB) and ships under a source-available (not pure OSI) license
+  worth flagging to legal/product, and it's functionally an empty shell
+  until the customer adds their own LLM provider API key through Dify's
+  own in-app settings post-login — but none of that blocks first boot.
+  With no blocking issues and every first-boot secret mechanically
+  expressible today, recommend build_now: worth building now, scoping the
+  compose file carefully (drop optional vector-DB/agent-beta services not
+  needed for a minimal working install) and flagging the license terms
+  before shipping.

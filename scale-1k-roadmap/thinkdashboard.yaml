@@ -1,0 +1,87 @@
+slug: thinkdashboard
+name: ThinkDashboard
+source_description: "Minimalist self-hosted bookmark dashboard with keyboard shortcuts"
+
+upstream:
+  url: https://github.com/MatiasDesuu/ThinkDashboard
+  repo_url: https://github.com/MatiasDesuu/ThinkDashboard
+  license: MIT
+  docker_image: ghcr.io/matiasdesuu/thinkdashboard
+  compose_file_url: https://raw.githubusercontent.com/MatiasDesuu/ThinkDashboard/main/docker-compose.yml
+  compose_file_notes: >
+    Official — a docker-compose.yml lives at the repo root and is also
+    embedded verbatim in the README's "Using Docker Compose" section. This
+    is a rolling reference to the default (main) branch, not a pinned tag
+    — there's only one variant. Note the file-at-root version uses
+    `build: .` (builds the image locally from the repo's Dockerfile)
+    whereas the README's inline copy uses the published
+    `ghcr.io/matiasdesuu/thinkdashboard:latest` image instead of building;
+    the two differ only in that one line.
+
+version_health:
+  latest_version: "0.7.6"
+  latest_release_date: "2025-11-24"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    The project is very young: first tagged release (v0.2) and README
+    history both start around 2025-10. From there it shipped ~15 tagged
+    releases in about six weeks (0.2 through 0.7.6, 2025-11-24), an
+    unusually fast cadence. Then activity stopped abruptly — the last
+    GitHub commit (per the API) is 2025-12-06, and there has been no
+    commit or release since, i.e. roughly 8 months of total silence as of
+    today (2026-08-05). The repo is not archived and no EOL has been
+    announced, so `eol_status: active` is the literal/technical answer, but
+    the pattern (rapid-fire releases followed by a hard stop with zero
+    activity for 8 months) reads as a strong dormancy signal for a
+    327-star, single-maintainer hobby project rather than a project in
+    planned maintenance mode — treat this as a real risk factor, not a
+    clean "active" project, when weighing whether to build on it.
+
+catalogue_fit:
+  categories: [productivity, bookmarks]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are a bookmark manager or start-page /
+    dashboard app — this would be a genuinely new category for the
+    catalogue (closest in spirit is Uptime Kuma's status-page style UI, but
+    that monitors services rather than organizing links). ThinkDashboard's
+    pitch is a fast, keyboard-driven personal home page for bookmarks,
+    which is a plausible small-business/power-user want, but it's a niche,
+    low-stakes utility rather than something customers are likely to seek
+    out a hosted catalogue entry for.
+  usefulness: low
+  usefulness_rationale: >
+    The app is simple, single-container, and genuinely fills a gap in the
+    catalogue, but it stores everything in flat JSON files with no
+    multi-user support, no built-in auth, and no data-portability story
+    beyond raw file access — it's a personal, single-user bookmarklet page,
+    not a product most AF customers would pay a hosting seat for. Combined
+    with the dormancy signal above, value is marginal even setting aside
+    installability.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: ui_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ThinkDashboard is a small, single-container Go app (one HTTP port 8080,
+  one bind-mounted data directory of JSON files, a pinned image tag
+  available on GHCR) that has zero built-in authentication — including on
+  its `/config` settings page — so it must ship behind a mandatory Traefik
+  `basic_auth` gate, exactly like WUD or Adminer. Mechanically that is
+  installable today with no blocking issues. It's a genuinely new category
+  for the catalogue (no existing bookmark-dashboard recipe), though a
+  low-stakes, single-user personal utility, and the upstream project went
+  from an unusually fast release cadence (15 releases in six weeks) to
+  total silence for roughly 8 months with no announcement, a risk worth
+  tracking for a young, single-maintainer project. Recommend build_now:
+  installable today with no blocking issues.

@@ -1,0 +1,121 @@
+slug: rustfs
+name: RustFS
+source_description: S3-compatible distributed object storage system built with Rust
+
+upstream:
+  url: https://rustfs.com/
+  repo_url: https://github.com/rustfs/rustfs
+  license: Apache-2.0
+  docker_image: rustfs/rustfs:1.0.0-beta.12
+  compose_file_url: https://raw.githubusercontent.com/rustfs/rustfs/main/docker-compose-simple.yml
+  compose_file_notes: >-
+    Official, from the project's own repo root (github.com/rustfs/rustfs).
+    Rolling reference to the default branch (main), not version-pinned — no
+    tagged/release-asset compose file is published. The repo ships two
+    official variants: docker-compose-simple.yml (single rustfs service plus
+    a one-shot chown helper for the UID-10001 data volumes) and
+    docker-compose.yml (the same service plus an optional observability
+    stack — Grafana/Prometheus/Jaeger/Loki/Tempo/OTel-collector — and an
+    optional Nginx proxy, gated behind compose profiles). Picked
+    docker-compose-simple.yml: the README itself recommends it for a
+    straightforward/basic deployment ("docker compose -f
+    docker-compose-simple.yml up -d"), and it matches this catalogue's
+    single-app-service recipe shape rather than the observability-bundled
+    variant.
+
+version_health:
+  latest_version: 1.0.0-beta.12
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    Very active: open-sourced July 2025, ~30k GitHub stars, 130+ contributors,
+    and a weekly-to-biweekly beta train (beta.10 on 2026-07-17, beta.11 on
+    2026-07-23, beta.12 on 2026-07-30 — the newest is 6 days old as of
+    2026-08-05). The catch is the opposite of dormancy: every tag ever cut is
+    a pre-release, there is no stable 1.0 yet, and the release notes carry
+    breaking-change entries between betas. Not an EOL/abandonment risk, but a
+    pre-GA-stability risk for a component whose whole job is not losing
+    customer data. Name is not ambiguous upstream-wise, though note the
+    unrelated fork/mirror github.com/Altailab/rustfs-s3 and the historical
+    "rustfs" FUSE toy projects — the object store analyzed here is
+    github.com/rustfs/rustfs.
+
+catalogue_fit:
+  categories:
+    - storage
+    - developer-tools
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >-
+    The catalogue has no object storage at all — the closest neighbours are
+    syncthing (peer-to-peer file sync, not an API) and immich/paperless-ngx
+    (apps that store files but expose no storage API); anytype-server embeds a
+    MinIO purely as an internal dependency, not as a customer-facing endpoint.
+    RustFS would be the first S3 endpoint a customer can point their own
+    backups, CI artifacts, Terraform state, or app SDKs at, and its Apache-2.0
+    licence is a genuine differentiator against MinIO's AGPL + closed-console
+    turn.
+  usefulness: high
+  usefulness_rationale: >-
+    "Give me an S3 bucket on my own VPS" is one of the most common self-hosting
+    asks and nothing in the 24-recipe catalogue answers it. It would also
+    unlock backup targets for other recipes. Value is high; the obstacle is
+    delivery of the credential pair (see installability), not demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - RUSTFS_ACCESS_KEY
+    - RUSTFS_SECRET_KEY
+  secrets_expressible_today: []
+  blocking_issues:
+    - >-
+      RUSTFS_SECRET_KEY (with RUSTFS_ACCESS_KEY) is a plaintext shared secret,
+      not a login hash: the customer must type the exact same value into every
+      S3 client, SDK, or backup tool that talks to port 9000. generated_from
+      only ever projects a hash of the root password, and a
+      server-generated-random value has no channel back to the customer, so
+      neither supported mechanism can deliver a usable S3 credential. This is
+      the plaintext-requirement case SCHEMA.md calls a structural blocker.
+    - >-
+      Traefik basic_auth cannot substitute for that credential on the S3 API
+      port. S3 clients authenticate with SigV4 headers and do not send HTTP
+      basic-auth credentials, so a basic_auth gate on port 9000 breaks every
+      S3 client instead of protecting it. Gating only the console (9001) still
+      leaves 9000 reachable with whatever access/secret pair is configured —
+      i.e. the well-known rustfsadmin/rustfsadmin default, which would put an
+      unauthenticated-in-practice object store on the public internet.
+    - >-
+      Two distinct public HTTP surfaces (9000 S3 API, 9001 console) versus the
+      one-public-port-per-recipe pattern every current recipe follows, and
+      virtual-hosted-style bucket addressing additionally wants wildcard DNS
+      under the app domain (RUSTFS_SERVER_DOMAINS). Path-style-only operation
+      on a single host is possible but needs a routing decision the current
+      recipe shape does not express.
+    - >-
+      Pre-GA: no stable release exists (all tags are 1.0.0-beta.*), with
+      breaking changes between betas. Shipping a data-durability component in
+      permanent pre-release to customers deserves an explicit product sign-off
+      even once the credential channel exists.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >-
+  RustFS is a healthy, fast-moving, Apache-2.0 S3-compatible object store with
+  a real web console, an official pinnable image (rustfs/rustfs:1.0.0-beta.12,
+  ports 9000/9001, data volume owned by UID 10001), and no overlap with
+  anything in the 24-recipe catalogue — object storage is a genuine gap and the
+  demand is obvious. It is nonetheless not installable under today's mechanism:
+  the app's primary secret is a plaintext S3 access/secret pair that the
+  customer must reuse in external clients, and neither generated_from (hash
+  only) nor Traefik basic_auth (breaks SigV4) can deliver it, while leaving the
+  documented rustfsadmin default in place would expose an open bucket store on
+  port 9000. A reviewer could argue for build_with_caveats by projecting
+  argon2:ROOT_PASSWORD into RUSTFS_SECRET_KEY, gating the console with
+  basic_auth, and telling the customer to SSH in and read the value out of the
+  env file — that works mechanically but makes out-of-band retrieval part of
+  the product, so the honest verdict is blocked_on_platform pending a real
+  customer-value input (or output) channel. Revisit once that exists and
+  RustFS has cut a stable 1.0.

@@ -1,0 +1,96 @@
+slug: grafana
+name: Grafana
+source_description: "Open-source observability platform for metrics visualization and monitoring"
+
+upstream:
+  url: https://grafana.com/oss/grafana/
+  repo_url: https://github.com/grafana/grafana
+  license: AGPL-3.0 (core OSS edition; Grafana Labs also ships a separate commercial Enterprise edition)
+  docker_image: grafana/grafana
+  compose_file_url: null
+  compose_file_notes: >
+    No official downloadable docker-compose.yaml/.yml exists. The official
+    install docs
+    (grafana.com/docs/grafana/latest/setup-grafana/installation/docker/,
+    mirrored at
+    github.com/grafana/grafana/blob/main/docs/sources/setup-grafana/installation/docker/index.md)
+    only embed an inline compose snippet in prose for the reader to copy
+    into their own file — there is no linked or hosted file artifact.
+    The grafana/grafana repo itself has no docker-compose file at its root
+    or under a docker/deploy/contrib directory; the only compose files in
+    the repo (e.g. devenv/docker/ha_test/docker-compose.yaml) are internal
+    dev/test fixtures used to build and test Grafana itself, not an
+    official deployment artifact, so they were not adopted here.
+
+version_health:
+  latest_version: "13.1.2"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    13.1.2 was pushed to Docker Hub ~1 day before today (2026-08-05), on the
+    heels of the 13.0.0 major (April 2026) and 13.1 minor (mid-2026,
+    dashboard/alerting/GitOps improvements). Patch releases (13.1.x) are
+    landing roughly every couple of weeks, consistent with several CVE
+    fixes (CVE-2026-27876/27877/28375/27879) shipped in that window. Repo
+    is not archived, commit activity is continuous, and Grafana Labs
+    publishes an explicit support/EOL calendar per major version (older
+    12.4.x/12.3.x lines still receiving backported patches). No ambiguity
+    on the app identity — "Grafana" here unambiguously refers to
+    grafana/grafana, not Grafana Labs' other OSS projects (Loki, Tempo,
+    Mimir, k6), which are separate recipes if ever considered.
+
+catalogue_fit:
+  categories: [monitoring, observability, analytics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Grafana is a dashboarding/visualization layer over metrics, logs, and
+    traces pulled from external data sources (Prometheus, Loki, InfluxDB,
+    CloudWatch, etc.) — it does not itself collect host or service
+    telemetry. This is distinct from both existing monitoring-adjacent
+    candidates: Uptime Kuma (self-contained external uptime/ping checker)
+    and the previously-analyzed Checkmk (agent-based infra monitoring with
+    auto-discovery). None of the 24 shipped recipes provide dashboard
+    visualization. Caveat: Grafana on its own, with no data source
+    configured, is an empty shell — its value to a customer depends on
+    them separately standing up (or already having) something for it to
+    query, which this recipe cannot provision.
+  usefulness: medium
+  usefulness_rationale: >
+    Grafana is the de facto standard dashboarding tool for self-hosted
+    observability and is a recognizable, well-liked name, giving it appeal
+    independent of the catalogue's current gap. Usefulness is capped at
+    medium rather than high because it delivers little value in isolation
+    — most customers would need to also deploy and wire up a compatible
+    data source (e.g. Prometheus) themselves, which is outside what this
+    single-recipe install provides.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Grafana is an actively maintained (13.1.2, patched roughly biweekly,
+  early August 2026), well-known observability/dashboarding tool with no
+  overlap in the current 24-recipe catalogue. Its normal boot path sets an
+  admin account from a plaintext GF_SECURITY_ADMIN_PASSWORD env var (no
+  pre-hashed-credential option), which alone would be a blocker like
+  Checkmk's cmkadmin. However, Grafana — like Alerta — supports fully
+  disabling its own login (GF_AUTH_ANONYMOUS_ENABLED=true,
+  GF_AUTH_ANONYMOUS_ORG_ROLE=Admin, GF_AUTH_DISABLE_LOGIN_FORM=true),
+  which removes the in-app credential requirement entirely and shifts the
+  sole auth boundary to a Traefik basic_auth gate in front of it — an
+  expressible mechanism today. Recommend build_now: mechanically
+  installable today with no blocking issues. Its usefulness is contingent
+  on customers separately operating a compatible metrics/logs/traces
+  source, since a bare Grafana instance ships with no data to visualize —
+  that is a usefulness/audience consideration captured in catalogue_fit,
+  not a reason to withhold build_now.

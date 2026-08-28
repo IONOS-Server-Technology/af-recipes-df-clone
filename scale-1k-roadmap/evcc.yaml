@@ -1,0 +1,81 @@
+slug: evcc
+name: evcc
+source_description: "Solar-aware EV charging controller and home energy management system"
+
+upstream:
+  url: https://evcc.io
+  repo_url: https://github.com/evcc-io/evcc
+  license: MIT
+  docker_image: evcc/evcc
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official docker-compose.yaml/.yml file exists anywhere in
+    the evcc-io/evcc repo (root, docker/, deploy/, contrib/ all 404) or as
+    a downloadable release asset. The official docs
+    (docs.evcc.io/en/installation/docker, sourced from
+    github.com/evcc-io/docs docs/installation/docker.mdx) embed a compose
+    snippet directly in the page text rather than linking to a file:
+    image evcc/evcc:latest, ports 7070:7070 (Web UI/API) and 8887:8887,
+    volumes for /root/.evcc (data, required) and /etc/evcc.yaml (config,
+    optional). That snippet uses the `latest` tag, i.e. a rolling
+    reference, not a pinned version. Community-maintained compose files
+    exist (e.g. gists, forum posts) but are not adopted here since they
+    aren't official.
+
+version_health:
+  latest_version: "0.313.1"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases every 1-2 weeks (0.310.0 on 2026-06-28, 0.311.0 on 2026-07-06,
+    0.312.0 on 2026-07-17, 0.313.0 on 2026-07-30, 0.313.1 on 2026-08-01 —
+    4 days before this analysis, run on 2026-08-05). Nightly builds are
+    published daily. Clearly active, not maintenance-only.
+
+catalogue_fit:
+  categories: [energy, automation, smart-home]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches EV charging or solar
+    energy management; Home Assistant (automation category) is the closest
+    neighbor but is a general smart-home hub, not a purpose-built charging
+    optimizer. evcc's core value (cloud-free, local optimization of EV
+    charging against solar production/battery/tariffs) is distinct enough
+    to be a real addition rather than overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but well-defined audience (EV + home solar owners), active
+    upstream, and low resource needs. Ceiling is capped by needing specific
+    hardware (charger, inverter, meter) already installed and network-
+    reachable from the server — a self-hosted platform customer without
+    that hardware gets no value from the recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  evcc is active, MIT-licensed, single-container, and reverse-proxy
+  compatible (one HTTP port, 7070) — no overlap with the current catalogue
+  and a real differentiator. Its own admin password can only be set
+  interactively via the web onboarding wizard or the `evcc password`
+  CLI, which takes a plaintext value to hash itself; there is no config
+  field, env var, or flag that accepts a pre-computed hash, so
+  `generated_from` cannot project onto evcc's own login. That first-run
+  wizard has no auth until a password is set, so it must sit behind a
+  Traefik `basic_auth` gate (credential derived from the customer's root
+  password, same pattern as n8n's owner-setup race) until the customer
+  visits and sets their own evcc admin password — this is installable
+  today under that gate, not a structural blocker. Recommend build_now:
+  the recipe must include the basic_auth gate and document that the app
+  is only useful to customers who already have compatible
+  EV/solar/energy-meter hardware, but nothing here blocks building it now.

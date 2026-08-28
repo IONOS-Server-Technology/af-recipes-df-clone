@@ -1,0 +1,98 @@
+slug: morphic
+name: Morphic
+source_description: "Open-source AI search engine with generative answers and source citations"
+
+upstream:
+  url: https://www.morphic.sh/
+  repo_url: https://github.com/miurla/morphic
+  license: Apache-2.0
+  docker_image: ghcr.io/miurla/morphic
+  compose_file_url: https://raw.githubusercontent.com/miurla/morphic/main/docker-compose.yaml
+  compose_file_notes: >-
+    Official — it is the project's own root docker-compose.yaml (named
+    "morphic-stack"), the same file the README's "Then set up with Docker
+    Compose" quick-start and docs/DOCKER.md both tell users to run via
+    `docker compose up -d` after cloning the repo. Only one variant exists;
+    there is no separate GPU/CPU or dev/prod split. Link is a rolling
+    reference to the default branch (raw.githubusercontent.com/.../main/...);
+    the repo does not attach docker-compose.yaml as a release asset (unlike
+    Immich's releases/latest/download pattern), so there is no
+    project-published pinned equivalent to link instead.
+
+version_health:
+  latest_version: "v1.5.0"
+  latest_release_date: "2026-06-10"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~2 months between v1.5.0 (2026-06-10) and today (2026-08-05). Prior tags
+    (v1.0.0 Feb 2026, v1.1.0 Mar 6, v1.2.0 Mar 30, v1.3.0 Apr 10, v1.4.0 May
+    24, v1.5.0 Jun 10) shipped roughly monthly through 2026, and the
+    `ghcr.io/miurla/morphic` image is rebuilt on every merge to main between
+    tagged releases. No archival or EOL signal; repo is under active,
+    frequent development. One packaging caveat: the published container
+    tags are commit SHAs (e.g. `bcda07c...`), not semver strings matching
+    the GitHub release tags — pinning a recipe image tag means resolving the
+    commit SHA that corresponds to a given release, not just quoting "v1.5.0".
+    Name ambiguity: "Morphic" also names an unrelated 1990s Self-language GUI
+    framework (ported to Squeak/Pharo/Lively Kernel) and a separate Raising
+    the Floor accessibility desktop app; both were considered and ruled out
+    — miurla/morphic is the only one matching Hostinger's "AI search engine
+    with generative answers and source citations" description.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Not another LLM chat frontend — Morphic is a Perplexity-style answer
+    engine: it takes a search query, runs it through a bundled SearXNG
+    meta-search instance, and has an LLM synthesize a cited, generative-UI
+    answer (inline images, source cards) from the results. Open WebUI +
+    Ollama cover "chat with a local model"; nothing in the current
+    catalogue covers "search the web and get a sourced AI answer."
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely distinct capability (web-search-grounded answers with
+    citations) rather than a repaint of open-webui/ollama, so there's a real
+    differentiation case. Rated medium rather than high because good answer
+    quality depends on a capable LLM backend — pairing it with a
+    self-hosted Ollama model (the only way to avoid an external API-key
+    requirement, see below) generally yields noticeably weaker synthesis
+    than the hosted frontier models the upstream project is built around.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, SEARXNG_SECRET, basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SEARXNG_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Morphic is an actively maintained, Apache-2.0 answer-engine that fills a
+  real gap in the catalogue (web-search-grounded, cited AI answers, distinct
+  from the open-webui/ollama chat pairing already offered). Its Postgres,
+  Redis, and SearXNG dependencies are all self-contained with
+  server-generated secrets, and it is installable today provided the
+  recipe follows the same escape hatch open-webui already uses: bundle a
+  local Ollama container as the LLM provider (OLLAMA_BASE_URL) instead of
+  asking for a customer-supplied OpenAI/Anthropic/Google API key, since
+  those third-party keys have no input channel today. With ENABLE_AUTH left
+  at its documented default (false) Morphic has no login screen of its own
+  (unlike open-webui/anythingllm, there's no first-visit admin signup), so
+  the recipe also needs a Traefik basic_auth gate rather than relying on
+  built-in auth — Supabase-based auth (the only alternative) is itself an
+  external third-party account with no customer-input channel. With those
+  mechanisms in place there are no blocking issues, so it is build_now; note
+  that answer quality will depend on the LLM backend, since pinning to a
+  local Ollama model (the only provider avoiding a customer-supplied API
+  key) will noticeably weaken the generative-answer synthesis relative to
+  the hosted frontier models the upstream project is built around.

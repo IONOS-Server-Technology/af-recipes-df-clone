@@ -1,0 +1,110 @@
+slug: ragflow
+name: RAGFlow
+source_description: "Production-grade RAG engine with deep document parsing and knowledge graphs"
+
+upstream:
+  url: https://ragflow.io
+  repo_url: https://github.com/infiniflow/ragflow
+  license: Apache-2.0
+  docker_image: infiniflow/ragflow
+  compose_file_url: https://raw.githubusercontent.com/infiniflow/ragflow/v0.26.4/docker/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo (infiniflow/ragflow), under
+    docker/docker-compose.yml. Version-pinned to tag v0.26.4 rather than a
+    rolling main-branch reference: the README's own self-host instructions
+    have the user `git checkout v0.26.4` before running this file, stating
+    that checkout "ensures the entrypoint.sh file in the code matches the
+    Docker image version" — so main-branch HEAD is not guaranteed to match
+    the current release image and would be the wrong default to track.
+    This file `include`s docker-compose-base.yml (Elasticsearch/Infinity,
+    MySQL, MinIO, Redis) and defines both a `ragflow-cpu` and a
+    `ragflow-gpu` service; CPU is the default path invoked by
+    `docker compose -f docker-compose.yml up -d`, with GPU selected via a
+    `DEVICE=gpu` .env setting rather than a separate compose file, so no
+    separate GPU-variant file was picked over this one. Two other variants
+    exist in the same directory (docker-compose-CN-oc9.yml for an
+    OceanBase-backed China deployment, docker-compose-macos.yml for macOS)
+    but the repo's own docs mark both "not actively maintained" and warn
+    to use them "at your own risk" — excluded as non-primary/unmaintained.
+
+version_health:
+  latest_version: v0.26.4
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable v0.26.4 released 2026-07-07, about 4 weeks before today
+    (2026-08-05). A dev build (dev-20260724-2) shipped 2026-07-24, roughly
+    two weeks before today, confirming ongoing active development between
+    stable tags. Release history shows a steady near-monthly cadence
+    (v0.26.3 on 2026-07-02). No archival, EOL notice, or maintenance-only
+    signal found.
+
+    Upstream's own reference compose file (docker/docker-compose.yml,
+    pinned tag v0.26.4) publishes several raw ports beyond the web UI by
+    default: 9380 (main API), 9381 (Admin Server), 9382 (MCP entry point),
+    and 9383/9384 (Go admin/http). The 9381 Admin Service ships with a
+    hardcoded, non-configurable default credential
+    admin@ragflow.io / admin (ragflow.io/docs/admin_cli) — no env var
+    exposes a way to set it at first boot, and it has carried this default
+    since v0.21.0, still present in v0.26.4.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true  # caveat: upstream's default compose publishes 5+ raw ports (9380-9384); a recipe must only expose the web UI (80/443, or 9380 for API) via Traefik and never publish 9381/9383
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes are a document-grounded RAG engine.
+    Open WebUI + Ollama covers local LLM chat but has no document
+    ingestion/parsing/knowledge-graph pipeline; Paperless-ngx/Paperless-AI
+    do document storage and AI tagging but not retrieval-augmented Q&A over
+    a corpus. RAGFlow adds "ask questions of your own documents" as a
+    distinct capability.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiated capability (deep document parsing, knowledge
+    graphs, agent workflows) with an active upstream, but it is a very
+    heavy multi-service stack (official minimum RAM 16 GB, disk 50 GB —
+    2-4x the floor of any recipe currently in the catalogue) and it needs
+    a customer-supplied LLM API key to do anything useful post-install,
+    which caps its out-of-the-box value for a typical AF customer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Not blocking for install itself, but constrains recipe design: the
+      Admin Service (port 9381, plus Go admin on 9383) ships with a fixed,
+      non-configurable admin@ragflow.io / admin credential that no env var
+      can change at first boot. Per SCHEMA.md's decision table, a fixed
+      default credential behind a Traefik basic_auth gate would be
+      acceptable — but the simpler and correct fix here is that a future
+      recipe must never publish 9381 or 9383 on the host/Traefik at all,
+      exposing only the web UI (80/443) and, if needed, the main API
+      (9380) behind Traefik. If 9381 is ever intentionally exposed, it must
+      be basic_auth-gated, not left open with its hardcoded default.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  RAGFlow is an active, Apache-2.0 licensed RAG engine with a genuine
+  capability gap versus the current catalogue (no existing recipe does
+  document-grounded retrieval + knowledge graphs). It boots via
+  self-service signup — whoever visits first and clicks "Sign Up" becomes
+  the tenant admin, with no admin-provisioning env var of its own — the
+  same no-secret-needed pattern already accepted for recipes/open-webui,
+  so nothing here is structurally blocked by the `/compose`
+  no-arbitrary-input constraint. The caveats are resource footprint (16 GB
+  RAM / 50 GB disk minimum — the heaviest stack in scope, needing MySQL,
+  Elasticsearch/Infinity, MinIO, and Redis at minimum) and the fact that a
+  customer must supply their own LLM provider API key through RAGFlow's
+  Settings > Model providers screen after login before it does anything
+  useful (configured post-boot via the app's own UI, not read at container
+  start, so it does not block install — but the instance is an empty shell
+  until they do it, same as Open WebUI needing Ollama models pulled in).
+  Recommend build_with_caveats: worth building, but size the offer and set
+  expectations around the bring-your-own-LLM-key requirement and the
+  first-to-sign-up-wins admin claim.

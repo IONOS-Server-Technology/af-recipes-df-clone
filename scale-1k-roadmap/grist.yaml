@@ -1,0 +1,99 @@
+slug: grist
+name: Grist
+source_description: "Open-source spreadsheet-database hybrid for building data applications"
+
+upstream:
+  url: https://www.getgrist.com/
+  repo_url: https://github.com/gristlabs/grist-core
+  license: Apache-2.0
+  docker_image: gristlabs/grist
+  compose_file_url: https://raw.githubusercontent.com/gristlabs/grist-core/main/docker-compose-examples/grist-traefik-basic-auth/docker-compose.yml
+  compose_file_notes: >
+    Official — grist-core ships several example compose files under
+    docker-compose-examples/ in the repo itself (grist-local-testing,
+    grist-traefik-basic-auth, grist-traefik-oidc-auth,
+    grist-with-postgres-redis-minio,
+    grist-with-keycloak-postgres-redis-minio); no single canonical
+    docker-compose.yml at the repo root. Picked grist-traefik-basic-auth
+    since it matches this catalogue's Traefik-basic-auth deployment
+    pattern (single container + Traefik, gristlabs/grist image, no extra
+    DB/cache/object-store services). This is a rolling reference to the
+    main branch, not version-pinned, and the image tag inside it is
+    gristlabs/grist:latest (also unpinned) rather than a pinned release
+    like 1.7.17.
+
+version_health:
+  latest_version: "1.7.17"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.7.17 tagged 2026-07-29, ~1 week before today (2026-08-05); the
+    matching Docker Hub tag was pushed 7 days ago, consistent with the git
+    tag date. The 1.7.x line has shipped a new tag roughly every month for
+    the past year — 1.7.16 (2026-06-30), 1.7.15 (2026-06-10), 1.7.14
+    (2026-05-28), 1.7.13 (2026-04-29), 1.7.12 (2026-03-31), 1.7.11
+    (2026-02-27), 1.7.10 (2026-01-12), 1.7.9 (2026-01-08), 1.7.8
+    (2025-11-25) — no gap over ~5 weeks, each with real feature/security
+    content (setup wizard refinements, OAuth Dynamic Client Registration,
+    Airtable import work, sandboxing updates). grist-core is not archived
+    and is actively developed by Grist Labs alongside their hosted/"full
+    edition" SaaS offering; this is the open-source community edition, not
+    a frozen fork.
+
+catalogue_fit:
+  categories: [productivity, data-apps]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is a spreadsheet/no-code
+    database tool. n8n covers workflow automation and Paperless-ngx/
+    Paperless-AI cover document archiving, but neither lets a customer
+    model and query structured data the way a spreadsheet-database hybrid
+    does (Airtable/Notion-database-style use case). Distinct, broadly
+    applicable "build a lightweight internal tool or tracker" pitch with no
+    catalogue overlap today.
+  usefulness: high
+  usefulness_rationale: >
+    "Spreadsheet that's also a database, with a web UI, self-hosted" is a
+    clear, well-known value proposition (Airtable-alternative positioning)
+    with broad appeal beyond a single niche, and it ships as a single
+    container with a bundled SQLite store by default — no extra database
+    service required, fitting the catalogue's lightweight single-container
+    pattern.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Grist is a single-container Node.js app (official image gristlabs/grist,
+  pinned e.g. 1.7.17) serving one HTTP port (8484 by default), with data
+  persisted to a mounted volume via a bundled SQLite store — no separate
+  database service needed, and fully Traefik-compatible on a single public
+  port. By default a brand-new instance is gated by an interactive "Quick
+  setup" wizard that requires a boot key (GRIST_BOOT_KEY) typed in as
+  plaintext — that comparison is not hash-based, so a customer-supplied
+  value could never be projected into it via `generated_from` (which only
+  ever carries a hash). That path is avoidable, though: Grist explicitly
+  documents `GRIST_IN_SERVICE=true` to skip the boot-key check entirely for
+  deployments that are only reachable on a private, already-authenticated
+  path, and `GRIST_DEFAULT_EMAIL` to run in single-user mode with a fixed
+  admin identity (no interactive login at all). Combining those two — boot
+  check disabled, fixed single-user email set server-side, nothing
+  customer-supplied at the app layer — turns Grist into an app with no
+  login boundary of its own, exactly the pattern already used for
+  Grav/Gramps Web/An Otter Wiki: gate the whole thing behind Traefik
+  `basic_auth: true` with the credential projected from the customer's root
+  password hash, so the app itself never needs a customer-facing secret.
+  That clears the /compose constraint today with no blocking issues.
+  Combined with an active, roughly-monthly release cadence (latest release
+  1 week ago) and a genuine, high-value gap in the catalogue (no
+  spreadsheet/data-app tool today), Grist is a strong build_now candidate.

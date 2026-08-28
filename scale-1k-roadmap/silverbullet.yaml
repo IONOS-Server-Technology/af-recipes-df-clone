@@ -1,0 +1,95 @@
+slug: silverbullet
+name: SilverBullet
+source_description: "Self-hosted Markdown note-taking with live queries and plugin system"
+
+upstream:
+  url: https://silverbullet.md/
+  repo_url: https://github.com/silverbulletmd/silverbullet
+  license: MIT
+  docker_image: ghcr.io/silverbulletmd/silverbullet
+  compose_file_url: null
+  compose_file_notes: >
+    No downloadable docker-compose file exists anywhere in the upstream repo
+    (checked repo root and a full recursive tree listing of the `main`
+    branch — no `docker-compose.yaml`/`.yml` under any path, including
+    `docker/`, `deploy/`, or `contrib/`). The only official compose
+    reference is a YAML snippet embedded inline in
+    docs/Install/Docker.md (https://github.com/silverbulletmd/silverbullet/blob/main/docs/Install/Docker.md,
+    mirrored at https://silverbullet.md/Install/Docker) — a single
+    variant (image + SB_USER env + ./space volume + port 3000), not a
+    file the project publishes or versions separately. Since there's no
+    file to link, `compose_file_url` is null; the recipe's own
+    docker-compose.yaml is written from this embedded snippet rather than
+    a fetched upstream file.
+
+version_health:
+  latest_version: "2.10.0"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.10.0 was published 2026-07-28, about a week before today (2026-08-05),
+    and the matching GHCR image tags (`2.10.0`, `latest`, `v2`) were pushed
+    the same day — the GHCR registry tracks the GitHub releases 1:1, so the
+    release history below applies to the image as well.
+    Preceding releases: v2.9.0 (2026-06-11), v2.8.1 (2026-05-20), v2.8.0
+    (2026-05-15), v2.7.0 (2026-05-06), v2.6.1 (2026-04-11), v2.5.2
+    (2026-03-06), v2.5.1/v2.5.0 (2026-03-05), v2.4.1 (2026-01-16) — a new
+    release roughly every 3-6 weeks over the past year with no long gaps.
+    Project started in 2022 and is approaching a 2.0-era feature set with
+    ongoing active development (Space Lua scripting, X-Ray editor lens,
+    Journal library added in recent releases); not archived, no
+    unmaintained/EOL notice found.
+
+catalogue_fit:
+  categories: [productivity, note-taking]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal
+    note-taking/knowledge-management. SilverBullet is a single-user,
+    plain-Markdown-on-disk PKM (personal knowledge database) with wiki-style
+    linking, Live Queries/Live Templates driven by an "Objects" index, and a
+    Space Lua scripting API for building ad-hoc mini-apps on top of one's
+    notes — closer to Obsidian/Logseq than to anything currently shipped
+    (paperless-ngx and paperless-ai are document *archival* tools for
+    scanned/received documents, not note authoring).
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted Markdown note-taking (Obsidian-alternative style) is a
+    well-understood, broadly-wanted self-hosting use case with no
+    representation in the catalogue today. SilverBullet is a single
+    lightweight container, stores notes as plain files (easy to reason about
+    for backup/export), ships as a PWA so it "installs" on mobile, and has
+    an active, single-maintainer-but-responsive upstream.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SilverBullet is a single official container
+  (`ghcr.io/silverbulletmd/silverbullet:2.10.0` — GHCR is the image upstream
+  documents; the older `zefhemel/silverbullet` Docker Hub repo is the same
+  build but no longer the recommended source) listening on port 3000 with no
+  external database — notes live as Markdown files under `/space` on a
+  mounted volume — so it needs nothing beyond a domain to boot.
+  Its own built-in auth (`SB_USER=username:password`) requires the
+  *plaintext* password as an env var, which `generated_from` cannot supply
+  (it only ever yields a hash of the customer's root password), so that
+  mechanism is not usable directly. The clean fix is to leave SilverBullet's
+  own auth disabled (no `SB_USER` set, matching how Adminer/WUD are handled
+  elsewhere in the catalogue) and put the whole app behind a Traefik
+  basic_auth gate keyed off the root-password hash instead — SilverBullet is
+  single-user by design with no signup flow, so a reverse-proxy-level gate
+  is a natural fit, not a workaround. Reverse-proxy compatible (one HTTP
+  port, PWA UI), no overlap with any of the current 24 recipes, and upstream
+  is releasing actively every few weeks. Recommend building now.

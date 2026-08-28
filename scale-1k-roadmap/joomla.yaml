@@ -1,0 +1,95 @@
+slug: joomla
+name: Joomla
+source_description: "Open-source CMS for building dynamic websites and web applications"
+
+upstream:
+  url: https://www.joomla.org/
+  repo_url: https://github.com/joomla/joomla-cms
+  license: GPL-2.0-or-later
+  docker_image: joomla:6.1.2-php8.4-apache
+  compose_file_url: null
+  compose_file_notes: >
+    No official Joomla-project compose file exists anywhere: the
+    joomla/joomla-cms repo has no compose file at its root or under
+    docker/deploy/contrib, and the two compose files it does contain
+    (.devcontainer/docker-compose.yml, tests/System/docker-compose.yml)
+    are devcontainer and CI-test scaffolding, not deployment examples.
+    Neither joomla.org nor the Joomla documentation/guide site publishes
+    one either. The only compose example connected to the official
+    `joomla` image at all is docker-library/docs' joomla/compose.yaml —
+    the example shown on the Docker Hub `joomla` image page — but that is
+    maintained by Docker's official-images team, not the Joomla project,
+    so per this issue's definition it does not count as upstream-official
+    and is not recorded as compose_file_url. Everything else found in
+    search (jpeant/joomla-docker, amirbarkal/joomla-docker, damalis'
+    full-stack repos, heyvaldemar.com's guide, etc.) is third-party
+    community tooling, not official.
+
+version_health:
+  latest_version: "6.1.2"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    6.1.2 shipped 2026-07-07, ~1 month before this analysis (2026-08-05).
+    A 6.2.0 alpha track is already underway (Alpha 1 2026-05-26, Alpha 2
+    2026-06-23, Alpha 3 2026-07-21), and the parallel 5.4.x LTS-style
+    branch got 5.4.7 the same day as 6.1.2, showing two maintained lines in
+    lockstep. The official docker-library `joomla` image tracks these
+    releases closely (current top tag `6.1.2-php8.4-apache`, also aliased
+    `latest`/`6`/`6.1`). No archival notice, no EOL announcement; project
+    has run continuously since 2005 with a large, active core team and
+    plugin/extension ecosystem. Clearly active, not dormant.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website CMS —
+    closest neighbors (Gitea, Opengist) are developer/source-control tools,
+    not content management for a public-facing site. Joomla is one of the
+    "big three" open-source CMSes (alongside WordPress and Drupal, both
+    themselves only apps-gaps candidates, not existing recipes) and fills
+    the same broad "build me a website/blog/web app without hand-coding"
+    gap as apps-gaps/drupal.yaml and apps-gaps/classicpress.yaml.
+  usefulness: high
+  usefulness_rationale: >
+    CMS/website-builder is one of the most commonly requested self-hosting
+    categories, and Joomla specifically has a long-standing install base
+    and mature multilingual/access-control features that differentiate it
+    from a blog-first tool like Ghost. High customer pull if it can
+    actually be provisioned through our current mechanism.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JOOMLA_ADMIN_PASSWORD, JOOMLA_DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: JOOMLA_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: JOOMLA_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Joomla is a single-container, single-HTTP-port (Apache on 80, standard
+  reverse-proxy fit) app plus a MySQL/MariaDB sidecar, structurally close
+  to the Gitea recipe. Unlike Drupal and ClassicPress (both apps-gaps
+  candidates blocked or caveated on admin-account automation), the
+  official `joomla` Docker image's own entrypoint natively supports
+  non-interactive first-boot install via JOOMLA_ADMIN_USER/_USERNAME/
+  _PASSWORD/_EMAIL and JOOMLA_DB_* env vars, running Joomla's own CLI
+  installer (`installation/joomla.php install --admin-password=...`) with
+  no need to vendor a separate CLI tool or script an install.php POST. The
+  installer takes JOOMLA_ADMIN_PASSWORD as plaintext (>12 chars, hashed
+  internally by Joomla itself), so it can't carry a `generated_from` root-
+  password hash directly, but it clears the /compose constraint the same
+  way Gitea's GITEA_ADMIN_PASSWORD does: install.sh generates a random
+  plaintext admin password server-side (never derived from or equal to the
+  customer's root password) and surfaces it to the customer post-
+  provision, with JOOMLA_DB_PASSWORD likewise server-generated and never
+  customer-facing. Zero blocking issues, actively maintained upstream and
+  image. Recommend build_now.

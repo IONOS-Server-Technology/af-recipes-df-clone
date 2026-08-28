@@ -1,0 +1,117 @@
+slug: mistserver
+name: MistServer
+source_description: "Open-source media toolkit for building internet streaming applications at scale"
+
+upstream:
+  url: https://mistserver.org/
+  repo_url: https://github.com/DDVTECH/mistserver
+  license: Unlicense (public domain dedication, 0BSD as fallback for jurisdictions that don't recognize it); bundled mbedtls dependency is Apache-2.0/GPL-2.0
+  docker_image: ddvtech/mistserver:3.11.2
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml file is published by DDVTECH; the
+    official docs page at
+    https://docs.mistserver.org/mistserver/installation/docker/
+    (docs.mistserver.org, DDVTECH's own site) embeds two minimal compose
+    snippets inline rather than linking a downloadable file — a rolling
+    reference, not version-pinned, that reflects whatever the docs
+    currently show. The docs give two variants:
+    one using `network_mode: host`, one using explicit `ports:` mappings
+    for 8080/443/4242/8889(udp)/5554/4200; the `ports:`-based variant is
+    the more broadly applicable one (host networking is Linux-only and
+    less portable) and is what a recipe would start from. DDVTECH also
+    maintains github.com/DDVTECH/mistserver-bootstrap, which does contain
+    an actual docker-compose.yml (plus Grafana/Prometheus/Caddy services
+    and a custom-built image rather than the published ddvtech/mistserver
+    image) — the docs explicitly link to it for "a more complete setup" —
+    but its own README frames it as a demo/quick-experimentation
+    environment, not a production deployment, so it isn't adopted here as
+    the official compose file.
+
+version_health:
+  latest_version: "3.11.2"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~12 days since 3.11.2 as of 2026-08-05. Recent cadence: 3.11.1
+    (2026-07-16), 3.11 (2026-07-15, new webcodecs player/protocol), 3.10
+    (2026-01-29), 3.9.2 (2025-11-27), 3.9.1 (2025-11-25), 3.9 (2025-11-24,
+    Enhanced RTMP + JWT auth). Mix of feature releases every 1-7 months and
+    fast-turnaround patch releases (3.11.2 shipped 9 days after 3.11.1 to fix
+    a libSRT CVE) — real, security-conscious maintenance, not a stalled
+    project. Maintained by DDVTech B.V., no archival or EOL notice.
+
+catalogue_fit:
+  categories: [media, streaming, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches media/video
+    streaming — closest neighbors (Immich for photo/video library,
+    Home Assistant for camera feeds) are consumption/archival tools, not an
+    OTT ingest-transcode-deliver toolkit. MistServer would open a genuinely
+    new category: live RTMP/SRT/RTSP ingest with HLS/DASH/WebRTC output,
+    aimed at developers or small broadcasters building their own streaming
+    service rather than typical self-hoster productivity/monitoring use
+    cases.
+  usefulness: medium
+  usefulness_rationale: >
+    Technically distinctive and well-engineered, but the audience is narrow
+    (developers/integrators building a streaming product) compared to the
+    rest of the catalogue's general-purpose self-hosting tools, and it needs
+    real operational care (shared memory sizing, multiple raw protocol
+    ports, stream-key management) beyond "set a domain and go."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MISTSERVER_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: MISTSERVER_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      MistServer ships with no accounts at all. On first HTTP connection to
+      the controller (port 4242/8080) it returns a "NOACC" status and
+      accepts an unauthenticated API call carrying new_username/new_password
+      in plaintext to create the very first admin account — whoever gets
+      there first wins. There is no config.json field or env var to
+      pre-seed this account server-side before the port is public, so this
+      is structurally the same "first HTTP visitor claims admin" race as
+      n8n's owner-setup wizard, and needs the same fix: a Traefik
+      basic_auth gate (root-password hash) in front of the whole app so
+      only the customer can ever reach the account-creation screen. That
+      gate is exactly the still-unmerged IF-1312 mechanism, so this is
+      blocked on the same platform work as n8n/WUD, not something specific
+      to MistServer.
+    - >
+      Even once basic_auth lands, the app's core value — RTMP (1935),
+      RTSP (5554), and raw UDP (8889, 18203) ingest/egress — sits on
+      non-HTTP ports that Traefik cannot front at all; only the HTTP
+      control panel benefits from the gate. This is inherent to the app's
+      function (comparable to wg-easy's UDP WireGuard port) rather than a
+      credential-input gap, so it doesn't block installability, but a
+      recipe would need to expose those ports raw and rely on MistServer's
+      own per-stream keys/JWT auth (3.9+) for ingest protection — worth
+      flagging as a caveat for whoever builds this.
+    - >
+      MistServer also recommends a non-default --shm-size (docs suggest
+      1-4GB vs Docker's 64MB default) and, per the official docs, a config
+      file + video-storage bind mount rather than a self-contained volume —
+      more infra-shaping than a typical single-container recipe, though not
+      a hard blocker.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  MistServer is an active, well-maintained, genuinely differentiated
+  candidate — no streaming/OTT toolkit exists in the catalogue today — but
+  it is blocked on the same unmerged Traefik basic_auth mechanism (IF-1312)
+  that gates n8n-style "first visitor creates the admin account" apps,
+  since MistServer has no login at all until someone hits its
+  account-creation API. Once that mechanism ships this becomes
+  build_with_caveats: the HTTP control panel can be gated and reverse
+  proxied, but the RTMP/RTSP/UDP ingest ports are raw by design and need to
+  stay that way, and the niche technical audience makes this a lower
+  catalogue priority than more broadly useful gaps.

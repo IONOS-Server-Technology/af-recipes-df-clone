@@ -1,0 +1,125 @@
+slug: excalidash
+name: ExcaliDash
+source_description: "Self-hosted dashboard to organize, manage, and collaborate on your Excalidraw drawings"
+
+upstream:
+  url: https://github.com/ZimengXiong/ExcaliDash
+  repo_url: https://github.com/ZimengXiong/ExcaliDash
+  license: LGPL-3.0
+  docker_image: "zimengxiong/excalidash-backend, zimengxiong/excalidash-frontend (no single official image — two-service stack, no pinned-version tags published, only :latest)"
+  compose_file_url: https://raw.githubusercontent.com/ZimengXiong/ExcaliDash/main/docker-compose.prod.yml
+  compose_file_notes: >
+    Official — the project's own README installation section instructs
+    `curl -OL https://raw.githubusercontent.com/ZimengXiong/ExcaliDash/main/docker-compose.prod.yml`
+    as the way to get the production compose file, pulling the published
+    Docker Hub images (matches this recipe's docker_image entries) rather
+    than building from source. This is a rolling reference to the default
+    branch (`main`), not version-pinned to a release tag — there is no
+    `/releases/latest/download/...` style asset for it, consistent with the
+    project only publishing `:latest` image tags noted above. Picked
+    `docker-compose.prod.yml` over the repo-root `docker-compose.yml`
+    because the README explicitly labels the latter as the local-dev
+    variant (`docker compose build && docker compose up -d`, i.e. builds
+    from source) while `docker-compose.prod.yml` is the one documented for
+    deploying the published images. The repo also ships
+    `docker-compose.lab.yml`, `docker-compose.local-multi.yml`,
+    `docker-compose.oidc.yml`, and `docker-compose.pg-test.yml` for other
+    scenarios (multi-node lab setups, OIDC auth, Postgres testing) — not
+    relevant to a standard single-instance deployment.
+
+version_health:
+  latest_version: "v0.5.1 (2026-06-21); v0.6.0-dev in active development as of 2026-07-20"
+  latest_release_date: "2026-06-21"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~1.5 months since the last tagged release (2026-06-21 to today, 2026-08-05),
+    with a steady release cadence through 2026 (v0.4.27 Feb, v0.4.28 Mar,
+    v0.5.0 Apr, v0.5.1 Jun) and a dev branch already at v0.6.0-dev with new
+    features (built-in AI canvas assistant, multi-provider LLM support,
+    scheduled backups) as of 2026-07-20. Genuinely active, no EOL/dormancy
+    concern. Note the project only publishes `:latest` Docker tags, not
+    versioned image tags matching the VERSION file/GitHub releases — a
+    pin-to-a-stable-tag recipe would need to pin by digest instead of a
+    human-readable version tag.
+
+catalogue_fit:
+  categories: [productivity, collaboration, diagramming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers diagramming/whiteboarding.
+    ExcaliDash adds persistent storage, organization (collections/search),
+    version history, and multi-user real-time collaboration on top of
+    Excalidraw's open .excalidraw format — a self-hosted alternative to
+    excalidraw.com's cloud collaboration or commercial whiteboard SaaS
+    (Miro, FigJam) for teams wanting to keep drawings on their own server.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche (no equivalent recipe today) but a narrower audience
+    than our general-purpose recipes — mainly technical/product teams doing
+    diagramming and light design collaboration, not a broad horizontal need.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JWT_SECRET
+    - CSRF_SECRET
+    - EXCALIDASH_BASIC_AUTH_GATE
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: CSRF_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: EXCALIDASH_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app's own admin-account creation is not projectable via
+      `generated_from`: on first boot it enters an interactive "bootstrap
+      setup" flow gated by a one-time code the operator must read from
+      container logs (`docker compose logs backend | grep "BOOTSTRAP SETUP"`),
+      then the admin chooses their own username/password directly in the web
+      UI. There is no env var to preset the admin identity or a password
+      hash — confirmed against the project's own AGENTS.md, which documents
+      no such variable. A managed-hosting customer has no way to read
+      container logs to retrieve the one-time code, so the documented
+      bootstrap path is unusable as shipped.
+    - >
+      The only documented escape is `DISABLE_ONBOARDING_GATE=true`, which
+      upstream explicitly labels "not recommended" — it skips the code check
+      entirely and leaves the instance open for whoever visits first to
+      register as admin (a claim-race). This is mechanically the "app with no
+      built-in login until first use" case our Traefik `basic_auth` gate
+      pattern already covers (same shape as n8n/WUD/Open WebUI): gating the
+      whole app behind a root-password-derived basic_auth credential closes
+      the race window, so the app only becomes reachable — and thus
+      claimable — by the customer. This works today, but it means shipping a
+      recipe that runs against the vendor's own stated security guidance
+      (disabling their onboarding gate) rather than through a channel they
+      intended.
+    - >
+      No single official Docker image, and no versioned tags — only `:latest`
+      for both `excalidash-backend` and `excalidash-frontend` — so pinning to
+      "a current stable tag" (our usual convention) isn't directly possible;
+      would need to pin by image digest instead.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ExcaliDash is an active, actively-developed self-hosted Excalidraw
+  dashboard with no equivalent in our 24-recipe catalogue — genuine
+  differentiation for diagramming/collaboration use cases. It clears the
+  installability bar only via a workaround: its documented admin-bootstrap
+  flow needs a one-time code from container logs that a managed-hosting
+  customer can't retrieve, so `installable_today` relies on setting
+  `DISABLE_ONBOARDING_GATE=true` (upstream's own "not recommended" escape
+  hatch) and closing the resulting open-admin-claim race with a Traefik
+  basic_auth gate — the same no-native-login pattern used elsewhere in the
+  catalogue, but here achieved by deliberately bypassing the vendor's
+  intended onboarding security rather than through a channel they designed
+  for it. Combined with the two-service (backend+frontend) shape, no
+  official single image, and no versioned Docker tags (only `:latest`),
+  this is a build_with_caveats candidate: mechanically buildable today, but
+  with more rough edges than a typical recipe.

@@ -1,0 +1,102 @@
+slug: scoold
+name: Scoold
+source_description: "Self-hosted Stack Overflow-style Q&A platform for team knowledge sharing"
+
+upstream:
+  url: https://scoold.com/
+  repo_url: https://github.com/Erudika/scoold
+  license: Apache-2.0
+  docker_image: erudikaltd/scoold:1.69.3
+  compose_file_url: https://raw.githubusercontent.com/Erudika/scoold/master/docker-compose.yml
+  compose_file_notes: >
+    Official, from the project's own repo root (also embedded verbatim on
+    scoold.com/documentation/deployment/docker/, which shows the same
+    two-service Para+Scoold shape). Rolling reference, not version-pinned:
+    it lives on the `master` branch and both services are pinned to the
+    `:latest_stable` image tag rather than a numbered release, which the
+    docs explicitly recommend over `:latest` ("`:latest` can be
+    broken/unstable"). Only one OSS variant exists at this path; the docs
+    page also shows a second "Scoold Pro" compose file (private AWS ECR
+    image, extra scooldUploads volume) which is a paid/closed-source
+    edition, not the one this recipe targets.
+
+version_health:
+  latest_version: 1.69.3
+  latest_release_date: "2026-07-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release 1.69.3 on 2026-07-09, i.e. under a month before this
+    analysis (2026-08-06). Master last committed 2026-08-05 (one day
+    before), and Docker Hub's `latest` tag was pushed 2026-08-05, so both
+    source and image pipeline are live. Ten releases in 2026 alone
+    (1.66.0 Jan → 1.69.3 Jul), roughly monthly — clearly active, not
+    maintenance-only, not archived. The required Para backend
+    (github.com/Erudika/para) is equally healthy: 1.54.7 on 2026-06-04,
+    same maintainer/vendor (Erudika). Note the open-source edition is the
+    loss-leader for a paid "Scoold Pro"; the OSS build is nonetheless
+    fully functional and Apache-2.0, and the vendor is a small
+    bootstrapped company (single-maintainer bus factor, ~920 stars) —
+    lower project mass than most of our catalogue but no dormancy signal.
+
+catalogue_fit:
+  categories: [knowledge-base, community, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No current recipe covers Q&A / community forums — the nearest
+    neighbours are paperless-ngx/paperless-ai (document archive) and
+    gitea/opengist (code), a different problem. Scoold is a
+    Stack-Overflow-shaped internal knowledge base: questions, answers,
+    voting, tags, reputation, spaces, plus SSO/LDAP/SAML options in the
+    OSS build. It overlaps functionally with the previously analysed
+    candidate apache-answer.yaml (also `build_now`, also Q&A), which is a
+    single container with an embedded SQLite DB versus Scoold's mandatory
+    two-JVM Scoold+Para split; per CLAUDE.md overlap between candidates
+    is not a reason to reject either.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuine, recurring self-host demand (internal support/knowledge Q&A
+    as a Stack Overflow Teams replacement), but a more specialised
+    audience than the general-purpose tools in the catalogue, and the
+    architecture is heavier than the competing Q&A candidate for the same
+    end-user value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - PARA_ROOT_SECRET_KEY
+  secrets_expressible_today:
+    - secret: PARA_ROOT_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Scoold is an actively developed (release 1.69.3, 2026-07-09; commits
+  yesterday) Apache-2.0 Q&A platform with a single HTTP UI on port 8000,
+  so it fronts cleanly behind Traefik on scoold.<base_domain> with no raw
+  ports. It cannot run alone: it is a client of Erudika's Para backend,
+  so the recipe is a two-service compose (erudikaltd/scoold plus
+  erudikaltd/para on internal 8080) in the shape of recipes/immich or
+  recipes/anytype-server — Para needs no external DB or Elasticsearch
+  (embedded H2 + Lucene by default), just two volumes, but budget for two
+  JVMs' RAM. Crucially, none of its credentials need a customer input
+  channel: upstream's own compose wires Scoold to Para via
+  `scoold.autoinit.para_config_file` (or `autoinit.root_app_secret_key`),
+  a patternless root secret we generate server-side exactly like immich's
+  auto-generated DB_PASSWORD, and the admin account (email, name,
+  password) is created by the first-run onboarding wizard in the browser
+  — the pattern already shipped for immich and proposed for apache-answer
+  — with email verification auto-disabled when no SMTP host is set, so no
+  mail relay is required to boot. Recommending build_now: installable
+  today with no blocking issues. Implementation notes for the coder, not
+  caveats against the recommendation: the onboarding wizard is open to
+  whoever reaches the domain first (same first-run race we already accept
+  elsewhere, mitigable with a Traefik basic_auth gate), the wizard
+  persists settings by rewriting its own application.conf so install.sh
+  must bind-mount a writable config file for each service rather than
+  pass env vars, and `scoold.host_url` must be templated to the
+  customer's HTTPS domain up front or OAuth/links break.

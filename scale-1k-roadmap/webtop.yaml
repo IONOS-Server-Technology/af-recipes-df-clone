@@ -1,0 +1,95 @@
+slug: webtop
+name: WebTop
+source_description: "Browser-based Linux desktop environment for remote access and productivity"
+
+upstream:
+  url: https://docs.linuxserver.io/images/docker-webtop/
+  repo_url: https://github.com/linuxserver/docker-webtop
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/webtop
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file is published by
+    LinuxServer.io for Webtop — neither in the docker-webtop GitHub repo
+    root (which contains only the Dockerfile, README, and CI config, no
+    docker/ or deploy/ directory) nor as a separate downloadable asset.
+    The docs.linuxserver.io "docker-webtop" page and the repo README both
+    embed a compose snippet inline as documentation text (image
+    lscr.io/linuxserver/webtop:latest, ports 3000/3001, /config volume,
+    shm_size 1gb) rather than linking to a maintained file, matching the
+    same pattern already seen for other LinuxServer.io images in this
+    catalogue (e.g. Wavelog). Treating that embedded snippet as an
+    "official compose file" would be adopting undocumented-as-a-file
+    boilerplate, not linking a project-published artifact, so
+    compose_file_url is left null.
+
+version_health:
+  latest_version: "ubuntu-xfce (tag family, e.g. 10.06.26 base rebase)"
+  latest_release_date: "2026-06-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    LinuxServer.io ships Webtop as a matrix of tags (base OS: alpine/ubuntu/
+    fedora/arch × desktop: xfce/kde/mate/i3), not a single semver line —
+    there is no one "latest_version" the way a normal app has. The most
+    recent noted base rebase (Alpine 3.24) landed 2026-06-10, about two
+    months before today (2026-08-05), and Docker Hub shows image layers
+    pushed within the last few days of the check, consistent with LSIO's
+    usual weekly-ish rebuild cadence across the whole tag matrix. Repo is
+    not archived and is actively maintained as part of the broader
+    LinuxServer.io project (same team/cadence as their other images already
+    absent from this catalogue). Treat as active, not dormant.
+
+catalogue_fit:
+  categories: [remote-desktop, productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    Guacamole is a clientless *gateway* to external RDP/VNC/SSH targets the
+    customer already has; it does not provide compute of its own. Webtop is
+    the opposite shape: a self-contained containerized Linux desktop (XFCE/
+    KDE/MATE/i3 on Alpine/Ubuntu/Fedora/Arch) that the customer runs and
+    uses directly through the browser — no external target needed. Useful
+    for a disposable/sandboxed browsing or GUI-app desktop, a lightweight
+    remote workstation, or running Linux-only GUI tools from a
+    Chromebook/tablet. Distinct enough from Guacamole's use case (remote
+    access to *existing* infrastructure) to not be a straight duplicate,
+    though both sit in a "browser-based desktop access" niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Real but niche appeal — developers/power users wanting a disposable
+    Linux GUI environment, or non-technical users who just want a browser
+    they can walk away from. Resource cost (full desktop + WM) is higher
+    than most of the catalogue's single-purpose services, and it's a
+    "general purpose computer" rather than solving one job, which makes it
+    harder to market than a task-specific recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Webtop is a single-container app (one exposed HTTP port for the noVNC/
+  Kasm-based web desktop) with no database and, per upstream's own docs, "no
+  authentication" out of the box unless the operator sets CUSTOM_USER/
+  PASSWORD env vars for the image's built-in basic auth. Those env vars take
+  a plaintext credential, which our recipe mechanism has no channel for
+  (generated_from only ever projects a hash) — so the correct approach is to
+  leave the app's built-in auth off and gate the public port with Traefik
+  basic_auth instead, same pattern as Adminer/WUD/Web-Check. That makes it
+  mechanically installable today with just a domain + basic_auth secret.
+  Upstream (LinuxServer.io) is actively maintained with a rolling per-flavor
+  tag matrix rather than a single version line. No blocking issues remain,
+  so this is mechanically build_now. It overlaps conceptually with
+  Guacamole's "browser-based remote desktop" niche (though serving a
+  different use case — self-contained desktop vs. gateway to existing
+  infra) and carries a heavier resource footprint than most of the
+  catalogue; those are descriptive facts about fit, not reasons to hold
+  back the build.

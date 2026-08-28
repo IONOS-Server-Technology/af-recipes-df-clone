@@ -1,0 +1,95 @@
+slug: watcharr
+name: Watcharr
+source_description: "Self-hosted watched list for movies, TV shows, anime, and video games"
+
+upstream:
+  url: https://watcharr.app
+  repo_url: https://github.com/sbondCo/Watcharr
+  license: GPL-3.0
+  docker_image: ghcr.io/sbondco/watcharr
+  compose_file_url: https://raw.githubusercontent.com/sbondCo/Watcharr/main/docker-compose.yml
+  compose_file_notes: >
+    Official file, ships at the repo root (github.com/sbondCo/Watcharr).
+    It is a rolling reference to the default branch (`main`), not
+    version-pinned — the file itself has no release-tagged variant (the
+    latest release, v4.2.1, has no docker-compose asset attached), and
+    the compose file pins the image to `ghcr.io/sbondco/watcharr:latest`
+    rather than a specific tag, though the project's own docs recommend
+    pinning to a specific version tag for production use. The official
+    docs page (watcharr.app/docs/installation/docker-compose) embeds the
+    identical content inline rather than linking to the raw file, so the
+    repo-root raw link was chosen as the more direct/durable source.
+    There is only one variant shipped (single service, SQLite-backed via
+    the mounted data volume) — no separate GPU/CPU or dev/prod split for
+    the production compose file (a docker-compose.dev.yml exists but is
+    for contributor development, not deployment).
+
+version_health:
+  latest_version: v4.2.1
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v4.2.1 was pushed 2026-08-04, one day before today
+    (2026-08-05). The release history immediately before it is dense:
+    v4.2.0 (2026-08-03), v4.1.1 (2026-07-26), v4.1.0 (2026-07-19), v4.0.1
+    (2026-07-16), v4.0.0 (2026-07-11) — five releases in under a month —
+    and further back v3.0.1/v3.0.0 (2026-03-09/03-04) and v2.x releases
+    through 2025. No archive banner, no EOL announcement; this is a
+    clearly actively-maintained project with a fast, ongoing release
+    cadence, not a slowing or dormant one.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal watch-list/media
+    tracking (a Trakt/Letterboxd-style log of what you've watched/played
+    and want to watch next). The closest recipe by infra shape is Immich,
+    but Immich is photo/video backup and library management, not a
+    watched-list tracker — different purpose and different data model.
+    Watcharr would be new ground for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted watch-list tracking (movies/TV/anime/games, one profile
+    per household member, ratings and stats) is a well-known, popular
+    self-hosting category with no SaaS-privacy-free alternative in our
+    catalogue today, and the app is small (single container, SQLite by
+    default) and actively maintained, making it an easy, low-risk addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Watcharr has no admin credential settable via environment variable
+      or config at container boot (confirmed against the shipped
+      docker-compose.yml, which only mounts a data volume and exposes
+      port 3080 — no auth-related env vars at all). Per upstream docs,
+      "the first user created will become admin" via an in-app
+      registration form; there is no pre-provisioned login to project a
+      `generated_from` hash into. A Traefik `basic_auth` gate is the only
+      first-boot secret needed — it protects the signup race until the
+      customer completes their own in-app registration and becomes admin,
+      the same pattern used for other no-login apps in the catalogue
+      (n8n, Open WebUI, Immich).
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Watcharr is a single-container Go/SvelteKit app (ghcr.io/sbondco/watcharr,
+  official image, SQLite by default, one HTTP port 3080) that is
+  reverse-proxy-compatible and structurally similar to Vaultwarden/
+  Uptime Kuma-style single-container recipes. It has no built-in admin
+  credential — the first registrant becomes admin — so it clears the
+  installability bar the same way n8n/Open WebUI/Immich do: a mandatory
+  Traefik basic_auth gate covers the pre-registration window, after which
+  the customer's own in-app signup handles admin access. Upstream is
+  actively and rapidly maintained (five releases in the month before this
+  analysis) and fills a genuine gap — no watch-list/media-tracking recipe
+  exists today. Recommend build_now.

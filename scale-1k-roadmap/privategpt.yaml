@@ -1,0 +1,123 @@
+slug: privategpt
+name: PrivateGPT
+source_description: "Self-hosted RAG engine for chatting with private documents using local LLMs"
+
+upstream:
+  url: https://www.zylon.ai/private-gpt
+  repo_url: https://github.com/zylon-ai/private-gpt
+  license: Apache-2.0
+  docker_image: zylonai/private-gpt
+  compose_file_url: null
+  compose_file_notes: >-
+    No official docker-compose.yaml/.yml exists. The project's own docs
+    (docs.privategpt.dev/installation/docker) and the GitHub README only
+    document a bare `docker run` command against the zylonai/private-gpt
+    image (plus a "build from source" path using `docker build`, not
+    compose) — no compose file is linked, embedded, or shipped at the repo
+    root or under any docker/deploy/contrib directory. Checked both the
+    quickstart guide and the dedicated Docker installation page; neither
+    references docker-compose at all.
+
+version_health:
+  latest_version: "1.0.1"
+  latest_release_date: "2026-06-18"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    v1.0.1 shipped 2026-06-18, about 1.5 months before today (2026-08-05),
+    following v1.0.0 (2026-06-03) two weeks earlier — that pair looks
+    active. But the version line before it tells a different story: the
+    prior public release was v0.6.2 on 2024-08-08, meaning the project went
+    ~22 months with zero public releases before v1.0.0 landed. Per the
+    "PrivateGPT 1.0 is out" announcement (Zylon-ai/private-gpt discussion
+    #2259, posted 2026-06-04), that gap is explained — Zylon built a
+    commercial product on a private fork of PrivateGPT for two years and
+    only merged it back into the open repo at v1.0.0, closing the private
+    fork going forward. So the repo is not dormant/archived (57k+ stars,
+    hundreds of commits, two releases in the last 2 months, no archival
+    notice), but it also is not the same application Hostinger's
+    description refers to: v0.6.2 and earlier were the lightweight
+    "chat-with-your-documents" RAG tool; v1.0+ is a full API backend
+    framework (Claude-compatible messages API, agentic tools, MCP
+    connectors, code execution, text-to-sql) aimed at developers building AI
+    products, not an end-user RAG chat app. Cadence is rated "sporadic"
+    because the sample since the relaunch is only two releases across two
+    months, following a two-year public silence.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama, anythingllm]
+  differentiation: >-
+    On paper PrivateGPT still exposes a single HTTP port with a bundled
+    "workbench" UI at /ui for chatting, uploading documents, and inspecting
+    API calls, and it still fronts local LLMs via any OpenAI-compatible
+    server (the same Ollama pairing already used by open-webui). But the
+    project itself has moved off the "chat with your documents" use case
+    Hostinger describes and repositioned as a developer-facing backend
+    framework: a Claude-compatible messages API, MCP connectors, code
+    execution, database/text-to-sql tools, and skills, meant to be built on
+    top of rather than used directly. Its actual RAG-chat surface area
+    (ingest a doc, ask questions with citations) is a strict subset of what
+    anythingllm already does with a more end-user-oriented UI, and the
+    "any OpenAI-compatible backend + browser chat UI" pairing is exactly
+    open-webui + ollama. There is no capability here a customer can't
+    already get from the existing catalogue.
+  usefulness: low
+  usefulness_rationale: >-
+    The application Hostinger's description advertises (a turnkey
+    self-hosted RAG chat tool) is effectively the abandoned pre-1.0
+    PrivateGPT; the application that actually ships today under that name
+    and image is a developer backend/API framework whose intended integration
+    surface (custom clients calling a Claude-compatible messages API,
+    MCP tooling, code execution sandboxes) doesn't map well to a
+    self-service AF customer clicking "install" and expecting a chat app.
+    Combined with heavy functional overlap against open-webui, ollama, and
+    anythingllm — all more end-user-appropriate for the exact use case being
+    advertised — this doesn't add distinct value to the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >-
+      The app ships no customer-facing login of its own: server.auth in
+      settings.yaml defaults to enabled: false, and unlike almost every
+      other setting in that file (which are all ${VAR:default}
+      env-var-interpolated), the auth secret is a single hardcoded
+      base64 "Basic secret:key" string with no corresponding env var — it
+      can only be changed by mounting a custom settings.yaml, not through
+      any documented environment variable. That rules out
+      generated_from-based root-password projection onto the app's own
+      auth entirely (there is no env var to project into). A Traefik
+      basic_auth gate in front of the single public port (:8080, same
+      pattern as n8n/OpenClaw/WUD/Open WebUI/Immich) is required and fully
+      expressible today via generated_from targeting the Traefik gate
+      credential.
+    - >-
+      Full-feature usage (task queues, multi-tenant storage, observability)
+      pulls in Postgres, Redis, RabbitMQ, S3-compatible storage, and Celery
+      workers per settings.yaml, but every one of those has a working local
+      default (sqlite skills DB, local Qdrant path, in-memory broker/cache),
+      so a minimal single-container deployment pointed at a bundled Ollama
+      service via OPENAI_API_BASE is possible and does not require any of
+      that extra infrastructure or any customer-supplied secret for it.
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  PrivateGPT is mechanically installable today — a single container behind
+  Traefik basic_auth, pointed at a bundled Ollama via OPENAI_API_BASE, with
+  no external API key or unreachable secret required. The upstream project
+  quietly pivoted at v1.0 (2026-06-03), after ~22 months of building a
+  commercial product on a closed fork, from the lightweight "chat with your
+  private documents" tool Hostinger's description still describes into a
+  developer-oriented AI backend framework (Claude-compatible messages API,
+  MCP, code execution, text-to-sql), and the RAG-chat surface it does retain
+  overlaps with anythingllm and open-webui + ollama. None of that bears on
+  installability: there is no blocking secret or infrastructure gap, so
+  recommend build_now.

@@ -1,0 +1,88 @@
+slug: lazylibrarian
+name: LazyLibrarian
+source_description: "Self-hosted automation for ebook and audiobook downloads with author tracking"
+
+upstream:
+  url: https://lazylibrarian.gitlab.io/
+  repo_url: https://gitlab.com/LazyLibrarian/LazyLibrarian
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/lazylibrarian
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The LazyLibrarian project itself
+    (GitLab repo and docs site) has no docker-compose.yaml/.yml at its repo
+    root or in any docker/deploy/contrib directory, and its README's
+    "Docker packages" section only points to the LinuxServer.io image
+    (hub.docker.com/r/linuxserver/lazylibrarian) plus a third-party
+    ("sasquatters.com") docker tutorial — no compose file is linked or
+    embedded. LinuxServer.io does publish its own example docker-compose.yml
+    on its own docs site for this image, but that is LinuxServer's packaging
+    documentation, not an artifact the LazyLibrarian project publishes or
+    maintains itself, so it is not adopted here as official.
+
+version_health:
+  latest_version: "68d7be35-ls315 (LinuxServer build tag, tracking upstream master); ls326-series builds shipped 2026-08-03/05"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Ambiguous project history but NOT ambiguous today: the original
+    github.com/DobyTang/LazyLibrarian repo is a frozen fork — its own README
+    says development moved to a new upstream. A second GitHub mirror
+    (github.com/lazylibrarian/LazyLibrarian) also exists and was considered,
+    but the canonical, actively-maintained source is the GitLab repo
+    (gitlab.com/LazyLibrarian/LazyLibrarian), which the LinuxServer.io image
+    tracks directly. LinuxServer cut multiple image builds on 2026-08-03 and
+    2026-08-05 (today), each following an upstream commit — this is a
+    continuously-released, actively maintained project, not dormant. There is
+    no official upstream Docker image from the LazyLibrarian project itself;
+    LinuxServer.io's image is the de-facto standard distribution channel, the
+    same pattern already accepted for other self-hosted *arr-style apps.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers ebook/audiobook library management or
+    author-based download automation — the closest neighbors in the
+    catalogue (paperless-ngx/paperless-ai for scanned documents, immich for
+    photos) target different media types entirely. LazyLibrarian fills a
+    distinct "personal media automation" niche (Sonarr/Radarr-equivalent for
+    books) that customers running the rest of the self-hosted media stack
+    would expect to find.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, non-overlapping demand from the self-hosted/home-media audience,
+    single container, single HTTP port, and no raw-protocol requirements —
+    fits our reverse-proxy model cleanly. Rated medium rather than high
+    because it depends on external indexers/download clients (NZB/torrent) to
+    be useful in practice, which most customers won't have configured, and
+    because it's a narrower audience than general-purpose tools already in
+    the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["ACCESS_GATE"]
+  secrets_expressible_today:
+    - secret: ACCESS_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LazyLibrarian is a single-container, single-HTTP-port app with no
+  overlapping recipe in the current catalogue and an actively maintained
+  upstream (LinuxServer.io image rebuilt as recently as today, 2026-08-05).
+  It ships with no built-in login enabled by default — HTTP basic auth
+  (http_user/http_pass) exists as an optional app-level setting but is
+  configured post-boot through the web UI/config.ini, not via any container
+  environment variable, so it cannot be projected from the customer's root
+  password via generated_from. The correct fit is a Traefik basic_auth gate
+  in front of the app's single public port, the same pattern already used
+  for other no-login tools in this catalogue. That mechanism, once IF-1312
+  merges, fully covers this app's only first-boot secret need, so nothing
+  else blocks it — build_now once basic_auth ships (or immediately if it's
+  already considered available for new recipes).

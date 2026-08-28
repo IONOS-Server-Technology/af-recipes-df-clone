@@ -1,0 +1,96 @@
+slug: dashdot
+name: dashdot
+source_description: "Minimalist server dashboard with real-time CPU, RAM, storage, and network stats"
+
+upstream:
+  url: https://getdashdot.com
+  repo_url: https://github.com/MauriceNino/dashdot
+  license: MIT
+  docker_image: mauricenino/dashdot
+  compose_file_url: https://getdashdot.com/docs/installation/docker-compose
+  compose_file_notes: >
+    No standalone docker-compose.yml/.yaml file exists in the
+    MauriceNino/dashdot repo (checked repo tree, no compose file anywhere)
+    or as a repo/release-asset link; the only official source is inline
+    YAML embedded in the docs page above. That page shows two variants:
+    a standard CPU version (image mauricenino/dashdot:latest) and a
+    GPU-enabled variant (image mauricenino/dashdot:nvidia, adds GPU device
+    reservations and a DASHDOT_WIDGET_LIST env var). Picked the CPU
+    variant as representative since it is the default/first-listed option
+    and matches the docker_image already recorded above; the GPU variant
+    is an opt-in extra. Both variants pin the image to the `latest` tag,
+    i.e. a rolling reference to the newest published image, not a
+    version-pinned tag.
+
+version_health:
+  latest_version: "v6.3.4"
+  latest_release_date: "2026-03-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~5 months since v6.3.4 (2026-03-03) as of today (2026-08-05), but repo
+    history shows a burst of 5 releases (v6.2.1–v6.3.4) between 2026-01-05
+    and 2026-03-03 after a longer gap from v6.2.0 (2025-08-10). Last commit
+    (pushed_at) is 2026-07-30, five days before today, so the project is
+    actively maintained even without a fresh tag. 55 open issues, not
+    archived. Classified active, not sporadic/dormant.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue shows live host-hardware
+    telemetry (CPU/RAM/storage/network utilization graphs) as its primary
+    purpose. Uptime Kuma monitors external service availability, not the
+    host's own resource usage, so it is not a true overlap. dashdot would be
+    a lightweight "is my VPS running hot" glance dashboard, distinct from
+    log/uptime/update tooling already offered.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for at-a-glance server resource dashboards on small
+    VPS/private-server audiences (dashdot's own stated niche), but it is a
+    read-only nice-to-have rather than something customers depend on daily,
+    and its core mechanism (privileged + full host-root mount, see below) is
+    a heavier ask than most of our existing single-container recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      dashdot ships with zero authentication of its own — the upstream
+      docker-compose example exposes the dashboard directly with no login
+      screen, so it must sit behind Traefik basic_auth (expressible today,
+      not a hard blocker) or it is wide open on the internet.
+    - >
+      Upstream's only documented deployment path (docker/docker-compose
+      installation docs) requires `privileged: true` plus a bind mount of
+      the entire host root filesystem read-only (`-v /:/mnt/host:ro`) so it
+      can read real hardware/OS stats from outside the container namespace.
+      This is not a customer-supplied-secret problem, but it is a real
+      platform-risk concern on shared customer VMs: it violates
+      `bind-mount-under-opt` (WARN, host path is `/` not `/opt/dashdot/`)
+      and triggers `no-privileged-without-justification` (WARN, would need
+      an explicit `metadata.notes` justification). Neither is an RFC-002
+      ERROR, so it would not fail validation, but reviewers should weigh
+      whether "read-only root mount + privileged" is an acceptable trade for
+      a nice-to-have dashboard before this is built.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  dashdot is an actively maintained (last commit 5 days before this
+  analysis), single-container, no-login server dashboard with no overlap in
+  the current catalogue. Its one required secret — a Traefik basic_auth
+  gate, since it has no built-in auth — is fully expressible today via the
+  existing mechanism, so it is not blocked on missing platform features.
+  The catalogue-fit concern is architectural rather than about secrets:
+  upstream's only supported deployment needs `privileged: true` and a
+  read-only bind mount of the whole host root filesystem, which are WARN-
+  level RFC-002 flags worth a deliberate call before committing to a recipe,
+  not a hard installability blocker.

@@ -1,0 +1,76 @@
+slug: exelearning
+name: eXeLearning
+source_description: "Open-source authoring tool for interactive SCORM and HTML5 educational content"
+
+upstream:
+  url: https://exelearning.net/en/home-2/
+  repo_url: https://github.com/exelearning/exelearning
+  license: AGPL-3.0
+  docker_image: exelearning/exelearning
+  compose_file_url: https://raw.githubusercontent.com/exelearning/exelearning/main/doc/deploy/docker-compose.sqlite.yml
+  compose_file_notes: >
+    Official, from the project's own repo (doc/deploy/ contains three
+    production deployment variants documented in doc/deploy/README.md:
+    sqlite, mariadb, postgres — sqlite picked here as it matches this
+    recipe's summary of a self-contained, no-external-DB deployment). This
+    is a rolling reference to the default branch (raw.githubusercontent.com
+    .../main/...), not version-pinned — no tagged-release URL is offered
+    for this file. Note the repo root also has its own docker-compose.yml,
+    but that one is explicitly marked "mainly intended for development"
+    (builds from source, no production guidance) and points readers to
+    doc/deploy/ for production use, so it was not used here.
+
+version_health:
+  latest_version: "4.0.2"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v4.0.0 (2026-04-30), v4.0.1 (2026-06-09), v4.0.2 (2026-07-07) — three
+    stable releases in ~2.5 months. v4.0 is a from-scratch rewrite of the
+    whole stack (PHP/Symfony/Mercure → Bun/Elysia/Kysely), released as a
+    string of betas/RCs through early-to-mid 2026 before going stable. As of
+    today (2026-08-05) the last stable release is under a month old — clearly
+    active development, not maintenance-only.
+
+catalogue_fit:
+  categories: [education, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover authoring/publishing of educational
+    content (SCORM/HTML5 packages). Closest adjacent categories are
+    productivity/collaboration tools (n8n, Anytype), but eXeLearning serves a
+    distinct customer (educators/trainers building e-learning packages), not
+    a functional duplicate of anything shipped today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, non-overlapping niche (course/SCORM authoring) with an actively
+    maintained upstream and a straightforward single-container Docker story,
+    but it's a narrower audience than general-purpose tools already in the
+    catalogue — unlikely to be a high-volume install, but a clean, low-risk
+    addition.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  eXeLearning is a single-container, actively-developed (v4.0.2, released
+  2026-07-07) open educational content authoring tool with a real web UI,
+  single-port HTTP + WebSocket exposure (fully Traefik-compatible), and an
+  official multi-arch Docker image (exelearning/exelearning) with SQLite
+  support for a self-contained deployment (no external DB service needed).
+  Its only first-boot secret is ADMIN_EMAIL/ADMIN_PASSWORD, which the app
+  accepts as an arbitrary env-var string to create/update the admin account
+  — a direct fit for generated_from root-password projection, same pattern
+  as Vaultwarden's ADMIN_TOKEN. It doesn't duplicate anything in the current
+  24-recipe catalogue and is installable under today's mechanism; a good
+  build_now candidate once a developer picks it up via af-create-recipe.

@@ -1,0 +1,118 @@
+slug: sonarqube
+name: SonarQube
+source_description: "Open-source platform for continuous code quality inspection and security analysis"
+
+upstream:
+  url: https://www.sonarsource.com/products/sonarqube/
+  repo_url: https://github.com/SonarSource/sonarqube
+  license: LGPL-3.0
+  docker_image: sonarqube
+  compose_file_url: https://raw.githubusercontent.com/SonarSource/docker-sonarqube/master/example-compose-files/sq-with-postgres/docker-compose.yml
+  compose_file_notes: >
+    Official — maintained in SonarSource's own `docker-sonarqube` repo
+    (github.com/SonarSource/docker-sonarqube), and directly linked from the
+    official docs (docs.sonarsource.com's "Installing from Docker" page
+    points to this repo's example-compose-files directory as the reference
+    docker-compose.yml). The raw link above tracks the `master` branch, so
+    it is a rolling reference, not pinned to a release tag; it also
+    resolves `image: sonarqube:community` (a rolling tag), not a specific
+    version. Two Community-suitable variants exist in that directory:
+    `sq-with-h2` (bundled H2 database) and `sq-with-postgres` (external
+    Postgres 17 container). Picked `sq-with-postgres` because the repo's
+    own H2 example is documented for local demo/eval use only — H2 is not
+    supported for production SonarQube deployments — while
+    sq-with-postgres matches the production-recommended setup. (There are
+    also `sq-dce-*` Data Center Edition variants and `sq-with-mcp-*`
+    variants for the paid MCP-server add-on; both are outside Community
+    Build's scope and were not picked.)
+
+version_health:
+  latest_version: "26.8.0.126808-community"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    This is SonarQube Community Build, the free/OSS edition Sonar spun out
+    from the commercial "SonarQube Server" line in late 2024. It is on a
+    fast, calendar-flavored rolling cadence: 26.3.0, 26.4.0, 26.5.0, 26.6.0,
+    26.7.0 and 26.8.0 have all shipped within roughly the last two months,
+    i.e. close to weekly, with 26.8.0 landing 2026-08-05 (today). This is
+    clearly `active`, not slowing — Sonar's commercial "SonarQube Server"
+    sibling (calendar-versioned 2026.1 LTA through 2026.4) is on the same
+    active cadence, confirming the whole product line is well maintained,
+    not just the free build.
+
+catalogue_fit:
+  categories: [developer-tools, security]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does static-analysis code
+    quality/security scanning. `recipes/gitea` is the nearest neighbor by
+    audience (developer-tools) but is a Git host, not an analysis engine —
+    a customer would plausibly run both together (push to Gitea, scan with
+    SonarQube via a CI job or the sonar-scanner CLI) rather than choosing
+    one over the other. No overlap.
+  usefulness: high
+  usefulness_rationale: >
+    Static code analysis / code-quality and security-hotspot scanning is a
+    widely-adopted, well-known developer workflow (SonarQube is close to a
+    default choice for this in the industry) and is a distinct capability
+    the catalogue currently lacks entirely. A self-hosted customer running
+    their own Gitea/Forgejo plus CI would have clear use for this.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      SonarQube's own login has no customer-facing input channel: the
+      image ships a fixed default admin/admin account and forces a
+      password change via the web UI on first login, but there is no
+      environment variable or API parameter to preset that password before
+      first boot (unlike Vaultwarden's ADMIN_TOKEN or Gitea's
+      GITEA_ADMIN_PASSWORD). Per apps-gaps/SCHEMA.md's guidance for a fixed
+      default credential the app itself gives no way to change at deploy
+      time, the correct mitigation is a Traefik `basic_auth: true` gate in
+      front of the whole app rather than treating this as a hard blocker —
+      that moves the actual customer-facing auth boundary to the gate,
+      with the still-default admin/admin behind it only reachable by
+      someone who already holds the gate credential.
+    - >
+      The bundled Elasticsearch component enforces standard ES bootstrap
+      checks that require a *host*-level (not container-namespaced) kernel
+      parameter, `vm.max_map_count >= 262144`, or the container fails to
+      start. This is not expressible via Docker Compose `sysctls:` (that
+      only sets namespaced sysctls; `vm.max_map_count` is host-wide) and no
+      existing recipe in this catalogue currently sets a host sysctl from
+      install.sh. It is very likely solvable — install.sh already runs
+      with root/host privileges on the target VM in every existing recipe
+      (e.g. `chown` in `recipes/n8n/install.sh`), so `sysctl -w
+      vm.max_map_count=262144` (plus persisting it in
+      `/etc/sysctl.d/`) should work — but it is an unprecedented pattern in
+      this catalogue and needs a recipe author to actually verify it against
+      the real IONOS VM image before shipping, not a soft assumption.
+  installable_today: false
+  recommendation: build_with_caveats
+
+summary: >
+  SonarQube Community Build is a single official image (`sonarqube`, pin to
+  `26.8.0.126808-community`) exposing one HTTP port (9000), reverse-proxy
+  friendly, and under a genuinely OSS license (LGPL-3.0, core; bundled
+  analyzers are SSALv1 source-available but still free to use). It fills a
+  real, currently-empty gap in the catalogue (static code analysis/security
+  scanning) with no overlap against existing recipes. Installability has two
+  open items rather than a single hard "no": the app's own login (default
+  admin/admin, no way to preset a password before first boot) is solvable
+  today via a Traefik `basic_auth` gate per apps-gaps/SCHEMA.md's guidance on
+  fixed default credentials; but the bundled Elasticsearch's host-level
+  `vm.max_map_count` requirement is a genuinely new pattern for this
+  catalogue (no existing recipe sets a host sysctl) that a recipe author
+  needs to prove out against the actual IONOS VM image before this can ship,
+  which is why `installable_today` is `false` and the recommendation is
+  `build_with_caveats` rather than `build_now`.

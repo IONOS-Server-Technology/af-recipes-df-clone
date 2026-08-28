@@ -1,0 +1,95 @@
+slug: sickgear
+name: SickGear
+source_description: "Stable TV show automation server — the long-running Sick-Beard community fork"
+
+upstream:
+  url: https://github.com/SickGear/SickGear
+  repo_url: https://github.com/SickGear/SickGear
+  license: GPL-3.0
+  docker_image: lscr.io/linuxserver/sickgear (pin to a version tag, e.g. release_3.35.10-ls331 — do not follow upstream examples that use :latest)
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose file exists, from either
+    upstream maintainer. SickGear's own Docker org (github.com/SickGear/
+    SickGear.Docker, "Official SickGear Docker Containers", image
+    sickgear/sickgear on Docker Hub) ships only a Dockerfile — its README
+    embeds an inline docker-compose.yml *example* ("the following can be a
+    basis docker-compose.yml for docker-compose") using image
+    sickgear/sickgear:latest, but no such file is committed to the repo.
+    linuxserver.io's docs site (docs.linuxserver.io/images/docker-sickgear)
+    likewise only embeds an inline compose snippet under "docker-compose
+    (recommended)" using lscr.io/linuxserver/sickgear:latest — again no
+    downloadable file, just documentation prose. This recipe's
+    docker_image field already targets the linuxserver.io image rather
+    than SickGear's own sickgear/sickgear image (linuxserver pins non-
+    :latest release tags and is the image family this catalogue already
+    tracks), but neither publisher provides an actual compose file to
+    link — only copy-paste examples in docs/README.
+
+version_health:
+  latest_version: "3.35.10"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (release_3.35.10) shipped 2026-07-18, about 2.5
+    weeks before today (2026-08-05). The preceding nine releases
+    (3.35.1 through 3.35.9) landed at a steady clip from 2026-03-27 through
+    2026-07-02 — roughly one release every 2-4 weeks, confirmed via the
+    GitHub releases API. The repo's default branch received its latest
+    commit as recently as 2026-08-06 ("Merge branch 'hotfix/3.35.10'" and
+    follow-on changes), so development is continuous between tagged cuts,
+    not just packaging churn. linuxserver/sickgear mirrors this closely:
+    its stable tag (release_3.35.10-ls331) and develop tags were rebuilt
+    within the last few days of today. Repo is not archived, has no EOL
+    notice, and issues are actively triaged. Clearly active.
+
+catalogue_fit:
+  categories: [media, automation, downloads]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    SickGear is a Sick-Beard fork (sibling to Sonarr/SickChill/Medusa) that
+    automates TV-show discovery, search, and download-client handoff, then
+    hands finished files to a media server (e.g. Plex/Jellyfin/Emby).
+    Nothing in the current 24-recipe catalogue does episode-tracking or
+    automated acquisition — this is the same "media *arr" gap already
+    flagged in the Medusa gap analysis, not a duplicate of anything shipped.
+    SickGear and Medusa are direct competitors covering the identical niche
+    (both are Sick-Beard forks); shipping both would be pure overlap within
+    the gap-analysis backlog itself, not against the shipped catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists (Sonarr-class tools are extremely popular self-hosted
+    apps), and SickGear specifically markets itself as the more reliable,
+    longer-maintained stable fork versus Medusa — its release cadence here
+    is measurably steadier (release every 2-4 weeks with continuous
+    between-release commits) than Medusa's (single release in the last 9
+    months, per the existing Medusa gap analysis). Still, SickGear is a
+    smaller-community fork relative to Sonarr, which remains the de-facto
+    standard for this category and would arguably be the higher-value build
+    for this catalogue slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["basic-auth gate credential (Traefik)"]
+  secrets_expressible_today:
+    - secret: basic-auth gate credential (Traefik)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SickGear is mechanically installable today: single container
+  (lscr.io/linuxserver/sickgear), one HTTP port (8081), Traefik-friendly,
+  config/state under /config (plus /downloads and /tv volumes). It boots
+  with no username/password enforced — the app's own Settings > General >
+  Interface page lets an operator set credentials manually after first
+  boot, but nothing forces this at boot time and there is no env var or
+  config-file injection point af-api could populate with a projected
+  root-password hash — so a Traefik basic_auth gate (root-password
+  projection) is needed to avoid an open-by-default install, exactly the
+  pattern used for Medusa. No blocking secrets, and no blocking issues.
+  Recommend build_now.

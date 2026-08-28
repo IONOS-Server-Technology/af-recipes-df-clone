@@ -1,0 +1,106 @@
+slug: oxicloud
+name: OxiCloud
+source_description: "Lightweight Rust-based self-hosted cloud storage with Nextcloud client support"
+
+upstream:
+  url: https://atalayalabs.github.io/OxiCloud/
+  repo_url: https://github.com/AtalayaLabs/OxiCloud
+  license: MIT
+  docker_image: diocrafts/oxicloud
+  compose_file_url: https://raw.githubusercontent.com/AtalayaLabs/OxiCloud/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the file lives at the repo root of AtalayaLabs/OxiCloud
+    (the project's own repo, not a fork or third-party template) and is
+    the file the project's own quick-start docs tell users to run
+    ("git clone ... && cp example.env .env && docker compose up -d").
+    This is a rolling reference to the default branch (`main`), not
+    version-pinned: there is no release-asset copy (checked the v0.8.7
+    release assets — none), so watchers of this link will see whatever
+    is currently on `main`. Within the file itself, the postgres image is
+    pinned (postgres:18.2-alpine3.23) but the oxicloud service image is
+    `diocrafts/oxicloud:latest`, matching this analysis's summary note to
+    pin to a stable tag like 0.8.7 rather than use :latest as-is. Picked
+    the plain `docker-compose.yml` over the sibling
+    `docker-compose.wopi.yml` in the same directory, which is an optional
+    add-on for WOPI office-document editing integration, not the base
+    deployment.
+
+version_health:
+  latest_version: "v0.8.7"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.8.7 released 2026-07-22, ~14 days before today (2026-08-05), with
+    six more 0.8.x point releases in the month before that (0.8.6 07-20,
+    0.8.5 07-19, 0.8.4 07-15, 0.8.3 07-10, 0.8.2 07-06, 0.8.0 06-21) —
+    a rapid, multiple-times-per-month cadence. The project's first tagged
+    release (0.1.0-rc1) is just over a year old, so this is a young but
+    clearly actively-developed project, not dormant. Docker Hub tags track
+    releases in lockstep (0.8.6 pushed ~16 days ago at time of check).
+    Naming note: the repository was previously at DioCrafts/OxiCloud and
+    is now AtalayaLabs/OxiCloud (github.com/DioCrafts/OxiCloud 301-redirects
+    to github.com/AtalayaLabs/OxiCloud) — a rename/transfer, not a
+    competing fork; there is only one active upstream. The Docker image
+    still publishes under the maintainer's personal `diocrafts/oxicloud`
+    namespace rather than an org-owned one, a minor packaging quirk worth
+    noting but not a blocker.
+
+catalogue_fit:
+  categories:
+    - productivity
+    - file-storage
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OxiCloud is a single Rust binary/container (~40MB image, <1s cold
+    start, 30-50MB idle RAM) offering files, WebDAV/CalDAV/CardDAV,
+    sharing, trash, full-text search, and OIDC/SSO, explicitly *not*
+    attempting a plugin/app-store ecosystem like some other general
+    file-storage platforms. None of the existing 24 recipes cover general
+    file storage/sync with a web UI (Syncthing is P2P device sync with no
+    server UI; Immich is media-only; Paperless-ngx is documents-only).
+    Other gap-analyses in this catalogue — Nextcloud (apps-gaps/nextcloud.yaml),
+    OpenCloud (apps-gaps/opencloud.yaml), and ownCloud (apps-gaps/owncloud.yaml)
+    — also target this same customer need; none are built recipes yet, so
+    there is no actual recipe to mark as overlapping here.
+  usefulness: high
+  usefulness_rationale: >
+    Covers a real, currently-unaddressed customer need in the catalogue:
+    general-purpose self-hosted file storage/sync with a web UI, WebDAV/
+    CalDAV/CardDAV, sharing, and OIDC/SSO — a reasonably complete feature
+    set for that job on its own terms, backed by a genuinely active
+    release cadence (six 0.8.x point releases in the month before this
+    analysis). Its very low resource footprint (single ~40MB container,
+    30-50MB idle RAM) is a real deployment advantage in its own right,
+    independent of any other candidate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OxiCloud (diocrafts/oxicloud, pin to a stable tag like 0.8.7, not
+  :latest) is a single container serving its whole web UI + WebDAV/CalDAV/
+  CardDAV on one HTTP port (8086, configurable), documented to run behind
+  a reverse proxy via OXICLOUD_BASE_URL and trusted X-Forwarded-*
+  handling, with PostgreSQL as its only backing service (its password can
+  be server-generated with no customer input, same pattern as Immich).
+  Unlike Nextcloud/ownCloud, OxiCloud has no admin-password env var at
+  all: the first visitor completes a POST /api/setup flow in the web UI
+  to create the initial admin account entirely client-side, the same
+  self-service pattern Immich already uses in this catalogue — so there
+  is no first-boot secret needing generated_from or basic_auth projection.
+  Mechanically installable_today with no blockers. OxiCloud is roughly one
+  year old (first tagged release 0.1.0-rc1 just over a year before this
+  analysis), appears to be a single-maintainer-flavored project, and its
+  Docker image still publishes under the maintainer's personal
+  `diocrafts/oxicloud` namespace rather than an org-owned one; the release
+  cadence is currently active and healthy, and none of this rises to a
+  blocking installability issue. Recommend build_now: installable_today is
+  true with no blocking_issues.

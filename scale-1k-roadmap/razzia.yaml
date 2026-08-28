@@ -1,0 +1,88 @@
+slug: razzia
+name: Razzia
+source_description: "Self-hosted real-time quiz platform for live events and team gatherings"
+
+upstream:
+  url: https://github.com/Ralex91/Razzia
+  repo_url: https://github.com/Ralex91/Razzia
+  license: MIT
+  docker_image: ralex91/razzia:3.1.0
+  compose_file_url: https://raw.githubusercontent.com/Ralex91/Razzia/main/compose.yml
+  compose_file_notes: >
+    Official, at repo root (compose.yml), linked from the README's
+    "Docker Compose (recommended)" install section. This is a rolling
+    reference to the default branch (main), not version-pinned — it pins
+    the image tag to `latest` rather than a specific release. Single
+    variant: one service, one image, no GPU/CPU or dev/prod split to
+    choose between. Only other Docker-related files in the repo
+    (docker/nginx.conf, docker/supervisord.conf) are internal build
+    inputs for the image itself, not alternate compose files.
+
+version_health:
+  latest_version: "3.1.0"
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the latest tag (3.1.0) was cut exactly one
+    month ago (2026-07-05), alongside 3.0.1 the same day. Tag history shows
+    a steady, roughly-monthly cadence over the project's ~1-year life:
+    0.1.0 (2025-09-28), 1.0.0 (2025-10-29), 1.0.1 (2025-12-06), 1.0.2
+    (2025-12-14), 1.1.0 (2026-01-31), 1.2.0 (2026-03-14), 2.0.0 (2026-04-22),
+    2.0.1 (2026-04-23), 2.0.2 (2026-04-29), 3.0.0 (2026-05-09), then
+    3.0.1/3.1.0 (2026-07-05) after the largest gap so far (~2 months). No
+    commits landed on main since 3.1.0, so the current 1-month quiet period
+    is within the project's normal variance, not yet a slowdown signal. It
+    is a small, effectively solo-maintained project (one author, "Ralex",
+    accounts for ~86% of commits; a handful of one-off community
+    contributors plus dependabot round out the rest) with no CVEs or
+    security advisories found. No archive notice, no EOL statement.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover live/real-time group quizzing
+    (Kahoot-style trivia for events, classrooms, or team gatherings). It is
+    a distinct, easily-understood consumer/events use case, not adjacent to
+    anything already in the catalogue (closest by audience, Rallly, solves
+    scheduling/polling, not live gameplay).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, if niche and occasional-use: a self-hosted Kahoot alternative
+    appeals to teachers, event organizers, and team-building organizers
+    wanting the format without a third-party account. Usage is inherently
+    bursty (spun up for one event, then idle) rather than an always-on
+    daily tool, which caps how often a customer instance sees traffic
+    compared to most of the current catalogue. Upstream is tiny,
+    single-purpose, and low-support-risk (single Docker image, in-memory
+    state, no database dependency).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [manager_password]
+  secrets_expressible_today:
+    - secret: manager_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Razzia is a small, single-container, actively maintained (near-monthly
+  releases for a year) real-time quiz app with no overlap in the current
+  24-recipe catalogue. It needs exactly one secret at first boot — a
+  manager/admin password — read from a JSON file
+  (`config/game.json`'s `managerPassword`, compared in plaintext by the
+  app) rather than an env var; upstream ships no env-var override, but
+  install.sh can pre-seed that file with an auto-generated random value
+  before the first container start, matching the existing
+  `auto_generate: true` pattern already shipping for Vaultwarden's
+  ADMIN_TOKEN. Single HTTP port (3000), works behind Traefik with no
+  extra config (WebSocket upgrades proxy automatically), single-instance
+  only (in-memory game state, no clustering). Usefulness is real but
+  narrower and burstier than most of the catalogue given the app's
+  one-event-at-a-time nature; recommend building, with that usage-pattern
+  caveat noted rather than as a blocker.

@@ -1,0 +1,104 @@
+slug: privatebin
+name: PrivateBin
+source_description: "PrivateBin is a zero-knowledge encrypted pastebin for secure text sharing"
+
+upstream:
+  url: https://privatebin.info/
+  repo_url: https://github.com/PrivateBin/PrivateBin
+  license: "Zlib/libpng (core code); bundled third-party libs under GPLv2, BSD-3-Clause, MIT, Apache-2.0, CC-BY-4.0"
+  docker_image: privatebin/nginx-fpm-alpine:2.0.5
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in the PrivateBin
+    project. Checked the main PrivateBin/PrivateBin repo (no docker/,
+    deploy/, or contrib/ directory, no docker-compose.yml at root, doc/
+    only has Installation.md/README.md/Release.md with no Docker section),
+    the PrivateBin/docker-nginx-fpm-alpine repo that builds the official
+    privatebin/nginx-fpm-alpine image (README.md and the backend-specific
+    README.fs/gcs/pdo/s3.md files document only a bare `docker run`
+    command, e.g. `docker run -d --restart="always" --read-only -p
+    8080:8080 -v $PWD/privatebin-data:/srv/data ...`), and Docker Hub's
+    privatebin/nginx-fpm-alpine page (same docker-run-only usage example).
+    The project's only orchestration-tool artifact is a Kubernetes sample
+    deployment YAML plus a separate official Helm chart
+    (PrivateBin/helm-chart) - no Docker Compose equivalent. Several
+    community/third-party docker-compose.yml files exist (e.g. forks like
+    gabrielesh/PrivateBin, NYPL/privatebin, various self-hosting blogs) but
+    none are published or maintained by the PrivateBin project itself, so
+    none are adopted here.
+
+version_health:
+  latest_version: "2.0.5"
+  latest_release_date: "2026-07-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.0.5 was tagged 2026-07-11, about 3.5 weeks before today (2026-08-05).
+    Per endoflife.date, the 2.x line has shipped 2.0.0 (2025-07-28), 2.0.2
+    (2025-10-28, security fix for CVE-2025-62796), 2.0.3, 2.0.4 (~2026-06),
+    and 2.0.5 (2026-07-11) — a steady cadence of patch releases every 1-3
+    months, several explicitly security-motivated, with the 1.7.x line
+    still receiving a backport as late as 2025-11-13 before its support
+    window closed 2025-07-28. Official Docker Hub image
+    privatebin/nginx-fpm-alpine mirrors releases closely: the "2.0.5" and
+    "stable" tags were both pushed 26 days ago (matching the GitHub tag
+    date), with "edge"/"nightly"/"latest" rebuilding roughly daily. This
+    reads as a healthy, actively maintained project with a responsive
+    security-patch cycle, not a stale or maintenance-only one.
+
+catalogue_fit:
+  categories: [security, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [opengist]
+  differentiation: >
+    OpenGist (already in the catalogue) is the nearest neighbor — both are
+    self-hosted, browser-based text/snippet sharing tools reachable behind
+    Traefik on a single HTTP port. They serve different niches, though:
+    OpenGist is a Git-backed, GitHub-Gist-style tool built around optional
+    user accounts, persistent gist history, and syntax-highlighted code
+    files. PrivateBin is deliberately account-less and zero-knowledge — all
+    encryption/decryption happens client-side in the browser via a key in
+    the URL fragment that the server never sees, pastes are typically
+    one-time/burn-after-read or short-TTL, and there is no server-side
+    admin surface at all. It fills the "quickly hand someone a secret
+    snippet without either party creating an account or the host being
+    able to read it" use case, which OpenGist's account/history model does
+    not target.
+  usefulness: medium
+  usefulness_rationale: >
+    Zero-knowledge, ephemeral paste sharing is a distinct and legitimate
+    self-hosting want (incident responders, support teams, and privacy-
+    conscious users sharing secrets/logs without a third-party pastebin
+    seeing the plaintext), and it is not exactly duplicated by OpenGist's
+    Git/account-oriented model. It is a narrower utility than a general
+    dev tool, though, and the customer gets no admin UI or user management
+    to speak of — it is a single-purpose appliance, which caps demand
+    relative to broader productivity or developer-tools recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PrivateBin is a single-container PHP app (official image
+  privatebin/nginx-fpm-alpine:2.0.5) listening on one HTTP port (8080
+  inside the container), with a data volume for stored pastes and no
+  database dependency — a clean fit behind Traefik on
+  privatebin.<domain>, structurally close to the existing Uptime Kuma/
+  Vaultwarden single-container recipes. It has no admin panel, no login,
+  and no environment-variable secret to project at boot: the entire
+  security model is client-side, zero-knowledge encryption, so there is
+  nothing for `generated_from` or Traefik `basic_auth` to gate — and
+  gating it behind basic auth would in fact break the app's core use case
+  of letting an unauthenticated recipient open a shared paste link.
+  Upstream is actively maintained with a healthy, security-responsive
+  release cadence (latest tag 2026-07-11, ~1 month old). It does not
+  duplicate OpenGist's Git/account-based gist model, filling a real
+  zero-knowledge/ephemeral-sharing niche instead. Recommend build_now:
+  mechanically simple, no blocking secrets, healthy upstream, and adds
+  genuine differentiation to the catalogue.

@@ -1,0 +1,97 @@
+slug: pangolin-newt
+name: Pangolin Newt
+source_description: "Userspace WireGuard tunnel client for secure remote access via Pangolin"
+
+upstream:
+  url: https://docs.pangolin.net
+  repo_url: https://github.com/fosrl/newt
+  license: "Dual-licensed: AGPL-3.0 or Fossorial Commercial License"
+  docker_image: fosrl/newt
+  compose_file_url: https://github.com/fosrl/newt/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official — a repo-root docker-compose.yml maintained by fosrl/newt
+    itself (not a third-party template). It is a rolling reference to the
+    default `main` branch, not version-pinned: no tagged-release compose
+    asset exists, and the file itself pins the `fosrl/newt:latest` image
+    tag rather than a specific version. Only one variant is offered here
+    (env-var credentials against app.pangolin.net); the repo separately
+    ships docker-compose.metrics.yml and docker-compose.metrics.collector.yml
+    for optional Prometheus metrics collection, not alternative ways to run
+    Newt itself, so the base file is the correct pick. docs.pangolin.net's
+    install-site page also documents Newt's Docker usage but only embeds
+    inline compose snippets (including alternate secrets/CLI-args
+    variants) rather than linking a file, so the repo file is preferred
+    per the "prefer a direct file link over a docs page that
+    embeds/describes it" guidance.
+
+version_health:
+  latest_version: "1.15.0"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (1.15.0) shipped 2026-07-19, about 2.5 weeks before
+    today (2026-08-05). Prior releases: 1.14.0 (2026-07-02), 1.13.0
+    (2026-06-10), 1.12.5 (2026-05-08) — a roughly monthly cadence with
+    substantive feature work each time (native WireGuard mode, SSH/RDP/VNC
+    browser gateway, auto-update, SIGHUP config reload). Fossorial, the
+    company behind Newt/Pangolin, is a 2025 Y Combinator company; this is
+    a young, fast-moving, actively-funded project, not dormant.
+
+catalogue_fit:
+  categories:
+    - security
+    - networking
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with:
+    - wg-easy
+  differentiation: >
+    Newt is not a standalone VPN server the way recipes/wg-easy/ is — it is
+    a headless client that dials out from the customer's network to an
+    already-running Pangolin control-plane server (either the fosrl-hosted
+    app.pangolin.net or a self-hosted Pangolin instance the customer
+    already operates elsewhere) and only becomes useful once paired with
+    that server. Pangolin itself (the server side: identity-aware
+    tunneled reverse proxy, admin UI, site/resource management) is not in
+    our catalogue at all and is a materially different, heavier app than
+    Newt. Shipping Newt alone gives a customer a client with nothing to
+    connect to unless they already run Pangolin elsewhere, which is a much
+    narrower and more confusing value proposition than wg-easy's
+    self-contained "stand up a VPN server with a web UI" story.
+  usefulness: low
+  usefulness_rationale: >
+    Newt only has value to a customer who already runs (or is
+    simultaneously being sold) a separate Pangolin server. As an isolated
+    recipe it is a background daemon with no UI and nothing to configure
+    beyond credentials issued by that external server — not something a
+    customer would install on its own from an app catalogue browse.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: [NEWT_ID, NEWT_SECRET]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "NEWT_ID and NEWT_SECRET are not customer-chosen credentials — they are opaque tokens minted by a specific Pangolin server instance (self-hosted or app.pangolin.net) when the customer creates a 'site' there, then copy-pasted into Newt's config. There is no mechanism today for /compose to accept an arbitrary customer-supplied external value (this is the same class of gap as an external API key or OAuth token, per apps-gaps/SCHEMA.md) — root-password projection and Traefik basic_auth don't apply because neither NEWT_ID nor NEWT_SECRET is a password Newt itself authenticates a user with; they're issued by a third-party system we don't control."
+    - "PANGOLIN_ENDPOINT (the URL of the customer's Pangolin server) is also a required, customer-specific, non-derivable value with no input channel today."
+    - "Newt has no web UI and exposes no HTTP port of its own — it is an outbound-only client, so it isn't reverse-proxy-fronted the way our other recipes are; Traefik has nothing to sit in front of."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Newt (fosrl/newt) is an actively-maintained (monthly releases, most
+  recently 2026-07-19), young but well-funded userspace WireGuard client
+  built to pair exclusively with Pangolin, a separate identity-aware
+  tunneled-reverse-proxy server that is not itself in our catalogue.
+  Structurally it fails our installability bar in two independent ways:
+  every value it needs at first boot (NEWT_ID, NEWT_SECRET,
+  PANGOLIN_ENDPOINT) is minted by an external Pangolin server the customer
+  must already operate, with no channel for /compose to carry such
+  arbitrary external values today; and it has no web UI or HTTP port at
+  all, so there is nothing for Traefik to front. Even if the input-channel
+  gap were solved, Newt alone has little standalone customer value — it is
+  a companion client, not an app. Recommend not_recommended; if Fossorial's
+  Pangolin server itself were proposed as a candidate, that would need a
+  separate gap analysis and would still hit the same external-credential
+  problem for its own first admin account or license activation, so it is
+  not an automatic yes either.

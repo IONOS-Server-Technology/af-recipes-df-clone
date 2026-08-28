@@ -1,0 +1,101 @@
+slug: label-studio
+name: Label Studio
+source_description: "Open-source data labeling and annotation platform for machine learning projects"
+
+upstream:
+  url: https://labelstud.io/
+  repo_url: https://github.com/HumanSignal/label-studio
+  license: Apache-2.0
+  docker_image: heartexlabs/label-studio
+  compose_file_url: https://raw.githubusercontent.com/HumanSignal/label-studio/develop/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and matches the "Run with Docker
+    Compose" instructions in the project's own docs
+    (labelstud.io/guide/install, `docker-compose up -d`). This is a rolling
+    reference to the default branch (`develop`, confirmed via the GitHub
+    API), not a version-pinned tag or release asset — the repo does not
+    publish a per-release compose file or a `/releases/latest/download/...`
+    redirect for it, so watching this link means watching HEAD of develop.
+    Only one variant is shipped (nginx + app + Postgres, pgautoupgrade
+    17-alpine); there is no separate GPU/CPU or sqlite-only compose
+    variant to choose between.
+
+version_health:
+  latest_version: "1.23.0"
+  latest_release_date: "2026-03-13"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    ~5 months since the last tagged stable release (1.23.0, 2026-03-13) as
+    of today (2026-08-05). Prior cadence was roughly monthly-to-quarterly
+    (1.22.0 2025-12-19, 1.21.0 2025-09-30, 1.20.0 2025-07-01, 1.19.0
+    2025-06-10), so a 5-month gap since the last stable tag is a real
+    slowdown. That said, the repo is not archived, was pushed as recently
+    as 2026-08-06, carries 905 open issues still being triaged, and
+    publishes automated `nightly` prereleases continuously — this reads as
+    active development that just hasn't cut a stable tag in a while, not
+    dormant/EOL. Note: this project moved from the `heartexlabs` GitHub org
+    to `HumanSignal`; the Docker Hub image repo (`heartexlabs/label-studio`)
+    kept its original name and is still the current official image.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers ML dataset
+    preparation. Paperless-ai auto-tags an existing document archive;
+    Open WebUI is a chat frontend over LLMs. Label Studio is a purpose-built
+    human-in-the-loop annotation tool (bounding boxes, transcription,
+    classification, NER, etc.) across text/image/audio/video/time-series,
+    aimed at teams building or fine-tuning ML models — a distinct
+    developer/ML-tooling audience the catalogue doesn't currently serve.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche and a well-known name in the ML tooling space, but
+    it's a narrower audience (ML/data teams, not general self-hosters) than
+    most of the current catalogue, and the official production stack
+    upstream ships nginx + app + Postgres, which is more moving parts than
+    a typical single-container AF recipe for the value it delivers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Label Studio has an in-app login, but with no admin pre-provisioned it
+      defaults to open self-signup: any visitor can create an account and
+      that account becomes an org member with no gate at all. Left as-is on
+      a public <slug>.<base_domain> URL, a random visitor could race the
+      customer to sign up first. It needs a Traefik basic_auth gate in
+      front, matching the existing n8n/WUD/OpenClaw/Open WebUI/Immich
+      pattern — that gate is expressible today via
+      generated_from(ROOT_PASSWORD).
+    - >
+      The alternative — pre-provisioning the first admin via
+      `LABEL_STUDIO_USERNAME`/`LABEL_STUDIO_PASSWORD` env vars — is a dead
+      end for `generated_from`: per upstream docs those env vars are read as
+      the literal plaintext password used to create the Django user (Django
+      hashes it internally at creation time), not a slot for a
+      pre-computed hash. `generated_from` only ever emits a hash, so it
+      cannot supply this parameter. This does not block the app overall
+      since the no-preset-admin + basic_auth path above is available.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Label Studio is mechanically installable today, but only via the
+  "no pre-provisioned admin, gate the whole app behind Traefik basic_auth"
+  path — its own admin-bootstrap env vars expect a plaintext password
+  (hashed internally by Django), which generated_from cannot supply, and
+  without that gate the app defaults to open self-signup on first boot.
+  Single app container behind a standard HTTP port, reverse-proxy
+  compatible, and fills a genuine gap (ML data labeling/annotation) not
+  covered elsewhere in the catalogue. Recommend build_with_caveats rather
+  than build_now: the recipe must ship the Traefik basic_auth gate
+  (generated_from(ROOT_PASSWORD)) as a mandatory mitigation for that
+  open-signup exposure, not as an optional hardening step.

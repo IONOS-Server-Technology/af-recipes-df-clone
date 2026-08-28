@@ -1,0 +1,116 @@
+slug: flarum
+name: Flarum
+source_description: "Flarum is a modern, elegant forum software for building engaged communities"
+
+upstream:
+  url: https://flarum.org
+  repo_url: https://github.com/flarum/framework
+  license: MIT
+  docker_image: null  # no official image; see notes below
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Flarum's own install docs
+    (docs.flarum.org/install/) cover only a downloadable archive or the
+    Composer CLI installer — no Docker or docker-compose mention anywhere.
+    The flarum/framework GitHub repo has no docker-compose.yaml/.yml at its
+    root or under any docker/deploy/contrib directory. Only third-party,
+    community-maintained compose files exist (e.g. mondediefr/docker-flarum,
+    crazy-max/docker-flarum, tiredofit/docker-flarum, flarumite/flarum-docker)
+    — consistent with the docker_image note above that there is no official
+    image to build an official compose file around. Not adopting any of
+    these as if official.
+
+version_health:
+  latest_version: "1.8.17 (stable track); 2.0.0-rc.5 (next-gen track, pre-release)"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Flarum runs two parallel tracks: 1.8.x (maintenance/stable, latest 1.8.17
+    on 2026-06-16, ~50 days before today 2026-08-05) and 2.0.0 (next-gen,
+    currently at rc.5 released 2026-07-08, ~28 days before today). The 2.0
+    line has been in beta/rc since March 2026 with roughly monthly
+    release-candidate cuts, and 1.8.x still receives periodic point releases
+    in parallel. This is consistent with an actively maintained project, not
+    dormant or archived — no EOL announcement, no repo archival.
+
+catalogue_fit:
+  categories: [community]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Forum/discussion-board software is not covered by any of the current 24
+    recipes — the closest neighbours (Gitea for code hosting, Anytype for
+    notes, Opengist for pastes) serve different purposes. A customer wanting
+    to run a public community/support forum on their own infrastructure
+    (instead of a hosted forum SaaS or a free third-party platform) would
+    reach for this. It is a genuine, if narrow, gap.
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted forums are a real but comparatively niche need next to the
+    productivity/dev-tooling apps that dominate the current catalogue.
+    Flarum is one of the more modern, actively developed options in this
+    space (MIT-licensed, PHP-based, extension ecosystem), so if a forum
+    recipe is wanted this is a reasonable pick — but demand is likely lower
+    than for the automation/security/self-hosting tools already present.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - FLARUM_ADMIN_USER
+    - FLARUM_ADMIN_PASS
+    - FLARUM_ADMIN_MAIL
+    - DB_PASS (MySQL/MariaDB password)
+  secrets_expressible_today:
+    - secret: DB_PASS (MySQL/MariaDB password)
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Flarum has no official Docker image. All community images researched
+      (mondedie/flarum, kovah/flarum, shinsenter/flarum) create the admin
+      account by taking FLARUM_ADMIN_USER/FLARUM_ADMIN_PASS/FLARUM_ADMIN_MAIL
+      as plaintext at container start and calling Flarum's own account-
+      creation path, which bcrypt-hashes the password itself. Flarum's other
+      supported install paths (web installer, `php flarum install` CLI) work
+      the same way — plaintext password in, app hashes it internally. There
+      is no supported path to hand Flarum a pre-computed hash directly, so
+      `generated_from` (which only ever carries a hash) cannot express this
+      credential — a genuine plaintext-password requirement, not just an
+      unsupported hash algorithm.
+    - >
+      Gating the whole app behind Traefik `basic_auth` is technically
+      available but does not make sense for a public forum: it would block
+      the site's actual visitors and members, not just an admin panel — this
+      isn't a case like n8n/Adminer where the whole app is a single-admin
+      tool. Using it purely as a substitute for the admin-account password
+      would defeat the product's purpose.
+    - >
+      Even setting the credential issue aside, no researched community
+      image publishes a version-pinned tag tracking current Flarum (1.8.17 /
+      2.0.0-rc.5). `mondedie/flarum`'s newest numbered tag is 1.3.0, last
+      published roughly 4 years ago; only its unversioned `latest` tag is
+      current. `kovah/flarum` is explicitly deprecated (6+ years stale).
+      `shinsenter/flarum` publishes daily dev-track tags (e.g.
+      `dev-php8.3-nginx`) rather than a stable numbered release tag. None of
+      these satisfy the "pinned, current stable tag, never :latest"
+      requirement without building a bespoke image ourselves.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Flarum is an actively maintained, MIT-licensed forum platform that would
+  fill a genuine (if niche) gap in the catalogue — no existing recipe covers
+  community/discussion-board hosting. It is blocked today for two
+  independent reasons: first, every install path Flarum supports (its
+  community Docker images, its web installer, and its CLI installer) needs
+  the admin password as plaintext so the app can hash it itself, which our
+  `generated_from` root-password projection cannot supply (it only ever
+  carries a pre-computed hash); gating the whole forum behind Traefik
+  `basic_auth` as a workaround would block real visitors, defeating the
+  app's purpose. Second, there is no official Docker image and no community
+  image offers a current, version-pinned tag we could responsibly pin to
+  today. Revisit if either a custom image/entrypoint that writes a
+  pre-hashed admin credential directly to the database is built, or if the
+  platform grows a channel for a genuinely customer-chosen (not
+  root-password-derived) credential.

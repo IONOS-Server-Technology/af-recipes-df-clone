@@ -1,0 +1,94 @@
+slug: kiwix-serve
+name: Kiwix-serve
+source_description: "Self-hosted ZIM archive server for offline Wikipedia and reference content"
+
+upstream:
+  url: https://www.kiwix.org/
+  repo_url: https://github.com/kiwix/kiwix-tools
+  license: GPL-3.0-or-later
+  docker_image: ghcr.io/kiwix/kiwix-serve
+  compose_file_url: https://github.com/kiwix/kiwix-tools/blob/main/docker/server/docker-compose.yml.example
+  compose_file_notes: >
+    Official — kiwix-tools' own docker/server/README.md links to this file
+    as "a sample" of running kiwix-serve with docker-compose. It's a
+    rolling reference to the default branch (main), not version-pinned:
+    the file lives at a fixed path but its content and the image tag it
+    specifies (ghcr.io/kiwix/kiwix-serve:latest) both track whatever is
+    current on main, with no per-release URL variant offered. Only one
+    variant is shipped (no GPU/CPU or db split): the base service defaults
+    to serving no content, with commented-out lines showing two mutually
+    exclusive options — mount a local ZIM directory at /data, or set a
+    DOWNLOAD env var to fetch one remote ZIM at boot — matching the
+    DOWNLOAD-based blocking_issue already noted in installability above.
+
+version_health:
+  latest_version: "3.8.2"
+  latest_release_date: "2026-03-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.8.2 released 2026-03-02, ~5 months before today (2026-08-05). History
+    shows a long dormant stretch between 3.7.0 (2024-03-13) and 3.8.0
+    (2025-10-31, ~19.5 months later), then a resumed regular cadence:
+    3.8.0 -> 3.8.1 (2025-12-02, ~1 month) -> 3.8.2 (2026-03-02, ~3 months).
+    Repo is not archived, has active CI, and open issues/PRs are triaged.
+    Treating current cadence as active given the recent resumed pace, but
+    the earlier ~19-month gap is worth flagging as a precedent for this
+    project going quiet for extended periods.
+
+catalogue_fit:
+  categories: [productivity, education]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue serves offline reference
+    content (ZIM archives of Wikipedia, Wiktionary, StackExchange, Project
+    Gutenberg, etc.). It's a genuinely distinct use case from every
+    existing recipe — closest conceptually to a read-only content server
+    rather than any productivity/dev tool already covered.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Kiwix has real appeal for offline/low-connectivity reference use cases
+    (education, disaster response, air-gapped environments) but is a niche
+    ask for a general VPS customer catalogue, and the app is only useful
+    once populated with a ZIM file the customer must separately obtain —
+    kiwix-serve ships with no content of its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      kiwix-serve has no content out of the box. It serves whatever ZIM
+      file(s) are mounted at /data or fetched via the DOWNLOAD env var at
+      container start — a URL is a fixed, server-chosen default (e.g. a
+      specific download.kiwix.org ZIM), not a customer-supplied secret, so
+      it doesn't block the /compose mechanism itself, but a customer
+      landing on an empty or single-hardcoded-archive instance with no way
+      to pick their own content at boot is a real product-fit gap that a
+      generated_from-style secret can't fix. This is a content/UX caveat,
+      not a platform blocker.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  kiwix-serve (ghcr.io/kiwix/kiwix-serve, pin e.g. 3.8.2) is a single
+  static-binary container exposing one HTTP port (8080), with content
+  either bind-mounted at /data or fetched at boot via a fixed DOWNLOAD URL
+  — no external database, fully Traefik-compatible. It has no built-in
+  admin login of its own, so per the Adminer/An-Otter-Wiki pattern it needs
+  a mandatory Traefik basic_auth:true gate (password projected from the
+  customer's root password via generated_from) to avoid an open, anonymous
+  web server on the internet. That clears the /compose constraint with no
+  hard blocking issues, so it is installable_today. The bigger open
+  question is product fit rather than mechanism: without a customer-chosen
+  ZIM archive, the recipe ships either empty or with one hardcoded content
+  set baked in by the recipe author, which is a real caveat worth surfacing
+  before building — hence build_with_caveats rather than a plain build_now.
+  Upstream is active with a recently-resumed regular release cadence, and
+  there's no overlap with anything already in the 24-recipe catalogue.

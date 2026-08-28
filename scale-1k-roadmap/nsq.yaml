@@ -1,0 +1,123 @@
+slug: nsq
+name: NSQ
+source_description: "Realtime distributed messaging platform for high-throughput event streams"
+
+upstream:
+  url: https://nsq.io/
+  repo_url: https://github.com/nsqio/nsq
+  license: MIT
+  docker_image: "nsqio/nsq:v1.3.0"
+  compose_file_url: https://nsq.io/deployment/docker.html
+  compose_file_notes: >
+    No standalone docker-compose.yml file is published anywhere — not in
+    the nsqio/nsq repo (only a Dockerfile at the root, no docker/deploy/
+    contrib compose file), and not as a downloadable asset. The only
+    official compose content is a snippet embedded in prose on the
+    project's own docs page (nsq.io/deployment/docker.html, "Using
+    docker-compose" section), whose markdown source lives in the
+    nsqio/nsqio.github.io repo at _posts/2013-12-31-docker.md — dated
+    2013 and, per git history, unchanged since, so effectively a static/
+    rolling reference rather than tied to any release. That snippet
+    itself is version-unpinned: all three services use `image: nsqio/nsq`
+    with no tag (defaults to `latest`), and there is only one variant
+    shown (nsqd + nsqlookupd + nsqadmin together; no separate GPU/CPU or
+    dev/prod flavors exist for NSQ). Recorded the docs page URL rather
+    than the raw markdown source since it's the project's canonical
+    published form of this snippet; there is no separate downloadable
+    file to link instead.
+
+version_health:
+  latest_version: "v1.3.0"
+  latest_release_date: "2023-12-27"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    v1.3.0 tagged 2023-12-27 (verified against the GitHub releases API
+    published_at field) — about 32 months before today (2026-08-05), not
+    the ~20 months an earlier draft of this analysis miscalculated from a
+    wrong year. Prior tags: v1.2.1 (2021-08-16), v1.2.0 (2019-08-28),
+    v1.1.0 (2018-08-19). The gap between releases has been widening, not
+    holding steady: v1.1.0→v1.2.0 ≈ 1 year, v1.2.0→v1.2.1 ≈ 2 years,
+    v1.2.1→v1.3.0 ≈ 2.3 years, and now ≈ 2.7 years and counting since
+    v1.3.0 — a slowing cadence, not "roughly one release per year."
+    The master branch is not fully dead: commits landed 2026-07-20 (a
+    dependency bump) and 2025-06-20/06-29 (a genuine new feature,
+    `max-defer-delay`), and a January 2025 PR merged topology-aware
+    message delivery — real, if infrequent, ongoing development. No
+    archive notice, no announced EOL. Given the corrected 32-month gap
+    and the widening trend across the last three release intervals,
+    "dormant" is the honest read on cadence even though scattered
+    commits keep this short of a full EOL/archived status — hence
+    maintenance-only rather than active or abandoned.
+
+catalogue_fit:
+  categories: [messaging, infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a message broker of any kind. NSQ is a
+    realtime distributed pub/sub messaging platform aimed at connecting a
+    customer's own applications/microservices (comparable audience to the
+    also-analyzed NATS and LavinMQ), built around three cooperating
+    daemons: nsqd (the broker itself, stores/delivers messages),
+    nsqlookupd (a discovery service nsqd instances register with), and
+    nsqadmin (a read-mostly web UI for cluster stats/topic-channel
+    management). Unlike NATS or LavinMQ, a useful NSQ deployment is a
+    small cluster (at least one nsqd + one nsqlookupd) rather than a
+    single container, which is a heavier footprint than the other broker
+    candidates for the same "give a customer a message bus" job.
+  usefulness: low
+  usefulness_rationale: >
+    Same narrow, technical audience problem as NATS/LavinMQ — the entire
+    point is other software connecting to it via a client library, not a
+    browser-usable end-user tool — compounded by NSQ needing multiple
+    cooperating daemons to be useful at all (nsqadmin alone shows nothing
+    without at least one nsqd registered with an nsqlookupd) and a
+    32-month-stale release with only dormant upstream activity since.
+    Capped at low, below NATS/LavinMQ's medium, because it combines the
+    narrow-audience ceiling both share with a materially weaker version
+    trajectory and a heavier multi-daemon deployment shape for the same
+    underlying customer need.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [nsqadmin_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: nsqadmin_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      nsqd's client protocol port (4150, raw TCP — what publishing/
+      consuming applications actually connect to) and nsqlookupd's
+      TCP port (4160, what nsqd instances use to register) are not HTTP
+      and cannot sit behind Traefik; they would need direct raw TCP
+      exposure, the same accepted pattern already used by wg-easy and
+      Syncthing in this catalogue, not a structural blocker on its own —
+      but it does mean nsqadmin alone (the only piece that could be
+      Traefik-fronted) is not a functioning deployment; a real recipe
+      needs nsqd + nsqlookupd + nsqadmin as three services with two raw
+      ports opened, for a broker whose primary interface has no
+      authentication mechanism at all (not even a hash-based one) to
+      layer beyond the external Traefik gate on the admin UI.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  NSQ is a real, MIT-licensed message broker with no catalogue overlap —
+  it would join NATS and LavinMQ as a message-broker-style candidate. Its
+  last tagged release (v1.3.0) is 32 months old against a release cadence
+  that has been widening (1yr, then 2yr, then 2.3yr between successive
+  releases), landing it in dormant-cadence, maintenance-only territory
+  (real but infrequent master-branch activity, no archive notice). It is
+  mechanically installable today: nsqadmin's lack of built-in auth maps
+  cleanly to a Traefik basic_auth gate, and nsqd's client protocol port
+  (4150) and nsqlookupd's TCP port (4160) can be exposed directly as raw
+  TCP, the same accepted pattern already used by wg-easy and Syncthing in
+  this catalogue. The caveat is that nsqd and nsqlookupd have zero built-in
+  authentication of any kind on those raw-TCP ports (nothing for
+  generated_from to project into), so a real three-service recipe
+  (nsqd + nsqlookupd + nsqadmin) would expose an unauthenticated broker
+  interface on the public internet behind nothing but network exposure
+  choices, with only the admin UI gated by Traefik basic auth. Recommend
+  build_with_caveats on that unauthenticated-broker-port basis.

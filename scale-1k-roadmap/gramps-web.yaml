@@ -1,0 +1,89 @@
+slug: gramps-web
+name: Gramps Web
+source_description: "Self-hosted genealogy platform for building and sharing family trees"
+
+upstream:
+  url: https://www.grampsweb.org/
+  repo_url: https://github.com/gramps-project/gramps-web
+  license: AGPL-3.0
+  docker_image: ghcr.io/gramps-project/grampsweb:26.7.1
+  compose_file_url: https://raw.githubusercontent.com/gramps-project/gramps-web-docs/main/examples/docker-compose-base/docker-compose.yml
+  compose_file_notes: >
+    Official file, published by the gramps-project org and linked directly
+    from the project's own deployment docs
+    (grampsweb.org/install_setup/deployment/), which instructs the reader
+    to create docker-compose.yml on the server with this file's contents.
+    It is a rolling reference to the gramps-web-docs repo's default
+    branch (main), not a version-pinned release asset, and the file
+    itself pins the grampsweb image to the `:latest` tag rather than a
+    specific release. The docs repo ships three example variants under
+    examples/: docker-compose-base, docker-compose-letsencrypt, and a
+    DigitalOcean 1-click config; picked docker-compose-base since it is
+    the plain reverse-proxy-agnostic stack (app + Celery worker + Valkey,
+    no bundled TLS/Let's Encrypt), matching how this catalogue already
+    terminates TLS at its own Traefik layer rather than needing the
+    project's built-in Let's Encrypt/Caddy variant.
+
+version_health:
+  latest_version: "v26.7.1"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v26.7.1 tagged 2026-07-28, ~1 week before today (2026-08-05). The
+    project uses a calver-ish scheme (v26.x.x through 2026) and has shipped
+    a new tag roughly every 1-2 weeks for the past several months (v26.5.0
+    through v26.7.1 span May-July 2026), covering both features (undo
+    transactions, timeline view, AI assistant improvements) and fixes.
+    Clearly active, upstream-maintained, not archived or slowing.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Gramps Web is a collaborative genealogy/family-tree builder (companion
+    web app to the Gramps desktop program) — nothing in the current
+    24-recipe catalogue covers this domain. It's a distinct, easy-to-pitch
+    "getting started" use case (build a family tree with relatives) rather
+    than a general document/media/productivity tool, so it doesn't compete
+    with Paperless-ngx or Immich for the same customer need.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, self-explanatory value proposition for a consumer/hobbyist
+    audience (family history), which is a good fit for a one-click
+    catalogue entry — no external data source or integration is needed to
+    get value on day one, unlike Alerta-style tools. Rated medium rather
+    than high because genealogy is a niche interest relative to
+    broadly-applicable categories like password managers or note-taking.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Gramps Web ships as a multi-container stack (grampsweb app container on
+  port 5000, a Celery worker, and Redis/Valkey for the task queue and rate
+  limiting) — structurally similar to Immich/Anytype-server rather than a
+  single-container app, but still a single public HTTP port that sits
+  cleanly behind Traefik. It has no pre-provisioned admin credential to
+  project a hash into: on first visit with zero users, it shows a public
+  web form that lets whoever gets there first create the owner/admin
+  account (or, per-tree, a /firstrun/<tree-id> form in multi-tree setups).
+  That means the app is not "no login of its own" in the usual open-app
+  sense — it has a self-service signup race condition — so it needs the
+  same Traefik `basic_auth: true` gate (customer's root password hash)
+  used for other apps with an unauthenticated first-boot surface, to stop
+  an outside visitor from claiming the owner account before the customer
+  does. The customer then creates their own real admin login through
+  Gramps Web's own setup wizard once inside the gate. With that gate this
+  is installable today: active upstream (weekly-ish releases, last one
+  2026-07-28), AGPL-3.0, and a genealogy use case with no overlap in the
+  current catalogue. Recommend build_now.

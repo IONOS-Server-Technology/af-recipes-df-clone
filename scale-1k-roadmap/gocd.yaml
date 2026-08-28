@@ -1,0 +1,99 @@
+slug: gocd
+name: GoCD
+source_description: "Continuous delivery server with value stream mapping and pipeline modeling"
+
+upstream:
+  url: https://www.gocd.org/
+  repo_url: https://github.com/gocd/gocd
+  license: Apache-2.0
+  docker_image: gocd/gocd-server (official server image, built from https://github.com/gocd/docker-gocd-server; a matching gocd/gocd-agent-* image is needed for any pipeline to actually execute a job)
+  compose_file_url: null
+  compose_file_notes: >-
+    No official docker-compose file exists. The official server image repo
+    (github.com/gocd/docker-gocd-server) documents only bare `docker run`
+    commands in its README, with no compose file in the repo. GoCD's own
+    installation docs (docs.gocd.org) likewise document Linux/Windows/macOS/
+    zip installs, not Docker or compose. The gocd org did once publish a
+    docker-compose.yml in github.com/gocd/gocd-trial (server+agent+git-server
+    demo), but that repo is archived (May 2022) and its own deprecation
+    notice points to github.com/gocd-contrib/gocd-trial-launcher as the
+    successor — a Go binary launcher with no compose file of its own, not a
+    replacement compose file. No community-maintained compose file was
+    adopted either, per this file's own rule against treating those as
+    official.
+
+version_health:
+  latest_version: "v26.1.0"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v26.1.0 (2026-07-26) is 10 days before today (2026-08-05); upstream's own
+    release notes call out v26.2.0 as expected "shortly in August 2026" with
+    further security fixes, and the version scheme (YY.N.0, e.g. 24.x/25.x/
+    26.x) shows a sustained roughly-quarterly major cadence going back years
+    with patch releases in between. ThoughtWorks ended commercial sponsorship
+    and paid development in December 2020 and the project has run on
+    volunteer/community maintenance since (maintainer access held by a small
+    group of current/ex-ThoughtWorks staff per the project's own 2023 status
+    post); ThoughtWorks still funds the website, build infra, and code
+    signing. As of the project's May 2025 status notes, some bundled
+    dependencies are themselves EOL upstream and pose ongoing upgrade risk,
+    but GoCD itself is still cutting releases and fixing disclosed CVEs
+    (most recently the set patched in 26.1.0, disclosed 2026-07-26) — active,
+    not dormant, but a thinner maintainer bench than a typical vendor-backed
+    project of this age.
+
+catalogue_fit:
+  categories: [developer-tools, ci-cd]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes cover CI/CD pipeline orchestration. Gitea
+    (developer-tools) is a git host with a built-in Actions feature, and n8n
+    (automation) is general-purpose SaaS/API workflow automation with a
+    drag-and-drop canvas — neither is a build/test/deploy pipeline server
+    with GoCD's value-stream-map view, fan-in/fan-out pipeline dependencies,
+    and material-triggered stages. A customer already self-hosting Gitea on
+    this platform is a plausible next step to also self-host CI next to it.
+  usefulness: medium
+  usefulness_rationale: >-
+    Real, distinct capability with a genuine developer audience, but the
+    server alone is inert: GoCD ships no bundled build capacity, so a
+    customer needs at least one gocd-agent container registered before any
+    pipeline can run a single job. That's mechanically solvable inside one
+    docker-compose stack (server + agent, agent auto-registered via a
+    server-generated key, no customer input needed), but it raises the
+    resource floor and the "what did I actually get" bar versus a single
+    self-contained web app — closer to n8n/immich territory than to
+    uptime-kuma.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  GoCD ships with no authentication configured by default — "if the security
+  element is not defined, anyone can use GoCD without logging in," and every
+  unauthenticated user is implicitly an admin. There is no env-var or
+  first-boot hook on the official image to pre-seed a password-file or admin
+  account; enabling security is a post-boot UI/config action. That maps
+  cleanly onto the documented "no login of its own" case: gate the whole app
+  behind a mandatory Traefik `basic_auth` credential projected from the
+  customer's root password, exactly like n8n/WUD/Immich already do, and leave
+  GoCD's own (absent) auth alone. The web UI is a single HTTP port (8153,
+  no TLS needed since Traefik terminates it) and works fine behind a reverse
+  proxy. The real caveat is functional, not auth-related: a server-only
+  deployment can't run pipelines, so the recipe would need a paired
+  gocd-agent service in the same compose stack (agent auto-registration key
+  can be server-generated, no customer input required) to be useful out of
+  the box, which pushes this recipe's resource footprint and complexity
+  above the single-container norm. Mechanically installable today via the
+  basic_auth gate, with no blocking issues; recommend build_now.

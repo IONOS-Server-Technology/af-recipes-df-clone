@@ -1,0 +1,94 @@
+slug: hermes-webui
+name: Hermes WebUI
+source_description: "Self-hosted Hermes AI agent and web chat UI bundled in one Docker deployment"
+
+upstream:
+  url: https://github.com/nesquena/hermes-webui
+  repo_url: https://github.com/nesquena/hermes-webui
+  license: MIT
+  docker_image: ghcr.io/nesquena/hermes-webui:latest
+  compose_file_url: https://raw.githubusercontent.com/nesquena/hermes-webui/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root and is the file the project's own
+    README quick-start points to (`git clone` + `cp .env.docker.example
+    .env` + `docker compose up -d`). This is a rolling reference to the
+    `master` branch, not version-pinned to a release tag; given the
+    unusually high release cadence noted in version_health (many
+    `exp-vX.Y.Z` tags per day, no stable per-tag compose asset published),
+    tracking `master` is the only practical option here. The repo ships
+    three variants — `docker-compose.yml` (single-container, default),
+    `docker-compose.two-container.yml`, and
+    `docker-compose.three-container.yml` — and the README recommends the
+    single-container `docker-compose.yml` for most users (multi-container
+    setups have a known limitation where WebUI-triggered tools run in the
+    wrong container), so that is the one recorded here.
+
+version_health:
+  latest_version: "v0.52.106 (stable), exp-v0.52.165 (latest experimental prerelease)"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Release cadence is unusually high — multiple tagged releases per hour
+    against today's date (2026-08-05/06), most as `exp-vX.Y.Z` prerelease
+    tags with an occasional `vX.Y.Z` stable cut. This reads as an
+    automated/CI-driven tagging scheme rather than a curated release
+    process, which makes "pick a pinned, current stable tag" (the
+    af-create-recipe Phase 2 requirement) harder than usual: the last
+    plain `vX.Y.Z` tag (v0.52.106) is already several hundred experimental
+    tags behind HEAD, so a future recipe would need to decide whether to
+    track the stable line (likely stale within days) or an experimental
+    tag (no stability guarantee). Repo not archived, actively maintained.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [hermes-agent]
+  differentiation: >
+    None found beyond implementation choice. Hostinger's description
+    ("Hermes AI agent and web chat UI bundled in one Docker deployment")
+    is already exactly what `recipes/hermes-agent/` ships today: the
+    official `nousresearch/hermes-agent` image running the agent gateway
+    plus a supervised web dashboard in a single container, reverse-proxy
+    compatible on one HTTP port. `hermes-webui` (repo owner `nesquena`,
+    not Nous Research) is an unofficial third-party wrapper that runs the
+    same underlying Hermes Agent CLI/config with a different, more
+    feature-rich web frontend (three-panel chat/session/workspace layout,
+    voice input, themes) bolted on around it — but it targets the same
+    upstream agent, the same provider-agnostic LLM config, and the same
+    core use case as our existing recipe.
+  usefulness: low
+  usefulness_rationale: >
+    Would ship the identical Hostinger-visible pitch as `hermes-agent`,
+    just backed by an unofficial community wrapper instead of the official
+    NousResearch image, with a much less settled release process (see
+    `version_health`). No new capability a customer would pick this over
+    `hermes-agent` for; adding it mainly doubles the maintenance surface
+    for the same product story.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - HERMES_WEBUI_PASSWORD
+  secrets_expressible_today:
+    - secret: HERMES_WEBUI_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "HERMES_WEBUI_PASSWORD is read by the app as a plaintext password (api/auth.py: `os.getenv('HERMES_WEBUI_PASSWORD', '').strip()`) and hashed internally with a fixed-salt PBKDF2 scheme the app owns — there is no field that accepts a pre-computed hash. generated_from only ever carries a hash (argon2/bcrypt), so it cannot be projected into this env var directly. Auth is optional by design (\"off by default... required if you expose the port outside 127.0.0.1\"), so the workable path is to leave it unset and put a Traefik basic_auth gate (root-password hash) in front instead — mechanically installable, mirroring the traefik_basic_auth precedent, but the app's own richer auth (passkeys, OIDC) goes unused."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Hermes WebUI is a real, actively-developed, MIT-licensed community project
+  (github.com/nesquena/hermes-webui) that bundles the same official Hermes
+  Agent our catalogue already ships in `recipes/hermes-agent/` (overlaps
+  with it) with an unofficial (non-Nous-Research) web frontend. It is
+  mechanically installable today — single HTTP port, reverse-proxy
+  compatible — but its only first-boot secret (HERMES_WEBUI_PASSWORD) can't
+  be set via a pre-computed hash, since the app hashes the plaintext env var
+  itself with a fixed-salt scheme it owns; the workable path is to leave it
+  unset and put a Traefik basic_auth gate in front instead, which means the
+  app's own richer auth (passkeys, OIDC) goes unused. Build with caveats:
+  installable today via the Traefik basic_auth workaround, with that auth
+  limitation as the caveat.

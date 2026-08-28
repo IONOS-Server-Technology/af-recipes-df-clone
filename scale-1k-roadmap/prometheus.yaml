@@ -1,0 +1,110 @@
+slug: prometheus
+name: Prometheus
+source_description: "Open-source monitoring and alerting toolkit with time-series database"
+
+upstream:
+  url: https://prometheus.io/
+  repo_url: https://github.com/prometheus/prometheus
+  license: Apache-2.0
+  docker_image: prom/prometheus
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The upstream installation docs
+    (prometheus.io/docs/prometheus/latest/installation/) and GitHub repo
+    (github.com/prometheus/prometheus) document only a bare `docker run`
+    command (optionally with a bind-mounted prometheus.yml and a named
+    volume for data) — there is no docker-compose.yaml/.yml at the repo
+    root or under docker/deploy/contrib, and no docs page linking one.
+    Several community-maintained compose stacks exist (e.g.
+    docker/awesome-compose's prometheus-grafana sample,
+    vegasbrianc/prometheus, stefanprodan/dockprom) but none are published
+    or maintained by the Prometheus project itself, so none are adopted
+    here as official.
+
+version_health:
+  latest_version: "v3.13.2"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.13.2 shipped 2026-07-30, six days before today (2026-08-05); v3.13.1
+    landed 2026-07-10 and v3.13.0 about a month before today (confirmed via
+    the GitHub releases API and Docker Hub tag timestamps). Point releases
+    have been landing roughly every 2-3 weeks through mid-2026, consistent
+    with the project's long-running steady cadence. Prometheus is a CNCF
+    graduated project with 18k+ commits, hundreds of open issues/PRs, and
+    active CI (including fuzzing and vulnerability scanning) — no
+    indication of maintenance-only mode, archival, or EOL.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers this ground. uptime-kuma (the closest
+    "monitoring" entry in the catalogue) is black-box uptime/ping checking
+    of external endpoints; Prometheus is a pull-based time-series metrics
+    database that scrapes numeric metrics (CPU, memory, request rates,
+    custom app instrumentation) from targets the customer configures, and
+    exposes them for PromQL querying and alerting. WUD monitors Docker
+    image freshness only, not general metrics. Distinct capability, not a
+    duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Prometheus is the de facto standard metrics toolkit and would be a
+    legitimate, well-known addition, but the value out of the box is
+    thin: the official image ships with an empty default scrape config
+    (just itself), so a freshly-booted recipe has nothing meaningful to
+    show until the customer edits prometheus.yml (via SSH/volume access,
+    outside the recipe mechanism) to add scrape targets and, in most real
+    setups, deploys exporters (node_exporter, cAdvisor, etc.) alongside
+    the workloads being monitored — none of which this recipe provisions.
+    It is also commonly paired with Grafana for dashboarding, which the
+    bare recipe wouldn't include. Real capability, but "works immediately
+    after signup" is a weaker story than most of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ui_gate_credential]
+  secrets_expressible_today:
+    - secret: ui_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Prometheus ships with no authentication on its web UI/API (port
+      9090) by default. Confirmed via upstream docs
+      (prometheus.io/docs/prometheus/latest/configuration/https/):
+      opt-in auth is `basic_auth_users` in a separate `--web.config.file`
+      YAML file, with bcrypt-hashed passwords compared against that file
+      on every request. This is not a structural blocker — since the
+      server has no auth at all unless that file is supplied, a Traefik
+      `basic_auth: true` gate in front of the whole app (never supplying
+      `--web.config.file`) is a complete, supported substitute, the same
+      pattern used for n8n and other apps with no login of their own.
+    - >
+      Not a blocking issue but a caveat worth flagging alongside
+      `usefulness_rationale`: default-booting Prometheus with no scrape
+      targets configured is mechanically installable (no external
+      secret needed) but functionally close to a no-op until the
+      customer edits its config file from outside the provisioned
+      stack — this recipe mechanism has no channel for a customer to
+      supply scrape-target configuration at first boot either.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Prometheus is healthy and actively developed (CNCF graduated, releases
+  every few weeks, large active community), ships an official
+  single-container image with a single HTTP port and no mandatory
+  external database, and is mechanically installable today by gating its
+  unauthenticated-by-default web UI behind Traefik `basic_auth` — no
+  external API keys or OAuth needed at first boot. It doesn't duplicate
+  anything in the current 24-recipe catalogue (uptime-kuma is uptime
+  pinging, not metrics collection). The catch is that Prometheus alone
+  monitors nothing useful until the customer configures scrape targets
+  (and typically deploys exporters) from outside the recipe, so the
+  freshly-booted experience is thinner than most of the catalogue.
+  Recommend build_with_caveats: worth building for a real, distinct
+  capability, but set expectations that it's a metrics backend awaiting
+  configuration, not a turnkey dashboard.

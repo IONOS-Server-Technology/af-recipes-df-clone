@@ -1,0 +1,94 @@
+slug: vitess
+name: Vitess
+source_description: "Database clustering system for horizontal scaling of MySQL databases"
+
+upstream:
+  url: https://vitess.io/
+  repo_url: https://github.com/vitessio/vitess
+  license: Apache-2.0
+  docker_image: vitess/lite
+  compose_file_url: https://github.com/vitessio/vitess/blob/main/examples/compose/docker-compose.yml
+  compose_file_notes: >
+    Official, but rolling and non-standalone. It lives in the vitessio/vitess
+    repo itself under examples/compose/ and is a rolling reference to the
+    default (main) branch, not a version-pinned release asset — the project
+    does not publish a tagged/release download of this file. It is also not
+    meant to be run directly as a turnkey `docker compose up`: the repo's own
+    quickstart instructs generating it first (`cp docker-compose.beginners.yml
+    docker-compose.yml`, or via the `vtcompose` Go tool for custom shard
+    topologies) and then driving the cluster up through a sequence of numbered
+    helper shell scripts (101_initial_cluster.sh, 201_customer_tablets.sh,
+    etc.) rather than compose alone. Picked docker-compose.yml (the generated
+    end-state file) over docker-compose.beginners.yml (its input template)
+    since it's the one actually passed to `docker compose`.
+
+version_health:
+  latest_version: v23.0.3
+  latest_release_date: 2026-02-26
+  release_cadence: active
+  eol_status: active
+  notes: >
+    CNCF-graduated project with a regular quarterly major-release cadence
+    (v22 GA, then v23.0.0 GA 2025-11-04) plus frequent patch releases for
+    open CVEs — v23.0.3 (2026-02-26, ~5 months before today, 2026-08-05) was
+    itself a security patch. No sign of maintenance-only mode or slowdown.
+
+catalogue_fit:
+  categories: [database, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers MySQL sharding/clustering infrastructure — the
+    catalogue's database-adjacent recipes (n8n, paperless-ngx, immich, etc.)
+    all consume a single Postgres/MySQL instance rather than operate one.
+    Vitess itself isn't a customer-facing application; it's infrastructure
+    that other applications would connect to as their database layer.
+  usefulness: low
+  usefulness_rationale: >
+    Vitess exists to shard/scale MySQL across many nodes for large
+    organizations (its origin is YouTube's MySQL fleet, later PlanetScale).
+    A single-tenant self-hosted deployment for one customer has no natural
+    use case matching the rest of the catalogue's "one useful app per
+    customer" model — a customer needing a database for another app is far
+    better served by a plain MySQL/Postgres container than by a sharded
+    cluster with its own topology-consensus service.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - VTAdmin web UI basic-auth gate
+  secrets_expressible_today:
+    - secret: VTAdmin web UI basic-auth gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Vitess's actual product surface is the MySQL wire protocol exposed by
+      vtgate (port 15306 by default), not an HTTP application — a customer's
+      real use of the deployment (connecting a MySQL client/app to the
+      cluster) cannot go through Traefik's HTTP router the way every other
+      recipe does; it would need raw TCP passthrough, which is a different
+      exposure model than the rest of the catalogue."
+    - "Minimum viable topology requires a separate consensus/topology store
+      (etcd, Consul, or ZooKeeper) plus vtctld, vtgate, and one or more
+      vttablet+mysqld pairs — a multi-service cluster-of-clusters shape with
+      no single-container or simple multi-container equivalent in any
+      existing recipe."
+    - "VTAdmin (the only web UI) ships with no built-in authentication by
+      design (upstream explicitly leaves auth to the operator), so it would
+      need a Traefik basic_auth gate — expressible today — but that only
+      covers the admin UI, not the underlying database access customers
+      would actually want."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Vitess is an actively maintained, CNCF-graduated MySQL clustering system.
+  Its primary interface is the raw MySQL protocol via vtgate rather than
+  HTTP, its minimum deployment topology is a multi-node cluster with its own
+  consensus store, and its only web UI (VTAdmin) has no built-in login of
+  its own. Even with a Traefik basic_auth gate on VTAdmin, the core value of
+  the product (a horizontally-scaled MySQL cluster) isn't reachable through
+  our current reverse-proxy-only, single/multi-container exposure model —
+  vtgate's MySQL wire protocol needs raw TCP passthrough that Traefik's HTTP
+  router doesn't provide, and the minimum topology has no equivalent in any
+  existing recipe shape.

@@ -1,0 +1,100 @@
+slug: nextcloud
+name: Nextcloud
+source_description: "Nextcloud is a powerful self-hosted productivity platform"
+
+upstream:
+  url: https://nextcloud.com/
+  repo_url: https://github.com/nextcloud/server
+  license: AGPL-3.0-only (server core; some optional apps/enterprise features are proprietary, but the official Docker image ships the AGPL community edition)
+  docker_image: nextcloud
+  compose_file_url: https://raw.githubusercontent.com/nextcloud/docker/master/.examples/docker-compose/insecure/postgres/apache/compose.yaml
+  compose_file_notes: >
+    Official — from nextcloud/docker, the repo Nextcloud GmbH maintains
+    for the official `nextcloud` Docker Hub image (README's "Running this
+    image with docker compose" section points here). This is a rolling
+    reference to the default branch (master), not a version-pinned tag or
+    release asset — the compose file itself carries no Nextcloud version
+    pin (image: nextcloud:apache, unpinned to a release). The repo ships
+    four variants under .examples/docker-compose: {insecure, with-nginx-proxy}
+    x {mariadb, postgres}, each further split {apache, fpm}. Picked
+    insecure/postgres/apache to match this recipe's own stack (Postgres +
+    Redis + Apache-based nextcloud image, per version_health/summary above)
+    and because "insecure" here just means "no bundled reverse proxy/TLS
+    termination" (app binds 127.0.0.1:8080), which is correct since this
+    catalogue's own recipe puts Nextcloud behind its own reverse proxy —
+    the with-nginx-proxy variant would double up. Also includes a `cron`
+    sidecar container (recommended background-jobs runner) alongside
+    `db`, `redis`, and `app`.
+
+version_health:
+  latest_version: "34.0.2"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    34.0.2 released 2026-07-23, ~13 days before today (2026-08-05). Point
+    releases land roughly monthly on the current major (34.0.0 2026-06-09,
+    34.0.1 2026-06-25, 34.0.2 2026-07-23), with parallel maintenance
+    releases still shipping for the two prior majors (33.0.7, 32.0.13, both
+    also 2026-07-23) — Nextcloud maintains three majors concurrently on a
+    steady monthly cadence. The official `nextcloud` Docker Hub image is
+    rebuilt in lockstep with each release (34.0.2-apache/-fpm tags pushed
+    2026-08-05). Clearly active, nowhere near maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers general-purpose
+    cloud file storage/sync with a full web UI. Syncthing is the closest
+    name association but solves a different problem — it's P2P
+    device-to-device sync with no server-side web UI, no browsable file
+    manager, no link sharing, no calendar/contacts/office integration.
+    Immich is media-specific (photos/videos only) and Paperless-ngx is
+    scanned-document-specific. Nextcloud is a general file drive (any file
+    type) plus calendar, contacts, and optional office/collaboration apps
+    — the "Google Drive/Workspace alternative" category the catalogue
+    doesn't have yet.
+  usefulness: high
+  usefulness_rationale: >
+    Nextcloud is arguably the single most requested self-hosted app in
+    this space — broad brand recognition, huge install base, and a
+    feature set (file sync + sharing + calendar/contacts + mobile/desktop
+    clients) that covers a use case none of the 24 existing recipes
+    address. High customer draw.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [NEXTCLOUD_ADMIN_PASSWORD, DB_PASSWORD, REDIS_PASSWORD]
+  secrets_expressible_today:
+    - secret: NEXTCLOUD_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: REDIS_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Nextcloud's official image (nextcloud:34.0.2-apache, pinned) serves its
+  entire web UI on a single HTTP port (80), is explicitly documented to
+  work behind a reverse proxy (trusted_proxies / overwriteprotocol config),
+  and needs Postgres (or MariaDB) plus Redis as private backing services —
+  the same shape as Paperless-ngx and Immich, both already in the
+  catalogue. The one first-boot secret that is customer-facing is the
+  admin login: the entrypoint's NEXTCLOUD_ADMIN_USER/NEXTCLOUD_ADMIN_PASSWORD
+  are passed straight through to `occ maintenance:install --admin-pass
+  "$NEXTCLOUD_ADMIN_PASSWORD"`, which stores its own internal hash of
+  whatever string it receives — functionally identical to AList's
+  `alist admin set <password>` post-boot call (apps-gaps/alist.yaml), so
+  the value can be projected via generated_from:"<algo>:ROOT_PASSWORD"
+  with no plaintext-only requirement blocking it. DB and Redis passwords
+  are pure internal secrets, generated server-side with zero customer
+  input needed. No external API keys, no OAuth, no second
+  customer-chosen credential. Active, healthy release cadence (34.0.2,
+  2026-07-23, ~13 days old) with three majors maintained in parallel.
+  Recommend build_now.

@@ -1,0 +1,99 @@
+slug: openviking
+name: OpenViking
+source_description: "OpenViking is an open-source context database built for AI agents"
+
+upstream:
+  url: https://openviking.ai
+  repo_url: https://github.com/volcengine/OpenViking
+  license: AGPL-3.0 (core server); Apache-2.0 (CLI/SDKs and examples)
+  docker_image: ghcr.io/volcengine/openviking
+  compose_file_url: https://raw.githubusercontent.com/volcengine/OpenViking/main/docker-compose.yml
+  compose_file_notes: >
+    Official, at the project repo root (not a docs-embedded snippet). The
+    project's own deployment guide (docs/en/guides/03-deployment.md)
+    explicitly confirms it: "You can also use Docker Compose, which
+    provides a `docker-compose.yml` in the project root". This is a
+    rolling reference to the main branch (no versioned/tagged copy is
+    published) — the file itself pulls `ghcr.io/volcengine/openviking:latest`,
+    so both the compose file and the image it references float with
+    upstream's default branch/latest tag. Only one variant exists: a
+    single `openviking` service plus an optional `caddy` reverse-proxy
+    service (retained for legacy/public-HTTPS setups per the file's own
+    comments) — no separate GPU/CPU or sqlite/postgres split.
+
+version_health:
+  latest_version: "v0.4.12"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.4.12 released 2026-08-03, 2 days before today (2026-08-05). Prior
+    releases: v0.4.11 (2026-07-23), v0.4.10 (2026-07-16), v0.4.9 (2026-07-13)
+    — a new tagged release roughly every 5-10 days, plus dev pre-releases
+    (v0.4.12.dev01-03) landing within hours/days of the stable tag. Backed
+    by ByteDance/Volcengine, 1,900+ commits on main, thousands of stars.
+    Clearly active, fast-moving development. Pre-1.0 (still 0.x) — expect
+    breaking config/API changes between minor versions, which matters for
+    a recipe that hand-writes ov.conf.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 built recipes is a context/memory backend for
+    AI agents. OpenViking is a virtual-filesystem-style store (viking://)
+    that unifies an agent's memory, resources, and skills, with a bundled
+    "Studio" web UI for browsing/debugging that context and an HTTP API
+    other tools consume. Upstream explicitly names openclaw — already in
+    our catalogue (recipes/openclaw/) — as an example consumer, so this
+    would plug into an existing recipe rather than compete with one: a
+    customer running openclaw could point it at a self-hosted OpenViking
+    instance for durable, inspectable memory instead of an opaque vector
+    store. It is conceptually adjacent to open-webui/ollama (both can run
+    fully on local models) but serves a different job — agent context
+    persistence, not a chat frontend.
+  usefulness: medium
+  usefulness_rationale: >
+    Real and growing category (agent memory/context layers), and the
+    openclaw synergy gives it a concrete use case in our existing catalogue
+    rather than being a standalone curiosity. Held to medium rather than
+    high because it is primarily infrastructure consumed via API/CLI by
+    other agents or developer tooling, not a self-contained end-user
+    product — closer to Letta's audience (developers wiring up agent
+    memory) than to a turnkey app a non-technical customer would install
+    for its own sake. It is also pre-1.0 software from a fast-moving repo,
+    so day-one config stability is a real risk.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "OpenViking root_api_key"
+    - "Embedding + VLM model provider (external LLM API key OR a local Ollama sidecar with pulled embedding/VLM models)"
+  secrets_expressible_today:
+    - secret: "OpenViking root_api_key"
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "root_api_key is consumed by the app as an opaque string it compares for auth, not as a plaintext credential with a specific required hash scheme, so projecting a bcrypt/argon2 hash of ROOT_PASSWORD into it via generated_from is plausible — but public docs never describe the Studio login UX (whether the browser prompts for this key, expects it in a URL, or trusts anything behind the reverse proxy). Without confirming that flow against a running instance, there's a real risk the customer has no discoverable way to actually enter the projected value into Studio, in which case a Traefik basic_auth gate (with the app's own root_api_key generated randomly and never surfaced) would be the safer mechanism instead. This needs to be resolved with a live smoke test before build, not assumed either way."
+    - "Core function (embedding + VLM calls for retrieval and self-evolving memory) requires either an external provider API key (no input channel today) or a bundled Ollama sidecar with specific pulled models (e.g. an embedding model plus a VLM like llama3.1) configured into ov.conf at first boot — heavier and less turnkey than open-webui's model-picker-after-install pattern, since OpenViking's config wizard normally runs interactively before the server can even start. Scripting this in install.sh is likely feasible but unverified beyond docs."
+    - "ov.conf must be authored and mounted before the container starts (no full env-var equivalent for the embedding/VLM block); combined with a pre-1.0, fast-moving config schema, this is more fragile to automate than a typical single-env-file recipe."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OpenViking is an active, well-backed context/memory database for AI
+  agents with a genuine differentiator (nothing else in the catalogue
+  covers this, and it has a direct synergy with the already-shipped
+  openclaw recipe) and a pinned official Docker image. It is not a clean
+  ship today, though: the mandatory root_api_key could plausibly be
+  projected via generated_from(ROOT_PASSWORD) since it appears to be a
+  simple opaque string comparison, but the Studio login flow that would
+  actually need to accept that value is undocumented publicly and must be
+  verified live before relying on it; and first-boot embedding/VLM
+  configuration either needs an external provider key (no channel today)
+  or a scripted local-Ollama setup baked into ov.conf, which is more
+  fragile than any current recipe's boot sequence. Recommend
+  blocked_on_platform: revisit once the generated_from mechanism ships and
+  the Studio auth UX and a local-only embedding/VLM boot path have been
+  hands-on verified against a running instance.

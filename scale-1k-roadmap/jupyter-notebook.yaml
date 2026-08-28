@@ -1,0 +1,98 @@
+slug: jupyter-notebook
+name: Jupyter Notebook
+source_description: "Interactive web environment for live code, data analysis, and visualizations"
+
+upstream:
+  url: https://jupyter.org
+  repo_url: https://github.com/jupyter/notebook
+  license: BSD-3-Clause
+  docker_image: quay.io/jupyter/base-notebook
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists. The jupyter/docker-stacks
+    repo and its ReadTheDocs user guide (jupyter-docker-stacks.readthedocs.io)
+    only document `docker run` invocations for launching a container. The
+    repo does contain an `examples/docker-compose/` directory
+    (github.com/jupyter/docker-stacks/tree/main/examples/docker-compose),
+    but it is a legacy Docker Machine/VirtualBox provisioning example
+    (requires "Docker Machine 0.6.0+" and "Docker Compose 1.6.0+") driven
+    by shell scripts (bin/vbox.sh, notebook/build.sh, notebook/up.sh) and a
+    Dockerfile — it does not ship an actual docker-compose.yaml file to
+    reference, and the tooling it targets (Docker Machine) is deprecated.
+    Not adopted as official.
+
+version_health:
+  latest_version: "7.6.1"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v7.6.1 (2026-07-22) is 2 weeks old as of today (2026-08-05); v7.6.0
+    shipped 2026-06-18 and a v7.7.0a1 pre-release followed on 2026-07-22 too
+    — a steady, active monthly-ish cadence. "Jupyter Notebook" today means
+    Notebook 7 (jupyter/notebook repo), a rewrite built on JupyterLab's
+    components that replaced the pre-7 classic Notebook UI; that classic
+    UI was formally deprecated inside the jupyter/docker-stacks images
+    (GitHub issue jupyter/docker-stacks#1217) with JupyterLab made the
+    container default and classic Notebook demoted to an opt-in via
+    `DOCKER_STACKS_JUPYTER_CMD=notebook`. Notebook 7 itself (what that
+    opt-in now launches) is actively maintained, not the deprecated one —
+    no EOL/dormancy signal. Separately, the docker-stacks project stopped
+    pushing images to Docker Hub on 2023-10-20; current images live on
+    quay.io (`quay.io/jupyter/base-notebook` etc.) — a plain `docker_image:
+    jupyter/base-notebook` from Docker Hub would be stale and must not be
+    used as the pin source.
+
+catalogue_fit:
+  categories: [developer-tools, data]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers an interactive
+    code/data-analysis notebook. Code-server is the closest structural
+    neighbor (single-container browser dev tool, same auth shape) but is a
+    general-purpose editor/IDE, not a cell-based notebook for exploratory
+    data analysis and inline visualizations — a genuinely different
+    workflow and audience (data analysts/scientists vs. general dev work).
+    Apache Zeppelin (see apps-gaps/apache-zeppelin.yaml, not yet a recipe)
+    covers similar ground but is Spark-oriented and less mainstream;
+    Jupyter is the default choice for this category and would be the
+    stronger of the two to build first.
+  usefulness: high
+  usefulness_rationale: >
+    Jupyter is the de facto standard notebook tool for data analysis,
+    prototyping, and teaching — extremely widely known, single official
+    container, no external DB/cache dependency, and works standalone out of
+    the box (unlike Zeppelin's Spark-flavored use case). Low resource
+    footprint for the base image (documented minimum ~1-2 GB RAM); heavier
+    stacks (datascience-notebook, tensorflow-notebook) exist as optional
+    upgrades but aren't required to ship a useful MVP.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [HASHED_PASSWORD]
+  secrets_expressible_today:
+    - secret: HASHED_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Jupyter Notebook (Notebook 7, built on JupyterLab's server/components)
+  ships as a single official container from the jupyter/docker-stacks
+  project — current images are on quay.io (Docker Hub pushes stopped
+  2023-10-20), pin to a dated tag such as
+  `quay.io/jupyter/base-notebook:<YYYY-MM-DD>`. It listens on a single HTTP
+  port (8888) with no extra raw ports or services, so it sits cleanly
+  behind Traefik. By default it authenticates with a random token printed
+  to container logs, but docker-stacks documents a `NOTEBOOK_ARGS` env var
+  that is passed straight through to the startup command, letting a hashed
+  password be supplied via
+  `--PasswordIdentityProvider.hashed_password='argon2:...'` — this maps
+  directly onto the platform's `generated_from: "argon2:ROOT_PASSWORD"`
+  mechanism, same pattern as code-server's `HASHED_PASSWORD`. Upstream is
+  actively maintained (release 2 weeks old) and fills a real, currently
+  absent category in the catalogue (interactive data-analysis notebook).
+  Recommend build_now.

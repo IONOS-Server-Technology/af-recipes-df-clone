@@ -1,0 +1,102 @@
+slug: flame
+name: Flame
+source_description: "Self-hosted startpage and application dashboard for your homelab"
+
+upstream:
+  url: https://github.com/pawelmalak/flame
+  repo_url: https://github.com/pawelmalak/flame
+  license: MIT
+  docker_image: pawelmalak/flame
+  compose_file_url: https://raw.githubusercontent.com/pawelmalak/flame/master/.docker/docker-compose.yml
+  compose_file_notes: >
+    Official — lives in the project's own repo at .docker/docker-compose.yml,
+    and matches the example embedded in README.md's "Docker-Compose" section.
+    This is a rolling reference to the default branch (master), not
+    version-pinned to a release tag; the project does not publish a
+    release-asset compose file. Only one variant exists — Flame has no
+    GPU/CPU or sqlite/postgres split (it only uses SQLite) — so there was no
+    variant choice to make.
+
+version_health:
+  latest_version: "2.4.0"
+  latest_release_date: "2026-04-24"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Not archived, and the master branch is not dead (a follow-up commit fixed
+    a sqlite/amd64 crash on 2026-04-25, and the repo was last pushed to on
+    2026-06-25 — about 6 weeks before today, 2026-08-05). But the release
+    history shows the project spends long stretches dormant: v2.3.1 shipped
+    2023-07-23 and the next tag, v2.4.0, didn't land until 2026-04-24 — a
+    ~2 year 9 month gap with essentially no tagged releases. v2.4.0 itself
+    was a security-fix release (critical auth issue) plus a crash fix, not
+    new feature work. The maintainer has publicly floated a v3.0 rewrite on
+    a "modern stack" with no committed timeline. Net: alive enough to patch
+    critical bugs, but not under active feature development — treat as
+    maintenance-only rather than actively developed.
+
+catalogue_fit:
+  categories: [dashboard, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are a bookmark/startpage dashboard —
+    portainer and uptime-kuma are admin tools for specific concerns (container
+    management, uptime monitoring), not a general-purpose landing page/link
+    hub for a customer's other self-hosted apps. Flame would be a plausible
+    "front door" once a customer has installed 2-3 other recipes on the same
+    VPS, letting them bookmark and search across those apps' URLs from one
+    page.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful once a customer has multiple recipes running, but it's a
+    convenience layer rather than something people seek out on its own, and
+    the optional Docker-socket integration (auto-discovering running
+    containers) — one of its more compelling features — is a security
+    tradeoff we'd want to leave disabled by default in a hosted, multi-tenant
+    context.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik gate credential (perimeter auth in front of the app)"
+    - "Flame's own PASSWORD env var (in-app login used to edit apps/bookmarks/settings)"
+  secrets_expressible_today:
+    - secret: "Traefik gate credential (perimeter auth in front of the app)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Flame's login (controllers/auth/login.js) does a plain string equality
+      check — `process.env.PASSWORD == password` — with no hashing anywhere
+      in the comparison. It is not a "hash algorithm we don't support yet"
+      case; the app only ever accepts a value the customer can type
+      literally, and `generated_from` only ever produces a one-way hash, not
+      the plaintext root password. So the in-app PASSWORD cannot be
+      projected from the customer's root password via `generated_from` —
+      the customer would have to type in a hash string they've never seen
+      and could not have derived themselves.
+    - >
+      Workaround used elsewhere for unchangeable/default app credentials
+      (IF-1312 precedent) applies here too: put Traefik basic_auth
+      (generated_from the root password hash) in front as the real perimeter,
+      and ship Flame's own PASSWORD as a fixed, non-customer-specific value
+      baked into the recipe. That unblocks shipping the recipe, but it means
+      every install of this recipe shares the same in-app edit password —
+      acceptable per IF-1312 reasoning (the Traefik gate is the actual
+      boundary) but worth flagging explicitly since it's not a per-customer
+      secret.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Flame is a small, real gap in the catalogue (no startpage/dashboard recipe
+  exists today) and is mechanically shippable now via a Traefik basic_auth
+  gate keyed off the customer's root password, the same pattern already used
+  for n8n/WUD/Open WebUI. The catch is Flame's own in-app login: it does a
+  plaintext string comparison with no hashing, so it cannot consume a
+  `generated_from` hash the way Vaultwarden's admin token can — the recipe
+  would have to ship a fixed, shared PASSWORD value behind the Traefik gate,
+  same precedent as IF-1312's "unchangeable default credential" case. That
+  shared, non-per-customer in-app password is the actual caveat driving
+  build_with_caveats — installable today, but not without that gap.

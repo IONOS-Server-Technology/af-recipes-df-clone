@@ -1,0 +1,84 @@
+slug: bytestash
+name: ByteStash
+source_description: Self-hosted code snippet manager with syntax highlighting and search
+
+upstream:
+  url: https://github.com/jordan-dalby/ByteStash
+  repo_url: https://github.com/jordan-dalby/ByteStash
+  license: GPL-3.0
+  docker_image: ghcr.io/jordan-dalby/bytestash:1.5.12
+  compose_file_url: https://raw.githubusercontent.com/jordan-dalby/ByteStash/main/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives at the repo root (jordan-dalby/ByteStash) and is the
+    file the README's "hosted manually via the docker-compose file" section
+    is drawn from. Only one production variant is shipped (a
+    docker-compose-dev.yaml also exists but is for local development, not
+    deployment). This is a rolling default-branch reference, not
+    version-pinned: there is no tagged/release-asset copy (checked
+    /releases/latest/download/docker-compose.yaml — 404), so watch the
+    `main` branch path for changes rather than a specific tag. Note the
+    file builds the image from source (`build: context: .`) rather than
+    pulling the published ghcr.io/jordan-dalby/bytestash image referenced
+    above in this recipe.
+
+version_health:
+  latest_version: v1.5.12
+  latest_release_date: 2026-06-19
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Latest tag v1.5.12 shipped 2026-06-19, ~1.5 months before this analysis
+    (2026-08-05) — recently active. But cadence has stretched: releases were
+    roughly monthly through late 2024/early 2025 (v1.5.3 2024-11-27 through
+    v1.5.7 2025-02-27), then gaps widened to ~4 months (v1.5.9 2025-10-06 →
+    v1.5.10 2026-01-26 → v1.5.11 2026-02-03 → v1.5.12 2026-06-19). No
+    archived badge, single maintainer (jordan-dalby), still merging PRs
+    (pr-359/pr-360 builds published ~7 days before this analysis) — treat as
+    active but with a slowing single-maintainer cadence, not abandoned.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [opengist]
+  differentiation: >
+    OpenGist is Git-backed (has its own SSH clone port, pastebin/gist
+    semantics). ByteStash is a flatter personal snippet organizer: SQLite
+    storage, folder/tag-style organization, multi-fragment snippets per
+    entry, and a built-in MCP endpoint so AI assistants (Claude, OpenAI,
+    Perplexity) can search/manage snippets via an API key — a feature
+    OpenGist doesn't have. Real but narrow differentiation; both solve
+    "self-hosted Gist alternative" for the same audience.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to developers, but sits close enough to OpenGist (already in the
+    catalogue) that it reads as a near-duplicate rather than a new capability.
+    The MCP-for-AI-assistants angle is the main reason a customer would pick
+    this over OpenGist specifically.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE_CREDENTIAL, JWT_SECRET]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE_CREDENTIAL
+      mechanism: traefik_basic_auth
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ByteStash has no first-run admin-claim flow: with ALLOW_NEW_ACCOUNTS on
+  (needed so the customer can create their own account at all) the very
+  first visitor to the public domain — not necessarily the customer — can
+  register the sole account. There's no metadata parameter to
+  generated_from-project the root password into, since the login is a
+  self-chosen signup credential, not a fixed admin field. The fix is the
+  same pattern used elsewhere in the catalogue for no-builtin-gate apps:
+  put the whole app behind a Traefik basic_auth wall (root-password
+  projected) so only the actual customer ever reaches the signup form; JWT
+  signing secret is server-generated and never customer-facing. Mechanically
+  installable today with no blocking issues. Recommend build_now. (Overlaps
+  with the existing opengist recipe — see catalogue_fit above — but overlap
+  is not a factor in this recommendation.)

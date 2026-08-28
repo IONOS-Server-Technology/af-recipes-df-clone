@@ -1,0 +1,87 @@
+slug: denokv
+name: DenoKV
+source_description: "The Denoland key-value database for Deno Deploy"
+
+upstream:
+  url: https://github.com/denoland/denokv
+  repo_url: https://github.com/denoland/denokv
+  license: MIT
+  docker_image: ghcr.io/denoland/denokv:0.14.0
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose.yaml/.yml exists anywhere in the denokv repo (root,
+    docker/, deploy/, or contrib/) — the repo ships only a Dockerfile. The
+    README's "HTTPS with a reverse proxy" section shows an inline
+    docker-compose.yml snippet (denokv + Caddy) as a documentation example
+    for users to hand-assemble in their own project, but this is not a file
+    the project itself publishes, versions, or updates — it's illustrative
+    copy-paste text embedded in prose, not an official artifact. No
+    official compose file exists to link.
+
+version_health:
+  latest_version: "0.14.0"
+  latest_release_date: 2026-06-06
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    ~2 months since 0.14.0 (2026-06-06) as of today (2026-08-05) — still
+    actively maintained. Cadence had been fairly regular every ~2-3 months
+    from 0.8.1 (2024-06) through 0.12.0 (2025-07-29), but the gap between
+    0.13.0 (2025-11-21) and 0.14.0 (2026-06-06) stretched to ~6.5 months,
+    the widest gap in the release history — worth flagging as a slowdown,
+    not yet dormant.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a standalone database/KV backend service.
+    DenoKV is a self-hosted implementation of the Deno KV protocol (SQLite-
+    backed, ACID transactions) so a customer's own Deno/Deno Deploy
+    applications can point at an external, persistent KV store instead of
+    the single-instance built-in one. It would be a genuinely new capability
+    in the catalogue, not a duplicate of anything we ship today.
+  usefulness: low
+  usefulness_rationale: >
+    Purely a headless API backend with no web UI and no admin surface at
+    all — the customer interacts with it exclusively by pointing their own
+    Deno code at it via `Deno.openKv(url)`. That's a narrow niche (customers
+    already building Deno/Deno Deploy applications who specifically want an
+    external KV backend) compared to the general-purpose, UI-driven apps
+    that make up the rest of the catalogue, and it has no standalone value
+    without that specific developer workflow.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DENO_KV_ACCESS_TOKEN]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      DENO_KV_ACCESS_TOKEN is not an internal secret nothing customer-facing
+      reads — it's the one credential the customer's own external Deno
+      application (`Deno.openKv(url)`) must be configured with to use the
+      service at all. DenoKV has no web UI, admin API, or any log/output
+      channel to surface a server-generated value after boot, so there is no
+      way for the customer to ever learn a server-generated token. It also
+      isn't a customer-chosen credential (so `generated_from` doesn't apply)
+      and there's no login of DenoKV's own to gate with `traefik_basic_auth`
+      instead. No expressible mechanism exists for this secret today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  DenoKV needs a single bearer access token (DENO_KV_ACCESS_TOKEN) that its
+  own external Deno client must be configured with, but there is no channel
+  today for that value to ever reach the customer: it's not a customer-
+  chosen credential (no `generated_from`), there's no UI or API to gate with
+  `traefik_basic_auth`, and DenoKV has no web UI, admin surface, or log
+  output through which a server-generated token could be retrieved post-
+  boot. It exposes one plain-HTTP port with no other raw protocols, so it
+  would be reverse-proxy compatible if this were solved, but as things stand
+  it is not mechanically installable today. It is blocked on platform: a
+  customer-supplied-secret input channel (so the customer can set their own
+  DENO_KV_ACCESS_TOKEN at first boot, the way `Deno.openKv(url)` needs to
+  authenticate) would clear this blocker; revisit once that mechanism
+  exists.

@@ -1,0 +1,78 @@
+slug: hollama
+name: Hollama
+source_description: "Minimal self-hosted browser chat UI for Ollama and OpenAI language models"
+
+upstream:
+  url: https://github.com/fmaclen/hollama
+  repo_url: https://github.com/fmaclen/hollama
+  license: MIT
+  docker_image: ghcr.io/fmaclen/hollama
+  compose_file_url: null
+  compose_file_notes: >-
+    No docker-compose file exists anywhere in the repo (checked the full
+    git tree) or in the docs. SELF_HOSTING.md only documents a bare
+    `docker run --rm -d -p 4173:4173 --name hollama
+    ghcr.io/fmaclen/hollama:latest` command (optionally with
+    `VITE_ALLOWED_HOSTS` for reverse-proxy setups); there is no compose
+    variant, official or community, to point to.
+
+version_health:
+  latest_version: "0.35.4"
+  latest_release_date: "2025-10-12"
+  release_cadence: slowing
+  eol_status: active
+  notes: >-
+    Releases were frequent through 2025 (0.32.0 -> 0.35.4 across May-Oct
+    2025, several within days of each other, including three Docker-only
+    fixes on 2025-10-09/10/12), then nothing tagged since 0.35.4
+    (2025-10-12) — about 10 months with zero releases as of today
+    (2026-08-05). Repo is not archived and no EOL statement has been made,
+    but the sudden stop after a clearly active cadence is enough to call
+    this "slowing" rather than "active"; worth re-checking closer to build
+    time in case it's just a quiet patch, not a stall.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Hollama is a static, client-only chat frontend for Ollama/OpenAI-
+    compatible endpoints: no backend, no database, no server-side session
+    -- everything (server URLs, API keys, chat history) lives in the
+    visitor's own browser localStorage. That is a narrower, lighter-weight
+    version of what Open WebUI already does in the catalogue (Open WebUI
+    additionally provides multi-user accounts, a real backend/database,
+    and is already bundled with Ollama in one recipe). Hollama adds no
+    capability Open WebUI lacks; it trades Open WebUI's persistence and
+    multi-user accounts for a smaller footprint and zero backend.
+  usefulness: low
+  usefulness_rationale: >-
+    A single-user, no-persistence chat client is a strict subset of the
+    open-webui recipe already in the catalogue (which bundles Ollama and
+    keeps chat history server-side across devices). The only customer who
+    would pick Hollama over open-webui is one who specifically wants
+    nothing stored server-side, which is a narrow niche and not enough to
+    justify a second AI-chat-UI recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Hollama is a single-container, single-HTTP-port (4173) static app with
+  no built-in login of its own (any server URL/API key is typed in by
+  whoever opens the page, per-browser). Mechanically that makes it
+  installable today the same way Adminer is: gate the domain behind
+  Traefik basic_auth with the password projected from the customer's root
+  password, no other secret needed. It overlaps with the already-shipped
+  open-webui + ollama pairing, offering a lighter-weight, no-persistence
+  alternative, and its release cadence has gone quiet for the past 10
+  months after an otherwise active 2025 -- worth re-checking closer to
+  build time -- but neither of those affects installability. Build now.

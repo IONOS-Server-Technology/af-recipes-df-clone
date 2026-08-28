@@ -1,0 +1,97 @@
+slug: tautulli
+name: Tautulli
+source_description: "Tautulli is a monitoring and tracking tool for Plex Media Server with statistics and notifications"
+
+upstream:
+  url: https://tautulli.com/
+  repo_url: https://github.com/Tautulli/Tautulli
+  license: GPL-3.0
+  docker_image: ghcr.io/tautulli/tautulli
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists as a linkable file. Tautulli's
+    own docs (docs.tautulli.com/getting-started/installation) only embed an
+    inline compose snippet as page text (image: tautulli/tautulli, volumes/
+    environment/ports placeholders like <path to data>, <uid>, <gid>,
+    <timezone> for the user to fill in) - there is nothing to link to, only
+    text to copy. The GitHub repo (Tautulli/Tautulli) has no
+    docker-compose.yaml/.yml at its root or under docker/, deploy/, or
+    contrib/, and the repo's GitHub wiki Installation page likewise only
+    describes docker run / inline compose text rather than linking a file.
+    Community-maintained compose repos exist (e.g. selfhosted-heaven/
+    tautulli-docker-compose) but are not adopted here since they are not
+    official.
+
+version_health:
+  latest_version: "v2.17.2"
+  latest_release_date: "2026-06-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.17.2 shipped 2026-06-16, less than 2 months before this analysis
+    (2026-08-05). Releases have landed roughly every 1-2 months through
+    2025-2026 (v2.16.0 2025-09-09, v2.16.1 2026-02-15, v2.17.0 2026-03-28,
+    v2.17.1 2026-05-05, v2.17.2 2026-06-16), several explicitly fixing
+    security issues (XSS, path traversal, open redirect, RCE, SQL
+    injection). Repo has 5,500+ commits with ongoing development across
+    master/beta/nightly branches. This is an actively maintained project,
+    not dormant or EOL.
+
+catalogue_fit:
+  categories: [media, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does Plex-specific analytics/
+    monitoring (Immich is a self-hosted photo library, not a Plex
+    companion). Tautulli would appeal to a customer who already runs Plex
+    Media Server elsewhere and wants watch-history stats, per-user
+    activity graphs, and stream/transcode notifications for it.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful, but entirely dependent on the customer already
+    running a Plex Media Server they can pair Tautulli against — like
+    SyncLounge, it delivers nothing standalone. Plex itself has no official
+    Docker image and is not in our catalogue, so this app only helps
+    customers who host Plex outside the platform (e.g. on a NAS) and want
+    a companion dashboard on IONOS.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [plex_tv_account_signin]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Tautulli's first-run setup wizard mandatorily requires signing in
+      with a Plex.tv account (username/password) on its "Plex
+      Authentication" step to obtain a Plex auth token and pair with a
+      Plex Media Server — there is no way to complete setup without it.
+      This is a third-party account credential, not our root password or
+      a server-generated secret, and there is no environment-variable or
+      config injection path to pre-supply it (Tautulli/Tautulli#2309 is an
+      open, unresolved feature request asking for exactly this). No
+      channel exists today for a customer to supply this at deploy time.
+    - >
+      Even setting aside the Plex.tv sign-in, Tautulli's own web-UI login
+      (http_username/http_password in config.ini) is a plaintext
+      credential with no argon2/bcrypt hashing option we could target with
+      generated_from — though this is moot since the Plex.tv step blocks
+      setup regardless.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Tautulli (ghcr.io/tautulli/tautulli, single port 8181) is an actively
+  maintained, actively released project with no overlap in our current
+  catalogue and a real, if conditional, use case for customers who already
+  run Plex elsewhere. It is not installable today: the mandatory first-run
+  setup wizard requires a Plex.tv account sign-in to mint a Plex auth token
+  and pair with a Plex Media Server, and there is no environment-variable
+  or config-injection path to pre-supply that (confirmed via an open,
+  unresolved upstream feature request for exactly this). That is a
+  third-party OAuth-style credential with no input channel in our current
+  `/compose` mechanism, not something IF-1420/IF-1312 would unblock on
+  their own. Recommend blocked_on_platform: revisit only if a customer-
+  supplied external credential/token channel is ever added to the
+  platform.

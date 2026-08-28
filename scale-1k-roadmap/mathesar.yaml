@@ -1,0 +1,83 @@
+slug: mathesar
+name: Mathesar
+source_description: "Spreadsheet-style web interface for exploring and editing PostgreSQL databases"
+
+upstream:
+  url: https://mathesar.org/
+  repo_url: https://github.com/mathesar-foundation/mathesar
+  license: GPL-3.0
+  docker_image: mathesar/mathesar
+  compose_file_url: https://github.com/mathesar-foundation/mathesar/raw/0.12.0/docker-compose.yml
+  compose_file_notes: >
+    Official docker-compose.yml lives at the root of the mathesar-foundation/mathesar
+    repo. The project's own docs (docs.mathesar.org, "Use Docker Compose" production
+    setup guide) instruct users to fetch it with
+    `wget https://github.com/mathesar-foundation/mathesar/raw/0.12.0/docker-compose.yml`
+    — pinned to the 0.12.0 release tag (matching version_health.latest_version above),
+    not a rolling reference to main/latest. Only one variant is shipped (no GPU/CPU or
+    dev/prod split at this URL); docker-compose.dev.yml and docker-compose.test.yml
+    also exist in the repo but are for contributor/dev use, not the documented
+    production install path.
+
+version_health:
+  latest_version: "0.12.0"
+  latest_release_date: "2026-07-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly monthly minor releases through 2026 (0.9.0 Feb, 0.10.0/0.10.1
+    Apr, 0.11.0 May 28, 0.12.0 Jul 2), with a 0.12.0 PR log already open in
+    late June 2026. As of today (2026-08-05) the gap since the last release
+    is ~1 month, well within the established cadence — clearly active, not
+    dormant. Project is stewarded by the Mathesar Foundation, a 501(c)(3)
+    nonprofit, not a single-maintainer side project.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes gives customers a spreadsheet-style
+    browser/editor for an existing Postgres database. It targets a different
+    use case than the apps-gaps/adminer.yaml candidate (also un-built):
+    Adminer is a generic, all-databases, form-based SQL admin tool for
+    technical users; Mathesar is Postgres-only and explicitly designed as a
+    non-technical, Airtable/spreadsheet-like data-entry surface with native
+    Postgres access control. Recipes like n8n, paperless-ngx, and immich run
+    their own internal Postgres but expose no UI to browse or edit it
+    directly.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to a broader (less technical) audience than a raw DB admin tool,
+    which is a genuine differentiator, but it still requires the customer to
+    already have (or want) a Postgres database to point it at — either their
+    own external instance or Mathesar's bundled one, which starts empty.
+    That's a real but narrower audience than general-purpose apps already in
+    the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mathesar's official docker-compose ships three services: the Django app
+  (mathesar/mathesar, port 8000 internally), a bundled Postgres
+  (pgautoupgrade/pgautoupgrade:17-bookworm), and a bundled Caddy reverse
+  proxy (mathesar/mathesar-caddy) that claims host ports 80/443 for TLS.
+  A recipe would need to drop the bundled Caddy service and point our own
+  Traefik at the mathesar_service:8000 container directly (the same pattern
+  used for other multi-service stacks like anytype-server/immich) — a
+  build-time adaptation, not a platform blocker. Critically, Mathesar has no
+  admin-credential environment variable at all: on first visit it walks the
+  customer through an in-app setup wizard to create their own admin account
+  interactively, the same pattern already accepted for immich. That means
+  no customer-supplied secret needs to cross the /compose boundary — only a
+  domain param and a server-generated (never customer-facing) internal DB
+  password. Release cadence is active (monthly), the project is backed by a
+  nonprofit foundation, and it is mechanically installable today with no
+  changes to the current recipe mechanism. Recommend building.

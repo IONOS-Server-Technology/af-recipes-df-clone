@@ -1,0 +1,124 @@
+slug: gns3-server
+name: GNS3 Server
+source_description: "Open-source network topology emulator with browser UI for virtual lab design"
+
+upstream:
+  url: https://www.gns3.com/
+  repo_url: https://github.com/GNS3/gns3-server
+  license: GPL-3.0
+  docker_image: gns3/gns3-server
+  compose_file_url: https://raw.githubusercontent.com/GNS3/gns3-server/master/compose.yaml
+  compose_file_notes: >
+    Official (lives at the repo root of GNS3/gns3-server itself), but it is
+    a rolling reference to the default branch (`master`), not
+    version-pinned to a release tag — it will drift as the branch moves.
+    Only one variant is shipped (no GPU/CPU or dev/prod split to choose
+    between), but that variant is itself dev-oriented: it `build`s the
+    image from the repo's own `Dockerfile`/context rather than pulling the
+    published `gns3/gns3-server` image, maps only port 8001->3080, and has
+    no volumes for persistent project/config data. The README frames
+    `docker compose up -d` as "recommended for development workflows," not
+    as a production deployment method — consistent with this repo's other
+    docker helper (`scripts/docker_dev_server.sh`) also being dev-only.
+
+version_health:
+  latest_version: "v2.2.61"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.2.61 shipped 2026-07-30, 6 days before today (2026-08-05). Prior
+    2.2.x releases (v2.2.60 on 2026-07-15, v2.2.59 on 2026-05-08, v2.2.58/
+    v2.2.58.1 on 2026-04-10/04-12, v2.2.57 on 2026-03-23) land every 2-6
+    weeks. In parallel, an unstable v3.1.0 alpha series (a1-a4, most recent
+    a4 on 2026-07-09) is under active development. Repo `pushed_at` is
+    2026-07-30, not archived, 106 open issues still being triaged. The
+    companion GNS3/gns3-web-ui repo (separate project, see below) pushed as
+    recently as 2026-08-05 (today). Clearly active on both the 2.2.x
+    stable line and the 3.x development line, no dormant/EOL signal.
+
+catalogue_fit:
+  categories: [infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    A network-topology emulator/lab tool (virtual routers/switches/PCs via
+    Dynamips, IOU, QEMU/KVM, and Docker-based node types, wired into
+    arbitrary virtual topologies) — nothing else in the current 24-recipe
+    catalogue does this; it's a distinct "CCNA/network-engineering lab"
+    use case, closest in spirit to a hosted lab environment rather than any
+    existing app (Guacamole is a remote-desktop *gateway* for real hosts,
+    not a device emulator; Portainer manages the customer's own Docker
+    containers, not emulated network gear).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful to network engineers/students studying for
+    certifications or building/testing topologies, and GNS3 is the
+    de facto standard tool for this niche. Capped at medium rather than
+    high because it's a specialist tool for a narrow audience, not
+    general-purpose infrastructure most customers need, and (see below) its
+    core workflow does not fit our reverse-proxy-only exposure model.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      GNS3 server's own HTTP auth (`auth`/`user`/`password` in
+      `gns3_server.conf`) stores the password as plaintext in the config
+      file — there is no hashing at all, so `generated_from` (which only
+      ever projects a *hash*) has no channel to reach it. This is not the
+      blocker on its own, though: `auth` is `False` by default, so the app
+      can ship with its own auth left disabled and rely on a Traefik
+      `basic_auth` gate instead (same pattern as Glances/dashdot), which
+      fully covers the "don't sit open on the internet" requirement for the
+      management UI itself.
+    - >
+      The actual structural blocker is architectural, not secret-related:
+      GNS3's core function — opening a console (Telnet/VNC) to a running
+      emulated device, and linking devices together — requires large
+      dynamically-allocated raw port ranges (`console_start/end_port_range`
+      5000-10000 TCP, `vnc_console_start/end_port_range` 5900-10000, and
+      `udp_start/end_port_range` 20000-30000 for inter-node links, 2 ports
+      per link), assigned per-node at topology-build time, not known in
+      advance. `metadata.yaml`'s `ports[]` is a static, enumerable list
+      (RFC-002 `single-http-port`/`no-duplicate-public-port`) — it has no
+      way to express "expose an on-demand slice of a 5000-port range," and
+      even a token subset would still make consoles/links unreachable for
+      any node outside that slice. A recipe could expose only the Traefik-
+      fronted web management API/UI (topology editing, node start/stop) and
+      nothing else, but without console/link ports that isn't a usable
+      network emulator — the one thing customers install GNS3 for.
+    - >
+      Secondary (non-blocking on its own, but compounding): meaningful node
+      types (Cisco IOSv/NX-OS, Arista vEOS, any QEMU-based appliance) need
+      `/dev/kvm` passthrough and typically `--privileged`; Docker-based
+      node types need the Docker socket mounted so the GNS3 server can spin
+      up nested containers. RFC-002's `no-privileged-without-justification`
+      allows this with documented justification, so it's not an ERROR by
+      itself — but combined with the port-range problem above it reinforces
+      that GNS3 is built to run as a general-purpose Linux host/VM (this is
+      exactly why upstream requires the dedicated "GNS3 VM" or a full Linux
+      box for GNS3 3.0+), not as a single reverse-proxied container.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  GNS3 Server is an actively maintained, well-regarded network-topology
+  emulator with no overlap in the current catalogue, but it does not fit
+  the platform's reverse-proxy-only exposure model. Its own auth is a
+  plaintext (unhashable) config value, but that's sidestep-able by leaving
+  it disabled and gating the web UI with Traefik `basic_auth` — the real
+  problem is that GNS3's actual purpose (opening device consoles, linking
+  emulated nodes) depends on large dynamically-allocated raw TCP/VNC/UDP
+  port ranges that `metadata.yaml`'s static port list cannot express, and
+  that Traefik cannot route even if it could. Shipping only the web
+  management shell without console/link access would not be a usable GNS3
+  install. Recommend not_recommended unless/until the platform supports
+  exposing dynamic raw port ranges per app — a much larger platform change
+  than the IF-1420/1312 secret-projection work this schema otherwise gates
+  on.

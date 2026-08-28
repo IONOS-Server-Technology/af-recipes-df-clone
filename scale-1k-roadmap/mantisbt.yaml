@@ -1,0 +1,95 @@
+slug: mantisbt
+name: MantisBT
+source_description: "Open-source bug tracking system for issue management and project collaboration"
+
+upstream:
+  url: https://mantisbt.org/
+  repo_url: https://github.com/mantisbt/mantisbt
+  license: GPL-2.0-or-later
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The mantisbt/mantisbt repo
+    ships no docker/ directory, no compose file, and its README/docs
+    describe only traditional deployment (extract tarball, configure
+    Apache/IIS, provision MySQL/PostgreSQL directly, run the
+    admin/install.php web installer) — no Docker or container guidance at
+    all. All docker-compose.yml files found (okainov/mantisbt-docker,
+    Mikroways/mantisbt, xlrl/docker-mantisbt, vimagick/dockerfiles) are
+    third-party community repos wrapping their own unofficial images, not
+    published or endorsed by the MantisBT project itself, so none is
+    adopted here as official.
+
+version_health:
+  latest_version: "2.28.4"
+  latest_release_date: "2026-07-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.28.4 shipped 2026-07-01 (a security release fixing CVE-2026-47156, a
+    critical SOAP-API auth bypass, plus 7 other vulnerabilities) — 5 weeks
+    before today (2026-08-05). It follows 2.28.3 (2026-05-14, also a
+    security release), 2.28.2, 2.28.1, and 2.28.0 (2025-12), a roughly
+    monthly cadence within the 2.28.x line over the last several months,
+    with security patches shipped promptly. Upstream repo and blog are
+    both clearly active. Clearly active, not slowing or dormant.
+
+catalogue_fit:
+  categories: [developer-tools, project-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Gitea (recipes/gitea) has built-in issue tracking, but it's tied to
+    hosting the customer's git repos there — it doesn't help a team that
+    wants a dedicated, standalone bug/issue tracker independent of where
+    their code lives (or with no git hosting need at all). MantisBT is a
+    long-established, purpose-built bug tracker (projects, issue
+    workflows, custom fields, roadmaps, SOAP/REST API) with no equivalent
+    in the current 24-recipe catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Standalone bug tracking is a real, recognizable self-hosting use case
+    distinct from git-hosting-bundled issue trackers, and MantisBT is a
+    long-standing, actively patched name in that space. It's a narrower
+    audience than a wiki or password manager, though, and its PHP-era UI
+    reads as dated next to newer competitors (e.g. a customer wanting
+    project management is more likely to reach for something more
+    modern-looking), which caps it at medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MantisBT ships no official Docker image of its own; upstream only
+  documents the interactive web installer (admin/install.php) against a
+  manually-provisioned PHP/MySQL or PostgreSQL stack. The best available
+  option is the community-maintained okainov/mantisbt-docker image, which
+  wraps that installer with MYSQL_*/env-var-driven, non-interactive setup
+  on first container start and is actively kept in step with upstream
+  (rebuilt for 2.28.0 within the last ~2 months, a couple patch releases
+  behind the current 2.28.4 at any given time but not stale). It's a
+  single HTTP-port PHP app plus a MySQL/MariaDB sidecar — same shape as
+  our n8n/paperless-ngx recipes — so it's fully Traefik-compatible.
+  MantisBT's own "administrator" account is created by that installer with
+  a plaintext password chosen at setup time, and no docker wrapper exposes
+  an env var that MantisBT itself hash-verifies, so `generated_from` has
+  nothing to project into for the app's real login. Per the same pattern
+  already used for BookStack/Adminer/n8n in this catalogue, the fix is to
+  leave the app's own admin account at a fixed value install.sh sets
+  non-interactively and gate the whole app behind a Traefik
+  `basic_auth: true` credential projected from the customer's root
+  password — that becomes the real customer-facing auth boundary, and the
+  internal DB_PASSWORD is a patternless secret nothing customer-facing
+  reads, so it can be server-generated with no input channel needed.
+  Clears the /compose constraint today with zero hard blocking issues, so
+  this is build_now.

@@ -1,0 +1,90 @@
+slug: sshwifty
+name: Sshwifty
+source_description: "Browser-based SSH and Telnet client for managing remote servers from anywhere"
+
+upstream:
+  url: https://github.com/nirui/sshwifty
+  repo_url: https://github.com/nirui/sshwifty
+  license: AGPL-3.0
+  docker_image: niruix/sshwifty:0.4.8-beta-release
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file. The README's only documented Docker
+    deployment method is a bare `docker run --publish 8182:8182
+    niruix/sshwifty:latest` command (optionally with SSHWIFTY_DOCKER_TLSCERT/
+    SSHWIFTY_DOCKER_TLSCERTKEY env vars for TLS); no docker-compose usage is
+    mentioned anywhere in README.md. The repo root does contain a
+    docker-compose.example.yaml, but it is a dev/build harness, not a
+    deployment file for the published image: it builds the image from
+    source (`build: ./`) and tags it `sshwifty:dev` rather than pulling
+    `niruix/sshwifty`, binds only to 127.0.0.1, and is never linked or
+    referenced from README.md or any docs. No docker/ or contrib/
+    directories exist in the repo.
+
+version_health:
+  latest_version: "0.4.8-beta-release-prebuild"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.4.8 shipped 2026-07-08, about a month before today (2026-08-05).
+    Release history shows a steady cadence over the past year: 0.4.2
+    (2025-12-03), 0.4.3 (2026-01-16, security patches for multiple CVEs),
+    0.4.4 (2026-03-06), 0.4.5 (2026-03-18), 0.4.6 (2026-05-08), 0.4.7
+    (2026-05-22, added keyboard-interactive SSH auth and OSC 52 clipboard
+    support), 0.4.8 (2026-07-08). Single-maintainer project (nirui) but
+    releases every 4-8 weeks with real feature and security work, not just
+    dependency bumps. No archival notice; healthy.
+
+catalogue_fit:
+  categories: [infrastructure, remote-access]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [guacamole]
+  differentiation: >
+    Guacamole already covers browser-based remote access (RDP/VNC/SSH) with
+    per-user accounts and a Postgres-backed connection manager. Sshwifty is
+    a much lighter single-purpose SSH/Telnet-only web terminal with no user
+    database — one static process, one shared access password, presets for
+    frequently-used hosts. It would appeal to a customer who just wants a
+    quick "SSH from any browser to my other boxes" jump-tool without
+    standing up Guacamole's full remote-desktop/connection-manager stack,
+    but the core use case (browser SSH access) is not new to the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real but narrow demand: useful as a lightweight bastion/jump-host UI,
+    though most of that audience already has SSH clients and the overlap
+    with Guacamole (which also does SSH, plus RDP/VNC) caps the incremental
+    value. Its minimal footprint (single ~28MB static Go binary, no
+    database) is a genuine plus over Guacamole's three-service stack for
+    the SSH-only use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik basic-auth gate credential (fronts the app; SSHWIFTY_SHAREDKEY left unset)
+  secrets_expressible_today:
+    - secret: traefik basic-auth gate credential (fronts the app; SSHWIFTY_SHAREDKEY left unset)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Sshwifty is an actively maintained, AGPL-3.0, single-binary browser SSH/
+  Telnet client with a small pinned official image (niruix/sshwifty:0.4.8-
+  beta-release) and a single HTTP port. Its own access-control mechanism,
+  SSHWIFTY_SHAREDKEY, is a plaintext password compared directly by the app
+  with no documented way to accept a pre-computed hash, so it can't be
+  projected from the customer's root password via generated_from — but that
+  is resolved the same way the catalogue already handles other apps with no
+  customer-projectable login of their own (Adminer-style): leave SHAREDKEY
+  unset (its documented "public access" mode) and gate the entire origin
+  with Traefik basic_auth instead, with that gate credential projected from
+  the customer's root password. That makes it mechanically installable
+  today with no outstanding blocker. Apache Guacamole already covers
+  browser-based SSH (plus RDP/VNC) with a fuller connection-manager, so
+  Sshwifty's pitch is being a much lighter single-purpose alternative for
+  customers who only need quick browser SSH access to their own hosts — but
+  that overlap is a catalogue-fit fact, not a reason to build it as
+  anything less than build_now.

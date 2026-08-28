@@ -1,0 +1,112 @@
+slug: hyperdx
+name: HyperDX
+source_description: "Open-source observability platform unifying logs, traces, and metrics"
+
+upstream:
+  url: https://www.hyperdx.io/
+  repo_url: https://github.com/hyperdxio/hyperdx
+  license: MIT
+  docker_image: hyperdx/hyperdx-all-in-one
+  compose_file_url: https://raw.githubusercontent.com/hyperdxio/hyperdx/main/docker-compose.yml
+  compose_file_notes: >
+    Official, but a rolling reference to the default branch (raw link to
+    main), not version-pinned — there are no versioned release assets for
+    this file, and it is updated in lockstep with app changes on main. It
+    is the 4-service, non-all-in-one variant (MongoDB + ClickHouse + OTel
+    collector + app), the only docker-compose.yml the hyperdxio/hyperdx
+    repo ships; the all-in-one image documented in the README is only
+    given as a bare `docker run` command, no compose file. Note: HyperDX's
+    parent product, ClickStack (github.com/ClickHouse/ClickStack, the repo
+    clickhouse.com's own deployment docs point users to clone), ships a
+    near-identical docker-compose.yml at its repo root — same shape/services,
+    differing only in cosmetic quoting, a MINER_API_URL addition, and
+    ClickHouse image tag — but that is a separate repo from the
+    hyperdxio/hyperdx upstream recorded above, so the hyperdxio/hyperdx
+    file is what's recorded here as this recipe's `repo_url`-scoped
+    official compose file.
+
+version_health:
+  latest_version: "2.33.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.33.0 (app/api/otel-collector) shipped 2026-07-31, just 5 days before
+    today (2026-08-05); 2.32.0 shipped 2026-07-27, i.e. sub-weekly minor
+    releases across the monorepo's component packages. The CLI package
+    (v0.6.0) is slightly behind at 2026-07-17 but still within the same
+    month. Nightly image builds (`2-nightly`) are also being pushed
+    continuously. This is a fast-moving, clearly active project, not a
+    dormant/EOL candidate.
+
+catalogue_fit:
+  categories: [monitoring, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does log/trace/metric
+    observability. Uptime Kuma is the closest existing "monitoring" recipe,
+    but it is external blackbox uptime/ping checking, not ingesting
+    telemetry emitted by a customer's own instrumented applications — a
+    different use case. HyperDX (built on ClickHouse + OpenTelemetry, aka
+    "ClickStack") would fill a genuine, currently-unfilled observability
+    niche, but like other APM/observability tools it only has value for a
+    customer who has other services to instrument and point at it; it has
+    no standalone utility on its own.
+  usefulness: medium
+  usefulness_rationale: >
+    Real gap and a credible, fast-moving open-source project with a
+    convenient all-in-one image, but the audience is narrower
+    (developers/SREs with other instrumented services) than most of our
+    existing single-user consumer/prosumer recipes, and it carries real
+    operational weight (ClickHouse storage, OTel ingestion) for that
+    narrower audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Not a single-HTTP-port app: the all-in-one image's entire value is
+      receiving logs/traces/metrics pushed by OpenTelemetry-instrumented
+      apps, which by default requires the OTel collector's raw ports
+      (4317 gRPC, 4318 HTTP) to be reachable directly by whatever is
+      pushing telemetry — not just a browser routed through Traefik on
+      80/443. This is the same structural mismatch flagged for Apache
+      SkyWalking: every current recipe is a single browser-facing HTTP
+      port fronted by Traefik, and exposing raw ingestion ports per
+      customer VM is a product decision that hasn't been made.
+    - >
+      The upstream docker-compose.yml (the non-all-in-one deployment) is a
+      4-service stack — MongoDB (app metadata), ClickHouse (telemetry
+      storage), an OTel collector, and the app/API — comparable in weight
+      to Immich/anytype-server rather than the single-container recipes
+      that make up most of the catalogue. The all-in-one image collapses
+      this into one container but still needs a real ClickHouse data
+      volume and is a heavier resource footprint than a typical recipe.
+    - >
+      No first-boot secret is required by the platform itself: on first
+      visit to the UI (port 8080) the app presents its own signup screen
+      where the visitor picks their own username/password directly (no
+      env-var-injected admin credential, no API key gate) — the same
+      pattern already accepted for n8n and Immich in this catalogue, so
+      this alone is not a blocker.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  HyperDX is an actively developed (near-weekly releases, latest 2.33.0 on
+  2026-07-31), MIT-licensed observability platform with no equivalent in
+  the current 24-recipe catalogue. Its own first-run account creation is
+  unproblematic (self-serve signup, same pattern as n8n/Immich), so it is
+  not blocked by the usual root-password/basic_auth secrets mechanism.
+  What blocks it is structural: like Apache SkyWalking, its purpose
+  requires exposing raw OTel ingestion ports (4317/4318) directly to
+  whatever external, separately-hosted apps are pushing telemetry, which
+  is a fundamentally different exposure shape than our Traefik-only,
+  single-HTTP-port recipes, plus a heavier multi-container/ClickHouse
+  storage footprint. Recommend blocked_on_platform pending a product
+  decision on exposing non-HTTP public ingestion ports per recipe; revisit
+  alongside Apache SkyWalking if/when that decision is made.

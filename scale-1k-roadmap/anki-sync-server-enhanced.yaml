@@ -1,0 +1,119 @@
+slug: anki-sync-server-enhanced
+name: Anki Sync Server Enhanced
+source_description: "Self-hosted Anki sync server with multi-user support, backups, and web dashboard"
+
+upstream:
+  url: https://github.com/chrislongros/anki-sync-server-enhanced
+  repo_url: https://github.com/chrislongros/anki-sync-server-enhanced
+  license: AGPL-3.0
+  docker_image: chrislongros/anki-sync-server-enhanced
+  compose_file_url: https://raw.githubusercontent.com/chrislongros/anki-sync-server-enhanced/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root. This is a rolling reference to the
+    default branch (master), not a tagged/pinned release link; the image
+    tag inside it (26.05) can lag the latest release since it's hand-edited
+    rather than templated. The repo ships five compose variants at root:
+    docker-compose.yml (plain, single sync port, hardcoded example
+    credentials), docker-compose.full.yml, docker-compose.secrets.yml,
+    docker-compose.tls.yml, and docker-compose.traefik.yml. Picked the plain
+    docker-compose.yml as the canonical/default one since it's the plain
+    baseline and the other four are named as explicit variants (secrets-file,
+    TLS, Traefik-fronted) layered on top of it. Note the README's own quick-
+    start section embeds an inline compose snippet rather than linking to
+    this file, and that inline snippet differs slightly (extra dashboard/
+    metrics ports and env vars) from the actual docker-compose.yml content.
+
+version_health:
+  latest_version: "26.08"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Third-party (not official-Anki-maintained) Docker wrapper that tracks
+    upstream Anki releases with near-daily automated builds: 26.08 pushed
+    within the last day (as of 2026-08-05), 26.05 five days prior,
+    25.09.4/25.09.3/25.09.2 roughly two-three months before that. Repo is
+    small (single maintainer, chrislongros) but shows active CI/CD and
+    release cadence as of today's date. Not archived, no EOL signal, but
+    young/low community size relative to most of our current catalogue's
+    upstreams — bus-factor risk with a single maintainer.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes serves flashcard/spaced-repetition
+    sync. This would be a genuinely new category (personal
+    education/productivity) rather than overlapping an existing recipe —
+    closest analogues (Syncthing) are generic file sync, not
+    Anki-protocol-aware.
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow appeal — students/language-learners who want to avoid
+    AnkiWeb's free-tier limits or keep flashcard data private. It's a
+    single-purpose sync backend for one specific desktop/mobile app
+    ecosystem, not a broad-audience tool, and the primary interface most
+    customers would ever open is the optional dashboard, not the sync
+    protocol itself.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [sync_user_credential, dashboard_auth]
+  secrets_expressible_today:
+    - secret: dashboard_auth
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app's core credential is SYNC_USER1=<username>:<secret>, and the
+      username half is not customer-chosen — the recipe can simply hardcode
+      a fixed username (e.g. "customer") in the .env.template, so that part
+      is not a blocker on its own.
+    - >
+      With PASSWORDS_HASHED=true, SYNC_USER1's <secret> is a hash, and the
+      Anki client authenticates by sending the plaintext password to the
+      server at sync time (over TLS) — the server itself only ever needs
+      the hash to verify against, the same shape as Vaultwarden's
+      ADMIN_TOKEN. So this is NOT a case where the app needs the customer's
+      plaintext; a customer syncing their Anki client would simply type
+      their existing root password as the sync password, matching the
+      generated_from model exactly. The genuine blocker is narrower: the
+      app's hashing tool (user-manager.sh) produces PHC-format pbkdf2
+      hashes, and generated_from today only supports argon2/bcrypt. This is
+      blocked_on_platform pending pbkdf2 (PHC pbkdf2-sha256) support in
+      generated_from, not a structural not_recommended — per SCHEMA.md's
+      corrected guidance, only a genuine plaintext requirement is a hard
+      blocker, and this app has none.
+    - >
+      The optional web dashboard (DASHBOARD_ENABLED=true) has its own
+      independent secret, DASHBOARD_AUTH=user:pass, for the app's built-in
+      basic-auth page. Since it's a plain HTTP basic-auth prompt with no
+      backing user-management, the recipe can simply leave DASHBOARD_ENABLED
+      off and instead gate the dashboard's route with Traefik basic_auth —
+      same pattern as n8n/WUD/Open WebUI. That secret is fully expressible
+      today.
+    - >
+      Sync traffic (8080/8443) and the dashboard (8081) are two separate
+      backend ports needing two separate Traefik routers/hostnames rather
+      than the single-port-per-app shape most of our recipes use. Not a
+      hard blocker (multi-service recipes like anytype-server/immich already
+      front more than one port), but it is a step above our simplest
+      single-container recipes and worth flagging as extra plumbing.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Correcting the prior pass: this app's core sync credential does NOT
+  require the customer's plaintext to reach the container — in
+  PASSWORDS_HASHED mode the server only ever needs a hash to check the
+  client-submitted password against, and the username half of SYNC_USER1
+  can be a fixed, non-customer-chosen value. The real, narrower blocker is
+  that the app's hash tool produces pbkdf2 (PHC format), which
+  generated_from doesn't support yet (only argon2/bcrypt) — this is
+  blocked_on_platform, not a structural not_recommended. The optional
+  dashboard's own auth can be bypassed entirely with a Traefik basic_auth
+  gate instead. Once pbkdf2 support lands in generated_from, this becomes
+  mechanically installable; independent of that, it remains a low-value,
+  narrow-audience addition (single flashcard-sync ecosystem, single-
+  maintainer upstream) so even post-unblock it's a low-priority build.

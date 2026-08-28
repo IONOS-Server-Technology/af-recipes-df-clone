@@ -1,0 +1,99 @@
+slug: misskey
+name: Misskey
+source_description: "Federated social media platform with emoji reactions and fediverse connectivity"
+
+upstream:
+  url: https://misskey-hub.net
+  repo_url: https://github.com/misskey-dev/misskey
+  license: AGPL-3.0
+  docker_image: misskey/misskey
+  compose_file_url: https://raw.githubusercontent.com/misskey-dev/misskey/master/compose_example.yml
+  compose_file_notes: >
+    Official, from the project's own repo root (misskey-dev/misskey). The
+    install docs (misskey-hub.net/en/docs/for-admin/install/guides/docker/)
+    have the customer `git clone -b master` the repo and copy
+    `compose_example.yml` to `compose.yml` (alongside `.config/docker_example.yml`
+    → `.config/default.yml` and `.config/docker_example.env` →
+    `.config/docker.env`) before building. This is a rolling reference to
+    the master branch's current example, not a version-pinned release
+    asset — there is no tagged/release-scoped copy of this file, only the
+    live one on the default branch. Only one variant is shipped (builds the
+    web image from source, Postgres 18 + Redis, with mCaptcha and
+    Meilisearch present but commented out) — no separate dev/prod or
+    sqlite/postgres split to choose between.
+
+version_health:
+  latest_version: "2026.7.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2026.7.0 shipped 2026-07-31, 5 days before today (2026-08-05), following
+    a full alpha → beta → rc → stable cycle (alpha.6 on 2026-07-17 through
+    beta.4-6 and rc.0 on 2026-07-28) — roughly two weeks of pre-release
+    hardening before stable. Prior stable, 2026.6.0, landed about a month
+    earlier. This is a monthly-ish stable cadence with continuous
+    alpha/beta activity in between (2026.7.0-alpha.2 for the *next* cycle
+    was already on Docker Hub within hours of this analysis). Not archived,
+    large active contributor base (syuilo + misskey-dev org), no EOL or
+    maintenance-only signal.
+
+catalogue_fit:
+  categories: [social, federation, microblogging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers federated social/microblogging. Misskey is
+    functionally closest to the already-analyzed (and unbuilt) `mastodon`
+    and `friendica` candidates — same "run your own fediverse presence"
+    pitch — so it's a competing option in that niche rather than an
+    independent addition, but per CLAUDE.md that overlap is not itself a
+    reason to reject it.
+  usefulness: high
+  usefulness_rationale: >
+    Misskey is one of the most actively developed and distinctive
+    ActivityPub servers (custom emoji/reactions, "Antenna"/timeline
+    features, strong adoption in the Japanese fediverse), giving it real
+    pull independent of Mastodon/Friendica. Architecturally it is also the
+    simplest of the three fediverse candidates analyzed so far — a single
+    web process on one HTTP port plus Postgres and Redis, no split
+    web/streaming service and no mandatory outbound-SMTP dependency for
+    account bootstrap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, GATE_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: GATE_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Misskey is the first fediverse/microblogging candidate analyzed that
+  clears the installability bar. Its official image ships as a single web
+  container (port 3000, no separate streaming service) plus Postgres and
+  Redis, and its own account bootstrap is a plain web registration form
+  with no email/SMTP requirement — the first account to register on a
+  fresh instance automatically becomes admin (config.example.yml even
+  documents an optional `setupPassword` gate explicitly aimed at "the
+  provider of the service who sets up Misskey on behalf of the customer",
+  but confirmed in source
+  (packages/backend/src/server/api/endpoints/admin/accounts/create.ts) to
+  be a plain-string-equality check against a config value, so it cannot
+  carry a `generated_from` hash the way the customer's own password does).
+  Left unset, that setupPassword gate is simply absent, which recreates the
+  same race the platform already accepts for Immich/Open WebUI/n8n/WUD: a
+  Traefik `basic_auth` gate (projected from the customer's root-password
+  hash) in front of the whole domain is enough to guarantee the customer
+  is the one who reaches the signup form first and becomes admin — no
+  novel mechanism needed, just the existing basic_auth pattern. The only
+  other secret at boot, the Postgres password, is an ordinary
+  server-generated internal credential. One non-blocking caveat: as of
+  2026.7.0, automatic NSFW media detection moved to an optional external
+  `sensitive-detector` service; omitting it degrades that one feature but
+  does not affect boot or core functionality. Recommend `build_now`.

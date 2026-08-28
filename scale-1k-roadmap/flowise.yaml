@@ -1,0 +1,121 @@
+slug: flowise
+name: Flowise
+source_description: "Open-source low-code tool for building LLM orchestration flows and AI agents"
+
+upstream:
+  url: https://flowiseai.com
+  repo_url: https://github.com/FlowiseAI/Flowise
+  license: Apache-2.0
+  docker_image: flowiseai/flowise
+  compose_file_url: https://raw.githubusercontent.com/FlowiseAI/Flowise/main/docker/docker-compose.yml
+  compose_file_notes: >
+    Official: the project's own README (#-docker / "Docker Compose"
+    section) tells users to "Go to `docker` folder at the root of the
+    project" and run `docker compose up -d`, and that `docker/` directory
+    contains this file plus its own README/`.env.example`. This is a
+    rolling reference to the default branch, not version-pinned — Flowise
+    does not publish a release-tagged or release-asset compose file, only
+    this in-repo path on `main`. It is the standard single-instance
+    variant using the pre-built `flowiseai/flowise` DockerHub image and
+    defaulting to SQLite; the `docker/` folder also ships two queue-mode
+    variants (`docker-compose-queue-source.yml`, building images from
+    source, and `docker-compose-queue-prebuilt.yml`, using pre-built
+    worker/main images) for the separate worker-queue deployment topology,
+    which is not what this recipe's mechanics section is built against, so
+    the plain `docker-compose.yml` is the correct pick.
+
+version_health:
+  latest_version: "flowise@3.1.4"
+  latest_release_date: "2026-07-29"
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    3.1.4, dated 2026-07-29, is not evidence of an active cadence — it is
+    the freeze commit. FlowiseAI announced on that same date
+    (https://flowiseai.com/sunset) that Flowise is being sunset: development
+    halted and no new PRs accepted as of 2026-07-29, the repo will be
+    archived and its packages marked deprecated on 2026-08-10, and core-team
+    support ends entirely on 2026-08-31. Today is 2026-08-05/06, so the
+    repo archives in ~4-5 days and support has already effectively stopped.
+    Preceding releases (3.1.0 through 3.1.3, roughly monthly March-July
+    2026) reflect a cadence that no longer applies. 55.2k stars and prior
+    commit volume are historical, not signals of ongoing development.
+
+catalogue_fit:
+  categories: [ai, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n, anythingllm, activepieces]
+  differentiation: >
+    Flowise is a drag-and-drop visual builder specifically for LLM
+    chatflows and multi-agent flows (AgentFlow), with first-class nodes for
+    chat models, vector stores, retrievers, and MCP tool exposure —
+    narrower and more AI-specific than n8n's general-purpose node
+    automation, but conceptually the same "visual low-code flow builder"
+    shape already covered by n8n and, on the AI-agent side, by
+    AnythingLLM's agent/RAG workspaces and Activepieces' AI-piece push. A
+    customer who wants to visually wire together LLM calls, vector search,
+    and tool use without code has a real reason to prefer Flowise's
+    purpose-built AI canvas over generic n8n, but it is an incremental
+    variant on an already-served need rather than a new capability.
+  usefulness: medium
+  usefulness_rationale: >
+    Large, well-starred (55.2k), actively-shipping project with genuine
+    demand and a distinct AI-native flow-builder angle, but it lands as the
+    third or fourth recipe covering "visually build automations/AI
+    workflows" (n8n, AnythingLLM, Activepieces already in scope), so it
+    caps at medium rather than high — value is mostly about which flavor of
+    that job a given customer prefers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_AUTH_TOKEN_SECRET, JWT_REFRESH_TOKEN_SECRET, EXPRESS_SESSION_SECRET, TOKEN_HASH_SECRET, FLOWISE_SECRETKEY_OVERWRITE]
+  secrets_expressible_today:
+    - secret: JWT_AUTH_TOKEN_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: JWT_REFRESH_TOKEN_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: EXPRESS_SESSION_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: TOKEN_HASH_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: FLOWISE_SECRETKEY_OVERWRITE
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Upstream is end-of-life, not merely dormant: FlowiseAI announced the
+      sunset on 2026-07-29 (https://flowiseai.com/sunset) — development
+      halted and no new PRs accepted from that date, repo archived and
+      packages marked deprecated on 2026-08-10, core-team support ends
+      2026-08-31. Nothing about the install mechanics blocks a recipe (see
+      installable_today: true below); this is an upstream-health blocker on
+      shipping a recipe over a codebase that is archived and unsupported
+      within days, and it is the sole reason for the not_recommended
+      verdict.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Flowise is being sunset by its maintainer: FlowiseAI announced on
+  2026-07-29 (https://flowiseai.com/sunset) that development has halted
+  with no new PRs accepted, the repo will be archived and its packages
+  marked deprecated on 2026-08-10, and core-team support ends entirely on
+  2026-08-31. Today is 2026-08-05/06 — the repo archives in ~4-5 days and
+  support has already effectively stopped. Shipping a recipe on top of a
+  codebase that will be archived and unsupported within days is not a
+  reasonable recommendation regardless of installability mechanics, so
+  this is not_recommended even though it is mechanically installable
+  today. On mechanics alone: the five JWT/session/encryption secrets are
+  patternless strings the platform can generate server-side, and —
+  confirmed against upstream docs and a GitHub issue on the v3.0.1+ auth
+  rework — the admin account itself is created through Flowise's own
+  first-visit setup wizard and then locked down, the same self-serve
+  pattern already used by n8n, AnythingLLM, and Uptime Kuma, so no
+  root-password projection or basic_auth gate is structurally required.
+  The older FLOWISE_USERNAME/FLOWISE_PASSWORD basic-auth env vars from
+  pre-3.0 versions are gone in current releases, and it defaults to
+  SQLite (no mandatory Postgres dependency, unlike n8n). It overlaps with
+  n8n, AnythingLLM, and Activepieces (see catalogue_fit), but that overlap
+  plays no part in this verdict: upstream EOL is the sole reason for
+  not_recommended, and absent the sunset the mechanics alone would make
+  this build_now.

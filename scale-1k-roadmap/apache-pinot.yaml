@@ -1,0 +1,98 @@
+slug: apache-pinot
+name: Apache Pinot
+source_description: "Real-time distributed OLAP datastore for sub-second user-facing analytics"
+
+upstream:
+  url: https://pinot.apache.org/
+  repo_url: https://github.com/apache/pinot
+  license: Apache-2.0
+  docker_image: "apachepinot/pinot (e.g. apachepinot/pinot:1.5.1)"
+  compose_file_url: https://raw.githubusercontent.com/apache/pinot/master/docker/images/pinot/docker-compose.yml
+  compose_file_notes: >
+    Official — lives in the apache/pinot repo itself, at
+    docker/images/pinot/docker-compose.yml. It is also the exact file the
+    "Docker Compose" install page on docs.pinot.apache.org instructs users
+    to create verbatim (the docs page embeds the same content inline
+    rather than linking out). This is a rolling reference to the default
+    (master) branch, not version-pinned — no tagged/release-asset variant
+    of this file exists. The file itself pins `apachepinot/pinot:latest`
+    for the Pinot components and `zookeeper:latest` / `apache/kafka:latest`
+    for its dependencies, i.e. it floats to latest on every re-pull rather
+    than pinning a version. Only one variant is offered (no GPU/CPU or
+    dev/prod split); Kafka is included but gated behind a
+    `KAFKA_REPLICAS` env var so it can be a no-op if unneeded.
+
+version_health:
+  latest_version: "1.5.1"
+  latest_release_date: "2026-06-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.5.1 shipped 2026-06-05 (~2 months before today, 2026-08-05) as a
+    dependency/CVE-only security patch on top of 1.5.0 (2026-04). Prior
+    minor releases: 1.4.0 (2025-09), 1.3.0 (2025-02), 1.2.0 (2024-08),
+    1.1.0 (2024-03) — a steady ~6-9 month cadence for minor/major releases
+    with patch releases in between for security fixes. Top-level ASF
+    project with commercial backing (StarTree) driving continued
+    development; no slowdown or EOL signal.
+
+catalogue_fit:
+  categories: [database, analytics, data-warehouse]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe is an analytics/OLAP database — this would be a new
+    category. Unlike Apache Doris (MySQL wire protocol) or Apache IoTDB
+    (Thrift RPC), Pinot's customer-facing interfaces are both plain HTTP:
+    the Controller's web Query Console (port 9000) and the Broker's REST
+    query API (port 8099). That makes it more reverse-proxy-friendly than
+    those two, in principle — Traefik can front either or both as normal
+    HTTP routes, and even API clients can carry HTTP Basic Auth headers on
+    every request, unlike a raw TCP wire protocol.
+  usefulness: low
+  usefulness_rationale: >
+    The product's value is "sub-second queries for user-facing apps" —
+    i.e. it's infrastructure a developer's own application calls
+    programmatically via the Broker's query API, not something an AF
+    customer browses in a tab. The Controller's Query Console is a
+    real UI, but it's an admin/debugging surface for running ad-hoc SQL
+    against tables, not a consumer-facing product. Minimum viable
+    deployment is also a 4-container cluster (ZooKeeper + Controller +
+    Broker + Server) with a JVM footprint per component; genuine
+    real-time ingestion (the feature the source description leads with)
+    additionally needs a Kafka-compatible stream the customer would have
+    to bring or self-host separately, since a single-VM recipe realistically
+    only exercises Pinot's batch-ingestion mode out of the box. That's a
+    narrower, more technical audience and a heavier footprint than most of
+    the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Apache Pinot is an actively maintained, healthy ASF top-level project
+  (latest 1.5.1, 2026-06-05) with no EOL signal. It has no built-in
+  authentication by default on either the Controller (web Query Console,
+  port 9000) or Broker (REST query API, port 8099), so — unlike Doris and
+  IoTDB, which are blocked by non-HTTP wire protocols and unhashable
+  passwords — Pinot is technically installable today by gating both HTTP
+  surfaces behind Traefik basic_auth, the same pattern used for n8n/WUD.
+  That makes it `build_now`: no blocking issues stand between it and an
+  installable recipe today. The minimum viable deployment is a 4-container
+  ZooKeeper+Controller+Broker+Server cluster with a per-component JVM
+  footprint, and the app's real value — a query API for a customer's own
+  application code — is developer infrastructure rather than a
+  consumer-facing web app, a narrower audience than most of the current
+  catalogue; real-time ingestion (the feature in Hostinger's description)
+  would also need a separately provisioned Kafka-compatible stream, so a
+  single-VM recipe would only exercise Pinot's batch-ingestion path out of
+  the box. Those are catalogue-fit and audience considerations, not
+  installability blockers.

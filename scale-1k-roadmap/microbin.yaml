@@ -1,0 +1,81 @@
+slug: microbin
+name: MicroBin
+source_description: "Lightweight self-hosted pastebin, file sharer, and URL shortener in Rust"
+
+upstream:
+  url: https://microbin.eu/
+  repo_url: https://github.com/szabodanika/microbin
+  license: BSD-3-Clause
+  docker_image: danielszabo99/microbin
+  compose_file_url: https://raw.githubusercontent.com/szabodanika/microbin/master/compose.yaml
+  compose_file_notes: >
+    Official compose.yaml lives at the repo root (github.com/szabodanika/microbin).
+    This is a rolling reference to the default (master) branch, not
+    version-pinned to a release tag — the project ships only this one
+    compose file (no separate GPU/CPU or sqlite/postgres variants; MicroBin
+    has no database dependency). It uses danielszabo99/microbin:latest and
+    a named volume (microbin_data) for storage.
+
+version_health:
+  latest_version: "2.1.4"
+  latest_release_date: "2026-03-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (v2.1.4) shipped 2026-03-08, ~5 months before
+    today (2026-08-05). Most recent commit to master is 2026-06-13 ("migrate
+    to distroless image, fix permissions"), ~1.7 months old, so the project
+    is being actively worked on even though the last version bump is a few
+    months old. History shows a long quiet stretch between v2.0.4
+    (2023-07-11) and v2.1.0 (2026-01-10) — about 2.5 years with no tagged
+    release — followed by a burst of four releases (2.1.0/2.1.1/2.1.2/2.1.4)
+    across Jan-Mar 2026 and continued commit activity since. Treat the long
+    2023-2026 gap as a real dormancy risk that has only recently resolved,
+    not as a settled "active" project with a long track record.
+
+catalogue_fit:
+  categories: [productivity, developer-tools, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [opengist]
+  differentiation: >
+    opengist is a git-backed Gist clone (accounts, git push/pull, GitHub-style
+    versioned snippets). MicroBin is a much lighter, anonymous-by-default
+    paste/file/URL-shortener: a single ~5MB Rust binary with no git
+    dependency, built-in optional client- and server-side end-to-end
+    encryption, QR codes for shared links, configurable expiry, and URL
+    shortening — a feature opengist doesn't offer at all. The use case is
+    "drop a quick paste/file/link with no account" rather than "manage
+    versioned code snippets like a mini-GitHub".
+  usefulness: medium
+  usefulness_rationale: >
+    Fills a genuinely different niche than opengist (ephemeral/anonymous
+    sharing + URL shortening vs. git-based snippet management), but the
+    general "self-hosted pastebin" ground is already covered by opengist,
+    so this is a nice-to-have alternative rather than a clear catalogue gap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "basic-auth gate credential (Traefik)"
+  secrets_expressible_today:
+    - secret: basic-auth gate credential (Traefik)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  MicroBin is a small, actively-developed Rust pastebin/file-share/URL-shortener
+  with a permissive BSD-3-Clause license and a pinned official Docker image
+  (danielszabo99/microbin:2.1.4), exposing a single HTTP port (default 8080)
+  that fits cleanly behind Traefik. It has no mandatory login of its own, so
+  it installs today the same way n8n/WUD/Open WebUI do: gate the public port
+  with Traefik basic_auth projected from the customer's root password. Its
+  optional built-in admin console (MICROBIN_ADMIN_USERNAME/MICROBIN_ADMIN_PASSWORD)
+  takes a plaintext password rather than a hash, so that specific feature isn't
+  expressible via generated_from today — but it's not required, since the
+  Traefik gate alone secures the app. Overlaps partially with opengist but
+  differentiates via URL shortening, E2E encryption, and a much lighter
+  footprint; recommend build_now, with a note that the project had a ~2.5-year
+  release gap (2023-2026) worth keeping an eye on.

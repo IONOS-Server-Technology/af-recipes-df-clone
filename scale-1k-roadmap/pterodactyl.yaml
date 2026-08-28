@@ -1,0 +1,129 @@
+slug: pterodactyl
+name: Pterodactyl
+source_description: "Open-source game server management panel with Docker isolation"
+
+upstream:
+  url: https://pterodactyl.io
+  repo_url: https://github.com/pterodactyl/panel
+  license: MIT
+  docker_image: ghcr.io/pterodactyl/panel
+  compose_file_url: https://raw.githubusercontent.com/pterodactyl/panel/v1.15.0/docker-compose.example.yml
+  compose_file_notes: >
+    Official file, shipped at the root of the pterodactyl/panel repo itself
+    (not a third-party template) as docker-compose.example.yml. Linked here
+    pinned to the v1.15.0 tag (the latest_version recorded above) so the
+    URL is stable; a rolling reference to the same file is also available
+    on the repo's default branch (1.0-develop, which despite the name is
+    where active development happens ahead of the eventual v2 branch) at
+    https://raw.githubusercontent.com/pterodactyl/panel/1.0-develop/docker-compose.example.yml
+    if this gets watched for upstream changes. Only one variant exists —
+    it provisions MariaDB + Redis + the panel container together; there is
+    no separate sqlite or GPU/CPU split for the Panel itself. This file
+    covers the Panel only; Wings (the separate daemon that actually runs
+    game servers, see blocking_issues below) ships its own
+    docker-compose.example.yml in the pterodactyl/wings repo, but per this
+    file's own installability findings Wings is not expressible as part of
+    this recipe's compose model regardless, so it is not recorded here.
+
+version_health:
+  latest_version: "v1.15.0 (Panel); Wings daemon at v1.13.2"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Panel v1.15.0 and Wings v1.13.2 both shipped 2026-08-03 — 2 days before
+    today (2026-08-05). Panel release history in 2026 alone: v1.12.0
+    (2026-01-06), v1.12.1 (2026-02-14), v1.12.2 (2026-03-26), v1.12.3
+    (2026-05-23), v1.12.4 (2026-05-30), v1.13.0 (2026-06-15), v1.14.0
+    (2026-06-22), v1.14.1 (2026-06-29), v1.15.0 (2026-08-03) — roughly
+    monthly, sometimes more often. Repo is not archived, pushed_at is
+    same-day as the latest release, 171 open issues actively triaged.
+    Clearly active, not dormant or maintenance-only.
+
+catalogue_fit:
+  categories:
+    - infrastructure
+    - gaming
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current catalogue addresses game server hosting;
+    portainer is the closest existing analogue (a Docker-management web UI)
+    but manages arbitrary containers generically rather than provisioning
+    per-customer game server instances with resource limits, file managers,
+    and console access the way Pterodactyl does. If it were mechanically
+    installable it would open a genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted game server panels, but Pterodactyl
+    is a hosting platform in its own right (multi-tenant, multi-node) more
+    than a single-tenant "app" — its value to one AF customer running one
+    instance for their own game servers is narrower than to someone
+    reselling game hosting, which is arguably out of scope for a
+    single-VM recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - APP_KEY
+    - MYSQL_PASSWORD
+    - MYSQL_ROOT_PASSWORD
+    - ADMIN_PASSWORD
+    - WINGS_NODE_TOKEN
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - "The admin-creation CLI (`p:user:make`) does accept non-interactive
+      flags (--email, --username, --password, --admin=1), so the password
+      itself could in principle be projected via generated_from and passed
+      to install.sh — that part alone would not be a hard blocker."
+    - "The real structural blocker is Wings, the daemon that actually runs
+      customer game servers: it is designed to run on a separate node with
+      direct access to the host's Docker daemon (mounting /var/run/docker.sock
+      or an equivalent), not as an isolated service inside our recipe's own
+      docker-compose stack. That is a materially different trust boundary
+      than any other recipe in the catalogue and is not something the
+      current recipe mechanism (or Traefik-fronted single-tenant model)
+      is built to express."
+    - "Each hosted game server needs its own directly-reachable raw TCP/UDP
+      port (e.g. 25565 for Minecraft) assigned dynamically per game server
+      instance — these are not HTTP, so Traefik cannot front them, and the
+      recipe metadata model has no concept of a dynamic, customer-managed
+      port range."
+    - "Wings node registration is an inherently two-actor, multi-step flow:
+      an admin logs into the Panel's web UI, creates a Node, and the Panel
+      mints a one-time configuration token that Wings then consumes. There
+      is no customer-supplied secret path for this in the current
+      /compose bootstrap flow, and unlike the admin-password case there is
+      no non-interactive CLI equivalent documented for generating that
+      token outside the web UI."
+    - "Architecturally this is a hosting platform (Panel + one-or-more
+      Wings nodes) rather than a single self-contained app; even solving
+      the secrets-projection gaps above would only make the Panel
+      installable in isolation, with no game servers actually running
+      until a Wings node is manually paired."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Pterodactyl (Panel + Wings) is actively maintained with a roughly
+  monthly release cadence (latest v1.15.0, 2026-08-03) and is not at risk
+  of EOL. However it fails our installability bar for reasons that go
+  beyond a missing secrets-projection mechanism: Wings, the component that
+  actually runs hosted game servers, requires direct host Docker socket
+  access and dynamically assigns raw per-server TCP/UDP ports that Traefik
+  cannot front, and pairing Wings to the Panel is an inherently manual,
+  multi-step admin-console flow with no scriptable secret we could project
+  today. Even the one piece that could be projected (the initial admin
+  password) leaves the recipe as a Panel with no working game-server
+  backend. Recommend not_recommended: this is a structural mismatch with
+  the single-tenant, reverse-proxy, docker-compose recipe model, not a gap
+  that IF-1420/1312 alone would close.

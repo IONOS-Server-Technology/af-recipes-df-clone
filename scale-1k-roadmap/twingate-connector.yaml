@@ -1,0 +1,107 @@
+slug: twingate-connector
+name: Twingate Connector
+source_description: "Zero trust network access connector for secure remote resource access"
+
+upstream:
+  url: https://www.twingate.com
+  repo_url: null
+  license: proprietary (connector binary/image; Twingate's own OSS projects — Terraform provider, Helm charts, k8s operator — are separate and not this component)
+  docker_image: twingate/connector
+  compose_file_url: null
+  compose_file_notes: >
+    No official standalone docker-compose.yaml/.yml file exists. Twingate's
+    own docs page (twingate.com/docs/deploy-connector-with-docker-compose)
+    is the official source for Docker Compose deployment, but it only
+    embeds three inline compose snippets directly in the article text
+    (minimal, recommended-with-optional-params, and syslog-forwarding
+    variants) using the `twingate/connector:latest` rolling tag — there is
+    no separate file to link or download, on that page or elsewhere in
+    Twingate's docs/Docker Hub listing. The connector's source is closed
+    (proprietary), so there is no upstream GitHub repo to check for a
+    root/docker//deploy/ compose file either. A candidate exists at
+    github.com/Twingate-Solutions/twingate-custom-connector-container, but
+    "Twingate-Solutions" is a solutions-engineering/community wrapper
+    project (it repackages the systemd Linux connector into a custom
+    container, not the official twingate/connector image), not the
+    official project — not adopted as official per this file's convention.
+
+version_health:
+  latest_version: "1.90.0"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows 1.90.0/1.90/1/latest all pointing at the same digest,
+    published "23 days ago" relative to today (2026-08-05), i.e. roughly
+    2026-07-13. Prior tags 1.89.0 (~2 months earlier, ~2026-06-05) and
+    1.88.0 (~4 months earlier, ~2026-04-05) show a steady monthly-ish
+    cadence. No deprecation/EOL signals; this is a commercially maintained
+    SaaS product's client-side agent, actively shipped.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy, netbird-client]
+  differentiation: >
+    Twingate Connector is the outbound-only agent half of Twingate's
+    commercial Zero Trust Network Access (ZTNA) SaaS: it runs inside a
+    private network/VM and dials out to Twingate's cloud control plane to
+    expose that network's resources to remote users, but it has no
+    standalone server role, no exposed inbound port, and no local
+    admin/login of its own — all policy, user, and device management
+    happens in Twingate's hosted Admin Console (a third-party SaaS UI, not
+    anything we would host). This is architecturally the closest match to
+    the already-analyzed netbird-client (a headless agent that joins an
+    externally-managed mesh/control-plane), not to wg-easy, which is a
+    full self-hosted WireGuard server *with* its own web UI that customers
+    administer directly on our infrastructure. Twingate's pitch — ZTNA
+    with per-resource access policies rather than flat VPN mesh access —
+    is a real product differentiator versus both existing recipes, but the
+    Connector alone (with no self-hosted control plane, since Twingate has
+    none to self-host) is a thin, tokens-only shim into a vendor SaaS
+    rather than a product a customer "runs" on the domain we provision.
+  usefulness: low
+  usefulness_rationale: >
+    Same shape as netbird-client: legitimate only for a customer who
+    already has a Twingate account/network and wants a permanent cloud
+    peer/gateway to expose a remote network's resources through it. There
+    is no self-hosted control plane to stand up (unlike Headscale for
+    Tailscale) — this is purely a client for a third-party paid SaaS —
+    so it's a narrow accessory to an external product rather than a
+    general-purpose self-hosted app in its own right.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: [TWINGATE_NETWORK, TWINGATE_ACCESS_TOKEN, TWINGATE_REFRESH_TOKEN]
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Re-evaluated as recipe_type: native, following the same precedent
+  netbird-client's own gap-analysis established: Twingate's own docs
+  (twingate.com/docs/connectors-on-linux) describe a native systemd
+  install path — a single install command plus a config file at
+  /etc/twingate/connector.conf — as an alternative to the Docker image,
+  so there's no forced docker-compose framing here either. TWINGATE_NETWORK,
+  TWINGATE_ACCESS_TOKEN, and TWINGATE_REFRESH_TOKEN have no
+  `generated_from` mechanism (they're minted per-connector in the
+  customer's own Twingate Admin Console, a third-party SaaS account the
+  customer must already have), but per Twingate's Knowledge Base
+  ("Repeating 'Token is expired' Error in Connector Logs") the connector
+  self-refreshes the access token using the refresh token automatically
+  once running — the pair is "time-expiring" only in the JWT-lifetime
+  sense, not something the customer must re-supply on a schedule. That
+  makes this functionally a one-time setup credential, the same shape as
+  NetBird's NB_SETUP_KEY: declare all three as required:false
+  documentation-only parameters, install the connector unconfigured, and
+  let the customer populate connector.conf (or re-run the installer) with
+  their own values over SSH post-provisioning, then start the systemd
+  service. Mechanically installable today under the established
+  native-CLI pattern with no blocking issues, so recommendation is
+  build_now. The differentiation/usefulness sections' note that this is a
+  narrow accessory to an external paid SaaS control plane (architecturally
+  closest to netbird-client) is descriptive context only, not a basis for
+  downgrading the recommendation.

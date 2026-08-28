@@ -1,0 +1,96 @@
+slug: logseq
+name: Logseq
+source_description: "Self-hosted privacy-first knowledge base and block-based outliner"
+
+upstream:
+  url: https://logseq.com
+  repo_url: https://github.com/logseq/logseq
+  license: AGPL-3.0
+  docker_image: ghcr.io/logseq/logseq-webapp
+  compose_file_url: null
+  compose_file_notes: >-
+    No docker-compose file exists anywhere in the logseq/logseq repo (a
+    root-level `Dockerfile` is present, but no `docker-compose.yaml`/`.yml`
+    under root, `docker/`, `deploy/`, or `contrib/`). The project's only
+    Docker documentation, `docs/docker-web-app-guide.md`, documents bare
+    `docker run` commands for `ghcr.io/logseq/logseq-webapp:latest` (a
+    simple local one-liner, and a remote variant piping the container
+    through a manually-configured Nginx/mkcert TLS reverse proxy) — no
+    compose artifact is offered for either variant. Nothing
+    community-maintained was substituted in its place.
+
+version_health:
+  latest_version: "latest (no versioned tag; desktop app is at 2.0.1 beta, released 2026-07-13)"
+  latest_release_date: "2025-08 (approximate; last update to the ghcr.io/logseq/logseq-webapp image, per GHCR \"published about 1 year ago\")"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    The core `logseq/logseq` repo and desktop/mobile app are actively
+    developed: nightly desktop builds continue (latest 2026-07-28), and a
+    2.0.1 beta shipped 2026-07-13 with a rewritten "DB version" and alpha
+    real-time collaboration. However, this analysis is scoped to the
+    self-hostable artifact Hostinger's catalogue entry actually points at —
+    the `ghcr.io/logseq/logseq-webapp` Docker image — and that specific image
+    is effectively stale: GHCR shows exactly one tag, `latest` (plus an
+    untouched `testing` tag from over 3 years ago), last pushed roughly one
+    year before today (2026-08-05), with no versioned releases ever cut for
+    it. So while upstream Logseq-the-project is healthy, the "self-hosted
+    Logseq" artifact is a ~1-year-frozen side output of that project, not a
+    tracked, versioned release line.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [anytype-server]
+  differentiation: >-
+    Logseq's block-based outliner / bidirectional-linking editing model is
+    genuinely different from AnyType's object-graph model, so on paper this
+    isn't a pure duplicate. In practice, though, `anytype-server` is a real
+    multi-service sync backend that stores and syncs the customer's
+    knowledge base data on our infrastructure, which is what a customer
+    expects from "self-hosted knowledge base." The Logseq Docker image does
+    not do that (see below) — it competes for the same
+    privacy-first-PKM/outliner niche but delivers materially less as a
+    hosted product.
+  usefulness: low
+  usefulness_rationale: >-
+    `ghcr.io/logseq/logseq-webapp` is a static frontend build of the Logseq
+    UI with no backend of its own: per upstream's own
+    `docs/docker-web-app-guide.md`, it uses the browser's File System Access
+    API to read/write the graph directly on whatever device's browser opens
+    it, over HTTPS. Hosting this container centrally does not give the
+    customer a shared, server-persisted knowledge base — each browser/device
+    still points at its own local files, with no built-in multi-device sync
+    (real-time collaboration exists only as an alpha feature of the
+    separate, unreleased 2.0 "DB version," not shipped as this image). That
+    breaks the basic self-hosting value proposition Hostinger's description
+    promises, on top of the image being effectively frozen for a year with
+    no versioned tags to pin.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [access-gate credential]
+  secrets_expressible_today:
+    - secret: access-gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "ghcr.io/logseq/logseq-webapp has never had a versioned tag — GHCR shows only `latest` and a 3-year-stale `testing` tag. A recipe could still pin to a specific image digest (e.g. `@sha256:...`) to satisfy RFC-002's image-tag-pinned rule, but there is no meaningful version to track going forward, and WUD-style update diffs would be meaningless against an image that has not moved in ~1 year."
+    - "The image has no server-side persistence: notes live in the customer's own browser-granted local filesystem (File System Access API), not on our infrastructure. Self-hosting it does not provide a shared, durable, multi-device knowledge base — the core feature customers would expect — without pairing it with an unofficial community sync project (e.g. logseq-selfhost), which is out of scope for a single-image recipe."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Logseq the project is active, but the only self-hostable artifact
+  matching Hostinger's description — the `ghcr.io/logseq/logseq-webapp`
+  Docker image — is a client-only static frontend that has not been updated
+  in roughly a year and has never carried a versioned tag. It has no login
+  of its own, so it is mechanically installable behind a Traefik
+  `basic_auth` gate with no secret-channel blocker. However, it fundamentally
+  does not deliver a server-persisted "self-hosted knowledge base": data is
+  read/written via the browser's local File System Access API per device,
+  not stored centrally, which undercuts the whole point of self-hosting it.
+  Combined with the frozen, unversioned image that leaves nothing meaningful
+  to pin or track going forward, this is a `build_with_caveats` candidate:
+  installable today, but customers should be told upfront that it will not
+  behave like a centrally synced knowledge base.

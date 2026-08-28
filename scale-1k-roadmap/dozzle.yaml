@@ -1,0 +1,90 @@
+slug: dozzle
+name: Dozzle
+source_description: "Lightweight web UI for viewing Docker container logs in real-time"
+
+upstream:
+  url: https://dozzle.dev/
+  repo_url: https://github.com/amir20/dozzle
+  license: MIT
+  docker_image: amir20/dozzle
+  compose_file_url: https://github.com/amir20/dozzle/blob/master/docs/guide/getting-started.md
+  compose_file_notes: >
+    Dozzle does not ship a standalone downloadable docker-compose file for
+    installation purposes. The official docs page
+    (dozzle.dev/guide/getting-started, source at
+    docs/guide/getting-started.md in the repo) embeds a recommended
+    "Standalone Docker" compose snippet (single `dozzle` service, image
+    `amir20/dozzle:latest`, docker.sock mount, named `dozzle_data` volume,
+    port 8080, commented-out env vars for optional features) directly in
+    the page, which is what's linked here. The repo root does contain a
+    `docker-compose.yml`, but that file defines the project's own e2e/CI
+    test fixtures (multiple auth/agent/remote-host scenarios, a
+    `playwright` runner service) rather than an install recipe, so it was
+    not used. The docs page tracks the default branch (`master`) rather
+    than being pinned to a release tag, and only one compose variant is
+    offered — there's no separate GPU/CPU or sqlite/postgres split since
+    Dozzle has no database.
+
+version_health:
+  latest_version: "v10.6.14"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v10.6.14 shipped 2026-07-30, only 6 days before
+    today (2026-08-05). The preceding several releases (v10.6.13, v10.6.12,
+    v10.6.11, v10.6.10, v10.6.9, v10.6.8...) land every few days to roughly
+    weekly, and the `master`/`latest` Docker Hub tags are rebuilt within
+    days of each tag. This is a healthy, actively maintained project, not
+    slowing or dormant.
+
+catalogue_fit:
+  categories: [infrastructure, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Dozzle is a narrow, single-purpose real-time Docker container log
+    viewer — no log storage/indexing/search platform, no general Docker
+    management. None of the current recipes cover this job directly:
+    `recipes/portainer/` (currently `enabled: false`) is a full Docker
+    management console with a logs tab as one of many features, not a
+    dedicated log-tailing tool, and `recipes/wud/` only watches for image
+    updates. Dozzle would be the first "just show me my container logs"
+    recipe in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Handy for a customer who wants a quick, low-footprint way to tail logs
+    across the containers running on their AF host without SSHing in or
+    standing up a full observability stack. Capped at medium because it's
+    a convenience/debugging tool rather than something core to any
+    customer workflow, and its value shrinks for customers who already run
+    Portainer or check logs via SSH.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic_auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic_auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dozzle is a single-container app (no database) exposing one HTTP port
+  (8080 by default) — directly Traefik-compatible on
+  dozzle.<base_domain>. It ships with no built-in authentication enabled
+  by default (upstream explicitly warns "always put Dozzle behind
+  authentication if it is reachable from the public internet"), so it
+  needs a Traefik `basic_auth: true` gate rather than an app-native login
+  — the same pattern already used for n8n, WUD, Open WebUI, and Immich —
+  which clears the current `/compose` constraint with no blocking issues.
+  It also needs a read access to the Docker socket (the same privileged
+  mount class already accepted for portainer and wud) to enumerate and
+  tail container logs, and this is doubly relevant here since the data
+  it surfaces (raw container logs) can itself contain secrets, making the
+  basic_auth gate not just recommended but effectively mandatory rather
+  than optional. Upstream is actively maintained (latest release 6 days
+  before today). Recommend build_now: mechanically installable today via
+  the basic_auth mechanism, with no blocking issues.

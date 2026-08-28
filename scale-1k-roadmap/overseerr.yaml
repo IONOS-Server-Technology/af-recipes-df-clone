@@ -1,0 +1,111 @@
+slug: overseerr
+name: Overseerr
+source_description: "Media request management and discovery tool for Plex with approval workflow"
+
+upstream:
+  url: https://overseerr.dev/
+  repo_url: https://github.com/sct/overseerr
+  license: MIT
+  docker_image: sctx/overseerr
+  compose_file_url: https://raw.githubusercontent.com/sct/overseerr/develop/docs/getting-started/installation.md
+  compose_file_notes: >
+    No standalone official docker-compose.yaml/.yml file exists. The only
+    compose file actually in the repo root
+    (github.com/sct/overseerr/blob/develop/docker-compose.yml) is a
+    dev/build-only file — it builds a local image from Dockerfile.local
+    for contributor use, not the published sctx/overseerr runtime image,
+    so it isn't usable as an install/deploy artifact. The one
+    production-oriented compose snippet (image: sctx/overseerr:latest,
+    port 5055, config volume mount, TZ/LOG_LEVEL/PORT env vars) is
+    embedded inline in the "Docker Compose" tab of the project's own
+    getting-started/installation doc, not published as a separate
+    downloadable file — the URL above is a raw link to that docs
+    markdown page. It is a rolling reference (develop is the repo's
+    default branch, and the embedded image tag is :latest, not a pinned
+    version), though moot in practice since the repo is archived
+    (see version_health) and neither the branch nor the doc content will
+    change further. docs.overseerr.dev, which used to host a rendered
+    version of this same page, now 301-redirects to docs.seerr.dev
+    (the successor project), so that domain can no longer be treated as
+    Overseerr's own docs.
+
+version_health:
+  latest_version: "v1.35.0"
+  latest_release_date: "2026-02-15"
+  release_cadence: dormant
+  eol_status: eol
+  notes: >
+    The upstream repo (sct/overseerr) was archived by its owner on
+    2026-02-15 — the same day v1.35.0, its final release, went out. As of
+    today (2026-08-05) that is just under 6 months ago, with zero
+    expectation of any future release: the repo is read-only and its
+    README now carries a permanent deprecation banner stating "Overseerr
+    is being superseded by Seerr, a unified project merging Overseerr and
+    Jellyseerr. This repository will no longer receive new features or
+    major updates." Overseerr's own documentation domain
+    (docs.overseerr.dev) now 301-redirects to docs.seerr.dev, i.e. even
+    upstream's own docs no longer describe Overseerr as a standalone,
+    supported product. Prior to the final release, the project had gone
+    nearly two years (v1.34.0 was 2025-03-26, and before that v1.33.x was
+    mid-2023) with sparse, slow releases — so this was already a
+    slowing/sporadic project before the archival made it unambiguously
+    EOL. This is a clean-cut case: don't build a recipe on top of an
+    explicitly superseded, archived, non-releasing upstream. If there is
+    interest in this feature set, the successor project "Seerr"
+    (github.com/seerr-team/seerr or similar) would need its own,
+    separate gap analysis — it is a different codebase/image, not a new
+    tag of Overseerr.
+
+catalogue_fit:
+  categories: [media, plex, homelab]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch media-library/Plex-adjacent
+    tooling, so the request-management niche itself would be new ground.
+    But Overseerr's entire value proposition is a companion to a
+    customer's own external Plex server plus Sonarr/Radarr instances —
+    none of which are things AF provisions or manages — so even a healthy
+    Overseerr would only be useful to a narrow slice of customers who
+    already self-host a full media-server stack elsewhere.
+  usefulness: low
+  usefulness_rationale: >
+    Independent of the EOL finding, the app only has value bolted onto an
+    existing Plex/Sonarr/Radarr setup that AF does not provide, so its
+    addressable share of our customer base is small; the archival makes
+    the question moot regardless.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - plex_account_oauth
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Upstream repo archived 2026-02-15 with an explicit "superseded by
+      Seerr" notice and no future releases — not a candidate for a new
+      recipe regardless of the auth question below.
+    - >
+      First-run setup requires signing in with a Plex.tv account (OAuth-
+      style token exchange against plex.tv), not an app-local admin
+      password — there is no env var or setup field that accepts a
+      plaintext or hashed customer-chosen credential, and root-password
+      projection has no way to satisfy a third-party Plex account login.
+      This is the same "OAuth / third-party account linking" blocker
+      pattern documented in apps-gaps/SCHEMA.md, independent of the EOL
+      issue.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Overseerr is EOL: upstream archived the repository on 2026-02-15 (about
+  6 months before this analysis), shipped its final release the same day,
+  and explicitly told users to migrate to a successor project ("Seerr").
+  Even setting that aside, Overseerr's first-run flow requires a Plex.tv
+  account OAuth login rather than any customer-suppliable password, which
+  has no expressible mechanism under the current root-password-projection
+  or basic_auth model — a second, independent blocker. Recommend
+  not_recommended: don't build on an archived, superseded upstream, and
+  if the successor "Seerr" project is later worth evaluating, that needs
+  its own gap analysis rather than being folded into this one.

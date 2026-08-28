@@ -1,0 +1,87 @@
+slug: flagsmith
+name: Flagsmith
+source_description: "Open-source feature flag and remote config service with A/B testing"
+
+upstream:
+  url: https://flagsmith.com
+  repo_url: https://github.com/Flagsmith/flagsmith
+  license: BSD-3-Clause (core OSS repo). A separate "Enterprise Edition" license gates some
+    advanced features (e.g. RBAC, SSO/SAML, audit-log webhooks) but the self-hosted
+    open-source core is unrestricted BSD-3-Clause.
+  docker_image: flagsmith/flagsmith:2.261.0 (pinned version tags published on Docker Hub,
+    e.g. 2.261, 2.260, 2.259 — one per release; :latest also exists but a numeric tag is
+    available and preferred)
+  compose_file_url: https://raw.githubusercontent.com/Flagsmith/flagsmith/main/docker-compose.yml
+  compose_file_notes: >
+    Official file, published by the project itself and linked directly from
+    the README's "Get up and running in less than a minute" quickstart
+    (`curl -o docker-compose.yml
+    https://raw.githubusercontent.com/Flagsmith/flagsmith/main/docker-compose.yml`),
+    and cross-referenced from the docs site (docs.flagsmith.com/deployment/docker).
+    This is a rolling reference to the default branch (`main`), not
+    version-pinned to a release tag — the file's content will change as the
+    branch moves, unlike a `/releases/latest/download/...` or tag-scoped
+    URL. Only one variant is shipped (the full platform: API + frontend +
+    Postgres, using the `:latest` image tag internally), so no
+    GPU/CPU/dev/prod/sqlite/postgres selection was needed.
+
+version_health:
+  latest_version: "2.261.0"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release is 2.261.0 (2026-07-31), 5 days before today
+    (2026-08-05). GitHub releases show a sustained pace of roughly one to
+    two tagged versions per day over the preceding weeks (2.252 through
+    2.261 within about a month), consistent with continuous-delivery
+    practice on an actively maintained project. No indication of
+    maintenance-only mode, archival, or EOL.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Feature-flag/remote-config management with A/B testing and user
+    segmentation is a distinct developer-tooling capability not covered by
+    any of the current 24 recipes (closest neighbours — n8n, Gitea,
+    Anytype, Opengist — are workflow automation, source control, notes, and
+    pastebin respectively, none of which manage runtime feature toggles or
+    experiments). A customer running their own SaaS or app backend would
+    reach for this to avoid depending on a hosted flag service (e.g.
+    LaunchDarkly, Split) and its recurring cost.
+  usefulness: high
+  usefulness_rationale: >
+    Feature flagging is a common need for teams shipping web/mobile
+    backends, and self-hosting it removes a recurring per-seat SaaS cost
+    and a data-residency concern (flag/segment data leaving the customer's
+    infra). Flagsmith is one of the more mature open-source options in this
+    space (15+ SDKs, active maintenance), making it a strong, differentiated
+    addition rather than a niche pick.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Flagsmith is an actively maintained (near-daily tagged releases), BSD-3-
+  Clause-licensed feature-flag and remote-config service with a single
+  reverse-proxy-friendly web port (the `flagsmith/flagsmith` image serves
+  both API and dashboard on :8000, backed by Postgres, following the same
+  shape as our existing n8n/Gitea recipes). It fills a genuine gap in the
+  current 24-recipe catalogue — no existing recipe covers feature flagging.
+  Crucially, first-boot admin setup is done entirely through a browser-based
+  wizard (`/api/v1/users/config/init/`), where the customer creates their own
+  username/email/password directly in-app after the container starts — the
+  same no-secret-needed pattern already used by uptime-kuma and Gitea's
+  first-run flow. That means it needs no `generated_from` root-password
+  projection and no Traefik `basic_auth` gate: a domain is the only
+  first-boot input required, and the Postgres password and Django secret
+  key are ordinary server-generated randoms nothing customer-facing ever
+  reads. Recommended to build now.

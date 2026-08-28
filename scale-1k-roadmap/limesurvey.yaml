@@ -1,0 +1,94 @@
+slug: limesurvey
+name: LimeSurvey
+source_description: "Professional online survey platform for creating and managing questionnaires"
+
+upstream:
+  url: https://www.limesurvey.org/
+  repo_url: https://github.com/LimeSurvey/LimeSurvey
+  license: GPL-2.0-or-later
+  docker_image: martialblog/limesurvey:7-apache
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. LimeSurvey GmbH publishes no
+    Docker image or compose file of its own (per version_health.notes);
+    its own repo (github.com/LimeSurvey/LimeSurvey) and docs only document
+    traditional Apache/nginx+PHP server installs, with no docker-compose.yml
+    anywhere in the tree and no Docker-related install instructions in the
+    README. The only compose files available are community-maintained,
+    e.g. martialblog/docker-limesurvey's docker-compose.yml (the same
+    project whose image this recipe's docker_image already references) and
+    similar third-party repos (adamzammit/limesurvey-docker,
+    andersbc/limesurvey-docker) — none of these are adopted here since
+    they are not published by LimeSurvey GmbH itself.
+
+version_health:
+  latest_version: "7.0.8"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.0.8 and the parallel 6.17.14 support-stream release both shipped on
+    2026-08-05 — the same day as this analysis (2026-08-05). Immediately
+    prior releases: 7.0.7/6.17.13 on 2026-07-28, 7.0.6/6.17.12 on
+    2026-07-21, 6.17.11 on 2026-07-06 — a roughly weekly cadence across two
+    parallel lines (7.0.x current, 6.17.x LTS-style support stream). No
+    official Docker image exists from LimeSurvey GmbH itself; the most
+    actively maintained community image is martialblog/docker-limesurvey
+    (MIT-licensed, 921+ commits, GitHub Actions CI), which tracks upstream
+    closely — its `7-apache`/`6-apache` tags were rebuilt within days of
+    each of the releases above (latest build 7.0.6-260722-apache, 8 days
+    before this analysis). Clearly active upstream, no EOL signal.
+
+catalogue_fit:
+  categories: [productivity, forms-surveys]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes covers online survey/questionnaire
+    creation — the closest neighbors (n8n for workflow automation,
+    paperless-ngx/paperless-ai for document management) address adjacent
+    but distinct data-collection needs. LimeSurvey is a long-standing,
+    feature-rich open-source alternative to SurveyMonkey/Typeform/Google
+    Forms and fills a genuinely new category gap.
+  usefulness: high
+  usefulness_rationale: >
+    Survey/form tools are a common self-hosting ask (data ownership, no
+    per-response SaaS pricing), and LimeSurvey is the most mature
+    open-source option in that space with a large install base and active
+    upstream. Strong candidate if it clears the installability bar.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD, DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      No official upstream Docker image; would need to pin to a
+      community-maintained image (martialblog/docker-limesurvey is the best
+      candidate: MIT-licensed, actively rebuilt, CI-tested) rather than an
+      image blessed by LimeSurvey GmbH itself. Not a hard blocker, but a
+      supply-chain caveat worth the developer's sign-off before build.
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LimeSurvey is a single-container Apache/PHP app plus a MySQL/PostgreSQL
+  sidecar, structurally close to the Joomla and Gitea recipes. Its
+  entrypoint (`console.php install "$ADMIN_USER" "$ADMIN_PASSWORD"
+  "$ADMIN_NAME" "$ADMIN_EMAIL"`) takes ADMIN_PASSWORD as plaintext, hashed
+  internally by the app — same pattern as Joomla and Gitea's admin
+  bootstrap — so it clears the /compose constraint by having install.sh
+  generate a random plaintext admin password server-side (never derived
+  from or equal to the customer's root password) and surface it to the
+  customer post-provision, with DB_PASSWORD likewise server-generated and
+  never customer-facing. The one real caveat is the lack of an official
+  Docker image; martialblog/docker-limesurvey is actively maintained and
+  closely tracks upstream releases, but is a third-party build, not one
+  published by LimeSurvey GmbH. No overlap with the existing 24 recipes and
+  fills a genuine survey/forms category gap. Recommend build_now, with the
+  image-provenance caveat flagged for developer sign-off.

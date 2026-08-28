@@ -1,0 +1,94 @@
+slug: openspeedtest
+name: OpenSpeedTest
+source_description: "Self-hosted HTML5 network speed test without Flash or Java"
+
+upstream:
+  url: https://www.openspeedtest.com
+  repo_url: https://github.com/openspeedtest/Speed-Test
+  license: MIT
+  docker_image: openspeedtest/latest
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere upstream —
+    not at the root of openspeedtest/Docker-Image or openspeedtest/Speed-Test,
+    not under a docker/deploy/contrib subdirectory, and not attached to any
+    GitHub Release (the Docker-Image repo's 6 releases carry no compose
+    asset; only v0.0.1 has any asset at all, a zip of the image sources).
+    The only official compose material is a snippet embedded directly in
+    openspeedtest/Docker-Image's README.md (three variants shown inline:
+    plain HTTP/HTTPS ports, one with ENABLE_LETSENCRYPT env vars, one with
+    a custom-SSL-cert volume mount) — there is no separate file to link to,
+    only prose showing `docker-compose.yml` content for the reader to copy
+    by hand. Treating a README-embedded snippet as if it were a maintained,
+    linkable file would misrepresent it the way the Immich counter-example
+    warns against, so this is recorded as not found rather than pointing at
+    the README.
+
+version_health:
+  latest_version: "v2.0.6"
+  latest_release_date: "2025-01-09"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    The Docker packaging repo (openspeedtest/Docker-Image) has published
+    GitHub Releases only up to v2.0.5 (2024-01-28), but the openspeedtest/latest
+    image on Docker Hub was actually rebuilt/pushed as v2.0.6 on 2025-01-09
+    (~19 months before today, 2026-08-05) without a matching GitHub Release
+    — Docker Hub tag history is the more accurate signal here. The
+    Docker-Image repo itself last had a commit (pushed_at) on 2024-08-15,
+    about 2 years ago. The underlying web-app repo (openspeedtest/Speed-Test,
+    3,716 stars, 366 forks) is far more active: pushed_at 2026-04-22, about
+    3.5 months before today, and not archived. Reading as: the core speed-test
+    engine is still maintained, but the official Docker packaging around it
+    has slowed to roughly one release every 12-18 months and lags the main
+    app. Not dormant/EOL, but the container image is not being refreshed at
+    the same pace as the app it wraps.
+
+catalogue_fit:
+  categories: [networking, diagnostics]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does client-to-server network
+    throughput/latency/jitter testing. Uptime Kuma is the closest thing
+    (network-adjacent monitoring), but it checks service availability, not
+    raw bandwidth — a different job. OpenSpeedTest would be a genuinely new
+    category: a self-hosted HTML5 speed-test server a customer can point
+    their own devices (or hand to end users/customers) at to measure
+    throughput to that specific VM, with no Flash/Java plugin and no
+    third-party (e.g. Ookla) telemetry involved.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable use case (self-hosted Speedtest.net-style tool,
+    common for ISPs, offices, and privacy-conscious users who don't want
+    third-party speed-test telemetry), and it's a trivially light,
+    single-container app. Docked from "high" because it's a narrow
+    diagnostic utility rather than something most customers run daily, and
+    the official Docker image is the least actively maintained part of an
+    otherwise healthy upstream project.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OpenSpeedTest is a lightweight, single-container (nginx-unprivileged-based)
+  HTML5 speed-test server with no login of its own and no external
+  dependencies — mechanically installable today with zero blocking secrets.
+  Unlike a typical no-login app, its lack of auth is closer to Cryptgeon's
+  "by design" case than to WUD's "accidental" one: public speed-test servers
+  (ISP test points, office diagnostics) are commonly meant to be reachable
+  by anyone testing their connection, so gating it behind Traefik basic_auth
+  is a legitimate optional hardening step rather than a requirement — a
+  human should decide whether the intended customer use case is "share this
+  URL publicly" or "private diagnostic tool," since an ungated instance can
+  also be pointed at by third parties to consume the VM's outbound bandwidth
+  repeatedly. The official Docker image has not been rebuilt in ~19 months
+  and the packaging repo has gone quiet for ~2 years while the underlying
+  app stays active, which is worth a quick sanity check on the pinned image
+  before shipping — but it is not a blocking issue, so `build_now`.

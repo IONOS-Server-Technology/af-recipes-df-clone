@@ -1,0 +1,79 @@
+slug: wiremock
+name: WireMock
+source_description: "HTTP API mock server for simulating REST services and testing edge cases"
+
+upstream:
+  url: https://wiremock.org/
+  repo_url: https://github.com/wiremock/wiremock
+  license: Apache-2.0
+  docker_image: wiremock/wiremock:3.13.2
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file is published by the project.
+    Both wiremock.org/docs/standalone/docker/ and the official
+    wiremock/wiremock-docker repo README embed only inline "Sample compose
+    file" YAML snippets (a basic form, and a variant that mounts
+    __files/mappings volumes) as documentation examples — neither is a
+    fetchable file with its own URL, version-pinned or otherwise. No
+    community-maintained standalone file was adopted in its place.
+
+version_health:
+  latest_version: "3.13.2"
+  latest_release_date: "2025-11-14"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Stable 3.x line released roughly monthly through 2024-2025 (3.10.0 in
+    Nov 2024, 3.11.0-3.13.2 spaced ~1-2 months apart into Nov 2025), but no
+    stable tag has shipped in the ~9 months since (as of 2026-08-05).
+    Upstream development effort has visibly shifted to a 4.0.0 beta line —
+    dozens of 4.0.0-beta.N pre-releases, several as recently as June-July
+    2026 — so the project is far from dormant, it's just not cutting stable
+    releases while 4.0.0 stabilizes. Repo is not archived; ~4,800 commits,
+    active CI. Treat as "slowing" on the stable channel rather than
+    dormant/EOL, and revisit the pinned tag once 4.0.0 goes GA.
+
+catalogue_fit:
+  categories: [developer-tools, testing]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes offers HTTP API mocking/stubbing for
+    testing edge cases (timeouts, fault injection, canned JSON responses).
+    Closest neighbors (n8n, Gitea, Opengist) are workflow/dev-collab tools,
+    not test-double infrastructure. WireMock would be a genuinely new
+    category for the catalogue: a target that a customer's own app or CI
+    pipeline points at instead of a real third-party API during development
+    or testing.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for developers/QA teams who want a standing, internet-reachable
+    mock server without provisioning their own Java host, but it's a narrow,
+    technical audience (not broad consumer appeal) and the admin surface is a
+    REST API + JSON mapping files, not a polished dashboard.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  WireMock is a single-container app (wiremock/wiremock, official image)
+  listening on one HTTP port (8080) with no built-in authentication at all —
+  the admin API at /__admin lets anyone create, list, and delete stubs, and
+  the mocked endpoints themselves are served from the same port. Same shape
+  as Adminer/WUD: no login of its own, so it must ship behind a mandatory
+  Traefik basic_auth:true gate with the password projected from the
+  customer's root password via generated_from, exactly the pattern already
+  used elsewhere in the catalogue. No web UI, but it's still fully reverse-
+  proxy compatible on a single HTTP port. Release cadence has slowed sharply
+  on the stable 3.x line (9 months since 3.13.2) while upstream focuses on
+  an actively-developed 4.0.0 beta series, so the project reads as
+  transitioning rather than abandoned. Recommend building the recipe now,
+  pinned to 3.13.2, with the basic-auth gate as a hard requirement.

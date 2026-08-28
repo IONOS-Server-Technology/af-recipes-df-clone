@@ -1,0 +1,116 @@
+slug: odoo
+name: Odoo
+source_description: "Open-source ERP and CRM platform for business management and e-commerce"
+
+upstream:
+  url: https://www.odoo.com/
+  repo_url: https://github.com/odoo/odoo
+  license: "LGPL-3.0 (Community Edition); Enterprise modules are proprietary/commercial, not covered by this analysis"
+  docker_image: odoo
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official docker-compose file exists to link. Odoo's own
+    docker/README.md (github.com/odoo/docker) states its full usage docs
+    are generated into docker-library/docs/odoo
+    (github.com/docker-library/docs/tree/master/odoo), which is also what
+    renders as the official `odoo` image's Docker Hub page
+    (hub.docker.com/_/odoo) — headed "Maintained by: Odoo". That page
+    embeds three docker-compose.yml examples inline in markdown (basic
+    two-service odoo+postgres, a custom-credentials variant, and an
+    advanced one with custom addons/config/secrets) rather than shipping
+    any of them as a fetchable file in the repo — there is no
+    release-asset or raw-file link, version-pinned or rolling, to point
+    to. Checked github.com/odoo/docker's git tree directly: no
+    docker-compose.yaml/.yml exists anywhere in it.
+
+version_health:
+  latest_version: "19.0 (dated build 19.0-20260630)"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Odoo ships on a yearly major-version cadence (new major every
+    October/November at Odoo Experience); Odoo 19 landed October 2025.
+    Unlike a tagged-release project, the 19.0 branch and its official
+    Docker image are continuously rebuilt against daily commits — Docker
+    Hub carries dated tags like odoo:19.0-20260630 (2026-06-30, ~5 weeks
+    before today 2026-08-05) alongside the floating odoo:19.0 tag, both
+    recently pushed. Odoo's official support policy covers the three most
+    recent majors (currently 17, 18, 19) with bug fixes and security
+    patches; older majors roll off standard support on that cadence. No
+    archive/EOL signal — this is a large, commercially-backed, continuously
+    developed project.
+
+catalogue_fit:
+  categories: [business, erp, crm, ecommerce, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers general-purpose
+    ERP/CRM/e-commerce (accounting, inventory, sales pipeline, invoicing,
+    website/e-commerce builder in one suite) — n8n is the closest by
+    "business tooling" framing but automates workflows rather than running
+    the business itself. Odoo is the category-defining open-source ERP
+    (the project the other still-open apps-gaps analyses in this space —
+    apps-gaps/dolibarr.yaml, apps-gaps/aureuserp.yaml, apps-gaps/corteza.yaml,
+    apps-gaps/civicrm.yaml, apps-gaps/akaunting.yaml — are themselves
+    positioned against): by user base and module breadth it's the most
+    recognizable name a customer would search for in this space. If more
+    than one of these ERP/CRM candidates gets built, that's a deliberate
+    portfolio decision, not something this analysis should presume away.
+  usefulness: high
+  usefulness_rationale: >
+    ERP/CRM/e-commerce is mainstream SME demand and a strong self-hosting
+    draw ("keep my financial, inventory and customer data off a SaaS
+    vendor's server"). Odoo Community Edition is plain LGPL-3.0 with no
+    seat/usage-tier cap (unlike apps-gaps/akaunting.yaml's BSL 1.1 limits),
+    and it is by far the most widely deployed and recognized open-source
+    ERP, which matters for a catalogue whose value partly comes from
+    customers recognizing the app names on offer.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - odoo_db_password
+    - odoo_master_password
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: odoo_db_password
+      mechanism: server_generated_no_customer_input
+    - secret: odoo_master_password
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Odoo is a single-container Python app (official `odoo` image, HTTP UI on
+  :8069) backed by its own PostgreSQL instance — structurally the same
+  app+DB pattern as n8n/paperless-ngx, and reverse-proxy-compatible behind
+  Traefik with no extra ports or protocols. The image takes PostgreSQL
+  connection settings (HOST/PORT/USER/PASSWORD) as plain env vars, which
+  install.sh can server-generate with zero customer input. The
+  wrinkle, same pattern already accepted for Ghost/Bludit/Baikal in this
+  apps-gaps set: Odoo has no env var to pre-provision its actual
+  Administrator login. The official image ships no ADMIN_EMAIL/
+  ADMIN_PASSWORD hook — the first database (and its admin user/password)
+  is created through an unauthenticated browser wizard at
+  /web/database/manager, protected only by a separate `admin_passwd`
+  master password that itself is config-file-only (no native env-var
+  support; install.sh would template it into odoo.conf, which is fine
+  since it never needs to reach the customer). Per SCHEMA.md's guidance on
+  wizard-only admin provisioning, gating the whole app behind Traefik
+  basic_auth (projected from the customer's root-password hash) closes the
+  claim-race exposure and clears installable_today with zero hard blocking
+  issues — the customer completes Odoo's own database-creation wizard
+  (picking their own admin email/password) after authenticating through
+  the gate, then can drop the gate once the wizard is done. Odoo is
+  actively developed on a yearly major-release cadence with a
+  continuously-rebuilt official Docker image and no EOL signal, and
+  Community Edition is plain LGPL-3.0 with no usage-tier caps. Recommend
+  build_now: installable_today with zero blocking issues — the
+  wizard-gating flow just needs to be spelled out clearly in
+  install.sh/docs.

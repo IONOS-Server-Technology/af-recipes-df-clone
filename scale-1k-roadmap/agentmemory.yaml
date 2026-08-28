@@ -1,0 +1,95 @@
+slug: agentmemory
+name: AgentMemory
+source_description: "Persistent memory for AI coding agents with hybrid BM25 vector and graph search"
+
+upstream:
+  url: https://www.agent-memory.dev/
+  repo_url: https://github.com/rohitg00/agentmemory
+  license: Apache-2.0
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/rohitg00/agentmemory/main/docker-compose.yml
+  compose_file_notes: >
+    Official — found at the repo root (rohitg00/agentmemory/docker-compose.yml).
+    This is the project's own bundled compose file, used as its Docker-based
+    fallback path when the native iii-engine binary isn't installed (per the
+    README: "falls back to Docker Compose if Docker is available"; also the
+    documented Windows alternative to installing iii natively). It defines
+    only the iii-engine sidecar (pinned to iiidev/iii:0.11.2, matching the
+    version already recorded in version_health/summary) plus a one-shot
+    permissions-init container — it does not run agentmemory itself, which
+    is installed as an npm/npx package per the native recipe_type_guess.
+    The link points at the `main` branch (rolling reference, not
+    version-pinned to a tag/release) since no versioned or release-asset
+    copy of this file is published; only one variant of the file exists, so
+    no GPU/CPU or sqlite/postgres choice was needed.
+
+version_health:
+  latest_version: "v0.9.28"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.9.28 released 2026-07-19, 17 days before today (2026-08-05). Release
+    history is dense: v0.9.23 (2026-05-29), v0.9.24 (2026-05-29), v0.9.25
+    (2026-06-02), v0.9.26 (2026-06-03), v0.9.27 (2026-06-07), v0.9.28
+    (2026-07-19) — several releases explicitly labelled as hotfix/regression
+    waves for the immediately preceding release (first-boot crash fix,
+    version-flag/dependency-pinning fix). 474 commits, 26.6k stars, 199 open
+    PRs. Active and pre-1.0 (still on 0.9.x) — fast-moving but not yet
+    settled; expect continued churn before a 1.0.
+
+catalogue_fit:
+  categories: [ai, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a session-memory/context layer for
+    AI coding agents. claude-code and gemini-cli are the agents themselves,
+    not a memory backend; open-webui/ollama/hermes-agent are chat UIs or a
+    messaging-driven agent, not a persistence layer. As a native recipe
+    installed alongside claude-code/gemini-cli on the same VM, agentmemory
+    would give a customer's terminal coding agent durable, hybrid
+    BM25/vector/graph session memory across restarts — a genuinely new
+    capability, not a duplicate of anything shipped today.
+  usefulness: medium
+  usefulness_rationale: >
+    Re-evaluated as a native recipe (per corrected SCHEMA.md guidance) rather
+    than a containerized web app, the earlier "doesn't fit the give-it-a-
+    domain model" objection dissolves: agentmemory's REST/MCP server is
+    meant to be reached over localhost by a coding agent running on the same
+    host, which is exactly the claude-code/gemini-cli usage pattern already
+    in the catalogue — no public exposure or Traefik domain is needed for
+    the core use case. It only reaches medium rather than high because (a)
+    it depends on a separate pinned native binary or container for the
+    "iii-engine" storage layer, adding install complexity beyond a plain
+    binary download, and (b) it's a pre-1.0 project still shipping
+    regression-fix waves, so day-one experience for a customer could be
+    rockier than a mature CLI tool.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Corrected re-run: the previous not_recommended verdict rested on treating
+  agentmemory as a containerized web app and on an assumed hard LLM-API-key
+  requirement, both wrong. Upstream confirms no LLM calls are made and no
+  provider key is needed unless the customer opts into compression/graph
+  extraction ("by default, no LLM calls are made unless you configure a
+  provider") — that parameter would ship optional, exactly like
+  ANTHROPIC_API_KEY on the existing claude-code recipe. As a recipe_type:
+  native install (npm/npx package plus a pinned iii-engine v0.11.2 sidecar,
+  binding to 127.0.0.1 by default) it needs no public port, no domain, and
+  no customer-supplied secret at first boot — AGENTMEMORY_SECRET is optional
+  and only relevant if the app is later reconfigured to bind 0.0.0.0 for
+  remote access, which is not the intended install shape here. It is
+  mechanically installable today with no blocking secret and no blocking
+  issues, so this is build_now. It's pre-1.0 with frequent regression-fix
+  releases, and install.sh has two version pins to track in lockstep (the
+  npm package and the iii-engine binary/image) rather than one — worth
+  noting as product-shaped context, but not a blocker to building it.

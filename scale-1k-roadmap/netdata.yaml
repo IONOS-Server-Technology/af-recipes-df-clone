@@ -1,0 +1,92 @@
+slug: netdata
+name: Netdata
+source_description: "Real-time infrastructure monitoring agent with 800+ integrations"
+
+upstream:
+  url: https://www.netdata.cloud/
+  repo_url: https://github.com/netdata/netdata
+  license: GPL-3.0
+  docker_image: netdata/netdata
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose file is published anywhere official.
+    Netdata's own Docker install docs
+    (learn.netdata.cloud/docs/netdata-agent/installation/docker, sourced
+    from packaging/docker/README.md in the netdata/netdata repo) only
+    embed several docker-compose.yml YAML snippets inline in prose
+    (standard, GPU, host-editable-config, SSL/TLS proxy, socket-proxy,
+    rootless variants) that the reader is told to copy-paste into a local
+    file — none of them are linked as an actual file the project hosts
+    and updates. A repo search confirmed there is no docker-compose.yml/
+    .yaml at the repo root or under packaging/docker/, deploy/, or
+    contrib/. Nothing to link to as an official compose file.
+
+version_health:
+  latest_version: "v2.10.4"
+  latest_release_date: "2026-07-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released 2026-07-15, three weeks before this analysis (2026-08-05).
+    Frequent cadence: v2.10.0-2.10.4 landed April-July 2026 (four patch
+    releases in one month), preceded by v2.9.0 (Feb 2026) and v2.8.x
+    (Dec 2025-Jan 2026). No archival or EOL signals; this is a
+    well-maintained, actively developed project.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Netdata monitors the health of the host/infrastructure itself
+    (CPU, memory, disk, network, per-process, container-level metrics via
+    the Docker socket, 800+ integrations) with per-second granularity and
+    zero-config auto-discovery. Uptime Kuma (our only other monitoring
+    recipe) checks external endpoint availability from the outside; it
+    does not look inside the host. No recipe in the current catalogue
+    does host/infra-level observability, so this fills a distinct gap.
+  usefulness: high
+  usefulness_rationale: >
+    Infrastructure monitoring is a broadly useful, well-understood need
+    for anyone running a VM/server, and Netdata's real-time dashboard with
+    no setup required (auto-detects services) makes it an easy sell as a
+    one-click recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Netdata's own upstream deployment guidance runs the container with
+      network_mode: host, pid: host, and privileged-ish capabilities
+      (SYS_PTRACE, SYS_ADMIN, apparmor=unconfined) plus host bind-mounts
+      (/proc, /sys, /etc/os-release, /var/run/docker.sock) to get full
+      system-level metrics. That conflicts with running it as a normal
+      bridge-network service behind Traefik on a per-customer subdomain.
+      It can still run in bridge mode with a published port and the
+      Docker-socket mount (giving Docker container-level stats), but full
+      host hardware/process telemetry — the main selling point — would be
+      degraded. This is a design/scope caveat, not a hard secrets-input
+      blocker.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Netdata is active, well-maintained (latest release three weeks ago) and
+  fills a genuine gap versus our one existing monitoring recipe (Uptime
+  Kuma checks external endpoints; Netdata watches the host from inside).
+  Its local dashboard on port 19999 ships with no built-in login, so it is
+  installable today the same way as Adminer/WUD: domain param plus a
+  mandatory Traefik basic_auth gate with the password projected from the
+  customer's root password via generated_from. The open question is
+  architectural rather than a secrets blocker — Netdata's recommended
+  deployment wants host networking and host mounts for full-fidelity
+  metrics, which sits awkwardly with our per-customer bridge-network/
+  Traefik model, so a recipe would need to scope down to
+  container-level/Docker-socket monitoring rather than true host telemetry.
+  Recommend building with that caveat made explicit to the developer
+  picking this up.

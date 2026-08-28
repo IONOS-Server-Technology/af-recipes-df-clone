@@ -1,0 +1,90 @@
+slug: collabora-online
+name: Collabora Online
+source_description: "Self-hosted browser-based office suite for collaborative document editing"
+
+upstream:
+  url: https://www.collaboraonline.com/code/
+  repo_url: https://github.com/CollaboraOnline/online
+  license: MPL-2.0 (core CODE engine), with a paid "Collabora Online" enterprise tier for advanced admin/scaling features
+  docker_image: collabora/code
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in Collabora's own
+    channels. Checked: the product page (collaboraonline.com/code/), the
+    SDK installation docs (sdk.collaboraonline.com), and the
+    CollaboraOnline/online GitHub repo itself (its docker/ directory only
+    contains a Dockerfile for building the image from source, plus a
+    seccomp profile and cosign key — no compose file, no docker-compose.yml
+    or .yaml anywhere in the repo). Collabora's own installation
+    instructions are all `docker run collabora/code ...` one-liners with
+    env vars (e.g. `domain=`, `extra_params=`), never a compose file.
+    Numerous third-party/community docker-compose files exist (e.g. in
+    Nextcloud integration guides, tiredofit/docker-collabora-online, and
+    various forum posts), but none of these are published or maintained by
+    Collabora, so none qualify as official.
+
+version_health:
+  latest_version: "26.04 (image tag 26.04.2.4.1)"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest CODE release (26.04, celebrating the project's 10th anniversary)
+    shipped 2026-07-23, about two weeks before this analysis (2026-08-05).
+    Release series runs on a roughly quarterly cadence (26.04 in
+    Jun/Jul 2026, 25.04 on 2026-03-23, 24.04 before that), each with
+    frequent patch builds (26.04.2.4.1 etc.) in between. Clearly active,
+    vendor-backed (Collabora), no signs of slowdown.
+
+catalogue_fit:
+  categories: [productivity, office]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does in-browser office
+    document editing (Word/Excel/PowerPoint/ODF formats) — this would be a
+    genuinely new category. However, CODE is architecturally a WOPI
+    server, not a standalone office app: it has no file browser, no
+    document storage, and no user accounts of its own. It only becomes
+    usable once paired with a WOPI *host* application (Nextcloud, ownCloud,
+    Seafile, FileRun, etc.) that stores files and calls into CODE to render
+    the editing iframe. None of those WOPI-host apps exist in this
+    catalogue today, so shipping collabora-online alone gives a customer a
+    backend service with nothing to open, edit, or save.
+  usefulness: low
+  usefulness_rationale: >
+    High usefulness in the broader self-hosting ecosystem, but low as a
+    standalone recipe in this catalogue specifically, because its entire
+    value proposition depends on a WOPI-host companion app we don't carry.
+    A customer who deploys this recipe alone gets a bare CODE instance
+    whose only reachable UI is a health-check page and (if enabled) an
+    admin console — no way to actually create or edit a document without
+    also standing up and wiring in Nextcloud or similar themselves.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - Traefik basic-auth gate credential
+  secrets_expressible_today:
+    - secret: Traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "The optional built-in admin console (username/password env vars 'username'/'password') is configured by the entrypoint script writing the values verbatim into loolwsd.xml — it requires the literal plaintext admin password, not a hash. generated_from only ever projects a hash, so this specific credential has no expressible mechanism today. It is avoidable (the admin console is opt-in and can simply be left disabled), so it does not block the recipe as a whole, but it must not be wired up via generated_from."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Collabora Online CODE is an actively maintained, vendor-backed project
+  (quarterly releases, latest 2026-07-23) and is mechanically installable
+  today: it needs no customer-supplied credential beyond a Traefik
+  basic_auth gate on its single reverse-proxyable HTTP/WebSocket port, and
+  its optional admin console (which does require a plaintext password we
+  cannot supply) can simply be left disabled. The real problem is fit, not
+  installability — CODE is a WOPI backend with no file storage, no user
+  accounts, and no document browser of its own; it only functions as an
+  editing surface for a separate WOPI-host app like Nextcloud, none of
+  which exist in this catalogue. Shipped alone, the recipe would hand a
+  customer a service with nothing to point it at. Recommend not_recommended
+  as a standalone recipe today; revisit only alongside (or after) a
+  WOPI-host recipe such as Nextcloud entering the catalogue.

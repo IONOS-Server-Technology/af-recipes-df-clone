@@ -1,0 +1,149 @@
+slug: senaite-lims
+name: SENAITE LIMS
+source_description: "Open-source laboratory information management system for analytical labs"
+
+upstream:
+  url: https://www.senaite.com/
+  repo_url: https://github.com/senaite/senaite.lims
+  license: GPL-2.0
+  docker_image: "senaite/senaite (container build lives in github.com/senaite/senaite.docker; pin v2.6.0-docker2, never the rolling 2.x/edge/latest tags)"
+  compose_file_url: https://raw.githubusercontent.com/senaite/senaite.docker/master/stack.yml
+  compose_file_notes: >
+    Official but stale and effectively unlinked: `stack.yml` lives at the
+    root of the senaite.docker repo (the same repo that builds the
+    senaite/senaite image) and is maintained by the same maintainer
+    (ramonski), so it counts as official rather than community — but it is
+    not surfaced from the senaite.docker README, which only documents plain
+    `docker run` commands, and it is not linked from senaite.com or the
+    senaite.lims repo either. It is a rolling reference to the master
+    branch (i.e. the URL always serves whatever is currently committed),
+    but its content is version-pinned to an old tag: it currently pins
+    `senaite/senaite:v2.5.0`, last touched 2024-01-03, one release behind
+    the 2.6.0 (2025-04-04) that version_health treats as latest — so
+    following this file as-is would deploy a stale image and it must be
+    edited to the currently-recommended `v2.6.0-docker2` tag before use.
+    Only one variant exists (no GPU/CPU or dev/prod split); an earlier
+    ZEO-cluster compose setup was removed from this same file in 2023 and
+    is no longer available as compose, only as manual `docker run` steps
+    in the README.
+
+version_health:
+  latest_version: "2.6.0"
+  latest_release_date: "2025-04-04"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    2.6.0 is the newest release of both the senaite.lims meta-package and
+    senaite.core, published to PyPI on 2025-04-04 — about 16 months before
+    today (2026-08-06), with no 2.7.0 yet. The release history shows a clear
+    slowdown: 2.1.0 (2022-01-05), 2.2.0 (2022-06-11), 2.3.0 (2022-10-04),
+    2.4.0/2.4.1 (2023-03-10/11), then 2.5.0 (2024-01-03) and 2.6.0
+    (2025-04-04) — three releases in 2022, two in 2023, one in 2024, one in
+    2025, none so far in 2026. Development itself is NOT dormant, which is
+    why eol_status is active rather than maintenance-only: the 2.x branch of
+    senaite.core has commits through 2026-07-31, and the Docker Hub rolling
+    2.x/edge tags were rebuilt 2026-07-31, i.e. within the last week. The
+    picture is an actively developed project with a long, slipping release
+    cycle, not an abandoned one. Repo is not archived; no EOL announcement.
+    Naming note: SENAITE is the successor to Bika LIMS (same commercial
+    sponsors, RIDING BYTES and NARALABS) — senaite.lims is only the
+    installation meta-package, the application code is senaite.core, and
+    both version in lockstep. Not ambiguous with any other project.
+
+catalogue_fit:
+  categories: [research, laboratory, productivity, data-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers laboratory
+    operations. Paperless-ngx is the nearest neighbour and is not close: it
+    archives scanned documents, whereas SENAITE models the analytical-lab
+    domain — clients, samples, analysis services and profiles, worksheets,
+    result entry with verification workflow, specifications and
+    out-of-range flagging, certificates of analysis, and instrument
+    interfaces. It is a full LIMS, i.e. the system of record for a testing
+    lab. Distinct from the eLabFTW candidate already analysed in this
+    directory: eLabFTW is an electronic lab *notebook* for research
+    record-keeping, SENAITE is sample-throughput and QA/QC management for
+    service labs (environmental, water, food, clinical, mining).
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely credible in its niche — SENAITE/Bika has a 15+ year track
+    record and real production deployments in regulated labs — and it would
+    open a category we do not serve at all. But the audience is much
+    narrower than the catalogue's general-purpose self-hosting user: an
+    analytical laboratory that wants to run its own LIMS. It is also the
+    heaviest-configuration app of any candidate reviewed here: a fresh
+    instance is an empty shell that needs a lab's clients, contacts,
+    analysis services, calculations, and specifications set up before it
+    does anything useful, so the "provisioned in minutes" value story is
+    weak even though the container itself starts cleanly.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Not a hard blocker, but the reason a basic_auth gate is mandatory
+      rather than optional: the image's only admin-credential knob is the
+      `PASSWORD` environment variable, which sets the Zope admin user's
+      password as **plaintext** and defaults to the documented, published
+      value `admin`. `generated_from: "<algo>:ROOT_PASSWORD"` only ever
+      produces a hash, so it cannot feed `PASSWORD`, and there is no
+      config path that accepts a pre-computed hash for the Zope inituser
+      — this is the same structural situation as the plone candidate in
+      this directory (SENAITE is built on Plone/Zope). Per SCHEMA.md this
+      is explicitly not a blocker on its own: leave the credential at its
+      default and make Traefik `basic_auth` (root-password projection,
+      argon2 or bcrypt) the real, mandatory auth boundary in front of the
+      whole app, with the customer changing the admin password from
+      inside the UI afterwards. The gate must not be presented as
+      optional — without it, `admin/admin` is directly reachable on the
+      internet.
+    - >
+      Reverse-proxy caveat that needs design work, not a platform change:
+      SENAITE is a Zope application and the site lives at a sub-path
+      (setting `SITE=senaite` at first boot auto-creates it at
+      `/senaite`), and Zope generates absolute URLs from the request path
+      rather than from `X-Forwarded-Host`. Serving it at
+      `senaite.<base_domain>/` therefore needs a Traefik
+      `ReplacePathRegex` middleware injecting the VirtualHostMonster
+      prefix (`/VirtualHostBase/https/<domain>:443/senaite/VirtualHostRoot`)
+      — upstream's own Apache/nginx guidance uses exactly this rewrite.
+      It is expressible in compose labels because the domain is known at
+      compose time, but no recipe in the catalogue does path rewriting
+      today, so it needs end-to-end validation before shipping.
+  installable_today: true
+  recommendation: build_with_caveats
+  # caveats: (1) mandatory, non-optional Traefik basic_auth gate, since the
+  # Zope admin credential defaults to admin/admin and cannot be projected;
+  # (2) a VirtualHostMonster ReplacePathRegex middleware is required to serve
+  # the app at the domain root — a pattern not yet used anywhere in the
+  # catalogue; (3) pin an immutable tag (v2.6.0-docker2), not 2.x/edge/latest;
+  # (4) ZODB lives in the container's /data volume with no external DB, so
+  # size the disk floor for the object store and expect a Zope-typical RAM
+  # floor around 2 GB.
+
+summary: >
+  SENAITE LIMS is a real, credible laboratory information management system
+  (successor to Bika LIMS, GPL-2.0, Plone/Zope-based) and would open a
+  category the current 24 recipes do not touch at all. Upstream is still
+  being developed — senaite.core commits and Docker Hub 2.x rebuilds as
+  recent as 2026-07-31 — but its release cadence has clearly slowed: 2.6.0
+  from 2025-04-04 is still the latest tag, ~16 months old, with nothing in
+  2026. Mechanically it is the easy kind of app: one official container
+  (`senaite/senaite`), one HTTP port (8080), no external database (ZODB in a
+  /data volume), and no secret the customer must supply. It is installable
+  today, but only via the Plone-style workaround — the Zope admin password
+  can only be set as plaintext and defaults to admin/admin, so a mandatory
+  Traefik basic_auth gate has to be the actual auth boundary — and it
+  additionally needs a VirtualHostMonster path-rewrite middleware, which no
+  existing recipe uses. Recommend build_with_caveats: both caveats are real,
+  functional gaps that need to be closed before shipping (a mandatory,
+  non-optional auth gate in front of a default admin/admin credential, and
+  an unvalidated path-rewrite pattern), not a reflection of overlap with
+  other candidates or the size of the addressable audience.

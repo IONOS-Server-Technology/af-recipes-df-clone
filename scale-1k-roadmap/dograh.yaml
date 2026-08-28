@@ -1,0 +1,120 @@
+slug: dograh
+name: Dograh
+source_description: "Open-source no-code platform for building AI voice agents in minutes"
+
+upstream:
+  url: https://www.dograh.com
+  repo_url: https://github.com/dograh-hq/dograh
+  license: BSD-2-Clause
+  docker_image: "dograhai/dograh-api:1.44.0 (paired with dograhai/dograh-ui:1.44.0)"
+  compose_file_url: https://raw.githubusercontent.com/dograh-hq/dograh/main/docker-compose.yaml
+  compose_file_notes: >
+    Official, from the project's own repo root and linked directly from
+    the README quick-start ("curl -o docker-compose.yaml
+    https://raw.githubusercontent.com/dograh-hq/dograh/main/docker-compose.yaml")
+    and docs.dograh.com/deployment/docker. This is a rolling reference to
+    the `main` branch, not version-pinned — it tracks whatever's on main,
+    not a tagged release. Picked this over the repo's other compose file,
+    `docker-compose-local.yaml` (a dev/local variant with different
+    service wiring), because it's the one the docs and README quick-start
+    point to as the default. Note this is the "local" deployment file
+    only: the docs' "remote" (public, real-call-capable) deployment path
+    does not use a static compose file at all — it runs
+    `scripts/setup_remote.sh`, which generates its own docker-compose.yaml
+    plus nginx/coturn config on the target server, matching the
+    already-recorded blocking_issue about upstream needing a setup script
+    for remote deployments.
+
+version_health:
+  latest_version: "v1.44.0"
+  latest_release_date: 2026-08-01
+  release_cadence: active
+  eol_status: active
+  notes: >
+    4 days since v1.44.0 (2026-08-01) as of today (2026-08-05). Release
+    history is dense and regular: v1.43.0 (2026-07-25) → v1.42.0
+    (2026-07-15) → v1.41.0 (2026-07-06) → v1.40.0 (2026-07-03), roughly
+    weekly ships going back over a year (1.34.0 → 1.44.0 tags all present on
+    Docker Hub). No signs of slowdown, archival, or maintenance-only mode —
+    this is a young, fast-moving, well-maintained project.
+
+catalogue_fit:
+  categories: [ai, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does voice AI / telephony.
+    n8n covers general workflow automation and Open WebUI/Ollama cover
+    text-based local LLM chat, but Dograh's core value (inbound/outbound
+    phone calls handled by an LLM-driven voice agent, visual call-flow
+    builder, telephony provider integration) is a genuinely new capability
+    class, not a duplicate of anything shipped today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiator for customers who specifically want self-hosted
+    voice AI, but it's a narrow, technical use case (needs a telephony
+    provider account like Twilio/Telnyx/Vonage to originate real calls,
+    plus BYOK for LLM/TTS/STT to move past the bundled defaults) and a
+    heavier deployment than most of the catalogue — self-hosting docs
+    recommend 8 GB RAM / 4 vCPU for a "remote" (public, real-call-capable)
+    deployment, well above most existing recipes' footprint.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DOGRAH_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: DOGRAH_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Dograh's own auth is self-service signup/login (local JWT, no
+      customer-set admin password we could hash and project via
+      `generated_from`). Same pattern as n8n's owner-setup flow: whoever
+      reaches the URL first can create the first (owner) account, so the
+      recipe needs a Traefik `basic_auth` gate as an interim shield until
+      the customer completes signup — not a hard blocker given IF-1312,
+      but worth flagging since ENABLE_SIGNUP defaults to open registration.
+    - >
+      Upstream's own `docker-compose.yaml` is explicitly not
+      self-contained: it depends on a setup script (`dograh-init` /
+      `scripts/setup_remote.sh`) to render nginx and coturn configuration
+      before `docker compose up` will come up correctly for a public
+      ("remote") deployment — the repo's own comments warn a fresh checkout
+      "will fail or come up misconfigured" without it. Portable to our
+      install.sh, but meaningfully more setup logic than a typical
+      single-compose recipe.
+    - >
+      Real (non-demo) voice-agent functionality requires coturn (WebRTC
+      TURN relay) exposed on TCP 3478/5349 plus a wide UDP ephemeral range
+      (49152-49200) for actual call media — not a single HTTP port behind
+      Traefik. Expressible as extra public ports (same pattern as
+      `wg-easy`'s UDP 51820), so not structurally blocking, but it does mean
+      this is not a clean reverse-proxy-only app the way most of the
+      catalogue is.
+    - >
+      Placing/receiving real phone calls also requires the customer's own
+      telephony provider account (Twilio/Telnyx/Vonage/Plivo) and
+      optionally their own LLM/TTS/STT keys to move past Dograh's bundled
+      defaults — those are runtime, in-app BYOK settings entered after
+      login (not a first-boot secret), so they don't block
+      `installable_today`, but they do mean the app is much less useful
+      out-of-the-box without post-provision customer setup.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Dograh is an actively and rapidly maintained (weekly releases, v1.44.0 as
+  of 2026-08-01), BSD-2-Clause self-hosted voice-AI platform with an
+  official pinned Docker image and no overlap with anything currently in
+  the catalogue — it would be the first voice/telephony recipe. It clears
+  the installability bar (no first-boot secret needs an unsupported input
+  channel; the open-signup landgrab risk is coverable with a Traefik
+  basic_auth gate, same as n8n), but it's a heavier, messier fit than a
+  typical recipe: upstream's compose file needs a companion setup script to
+  render nginx/coturn config, real call functionality needs a wide raw UDP
+  port range for WebRTC media relay, recommended sizing (8GB/4vCPU) is
+  above the catalogue norm, and the product isn't very useful until the
+  customer brings their own telephony/LLM/TTS/STT credentials post-install.
+  Worth building, but as a caveated, higher-effort recipe rather than a
+  quick win.

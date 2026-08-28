@@ -1,0 +1,101 @@
+slug: apache-streampipes
+name: Apache StreamPipes
+source_description: "No-code Industrial IoT toolbox for connecting and analyzing data streams"
+
+upstream:
+  url: https://streampipes.apache.org/
+  repo_url: https://github.com/apache/streampipes
+  license: Apache-2.0
+  docker_image: "apachestreampipes/ui + apachestreampipes/backend + apachestreampipes/extensions-all-iiot (e.g. pin 0.98.0)"
+  compose_file_url: https://raw.githubusercontent.com/apache/streampipes/release/0.98.0/installer/compose/docker-compose.yml
+  compose_file_notes: >
+    Official file, published by the project itself under
+    installer/compose/ in the apache/streampipes repo (this is the same
+    "StreamPipes Compose" directory already referenced in
+    installability.blocking_issues above). Version-pinned: linked at the
+    `release/0.98.0` git tag (matching version_health.latest_version)
+    rather than the rolling `dev`/`master` branch, so the content will not
+    drift under this URL as the project cuts new releases. The repo ships
+    three variants selected via which compose file you invoke:
+    `docker-compose.yml` (default, NATS-based messaging), `docker-compose.kafka.yml`
+    (Kafka-based messaging), and a `minimal` profile with a reduced
+    adapter/processor/sink set. Picked the default NATS variant because the
+    project's own README calls it "recommended for new installations" and
+    it matches SP_PRIORITIZED_PROTOCOL=nats already set in this file's
+    backend service.
+
+version_health:
+  latest_version: "0.98.0"
+  latest_release_date: "2025-12-15"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    0.98.0 shipped 2025-12-15 (~8 months before today, 2026-08-05). Prior
+    releases: 0.97.0 (2025-02-15), 0.95.1 (2023-07-08), 0.95.0
+    (2023-06-13), 0.93.0 (2022-11-28) — the gap between 0.95.1 and 0.97.0
+    was ~19 months, then 0.97.0 to 0.98.0 was ~10 months, so the historical
+    cadence has clearly stretched from roughly quarterly (2022) to
+    roughly annual. That said, the project is not dormant: upstream blog
+    posts continued into 2026 (2026-02-23 "Persistent State for
+    StreamPipes Functions", 2026-03-21 "StreamPipes on Windows with
+    Podman") and a 0.99.0-SNAPSHOT image is being actively pushed to
+    Docker Hub. Top-level ASF project, no archival or EOL announcement —
+    classifying as active but with a visibly slowing release cadence.
+
+catalogue_fit:
+  categories: [iot, automation, data-processing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers industrial IoT stream processing. Home
+    Assistant (recipes/home-assistant, currently disabled) is the closest
+    relative in spirit — both are "connect your own devices" platforms —
+    but Home Assistant targets consumer smart-home devices via
+    integrations, while StreamPipes targets industrial protocols (OPC UA,
+    S7, Modbus) and streaming/analytics pipelines (Kafka, Pulsar, NATS)
+    for a more technical, IIoT-focused audience. n8n is the closest
+    workflow-automation analogue but has no built-in industrial-protocol
+    connectivity or time-series storage. This would be a genuinely new
+    capability class if built.
+  usefulness: low
+  usefulness_rationale: >
+    The customer-facing web UI (pipeline builder, dashboards, adapter
+    configuration) is real and would be reachable through Traefik like
+    any other recipe, so it clears the bar the IoTDB/Pinot/Doris-style
+    "developer infrastructure only" candidates don't. But the target
+    audience — someone connecting OPC UA/S7/Modbus industrial sensors or
+    Kafka/Pulsar streams — is narrow relative to our current catalogue,
+    and the minimum viable deployment is a 6-container stack (backend, ui,
+    extensions-all-iiot, CouchDB, InfluxDB, NATS), heavier than any
+    single-purpose app we host today. A customer who actually has
+    industrial sensor infrastructure to connect is a much smaller slice of
+    the self-hosting market than, say, a photo library (Immich) or a
+    password manager (Vaultwarden) user.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "StreamPipes ships with a fixed, hardcoded first-boot login (admin@streampipes.apache.org / admin) with no documented docker/env-var hook to set or hash a different password at container start — the credential can only be changed from inside the UI after first login (confirmed against the official docs and installer/compose/docker-compose.yml). Per SCHEMA.md this is not a hard blocker on its own: gating the whole app behind Traefik basic_auth (as done for n8n/WUD) closes the exposure window before the customer logs in and changes the default password."
+    - "The bundled CouchDB (admin/admin) and InfluxDB (admin/sp-admin, plus a fixed admin API token sp-admin) sidecar credentials are also hardcoded in the shipped docker-compose.yml. Both are internal-only (no ports published to the host in the official compose file), so they are not customer-facing secrets and do not block installability, but they would need to be confirmed non-exposed in any recipe network config."
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Apache StreamPipes is an active, top-level ASF project with a real web
+  UI, but its release cadence has visibly slowed from quarterly (2022) to
+  roughly annual (0.97.0 in Feb 2025, 0.98.0 in Dec 2025). It is
+  mechanically installable today: the single public HTTP surface (the UI,
+  port 8088/80) can be gated behind Traefik basic_auth to cover its fixed,
+  unchangeable-at-boot default login (admin@streampipes.apache.org/admin),
+  the same pattern already used for n8n, WUD, and Agent Zero, and the
+  bundled CouchDB/InfluxDB sidecar credentials are internal-only and never
+  exposed to the host. Recommend `build_now`: the minimum deployment is a
+  heavier 6-container stack (backend, UI, extensions-all-iiot, CouchDB,
+  InfluxDB, NATS) than most recipes, and it overlaps in spirit with the
+  currently-disabled Home Assistant recipe as a "connect your own devices"
+  platform, but neither of those is a blocker on installability.

@@ -1,0 +1,139 @@
+slug: canarytokens
+name: Canarytokens
+source_description: "Open-source honeypot token system for detecting unauthorized access and breaches"
+
+upstream:
+  url: https://canarytokens.org/
+  repo_url: https://github.com/thinkst/canarytokens
+  license: MIT
+  docker_image: null
+  compose_file_url: https://raw.githubusercontent.com/thinkst/canarytokens-docker/master/docker-compose.yml
+  compose_file_notes: >
+    Official, but lives in a separate sibling repo — thinkst/canarytokens
+    (the app source, linked as `repo_url` above) points its README
+    Installation section at thinkst/canarytokens-docker
+    ("We recommend the Docker image installation process"), and that repo
+    is the one holding the actual compose files. This is a rolling
+    reference to the default (`master`) branch, not version-pinned — there
+    is no tagged-release download link to point at instead (consistent
+    with the no-formal-releases situation noted in `version_health`).
+    The repo ships four compose variants: `docker-compose.yml` (plain
+    HTTP, picked here as the base/default case), `docker-compose-letsencrypt.yml`
+    (adds automatic HTTPS via certbot), and AWS-logging counterparts of
+    each. All four `extend` shared service definitions from
+    `common-services.yml` in the same repo.
+
+version_health:
+  latest_version: "no tagged releases — rolling `master`/`latest`/`dev` images built per-commit (e.g. `sha-58f4a3d`)"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    The upstream repo (thinkst/canarytokens) has never cut a formal GitHub
+    release — the Releases page is empty. Instead, Docker Hub
+    `thinkst/canarytokens` publishes a rolling `latest`/`master`/`dev` tag
+    plus per-commit `sha-<hash>` tags (74+ tags observed), refreshed every
+    few days. The most recent master commit as of this analysis
+    (2026-08-05) landed 2026-08-03, with a steady stream of merges through
+    late July 2026 (dependency bumps, token-type improvements, bug fixes).
+    This is a healthy, continuously-shipped project — just one with no
+    "pin this stable version" story in the traditional sense, which is a
+    real caveat for a recipe author (see blocking_issues), separate from
+    the health verdict.
+
+catalogue_fit:
+  categories: [security, monitoring, deception]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does breach/intrusion
+    detection via deception tokens. Uptime Kuma and Pi-hole/AdGuard Home
+    are the closest neighbors by audience (self-hosted ops tooling) but
+    solve different problems (availability monitoring, DNS filtering) —
+    Canarytokens instead lets a customer generate trackable
+    "honeytokens" (fake AWS keys, Word/PDF documents, QR codes, cloned
+    web pages, DNS lookups, etc.) that alert when accessed, which is a
+    genuinely new security/deception category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    A real, actively-developed, well-known tool (thinkst is a respected
+    security vendor; the public canarytokens.org service uses this same
+    code) with a clear niche appeal to security-conscious customers —
+    IT admins, small security teams, developers wanting cheap breach
+    detection. It's a narrower/more technical audience than
+    Vaultwarden/Uptime Kuma-style mass-appeal apps, but the "detect when
+    someone touches something they shouldn't" pitch is easy to explain
+    and self-hosting it (vs. relying on the free public canarytokens.org)
+    is an credible value proposition for privacy/control-conscious
+    customers.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Canarytokens has no login/admin-account concept of its own — anyone
+      who reaches `/generate` can mint tokens using the server's
+      resources (and anyone who guesses/finds a token's manage-URL can
+      view or delete it). Upstream's own deployment docs recommend
+      fronting `/generate`, `/manage`, `/download`, etc. with HTTP basic
+      auth via nginx precisely because there is no built-in gate. A
+      Traefik `basic_auth: true` gate over the whole app (n8n/WUD/Bytebase
+      pattern) covers this and is expressible today via root-password
+      projection — not a hard blocker.
+    - >
+      Several token types (most notably the flagship "DNS token", plus
+      any type relying on the app acting as authoritative DNS for a
+      delegated subdomain) require the container to receive raw UDP/TCP
+      port 53 traffic and the customer to delegate NS records for a
+      domain/subdomain to this server's public IP (`CANARY_PUBLIC_IP`,
+      `CANARY_DOMAINS`, `CANARY_NXDOMAINS` in upstream's
+      `frontend.env`/`switchboard.env`). That is outside the standard AF
+      model of one HTTP service behind the shared Traefik ingress on
+      `<slug>.<base_domain>` — it needs a dedicated public IP with port
+      53 exposed and customer-side DNS delegation, which the recipe
+      mechanism has no channel to orchestrate. The HTTP-only token types
+      (AWS keys, Word/PDF/Excel docs, QR codes, cloned web page, web bug,
+      credit card, Kubeconfig, etc.) would still work fine behind
+      Traefik; only the DNS-dependent subset would be non-functional or
+      would require a documented manual step outside the recipe.
+    - >
+      No official, single, pinned "current stable" Docker tag exists to
+      point a recipe at (see `version_health.notes`) — only rolling
+      `latest`/`master`/`dev` or per-commit `sha-<hash>` tags. A recipe
+      author would have to pick and periodically re-pin a `sha-<hash>`
+      tag rather than following a normal semver release, which is a
+      maintenance-cadence concern more than a hard installability
+      blocker.
+    - >
+      Alerting (the actual "you've been breached" notification) needs an
+      outbound email provider (Mailgun/SendGrid/Mandrill API key or SMTP
+      credentials) or a webhook (Slack/Discord/generic) configured in
+      `switchboard.env`. None of these are required for the container to
+      boot or for the web UI to come up, so this doesn't block
+      `installable_today`, but a customer who never configures one of
+      these gets a working token generator with no actual alerting —
+      worth flagging as a real gap in the out-of-the-box value if shipped
+      without a way to set at least a webhook URL.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Canarytokens is an actively-maintained (rolling-release, no formal
+  versions), MIT-licensed honeypot/deception-token generator from a
+  reputable security vendor (thinkst), with a web UI that fills a genuine
+  gap in the current 24-recipe catalogue (no existing security/deception
+  tooling). It clears `installable_today` because the missing built-in
+  auth can be closed with a mandatory Traefik `basic_auth` gate the same
+  way other login-less apps are handled, and no external API key is
+  required just to boot. The real caveats are architectural rather than
+  auth-related: the project ships no pinned stable version (rolling
+  tags only), and its flagship DNS-token feature needs raw port-53
+  exposure and customer DNS delegation that the standard one-HTTP-port
+  Traefik model doesn't support — a recipe would either need to scope
+  down to the HTTP-only token types or document the DNS setup as a
+  manual, non-recipe-managed step. Recommend `build_with_caveats`.

@@ -1,0 +1,96 @@
+slug: geonetwork
+name: GeoNetwork
+source_description: "Open-source spatial metadata catalog with map viewer and OGC API Records search"
+
+upstream:
+  url: https://geonetwork-opensource.org/
+  repo_url: https://github.com/geonetwork/core-geonetwork
+  license: GPL-2.0-only
+  docker_image: geonetwork:4.4.12
+  compose_file_url: https://raw.githubusercontent.com/geonetwork/docker-geonetwork/main/4.4.12/docker-compose.yml
+  compose_file_notes: >
+    Official — geonetwork/docker-geonetwork is the GeoNetwork org's
+    "Official Docker image repository for GeoNetwork" (source for the
+    Docker Hub geonetwork official image), and this is the only compose
+    file the project publishes; there is no separate compose file in the
+    core-geonetwork app repo (its docker/ directory is explicitly
+    development/debugging-only per its README, pointing to
+    docker-geonetwork for production) and none embedded in the
+    docs.geonetwork-opensource.org install guide (which only shows a bare
+    `docker run` command). Version-pinned: this is the path for the
+    4.4.12 directory in that repo, matching this recipe's docker_image
+    tag exactly, rather than a rolling main-branch reference — later
+    GeoNetwork versions get their own version-numbered directory in the
+    same repo. Only one variant is shipped per version (no GPU/CPU or
+    dev/prod split); it defines geonetwork, postgis/postgis, elasticsearch,
+    kibana, traefik, and an ogc-api-records-service, plus an optional
+    "scaled" Compose profile for a geonetwork-replica service — picked the
+    file as-is since it's the single published variant for this version.
+
+version_health:
+  latest_version: "4.4.12"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. v4.4.12 (Jul 8, 2026) is about 4 weeks old.
+    History is dense and regular: 4.4.11 (Jun 2, 2026) → 4.4.10
+    (Apr 22, 2026) → 4.4.9 (Oct 6, 2025) → 4.4.8 (May 27, 2025) → 4.4.7
+    (Apr 10, 2025) — a steady multi-month cadence, and the project
+    maintains two parallel supported lines (4.4.x current, 4.2.x LTS,
+    e.g. 4.2.17 released same day as 4.4.12) with coordinated security
+    patches shipped in lockstep across both. Governed under OSGeo; repo
+    is not archived and issues/PRs are actively triaged. No
+    maintenance-only or EOL signal.
+
+catalogue_fit:
+  categories: [gis, data-management, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers spatial/geographic
+    metadata cataloguing (ISO 19115/19139, Dublin Core, OGC API - Records
+    search, embedded map viewer for datasets/services). Closest
+    conceptually is a document/asset catalogue (e.g. Bookstack for docs,
+    Immich for photos) but none handle GIS metadata standards or map-based
+    discovery. This would be a first-of-kind entry for a GIS/spatial-data
+    audience (surveying, environmental, municipal GIS teams).
+  usefulness: low
+  usefulness_rationale: >
+    Real but narrow audience — GIS/spatial-data professionals and public-
+    sector open-data teams who specifically need ISO-19115-compliant
+    metadata cataloguing, a niche well outside the general
+    productivity/media/AI-tool customer base the other 24 recipes target.
+    It also carries a materially heavier resource footprint than most of
+    the catalogue (bundled Elasticsearch instance), which raises the
+    minimum viable VM size for a comparatively small addressable audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [GEONETWORK_DB_PASSWORD, ADMIN_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: GEONETWORK_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ADMIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  GeoNetwork is a three-service stack — the geonetwork app image, a
+  Postgres database, and a required Elasticsearch instance (GeoNetwork 4.x
+  cannot run without ES; it is not optional the way it is for many search-
+  enhanced apps) — behind a single HTTP port (8080/geonetwork), so it is
+  reverse-proxy compatible. Its Postgres password is a patternless
+  server-generated value with no customer input needed. The one real gap:
+  GeoNetwork has no environment variable or supported mechanism to set the
+  admin password at boot (confirmed still-open upstream issue
+  geonetwork/docker-geonetwork#50) — it ships with a fixed default
+  admin/admin login the app itself gives no way to change. Per the
+  fixed-default-credential rule, this is not a structural blocker: gate
+  the whole app behind Traefik basic_auth (the actual auth boundary),
+  making the unchangeable admin/admin login a non-issue behind it.
+  Mechanically installable today with no blocking issues, so recommend
+  `build_now`.

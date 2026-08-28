@@ -1,0 +1,85 @@
+slug: fileflows
+name: FileFlows
+source_description: "Automated media file processor that reduces file sizes up to 90%"
+
+upstream:
+  url: https://fileflows.com/
+  repo_url: https://github.com/fileflows/community-repository
+  license: Proprietary (freemium) — core server/UI application is closed source; only auxiliary repos (community scripts/flows, Homebrew tap, Unraid packaging) are published on GitHub under the `fileflows`/`revenz` orgs. No license file found for the app itself.
+  docker_image: revenz/fileflows:26.07
+  compose_file_url: null
+  compose_file_notes: >
+    No downloadable/linkable official compose file exists. The official
+    Docker install docs (https://fileflows.com/docs/installation/docker,
+    mirrored at https://docs.fileflows.com/installation/docker) show an
+    example snippet and an interactive "compose generator" widget
+    (options for ports, volumes, NVIDIA/GPU passthrough, timezone, UID/GID,
+    auth) rendered directly on the page, not a static file with a stable
+    URL to link or a repo path to point at. The plain example shown uses
+    `revenz/fileflows` with no tag (rolling "Latest"); the docs separately
+    note a monthly "Stable" tag also exists, but neither is shipped as an
+    actual compose file anywhere — GitHub repos published under the
+    `fileflows`/`revenz` orgs (e.g. community-repository, FileFlowsUnraid)
+    are for scripts/flows and Unraid packaging, not a docker-compose file
+    for this app.
+
+version_health:
+  latest_version: "26.07"
+  latest_release_date: "2026-07-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    FileFlows uses a YY.MM.Release version scheme with a genuine monthly
+    cadence: version tags on Docker Hub go 26.03, 26.04, 26.05, 26.06, 26.07
+    with the 26.07 image pushed ~8 days before today (2026-08-05), i.e. the
+    catalogue is current within the last month. This is a clearly
+    actively-developed, commercially-backed project (same publisher/org as
+    Fenrus, `revenz`), not dormant or archived.
+
+catalogue_fit:
+  categories: [media, automation, file-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes do automated media transcoding/file-size
+    reduction. Immich is a photo library/gallery, not a transcoding
+    pipeline; nothing else in the catalogue touches video/audio processing.
+    FileFlows fills a distinct niche: a customer with a media server (e.g.
+    running Emby/Jellyfin/Plex elsewhere, none of which are in this
+    catalogue either) could point FileFlows at a library to shrink storage
+    costs via automated re-encoding pipelines.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, non-overlapping use case and genuinely active upstream, but the
+    core value proposition (hardware-accelerated transcoding, Docker-based
+    "node" workers, GPU passthrough for Intel QSV/NVIDIA NVENC/AMD AMF) is
+    a poor match for a generic reverse-proxied cloud VM recipe — the
+    realistic customer benefit depends on GPU access or heavy CPU headroom
+    that a typical AF instance won't provide, and the free tier caps
+    processing to 1 node / 5 concurrent "flow runners" / 30 flow elements,
+    which limits how useful the shipped product is without a paid license.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  FileFlows is a single-container (`revenz/fileflows:26.07`, ~974MB, port
+  5000 internally) web app for automated media transcoding pipelines, under
+  active monthly-release development. Security/login is a licensed
+  (paid-tier) feature — the default free-tier UI has no authentication at
+  all, so it needs the same Traefik `basic_auth` gate pattern already used
+  for n8n/WUD/Open WebUI to avoid shipping an open admin panel, and that
+  gate is fully expressible today. It's mechanically installable and fills
+  a real gap (no transcoding/media-automation recipe exists in the
+  catalogue). Docker-socket exposure for spawning processing containers,
+  lack of GPU passthrough in a generic compose recipe, and the free tier's
+  node/runner/flow-element caps are real usage constraints worth documenting,
+  but none of them block installation today. Recommend build_now.

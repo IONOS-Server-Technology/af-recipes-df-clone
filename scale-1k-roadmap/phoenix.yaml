@@ -1,0 +1,129 @@
+slug: phoenix
+name: Phoenix
+source_description: "Open-source AI observability and tracing platform for LLM applications"
+
+upstream:
+  url: https://arize.com/phoenix
+  repo_url: https://github.com/Arize-ai/phoenix
+  license: "Elastic License 2.0 (ELv2) — source-available, not OSI-approved OSS; free to self-host and use, restrictions apply to offering it as a hosted service to third parties"
+  docker_image: arizephoenix/phoenix
+  compose_file_url: https://raw.githubusercontent.com/Arize-ai/phoenix/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root (github.com/Arize-ai/phoenix/blob/
+    main/docker-compose.yml) and matches the Postgres-backed example shown
+    on the project's own self-hosting docs page
+    (arize.com/docs/phoenix/self-hosting/deployment-options/docker), which
+    embeds the same two-service (phoenix + postgres:16) shape inline rather
+    than linking a file. This is a rolling reference to the `main` branch,
+    not version-pinned — there is no per-release compose asset (no
+    releases/latest/download/... equivalent). Only one variant is shipped
+    at this path; the docs page's SQLite and multi-service examples are
+    inline doc snippets, not separate files in the repo. Note the file
+    builds the `phoenix` service from `./Dockerfile` (context: .) rather
+    than pulling the published `arizephoenix/phoenix` image directly — that
+    build step needs adapting to reference the published image tag if used
+    as-is for this recipe.
+
+version_health:
+  latest_version: "19.18.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releasing near-daily: 19.15.0 (2026-08-03) -> 19.16.0 (2026-08-04) ->
+    19.17.0 (2026-08-04) -> 19.18.0 (2026-08-05, today). Over 9,000 GitHub
+    stars, backed by Arize AI (funded observability vendor), Docker Hub
+    image updated within hours of each tagged release plus a rolling
+    `nightly`. Unambiguously active, not archived/maintenance-only/EOL.
+
+catalogue_fit:
+  categories: [ai, developer-tools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: false  # see summary — core ingestion path needs a raw gRPC port, not just the HTTP UI port
+  overlaps_with: [langfuse]
+  differentiation: >
+    Functionally the same niche as apps-gaps/langfuse.yaml (already
+    evaluated build_with_caveats): open-source LLM tracing/observability/
+    eval for developers building on top of LLM APIs, complementary to
+    ollama/open-webui rather than competing with them. Phoenix is the
+    lighter-weight deployment (2 containers: app + Postgres, vs Langfuse's
+    5-service ClickHouse/Redis/MinIO stack) and has a large OpenTelemetry-
+    native instrumentation ecosystem (OpenInference), but it targets the
+    same developer audience and same job-to-be-done as Langfuse. No
+    functional overlap with any of the 24 built recipes (ollama, open-webui,
+    n8n, etc. are inference/automation, not tracing).
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (widely used self-hosted LLM-ops tool, 9k+ stars,
+    active vendor backing) from the same developer/self-hoster audience as
+    Langfuse. Medium rather than high for the same reason as Langfuse:
+    developer-tooling for people building their own LLM-integrated
+    products, not a broad consumer app. Given Langfuse already covers this
+    niche and is already catalogued as a gap-analysis candidate, Phoenix
+    is a "which one" prioritization question rather than adding new
+    category coverage — see CLAUDE.md note that overlapping candidates are
+    still evaluated independently rather than auto-rejected for the overlap.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PHOENIX_SQL_DATABASE_URL/postgres password, basic-auth gate credential]
+  secrets_expressible_today:
+    - secret: PHOENIX_SQL_DATABASE_URL/postgres password
+      mechanism: server_generated_no_customer_input
+    - secret: basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Not a hard blocker but a real functional caveat: Phoenix's trace-
+      ingestion path is not purely the HTTP UI port. The official image
+      exposes :6006 (web UI + OTLP/HTTP collector) and :4317 (OTLP/gRPC
+      collector) — customer applications sending traces need to reach
+      whichever collector protocol their OTel SDK is configured for, not
+      just a browser reaching the UI. Traefik can front a TCP entrypoint
+      for :4317, but that is a second public routable endpoint beyond the
+      single-HTTP-port-on-<slug>.<base_domain> pattern the rest of the
+      catalogue uses, and if the whole app is gated behind Traefik
+      basic_auth (see below) that gate would also need to cover the
+      ingestion endpoint, which OTLP exporters don't handle as smoothly as
+      a browser login.
+    - >
+      Phoenix ships with authentication OFF by default (no login at all,
+      full UI/API/trace data open to anyone reaching the port). Turning it
+      on requires PHOENIX_ENABLE_AUTH=true and PHOENIX_SECRET (both fine —
+      opaque, server-generatable), which scaffolds a FIXED default admin
+      account (admin@localhost / admin) that the docs say must be changed
+      on first login. There is a PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD env
+      var to preset that password on first boot, but it takes the
+      plaintext password directly — not a hash — so `generated_from`
+      (which only ever carries a hash of the customer's root password) has
+      no matching input channel for it. Per SCHEMA.md's guidance for "a
+      fixed/default admin credential the app itself gives no way to
+      change" being fine behind a Traefik basic_auth gate: the practical
+      fix here is to leave PHOENIX_ENABLE_AUTH off (or leave the default
+      admin/admin as-is) and put the entire app behind Traefik
+      basic_auth using generated_from on the customer's root password —
+      same pattern as Adminer/WUD. That resolves the login-secret problem
+      but compounds the port-4317 caveat above (the gate now sits in front
+      of the ingestion endpoint too).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Phoenix (Arize AI) is an active, well-adopted (9k+ stars, near-daily
+  releases) open-source LLM observability/tracing platform, overlapping
+  apps-gaps/langfuse.yaml's niche in the 24-recipe catalogue. Deployment is
+  lighter than Langfuse (2 containers: arizephoenix/phoenix + postgres:16,
+  vs Langfuse's 5-service stack), and its only first-boot secret is the
+  Postgres password (server-generatable, no customer input needed). The
+  install-mechanism wrinkle is auth: Phoenix has no login by default, and
+  its opt-in auth scaffolds a fixed admin/admin account whose
+  initial-password override env var wants a plaintext password (no
+  hash-based input channel exists for it) — so the actual auth boundary has
+  to be a Traefik basic_auth gate in front of the whole app, per
+  SCHEMA.md's guidance for fixed-credential apps. That gate, however, would
+  sit in front of both the web UI (:6006) and the OTLP trace-ingestion
+  ports (:6006 HTTP / :4317 gRPC) that customer apps need to reach
+  programmatically, which is a functional caveat beyond the usual
+  single-HTTP-port pattern. That extra-endpoint/auth caveat is the reason
+  for build_with_caveats rather than build_now — mechanically installable
+  today, just with that real functional wrinkle.

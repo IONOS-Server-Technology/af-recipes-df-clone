@@ -1,0 +1,95 @@
+slug: ezbookkeeping
+name: ezBookKeeping
+source_description: "Lightweight personal finance tracker with mobile PWA and receipt scanning"
+
+upstream:
+  url: https://ezbookkeeping.mayswind.net/
+  repo_url: https://github.com/mayswind/ezbookkeeping
+  license: MIT
+  docker_image: mayswind/ezbookkeeping
+  compose_file_url: https://ezbookkeeping.mayswind.net/configurations/demo/docker-compose.yml
+  compose_file_notes: >
+    This is the only standalone, downloadable docker-compose file the
+    project publishes officially — it's linked directly from the "Use
+    docker-compose" section of the official install docs
+    (ezbookkeeping.mayswind.net/installation/installation-docker), and is
+    served from the project's own docs site (built from the
+    mayswind/ezBookkeeping-Website repo). It is a rolling reference to
+    whatever is currently deployed on the docs site's default branch, not
+    a version-pinned link — the compose file itself pins the app image to
+    the `latest-snapshot` tag rather than a release tag. Picked this one
+    because it's the only actual file; be aware it is NOT a generic
+    install template but the real config behind the project's own demo
+    deployment (ezbookkeeping-demo.mayswind.net): it adds an nginx
+    reverse-proxy and a mariadb service, includes host-specific lxcfs
+    bind-mounts and demo-only secrets/OAuth2/LLM env vars, and should be
+    stripped down before reuse. The docs page's general-purpose guidance
+    (mysql variant, no bundled db service, no sqlite variant shown) is
+    only an inline embedded code block on that page, not a separate
+    downloadable file, so it doesn't qualify as "the" compose file under
+    this task's criteria.
+
+version_health:
+  latest_version: "v1.6.1"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Tagged releases roughly every 4-8 weeks over the past year (v1.3.0
+    2026-01-17, v1.3.1 2026-01-24, v1.3.2 2026-01-30, v1.4.0 2026-03-22,
+    v1.5.0 2026-05-13, v1.5.1 2026-05-31, v1.6.0 2026-07-19, v1.6.1
+    2026-07-20 as a same-week bugfix). Latest stable release was 16 days
+    before today (2026-08-05). Docker Hub also carries daily
+    `latest-snapshot`/`SNAPSHOT-YYYYMMDD` builds, with one published the
+    same day as this analysis — clear signal of an actively maintained
+    project, no archival or EOL indication.
+
+catalogue_fit:
+  categories: [finance]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal finance / bookkeeping
+    — this is a genuinely new category for the catalogue. (Note:
+    apps-gaps/actual-budget.yaml is a separate, still-unbuilt gap analysis
+    for another finance app, not a shipped recipe, so it's a caveat to
+    watch rather than an existing overlap. If both were ever built,
+    ezBookKeeping's angle is a lighter transaction-ledger/bookkeeping style
+    plus receipt/AI-based transaction extraction from photos, PWA install
+    support, and broad import compatibility
+    (CSV/OFX/QFX/QIF/IIF/Camt.052-053/MT940/GnuCash/Firefly III/Beancount),
+    versus Actual's envelope-budgeting methodology.)
+  usefulness: high
+  usefulness_rationale: >
+    Personal finance is a mainstream self-hosting use case with strong
+    "keep my bank data off someone else's server" appeal, and no recipe in
+    the catalogue today covers it, so this would fill a real, open gap
+    rather than duplicate a built recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ezBookKeeping is a single-container Go web app that listens on one HTTP
+  port (8080) and defaults to a bundled SQLite database under
+  data/ezbookkeeping.db — no external database service required, matching
+  the uptime-kuma/actual-budget single-container pattern and fully
+  reverse-proxy compatible behind Traefik. Its config ships with
+  `enable_register = true` by default, so the first customer visit is a
+  self-service signup exactly like Uptime Kuma's first-visit setup wizard:
+  af-api needs to pass no customer-specific secret, just the domain,
+  clearing the current /compose constraint with zero blocking issues.
+  Upstream is active (releases roughly every 4-8 weeks, latest 16 days
+  old, plus same-day snapshot builds), so there's no version-health
+  concern. No recipe in the current 24-app catalogue covers personal
+  finance / bookkeeping today, so this fills a genuinely open category
+  rather than duplicating a built recipe (apps-gaps/actual-budget.yaml is
+  a separate, still-unbuilt gap analysis for another finance app — worth
+  tracking as a future potential overlap, but not one today). Recommend
+  build_now.

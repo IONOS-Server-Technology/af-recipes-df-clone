@@ -1,0 +1,80 @@
+slug: mazanoke
+name: Mazanoke
+source_description: "Browser-based image optimizer with format conversion and EXIF stripping"
+
+upstream:
+  url: https://mazanoke.com
+  repo_url: https://github.com/civilblur/mazanoke
+  license: GPL-3.0
+  docker_image: ghcr.io/civilblur/mazanoke
+  compose_file_url: https://raw.githubusercontent.com/civilblur/mazanoke/main/compose.yaml
+  compose_file_notes: >
+    Official file at the repo root (civilblur/mazanoke), also embedded
+    verbatim in the README's Docker install section. Rolling reference to
+    the default branch (main), not version-pinned — it uses
+    ghcr.io/civilblur/mazanoke:latest rather than a pinned tag. The repo
+    also has a compose.dev.yaml, but that is a development-only variant
+    (builds from source for local dev) and not the one the README
+    recommends for deployment, so compose.yaml (the plain
+    production/single-container variant) was picked.
+
+version_health:
+  latest_version: v1.1.6
+  latest_release_date: "2026-05-09"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Rapid initial cadence (v1.0.0 2025-03-27 through v1.1.4 2025-04-23, six
+    releases in under a month), then a ~1.5-month gap to v1.1.5 (2025-06-09)
+    and an 11-month gap to v1.1.6 (2026-05-09). Releases have slowed sharply
+    from the initial burst, but commit history shows active work as recently
+    as 2026-05-10, with a fix from an external contributor merged 2026-02-05
+    — this is 3 months before today (2026-08-05), not dormant. Project is
+    young (first commit March 2025) and still under active, if irregular,
+    maintenance.
+
+catalogue_fit:
+  categories: [utilities, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    A client-side (browser/WASM) image optimizer — batch quality/size
+    reduction, format conversion (HEIC/AVIF/TIFF/GIF/SVG to JPG/PNG/WebP/ICO),
+    and EXIF/metadata stripping for privacy. Distinct from Immich, which is a
+    photo library/gallery and does not offer ad-hoc optimization or metadata
+    scrubbing as a workflow. No other recipe in the catalogue touches image
+    processing.
+  usefulness: medium
+  usefulness_rationale: >
+    Solves a real, narrow problem (avoid uploading personal photos to
+    untrusted "free" online converters) that resonates with the same
+    privacy-conscious self-hosting audience as Vaultwarden/AdGuard Home.
+    Single-purpose utility rather than a daily-driver app, so expected usage
+    frequency per customer is lower than something like n8n or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mazanoke is a single-container, single-HTTP-port (nginx serving a static
+  PWA plus WASM image processing) app with no built-in accounts — all image
+  processing happens client-side in the browser, so there is nothing for a
+  customer to log into beyond the app itself being reachable. The upstream
+  image does ship an optional nginx-level basic-auth toggle via plaintext
+  USERNAME/PASSWORD env vars, but that channel requires a plaintext value
+  our platform has no way to project; the correct fit is to leave those
+  unset and gate the app with our own Traefik basic_auth (the same pattern
+  used for WUD), which is fully expressible today via
+  generated_from:"<algo>:ROOT_PASSWORD" on the gate credential. No API keys,
+  OAuth, or other unexpressible secrets are needed. Recommend building now:
+  it fills a real gap (no image-optimization/EXIF-stripping tool in the
+  current 24-recipe catalogue), is reverse-proxy-compatible, and is
+  installable under the current mechanism with a Traefik basic_auth gate.

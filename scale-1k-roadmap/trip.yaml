@@ -1,0 +1,124 @@
+slug: trip
+name: Trip
+source_description: "Self-hosted minimalist map tracker and trip planner for points of interest"
+
+upstream:
+  url: https://itskovacs.github.io/trip/
+  repo_url: https://github.com/itskovacs/trip
+  license: MIT
+  docker_image: ghcr.io/itskovacs/trip:1
+  compose_file_url: https://raw.githubusercontent.com/itskovacs/trip/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the repo's own README installation section says to "Use the
+    docker-compose.yml file provided in this repository," and a single
+    docker-compose.yml lives at the repo root (only one variant is shipped;
+    no GPU/CPU or sqlite/postgres split). This is a rolling reference to
+    the default `main` branch, not a version-pinned release asset — there
+    is no per-release compose file attached to GitHub Releases, so the
+    link tracks whatever is currently on `main`. The file itself pins the
+    image to the floating major-version tag `ghcr.io/itskovacs/trip:1`
+    (consistent with the version_health note below), not an exact release
+    tag.
+
+version_health:
+  latest_version: "1.47.0"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.47.0 released 2026-08-01, 4 days before today (2026-08-05). Release
+    history is dense: v1.46.0 (2026-07-25), v1.45.2 (2026-05-30), v1.45.1
+    (2026-05-20), v1.45.0 (2026-05-19), v1.44.0 (2026-05-04), v1.43.2
+    (2026-03-21) — roughly every 1-4 weeks with occasional faster patch
+    bursts. Repo created 2025-07-17, `pushed_at` is 2026-08-01, not
+    archived, 1.8k stars / 103 forks, 6 open issues — clearly active and
+    still under 1.5 development. The shipping `docker-compose.yml` pins the
+    image to the floating major-version tag `ghcr.io/itskovacs/trip:1`
+    rather than a specific release like `1.47.0`; a recipe would need to
+    pin to an exact tag per RFC-002, not the upstream default.
+
+catalogue_fit:
+  categories: [productivity, travel]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing shipped in the current 24 recipes covers trip/travel planning
+    or POI mapping. Two structurally similar apps have already been
+    gap-analyzed but not built: apps-gaps/trek.yaml (Trek — collaborative
+    group-trip planner with budgets/packing lists) and
+    apps-gaps/airtrail.yaml (AirTrail — personal flight-log tracker) and
+    apps-gaps/adventurelog.yaml (AdventureLog — travel diary/trip planner).
+    Trip's own pitch is narrower than all three: a minimalist personal
+    POI-map tracker plus lightweight multi-day trip itineraries, with no
+    flight-import, budgeting, or collaboration-first framing. It is a
+    smaller, simpler tool aimed at "pin places on a map and rough out an
+    itinerary" rather than full group-trip logistics — a real but modest
+    differentiator versus Trek/AdventureLog, not a duplicate.
+  usefulness: medium
+  usefulness_rationale: >
+    Clean single-container app (SQLite, bundled frontend+backend, one HTTP
+    port, no unusual runtime needs), actively developed with a healthy
+    release cadence and real GitHub traction (1.8k stars). Capped at medium
+    rather than high because it competes directly with two other
+    already-catalogued-as-candidates travel/POI tools (Trek, AdventureLog)
+    for the same narrow audience segment, and none of the three has shipped
+    yet, so the category's actual customer demand is unproven.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Confirmed against the upstream configuration docs
+      (itskovacs.github.io/trip/docs/getting-started/configuration) and the
+      admin-settings docs (.../docs/map-tracker/settings-admin): Trip has no
+      admin-username/admin-password environment variable. The app boots
+      with zero users; registration is open by default
+      (`REGISTER_ENABLE` defaults to enabled) and docs state plainly "First
+      user registered will be set admin." Whoever submits the signup form
+      first — customer or a random internet visitor scanning the freshly
+      exposed port — becomes the sole admin. This is the same structural
+      gap already documented in apps-gaps/2fauth.yaml,
+      apps-gaps/activepieces.yaml, and apps-gaps/airtrail.yaml: there is no
+      `type: password` parameter on Trip's own login to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`, because the credential is
+      created client-side via self-registration, not injected via env var.
+    - >
+      `BOOTSTRAP_ADMIN_USERNAME` only promotes an *already-registered*
+      username to admin on next startup — it does not create an account or
+      set a password, so it cannot be used to pre-provision a customer
+      credential either; a user still has to exist first via the same open
+      signup form.
+    - >
+      Setting `REGISTER_ENABLE="false"` before first boot would close
+      signup entirely, including for the customer, since Trip then requires
+      an admin-issued "Magic Link" to create the first account — there is
+      no admin yet to issue one, a chicken-and-egg dead end without manual
+      intervention.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random stranger races to register first" exposure window,
+      but per the 2FAuth/Activepieces/AirTrail precedent it still can't hand
+      the customer a *second*, distinct credential for Trip's own signup
+      form beyond the single root-password projection already spent on the
+      gate — so it doesn't fully resolve the underlying provisioning gap,
+      it only narrows the race to whoever visits the URL immediately after
+      the gate is entered.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Trip is an active, well-maintained, single-container POI-map and
+  trip-planning app (SQLite, one web port, Traefik-compatible) that would
+  add a genuinely uncovered category to the catalogue, though it overlaps in
+  audience with two other still-unshipped travel-planning candidates
+  (Trek, AdventureLog). It fails the installability test for the same
+  structural reason as those two and as 2FAuth/Activepieces/AirTrail: there
+  is no env-var-driven admin account, only an open first-visitor
+  self-registration screen, and neither `generated_from:ROOT_PASSWORD` nor a
+  `basic_auth` gate alone can safely hand that credential to the customer
+  exclusively. Revisit once upstream adds an env-var-driven initial-admin
+  flow, or the platform gains a second customer-facing credential channel
+  beyond root-password projection.

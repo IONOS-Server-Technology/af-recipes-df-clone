@@ -1,0 +1,110 @@
+slug: dreamfactory
+name: DreamFactory
+source_description: "Auto-generate secure REST and GraphQL APIs from any database"
+
+upstream:
+  url: https://www.dreamfactory.com/
+  repo_url: https://github.com/dreamfactorysoftware/dreamfactory
+  license: Apache-2.0
+  docker_image: dreamfactorysoftware/df-docker:7.4.2
+  compose_file_url: https://raw.githubusercontent.com/dreamfactorysoftware/df-docker/7.6.0/docker-compose.yml
+  compose_file_notes: >
+    Official — dreamfactorysoftware/df-docker is the project's own Docker
+    packaging repo (linked from the DreamFactory docs' Docker install
+    instructions), and its README documents `git clone` + `docker compose
+    build` + `docker compose up -d` against this exact file at the repo
+    root. Version-pinned to the 7.6.0 tag (matching this file's
+    latest_version) rather than the master branch, so the recorded content
+    won't silently drift; a rolling master-branch link
+    (raw.githubusercontent.com/dreamfactorysoftware/df-docker/master/docker-compose.yml)
+    also exists and currently resolves to byte-identical content (same
+    ETag), but the tagged ref is preferred for change-tracking stability.
+    Only one variant is offered at the repo root; a second file,
+    docker-compose.yml-load-balance, provides a load-balancing topology and
+    was not selected since the standard single-node file matches this
+    recipe's baseline.
+
+version_health:
+  latest_version: "7.6.0"
+  latest_release_date: "2026-05-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Main app repo (dreamfactorysoftware/dreamfactory) released roughly
+    monthly through Jan-May 2026 (7.4.0 -> 7.6.0) and is not archived
+    (pushed_at 2026-06-26). As of today (2026-08-05) it's been ~2.3 months
+    since 7.6.0 with no newer tag, consistent with the established cadence,
+    not a sign of dormancy. However the only official Docker artifact,
+    dreamfactorysoftware/df-docker, lags well behind: its latest pullable
+    tag is 7.4.2 (pushed 2026-02-11 on Docker Hub), three source releases
+    and ~3.5 months behind the 7.6.0 code the GitHub repo ships. There is no
+    dreamfactorysoftware/dreamfactory image on Docker Hub at all (checked,
+    404) — df-docker (app + MySQL + Redis + sample Postgres bundle) is the
+    only official container path. A separate bitnami/dreamfactory-archived
+    image exists but is explicitly named/marked archived by Bitnami and
+    should not be used.
+
+catalogue_fit:
+  categories: [developer-tools, database]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes auto-generates REST/GraphQL APIs from
+    an existing database schema. n8n and Gitea sit in the same
+    developer-tools category but solve different problems (workflow
+    automation, git hosting). DreamFactory would be a genuinely new
+    capability: point it at a customer's own database (or the bundled
+    MySQL) and get an instant, role-gated API layer plus API-key management
+    and scripting, which is a distinct developer/API-integration use case.
+  usefulness: medium
+  usefulness_rationale: >
+    Valuable for developers who want to expose a database as an API without
+    writing backend code, but it's a technical/niche tool (not broad
+    consumer appeal like Vaultwarden or Immich) and its own official Docker
+    packaging is stale relative to upstream, which raises maintenance risk
+    for a recipe built on it today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [wizard_gate_basic_auth]
+  secrets_expressible_today:
+    - secret: wizard_gate_basic_auth
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      DreamFactory has no admin-credential environment variable at all —
+      the df-docker docker-compose.yml exposes no ADMIN_EMAIL/ADMIN_PASSWORD
+      style var, and DreamFactory docs confirm the very first HTTP request
+      to a fresh instance serves an interactive first-run wizard where
+      whoever gets there first types in the system-administrator email and
+      password directly in the browser. Because af-api has no channel to
+      pre-seed that account, the instance is a race: anyone who reaches
+      the domain before the customer finishes the wizard becomes the
+      DreamFactory admin. This needs a mandatory Traefik basic_auth gate
+      (password projected from the customer's root password via
+      generated_from) in front of the whole app until the customer
+      completes setup themselves, the same pattern already used for
+      Adminer/n8n-style apps with no login of their own.
+    - >
+      The bundled MySQL (system DB) and optional Postgres sample-data
+      container use fixed default credentials (root/root, df_admin/df_admin,
+      root_pw) in the upstream compose file; these are internal-only
+      (never exposed on a public port) so they don't need customer input,
+      just server-generated passwords substituted in at recipe-build time.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  DreamFactory would add a capability the catalogue doesn't have (DB ->
+  REST/GraphQL API generation) and is under active upstream development,
+  but it has no admin-credential input channel of its own — the
+  system-administrator account is claimed by whoever hits the domain first
+  via a browser wizard — so it is only installable today behind a mandatory
+  Traefik basic_auth gate (root-password projected), not via any
+  DreamFactory-native mechanism. It's also a multi-container stack (app +
+  MySQL + Redis, optionally Postgres sample data + Mongo logs) whose only
+  official Docker image (df-docker) is noticeably behind the current
+  source release. Recommend build_with_caveats: mechanically installable
+  now with the basic_auth gate, but flag the stale official image and the
+  wizard race condition explicitly in the recipe's caveats before building.

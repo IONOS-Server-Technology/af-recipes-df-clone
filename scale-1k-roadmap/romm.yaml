@@ -1,0 +1,107 @@
+slug: romm
+name: RomM
+source_description: "Beautiful self-hosted ROM manager for scanning, browsing, and playing retro games"
+
+upstream:
+  url: https://romm.app
+  repo_url: https://github.com/rommapp/romm
+  license: AGPL-3.0
+  docker_image: rommapp/romm
+  compose_file_url: https://raw.githubusercontent.com/rommapp/romm/master/examples/docker-compose.example.yml
+  compose_file_notes: >
+    Official, but a rolling reference to the default branch (`master`),
+    not version-pinned to a release tag. The repo root also has a
+    docker-compose.yml, but that one is the dev-only stack (romm-dev,
+    romm-db-dev, romm-valkey-dev, plus Authentik services for testing
+    OIDC) used by contributors, not an install artifact for end users —
+    excluded for that reason. examples/docker-compose.example.yml is the
+    one production variant the project ships: the default stack
+    (rommapp/romm + MariaDB, with Valkey/Redis bundled inside the app
+    image), matching the example embedded directly in the docs' Quick
+    Start Guide (docs.romm.app/latest/getting-started/quick-start/) word
+    for word. No separate GPU/CPU, sqlite/postgres, or dev/prod compose
+    file variants are shipped in examples/; Postgres and image-variant
+    (GPU) options are documented as manual edits to this same file
+    (docs.romm.app/latest/install/databases/,
+    docs.romm.app/latest/install/image-variants/) rather than as
+    alternate compose files.
+
+version_health:
+  latest_version: "5.1.0"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Stable 5.1.0 released 2026-07-29, 7 days before today (2026-08-05);
+    5.1.1-beta.1 followed on 2026-08-02 and the default branch was pushed
+    2026-08-06, so the project is in continuous active development. The
+    release feed shows a dense alpha/beta/stable train (5.0.0 on
+    2026-07-15, then ten 5.1.0 pre-releases across 2026-07-22..07-27
+    before 5.1.0 stable) — a mature project shipping stable minors every
+    few weeks with pre-releases in between. ~11.9k GitHub stars, not
+    archived, no EOL notice, multi-maintainer org (`rommapp`) with a
+    docs site (docs.romm.app) and companion clients.
+
+catalogue_fit:
+  categories: [media, entertainment]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers gaming or emulation — the
+    nearest neighbours (immich for photos, syncthing for files) are
+    library/sync tools for other media types. RomM is a single-HTTP-port
+    web app that scans a customer-supplied ROM library, enriches it with
+    metadata/artwork from online providers, and plays games in-browser via
+    EmulatorJS/RuffleRS, plus save-state sync and companion-app APIs. It
+    does overlap with the already-analysed candidate `retroassembly.yaml`
+    (also browser-based retro gaming); RomM is the larger, better-staffed
+    project (~11.9k vs ~1.1k stars) with richer metadata/library
+    management, while RetroAssembly is the simpler single-container one.
+    Per CLAUDE.md, overlap between candidates is not itself a reason to
+    reject either.
+  usefulness: medium
+  usefulness_rationale: >
+    Strong hobbyist/enthusiast appeal and by far the best-known app in
+    this niche, but it is entertainment rather than broad business
+    utility, and the customer supplies (and is solely responsible for the
+    legality of) their own ROM files — the app ships no copyrighted
+    content. Active upstream and a category the catalogue does not touch
+    argue for building it; niche audience argues against high priority.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ROMM_AUTH_SECRET_KEY
+    - DB_PASSWD
+    - MARIADB_ROOT_PASSWORD
+  secrets_expressible_today:
+    - secret: ROMM_AUTH_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWD
+      mechanism: server_generated_no_customer_input
+    - secret: MARIADB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  RomM is a two-service compose stack (rommapp/romm plus a mariadb:11
+  sidecar; Redis/Valkey is bundled inside the app image and needs no
+  separate service) exposing one HTTP port, 8080, which fronts cleanly
+  behind Traefik on romm.<base_domain>. Its three mandatory secrets —
+  ROMM_AUTH_SECRET_KEY, the app DB password and the MariaDB root password
+  — are all patternless values no customer ever reads, so they can be
+  generated server-side; the admin account is created by the customer in
+  the browser through RomM's first-boot setup wizard (the uptime-kuma
+  pattern), so no root-password projection and no Traefik basic_auth gate
+  are needed. Metadata providers (ScreenScraper, MobyGames, SteamGridDB,
+  RetroAchievements, IGDB) each need an external API key that has no
+  input channel today, but they are optional: the keyless Hasheous
+  provider (HASHEOUS_API_ENABLED=true) can be enabled server-side, so
+  scanning and artwork work out of the box and the missing key channel
+  degrades a feature rather than blocking the install. Recommend building
+  now, pinned to Docker Hub tag `5.1.0` (not `latest`, and not the
+  `-slim` variant, which drops the bundled EmulatorJS/Ruffle assets and
+  pulls emulator cores from a CDN at runtime instead).

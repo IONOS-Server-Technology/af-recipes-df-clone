@@ -1,0 +1,108 @@
+slug: mariadb
+name: MariaDB
+source_description: "Open-source relational database server and MySQL drop-in replacement"
+
+upstream:
+  url: https://mariadb.org/
+  repo_url: https://github.com/MariaDB/server
+  license: GPL-2.0
+  docker_image: mariadb
+  compose_file_url: null
+  compose_file_notes: >
+    No official deployable docker-compose.yaml exists. The Docker Hub
+    official-image page (sourced from docker-library/docs, not the
+    MariaDB project itself) only embeds an inline docker-compose snippet
+    (mariadb + adminer, "root/example" credentials) directly in its
+    README prose — there is no standalone file to link to. That page
+    also points to https://github.com/MariaDB/mariadb-docker/tree/master/examples
+    for "example compose files", but the only compose file actually
+    present there, examples/compose-debug.yml, launches the server under
+    gdb with a debug-variant image (quay.io/mariadb-foundation/mariadb-debug)
+    for crash/thread diagnostics — an internal debugging fixture, not a
+    deployment artifact. The MariaDB/server and MariaDB/mariadb-docker
+    repo READMEs themselves contain no docker-compose references at all.
+
+version_health:
+  latest_version: "12.3.2 (current stable/LTS line); 11.8.8, 11.4.12, 10.11.18, 10.6.27 also maintained"
+  latest_release_date: "2026-05-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    12.3.2 (stable, noble-based LTS) released 2026-05-28, about 2.5 months
+    before today (2026-08-05) — well inside a normal release cadence.
+    MariaDB Foundation ships parallel maintained series (10.6 LTS until
+    2026-07, 10.11, 11.4, 11.8, 12.x) with regular point releases; the 10.6
+    branch is due to go EOL this month but the project itself is very much
+    active, with a clear supported-series ladder for anyone who needs to
+    move off an aging line. No ambiguity on upstream identity — this is
+    the well-known MariaDB Foundation project, not to be confused with the
+    commercial MariaDB Enterprise/SkySQL offerings which are separate
+    products from the same foundation/company.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea, guacamole, immich, n8n, paperless-ngx, runtipi]
+  differentiation: >
+    None of the listed recipes expose MariaDB/MySQL as a standalone,
+    customer-usable service — they each run their own MariaDB/Postgres
+    instance internally, on the bridge network only, purely as private
+    storage for that one app. A standalone MariaDB recipe would target a
+    different use case entirely: a customer running their own external
+    app (WordPress, a custom script, a BI tool) that needs a MySQL-
+    compatible database to connect to from outside the VM. That's a real,
+    distinct need, but it requires publishing the database port to the
+    internet, which is exactly what the catalogue's own rules forbid (see
+    `blocking_issues`).
+  usefulness: medium
+  usefulness_rationale: >
+    Would be useful to technical customers who want a managed MySQL-
+    compatible backend for something they run themselves, but is a
+    developer/power-user tool with no UI of its own, and its one useful
+    exposure shape (a public 3306) is one our own recipe rules already
+    reject on security grounds. Same class of app as Adminer
+    (apps-gaps/adminer.yaml) but harder to ship: Adminer at least has an
+    HTTP UI to gate; MariaDB is raw TCP with no application-layer
+    presence at all.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today:
+    - secret: root_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The only useful shape for a standalone MariaDB recipe is a publicly
+      reachable MySQL-protocol port so an external customer app can
+      connect to it. Publishing host port 3306 is exactly what RFC-002's
+      `no-public-db-port` rule forbids (rfc/002-recipe-rules.md:220-226) —
+      3306 is explicitly on the forbidden-host-port list. There is no
+      alternate exposure path today: Traefik only routes HTTP, and
+      MariaDB speaks a raw binary protocol, so it cannot be fronted the
+      way our web-UI recipes are (no `basic_auth`, no subdomain routing).
+    - >
+      Even setting the port rule aside, the root password can be
+      projected via `MARIADB_ROOT_PASSWORD` (plaintext env var, which
+      `generated_from` does not produce) or `MARIADB_ROOT_PASSWORD_HASH`
+      (a mysql_native_password-style hash, not `argon2`/`bcrypt`) — neither
+      matches the currently supported `generated_from` algorithm list, so
+      even the login-credential half of this would need a new supported
+      hash algorithm or a plaintext-secret channel, neither of which
+      exists today.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  MariaDB is an actively maintained, healthy upstream project, but a
+  standalone MariaDB recipe has no viable shape in the current catalogue.
+  Its only useful exposure — a public, customer-reachable 3306 — is
+  explicitly forbidden by our own `no-public-db-port` rule, and it has no
+  web UI to gate behind Traefik/basic_auth the way Adminer or other
+  no-login apps do. This isn't a platform gap waiting on IF-1420/1312;
+  it's a structural mismatch between what the app needs (a raw internet-
+  facing DB port) and what our security rules and Traefik-only routing
+  model support. Recommend not_recommended rather than blocked_on_platform,
+  since no plausible mechanism change fixes this without relaxing a
+  deliberate security rule.

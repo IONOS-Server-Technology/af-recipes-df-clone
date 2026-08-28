@@ -1,0 +1,77 @@
+slug: web-check
+name: Web-Check
+source_description: "OSINT tool for comprehensive website analysis, security auditing, and infrastructure intelligence"
+
+upstream:
+  url: https://web-check.xyz/
+  repo_url: https://github.com/Lissy93/web-check
+  license: MIT
+  docker_image: lissy93/web-check
+  compose_file_url: https://raw.githubusercontent.com/Lissy93/web-check/master/docker-compose.yml
+  compose_file_notes: >
+    Official file at the repo root (github.com/Lissy93/web-check/blob/master/docker-compose.yml),
+    authored by the project itself, not a third-party template. It's a
+    rolling reference to the default branch (master), not version-pinned
+    to a release tag — there's no per-release compose asset published.
+    Only one variant exists: a single web-check service on image
+    lissy93/web-check, port 3000:3000, restart unless-stopped.
+
+version_health:
+  latest_version: "2.2.2"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows 2.2.2/2.2.1/2.2/2.x tags pushed ~4 days before
+    2026-08-05 (i.e. ~2026-08-01), with 2.2.0 ten days prior and a steady
+    stream of 2.1.x point releases every few weeks going back to the 2.1.0
+    Astro rewrite in May 2026. GitHub releases confirm the same cadence
+    (v2.2.0 on Jul 28, v2.1.0 on May 7). Repo is not archived, has open
+    issues being triaged, and multiple contributors — clearly active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [security, networking, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes does OSINT / website-infrastructure
+    analysis. Closest neighbors are wud (container update monitoring) and
+    adguard-home/pihole (DNS filtering), but none inspect an arbitrary
+    target site's DNS, SSL, headers, tech stack, or security posture the
+    way Web-Check does. It's a genuinely new category for the catalogue:
+    a point-and-shoot security/OSINT dashboard rather than infrastructure
+    the customer runs their own services on.
+  usefulness: medium
+  usefulness_rationale: >
+    Appeals to developers, security-conscious admins, and agencies who want
+    a self-hosted alternative to public OSINT sites (they'd rather not send
+    every domain they audit through a third-party service). Niche/technical
+    audience rather than broad consumer appeal, but zero setup burden since
+    it needs no accounts or API keys to be useful out of the box.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Web-Check is a single-container, single-port (3000), stateless Node/Astro
+  app with no database and no built-in login — by design it works fully
+  configured with zero required environment variables (all the optional
+  API keys for Shodan/WhoAPI/PageSpeed/etc. only unlock extra data sources
+  and are not needed to boot or use the core tool). That makes it directly
+  installable today via the domain param, same as Adminer/WUD: gate the
+  public port behind Traefik basic_auth (projected from the customer's root
+  password via generated_from) since the app has no auth of its own and,
+  unlike a passive dashboard, actively fires outbound requests at whatever
+  target the visitor enters — leaving it open would let anyone use the
+  customer's server as a scanning proxy. Upstream is actively maintained
+  with releases every few weeks, so no version-health concerns. Recommend
+  building the recipe with basic_auth as a required gate.

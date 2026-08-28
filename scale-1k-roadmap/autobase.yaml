@@ -1,0 +1,90 @@
+slug: autobase
+name: Autobase
+source_description: "Open-source self-hosted Database-as-a-Service platform for PostgreSQL automation"
+
+upstream:
+  url: https://autobase.tech/
+  repo_url: https://github.com/autobase-tech/autobase
+  license: MIT (core Ansible collection); console container images are tagged "_ee" (Enterprise Edition) even in the documented default deployment — see notes below
+  docker_image: null  # no single image; multi-container console stack, see notes
+  compose_file_url: https://autobase.tech/platform.yml
+  compose_file_notes: >
+    Official, from the project's own docs site (autobase.tech), which is the
+    same file already referenced in installability.blocking_issues above.
+    The URL is a rolling reference, not a release-pinned link — it has no
+    version or tag in its path, and its content is updated in place (as of
+    this check it pins images to 2.10.0, the current latest_version, but
+    that will change as the project releases new versions without the URL
+    changing). A second variant, https://autobase.tech/platform.ssl.yml,
+    exists alongside it (adds TLS termination in front of the same four
+    services); platform.yml (no TLS) was picked as the base/default since
+    it's the one already documented as "the documented default docker-compose"
+    in this file and is what the project's own quick-start presents first.
+
+version_health:
+  latest_version: "2.10.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Formerly vitabaks/autobase (né vitabaks/postgresql_cluster), now under the
+    autobase-tech org. Releases have shipped roughly monthly for the last
+    several months (2.6.0 2026-03-01, 2.7.0 2026-04-04, 2.8.0 2026-05-28,
+    2.9.0 2026-07-05, 2.10.0 2026-08-03 — 2 days before this analysis date of
+    2026-08-05). Clearly active, well-funded development, not remotely
+    dormant.
+
+catalogue_fit:
+  categories: [infrastructure, database]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does Postgres cluster
+    orchestration (automated failover via Patroni, backup/restore, blue-green
+    major-version upgrades, connection pooling via PgBouncer/HAProxy). n8n
+    and paperless-ngx consume Postgres as an internal dependency, not as a
+    product. So on paper this fills a real gap — but see usefulness below for
+    why that gap doesn't translate to our deployment model.
+  usefulness: low
+  usefulness_rationale: >
+    Autobase's actual value is fleet orchestration: its Console SSHes/Ansible's
+    into a set of target hosts (bare metal, VMs, or cloud instances) to
+    deploy and manage Postgres clusters running on those separate machines.
+    An AF recipe installs into exactly one customer container/VM with no
+    other hosts attached to it. Deploying "Autobase" as a recipe would hand
+    the customer a management console with zero targets to manage and no
+    channel to supply the SSH keys or cloud-provider credentials needed to
+    add any — the product's core loop doesn't map onto a single-instance
+    recipe at all, independent of any auth/secrets question.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "AUTH_TOKEN (shared bearer secret gating the console-api/console-ui; the API healthcheck sends it verbatim as 'Authorization: Bearer <AUTH_TOKEN>', i.e. compared as plaintext, not hashed)"
+    - SSH credentials / cloud-provider API keys for the target hosts the console would provision and manage (the app's core purpose)
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Core function requires SSH credentials or cloud API keys for target hosts to manage — no input channel for either exists today."
+    - "Even solving the login gate does not help: a single-container recipe deployment gives the customer an orchestration console with no fleet to manage (see usefulness_rationale) — a structural mismatch with the recipe model, not just a secrets gap."
+    - "AUTH_TOKEN is checked as a literal bearer-token value against the API, not as a hash — generated_from only ever gives us a hash of the customer's root password, never the plaintext, so this field cannot be satisfied that way even if it were otherwise worth wiring up."
+    - "The documented default docker-compose (autobase.tech/platform.yml and platform.ssl.yml) pins autobase/console_api_ee and autobase/console_ui_ee — Enterprise Edition images — for what's presented as the free/Community path. Community-tier entitlements and limits are not documented publicly; licensing exposure for a customer expecting an open recipe is unclear."
+    - "Stack includes docker.io/bhavikagarwal2001/dbdesk-studio, an unofficial single-maintainer Docker Hub image (not published by autobase-tech) bundled as the SQL editor component — unreviewed supply-chain dependency."
+    - "console-api mounts /var/run/docker.sock — same privileged-access class as our existing Portainer recipe, which is currently shipped with enabled: false in this catalogue; that precedent suggests we already treat docker.sock-mounted infra-management tools cautiously."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Autobase is a genuinely active, well-maintained open-source Postgres
+  cluster-automation platform with no direct equivalent in our 24-recipe
+  catalogue on differentiation grounds alone. But its value proposition —
+  orchestrating Postgres clusters across a fleet of separate target hosts via
+  SSH/Ansible and docker.sock — is fundamentally about managing infrastructure
+  outside the single container the recipe would run in, so shipping it as an
+  AF recipe would hand customers a console with nothing to manage and no
+  channel to give it credentials for anything. Combine that with an
+  unresolved Enterprise-Edition image question in the "default" compose file,
+  an unofficial third-party image in the stack, and a docker.sock dependency
+  we already treat cautiously (disabled Portainer recipe) — this is a
+  not_recommended, not merely blocked_on_platform, since the mismatch persists
+  even after IF-1420/IF-1312 land.

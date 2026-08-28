@@ -1,0 +1,88 @@
+slug: waline
+name: Waline
+source_description: "Self-hosted comment system with moderation, spam protection, and notifications"
+
+upstream:
+  url: https://waline.js.org/
+  repo_url: https://github.com/walinejs/waline
+  license: GPL-2.0
+  docker_image: lizheming/waline
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose file is published anywhere in the
+    walinejs/waline repo (root, docker/, deploy/, contrib/ — none exist)
+    or as a GitHub release asset (the project has no formal GitHub
+    Releases page at all; it ships via npm/Docker tags). The official
+    self-host doc at waline.js.org/en/guide/deploy/vps.html (source:
+    docs/src/en/guide/deploy/vps.md on the default `main` branch, rolling
+    reference, not version-pinned) embeds a "docker-compose.yml" code
+    block inline as a documentation example, using the SQLite-backed
+    variant (the project also documents MySQL/Postgres/MongoDB options
+    via a linked database.md page, but the docs' own compose example
+    uses SQLite). This is a docs-embedded snippet, not a file the project
+    publishes/updates as an artifact, so no direct file URL is recorded.
+
+version_health:
+  latest_version: "1.41.4"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub shows 1.41.4 pushed roughly 21 hours before this research
+    (2026-08-05), i.e. ~2026-08-04, with 1.41.3 and 1.41.2 each about a
+    month prior — a steady near-monthly patch cadence, well within days of
+    today's date (2026-08-05). GitHub repo has no formal "Releases" page
+    (the project ships via npm/Docker tags instead of GitHub Releases),
+    but the repo itself, its plugins repo, and CI workflows all show
+    commits/pushes within the last few weeks. Clearly active development,
+    not dormant or archived.
+
+catalogue_fit:
+  categories: [comments, moderation, website-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Waline is a standalone comment-hosting backend + moderation dashboard
+    that a customer embeds (via a small JS snippet) into their own static
+    site or blog to add threaded comments, without needing Disqus or a
+    similar third-party SaaS. Nothing in the current 24-recipe catalogue
+    (Gitea, Opengist, Anytype, Paperless, etc.) covers commenting/moderation
+    for external sites — this is a genuinely new category, not overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, common need for self-hosted bloggers/site owners who want to
+    avoid a third-party comment SaaS and its data-sharing implications.
+    Capped at medium rather than high because it's a narrow accessory
+    product (useful only to someone who already runs their own site
+    elsewhere and wants to bolt on comments) rather than a destination app
+    that stands alone the way e.g. Immich or n8n do.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate, JWT_TOKEN]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+    - secret: JWT_TOKEN
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Waline is a single-container, single-HTTP-port (8360) app that runs fine
+  behind Traefik with an embedded SQLite backend (no external MySQL/Mongo/
+  Postgres dependency required) — a JWT_TOKEN signing secret is needed but
+  is server-generated with no customer input, so it's expressible today.
+  It has no admin credential of its own to seed at deploy time: instead,
+  whoever first visits <domain>/ui/register after the app comes up is
+  auto-promoted to administrator. That is a real security gap for an
+  automated rollout — a stranger could register before the customer does
+  and take over the instance — so a Traefik `basic_auth` gate is needed as
+  a temporary shield until the customer registers and claims admin, the
+  same pattern already used for n8n/WUD. Upstream is actively maintained
+  (near-monthly Docker Hub pushes, latest ~1 day old as of 2026-08-05).
+  Recommended `build_now`: mechanically installable today with no blocking
+  issues, using the basic_auth-then-self-register flow (same pattern as
+  n8n/WUD) called out explicitly in the recipe's install docs.

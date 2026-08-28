@@ -1,0 +1,100 @@
+slug: gogs
+name: Gogs
+source_description: "Gogs is a self-hosted Git service for painless project management"
+
+upstream:
+  url: https://gogs.io
+  repo_url: https://github.com/gogs/gogs
+  license: MIT
+  docker_image: gogs/gogs
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The upstream repo's docker/
+    directory (github.com/gogs/gogs/tree/main/docker) and the docs site
+    (gogs.io/getting-started/installation, gogs.io/docs/installation/install_from_docker)
+    only document a `docker run` invocation
+    (`docker run --name=gogs -p 10022:22 -p 10880:3000 -v /var/gogs:/data ...`)
+    with no docker-compose.yml/.yaml anywhere in the repo or docs. Only
+    third-party/community compose files exist (e.g. individual users'
+    "gogs-docker-compose" repos on GitHub); none of these are adopted here
+    since they are not published or maintained by the Gogs project itself.
+
+version_health:
+  latest_version: "v0.14.3"
+  latest_release_date: "2026-06-07"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Not archived and commits are still landing on `main` (last commit
+    2026-07-19, git-module dependency updated 2026-08-01), so this is not a
+    dead repo. But release cadence is slow and irregular: v0.13.0 shipped
+    2023-02-25, v0.14.0/v0.14.1/v0.14.2 all shipped within one month of each
+    other in Feb 2025 (v0.14.0 was pulled shortly after release for a
+    builtin-SSH-server bug, superseded by v0.14.1 the same day), then a
+    16-month gap before v0.14.3 on 2026-06-07 — about 2 months before today
+    (2026-08-05). Recent release notes for v0.14.2/v0.14.3 are almost
+    entirely security-fix batches (reverse-proxy auth bypass, SSRF in
+    webhooks, stored XSS, LFS cross-repo object leaks, RCE-adjacent issues)
+    rather than new features. Reads as a small-team, maintenance-only
+    project rather than one under active feature development.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [gitea]
+  differentiation: >
+    None found. Gitea is a 2016 fork of Gogs that overtook and long since
+    surpassed it in feature set, release velocity, and community size, and
+    is already in the catalogue (recipes/gitea). Gogs offers the same core
+    pitch (self-hosted, lightweight Git service with web UI, issues, and
+    SSH access) with no capability Gitea lacks; picking Gogs today would
+    mean shipping the slower-moving, less-maintained fork of a recipe we
+    already have.
+  usefulness: low
+  usefulness_rationale: >
+    A customer wanting a lightweight self-hosted Git host is already served
+    by the existing gitea recipe, which is more actively developed and
+    functionally equivalent-or-better. Gogs adds no differentiated
+    capability to justify a second, overlapping recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Gogs admin account (username/email/password created during first-run setup)"
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Gogs has no environment-variable or app.ini-driven way to provision
+      the initial admin account. First boot either serves an interactive
+      web install wizard (a plaintext password form field, not scriptable
+      via env/config) or requires running `gogs admin create-user --admin
+      --password <plaintext> ...` via CLI after the container is up, which
+      also only accepts a plaintext password argument — there is no field
+      that accepts a pre-computed hash the way Vaultwarden's ADMIN_TOKEN
+      does. `generated_from: \"<algo>:ROOT_PASSWORD\"` only ever produces a
+      hash, so it cannot be projected into either path; this is the
+      documented hard-blocker case (a genuine plaintext-only requirement,
+      not a missing hash algorithm)."
+    - "The remaining documented fallback, 'first user to sign up becomes
+      admin,' is a race condition on a freshly booted public instance and
+      not viable for unattended fleet provisioning."
+    - "Gating the whole app behind Traefik basic_auth (as done for
+      no-login apps) doesn't cleanly fit here either: Gogs is a full
+      multi-user Git host where HTTP Git operations (clone/push over
+      HTTPS) already rely on Gogs' own HTTP Basic auth against per-user
+      credentials, so a Traefik basic_auth layer in front would conflict
+      with or break git client authentication, and it does nothing for the
+      separate SSH git port (2222), which sits outside Traefik entirely."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Gogs is mechanically blocked under the current recipe mechanism: its
+  first-boot admin account can only be created via an interactive web
+  wizard or a CLI command that both require a plaintext password, and there
+  is no channel today to project the customer's root-password hash into
+  either path, nor does a Traefik basic_auth gate fit cleanly for a
+  multi-user Git host with its own HTTP/SSH auth. This is a genuine
+  plaintext-only requirement rather than a missing hash algorithm, so it is
+  a structural blocker, not an extensible gap. Recommend not_recommended:
+  there is no first-boot provisioning path available today.

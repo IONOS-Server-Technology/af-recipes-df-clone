@@ -1,0 +1,113 @@
+slug: checkmk
+name: Checkmk
+source_description: "Infrastructure and application monitoring with auto-discovery and alerting"
+
+upstream:
+  url: https://checkmk.com/
+  repo_url: https://github.com/Checkmk/checkmk
+  license: GPL-2.0 (Community/Raw edition; Enterprise/Cloud editions are commercial)
+  docker_image: checkmk/check-mk-community
+  compose_file_url: https://docs.checkmk.com/latest/en/introduction_docker.html
+  compose_file_notes: >
+    Checkmk does not publish a standalone downloadable compose.yaml/
+    docker-compose.yml file (no such file exists at the repo root or under
+    a docker/deploy/contrib directory in github.com/Checkmk/checkmk, and
+    no release-asset link exists either). The official "Installation as a
+    Docker container" docs page instead embeds the full compose file
+    inline as a copy-paste template, which the user is instructed to save
+    into their own working directory before running `docker compose up`.
+    That template pins the image tag to `checkmk/check-mk-community:2.5.0-
+    latest` — a rolling reference to the newest patch release within the
+    2.5.0 minor line, not to a specific patch like 2.5.0p10. Only one
+    variant is shown (single `checkmk` service, ports 5000 web UI /8000
+    agent receiver, CMK_PASSWORD + TZ env vars, named volume for
+    /omd/sites); there is no separate GPU/CPU or sqlite/postgres split to
+    choose between.
+
+version_health:
+  latest_version: "2.5.0p10"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.5.0 major released 2026-04-28, with patch releases landing roughly
+    every 1-2 weeks since (currently 2.5.0p10, pushed ~8 days before today,
+    2026-08-05). The 2.3.0 and 2.4.0 lines are still in active/passive
+    maintenance windows through 2026-2027, and the vendor publishes an
+    explicit multi-year support calendar per major version. Repo is not
+    archived, commit and werk (changelog) activity is continuous. Note the
+    Docker Hub repo was renamed from `checkmk/check-mk-raw` to
+    `checkmk/check-mk-community` when the "Raw" edition was rebranded
+    "Community"; the old repo is legacy/frozen, the new one is current.
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Checkmk is a full infrastructure/host/application monitoring platform:
+    it installs lightweight agents on target hosts (or polls via
+    SNMP/APIs), auto-discovers services, and centralizes alerting across a
+    fleet. This is materially different from Uptime Kuma, our only
+    existing monitoring recipe, which is a self-contained external
+    uptime/ping checker with no agent-based host metrics or
+    auto-discovery. Checkmk would fill a distinct "monitor your own
+    servers and their internals" niche versus Uptime Kuma's "is this
+    URL/service reachable" niche.
+  usefulness: high
+  usefulness_rationale: >
+    Server/infra monitoring with auto-discovery is a broadly useful,
+    well-known category (Nagios/Zabbix/Checkmk-class tooling) for any
+    customer running more than a couple of hosts, and Checkmk is a
+    mature, actively developed, widely-adopted product in that space —
+    a strong candidate on merit alone, independent of the installability
+    problem below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [CMK_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The container bootstraps its one site via `omd create
+      --admin-password "$CMK_PASSWORD"` at first start, which requires the
+      literal plaintext password for the `cmkadmin` account — there is no
+      documented option to instead pass a pre-hashed credential (unlike
+      Vaultwarden's ADMIN_TOKEN, which is designed to store a hash).
+      `generated_from` only ever produces a hash of the customer's root
+      password, never the plaintext, so it cannot populate CMK_PASSWORD.
+    - >
+      Unlike Alerta (which exposes AUTH_REQUIRED=False to disable its own
+      login entirely, letting a Traefik basic_auth gate become the sole
+      auth boundary), Checkmk has no documented way to disable or bypass
+      its own cmkadmin login. Gating the reverse-proxy hop with
+      basic_auth would not help: the customer would still hit Checkmk's
+      built-in login screen behind it and have no way to know the
+      cmkadmin password, since no channel exists today to hand them a
+      customer-chosen or root-derived plaintext value.
+    - >
+      Secondary, non-blocking note: full host monitoring also relies on
+      the Agent Receiver on port 8000 (raw TCP, agent registration/push),
+      separate from the web UI on port 5000. The web UI alone is single-
+      HTTP-port and reverse-proxy-compatible, but exposing agent
+      check-in for remote hosts would need a second, non-HTTP public
+      port that our current Traefik-fronted recipes don't otherwise use.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Checkmk is an actively maintained (2.5.0p10, patched roughly biweekly,
+  July 2026), high-value infrastructure-monitoring platform with no
+  overlap in our current 24-recipe catalogue — Uptime Kuma only covers
+  external uptime pings, not agent-based host/service monitoring with
+  auto-discovery. It is blocked from shipping as a recipe today purely on
+  the installability mechanism: its admin account (cmkadmin) is created
+  from a plaintext CMK_PASSWORD env var with no pre-hashed-credential
+  path and no way to disable its own login the way Alerta does, so
+  neither `generated_from` (hash-only) nor a Traefik `basic_auth` gate
+  can supply a usable credential. This needs a genuine plaintext
+  root-password-projection channel (or an equivalent) added to the
+  platform before it's buildable — recommend `blocked_on_platform` rather
+  than `not_recommended`, since the app itself is a strong catalogue
+  candidate once that channel exists.

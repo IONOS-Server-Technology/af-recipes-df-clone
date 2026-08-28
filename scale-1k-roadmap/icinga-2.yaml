@@ -1,0 +1,106 @@
+slug: icinga-2
+name: Icinga 2
+source_description: "Open-source monitoring for hosts, services, and metrics with a modern web UI"
+
+upstream:
+  url: https://icinga.com/
+  repo_url: https://github.com/Icinga/icinga2
+  license: GPL-2.0-only
+  docker_image: icinga/icinga2:2.16.4
+  compose_file_url: https://raw.githubusercontent.com/lippserd/docker-compose-icinga/master/docker-compose.yml
+  compose_file_notes: >
+    No docker-compose.yml exists in the official Icinga/docker-icinga2 repo
+    (icinga2 image source) or icinga.com docs — those only show bare
+    `docker run` commands. The closest thing to an official compose file is
+    the one at github.com/lippserd/docker-compose-icinga, which Icinga's own
+    blog post ("Icinga Docker Setup Made Easy with Docker Compose",
+    icinga.com/blog/docker-compose-icinga/) explicitly presents as "we've
+    published an example project using Docker Compose" and instructs readers
+    to clone directly — i.e. Icinga endorses and links this repo as their
+    docker-compose reference, even though it lives under a maintainer's
+    personal GitHub namespace (lippserd = Icinga core developer Eric
+    Lippmann) rather than the Icinga org. This is a rolling reference to the
+    default `master` branch, not a pinned release tag — the repo has no
+    versioned releases/tags of its own; it instead documents minimum
+    component versions (Icinga Web >= 2.11.0, Icinga 2 >= 2.13.4, Icinga DB
+    >= 1.0.0) inside the README. Only one variant is offered (Icinga 2 +
+    Icinga Web 2 + Icinga DB + Redis + MySQL/MariaDB), so no
+    GPU/CPU/dev/prod/db-choice decision was needed.
+
+version_health:
+  latest_version: "2.16.4"
+  latest_release_date: "2026-07-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    2.16.4 released 2026-07-16, ~3 weeks before today (2026-08-05). The
+    2.16.x branch has shipped a steady stream of releases through 2026
+    (2.16.0 Apr 23, 2.16.1 May 21, 2.16.2 Jun 29 as a critical security
+    fix, 2.16.3 Jul 1, 2.16.4 Jul 16) plus parallel backports to the 2.15.x
+    and 2.14.x branches — the project is clearly under active,
+    well-resourced maintenance, not dormant.
+
+catalogue_fit:
+  categories: [monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Icinga 2 is a classic Nagios-style host/service monitoring engine:
+    active checks (plugins, NRPE/Icinga Agent, SNMP), distributed
+    master/satellite/agent topology, and a notification/escalation
+    pipeline, fronted by the Icinga Web 2 PHP UI. Against the only
+    monitoring recipe we actually ship today, Uptime Kuma (a
+    single-container URL/service pinger with no agent concept), Icinga 2
+    adds real infrastructure/host monitoring capability that Uptime Kuma
+    doesn't cover, but it targets sysadmins who want to actively monitor
+    a fleet of hosts, not a single self-hosted app owner. (Alerta, which
+    would sit closer to Icinga 2 as an alert-correlation console, is
+    itself only another unbuilt gap-analysis candidate, not a shipped
+    recipe, so it isn't part of this comparison.)
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely differentiated capability (agent-based host/service
+    monitoring) that nothing else in the catalogue offers, but it has an
+    "empty by default" problem: a freshly deployed Icinga 2 instance
+    monitors nothing useful until the customer defines hosts/services
+    and, for anything beyond localhost, installs and registers Icinga
+    Agents on remote machines — a config-heavy exercise unlike, say,
+    Uptime Kuma's zero-friction "add a URL" flow. It also ships as a
+    materially heavier stack (core engine + Redis + MySQL + web UI, vs.
+    our typical 1-3 container recipes), raising both resource footprint
+    and first-boot complexity for a self-host customer base that skews
+    toward simpler tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, MYSQL_ROOT_PASSWORD, ICINGAWEB_DB_PASSWORD, ICINGADB_MYSQL_PASSWORD]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ICINGAWEB_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ICINGADB_MYSQL_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Icinga 2 (core engine, icinga/icinga2 image) plus Icinga Web 2
+  (icinga/icingaweb2 image) is a heavier stack than our current recipes:
+  the modern Icinga DB architecture needs the core engine, a Redis
+  instance (Icinga DB), a MySQL database (both for Icinga DB and for
+  Icinga Web 2's own config/session store), and the PHP web UI — 4+
+  containers versus our usual 1-3. Icinga Web 2's admin login
+  (icingaweb.passwords.icingaweb2.icingaadmin=<plaintext>) is consumed
+  directly as a plaintext env var by the setup process with no
+  pre-hashed-credential support, so `generated_from` can't target it
+  directly, but that's not a hard blocker: the admin password can be
+  server-generated and never exposed, with the whole app instead gated
+  behind Traefik `basic_auth: true` projected from the customer's root
+  password (the same pattern used elsewhere in the catalogue for apps
+  with no native pre-hashed-credential support). That makes it installable
+  under today's mechanism with no blocking issues. Recommend build_now.

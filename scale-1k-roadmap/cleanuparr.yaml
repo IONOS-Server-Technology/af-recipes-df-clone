@@ -1,0 +1,98 @@
+slug: cleanuparr
+name: Cleanuparr
+source_description: "Advanced queue cleaner that removes stalled and malicious Servarr downloads"
+
+upstream:
+  url: https://cleanuparr.github.io/
+  repo_url: https://github.com/Cleanuparr/Cleanuparr
+  license: GPL-3.0
+  docker_image: ghcr.io/cleanuparr/cleanuparr
+  compose_file_url: https://cleanuparr.github.io/docs/installation/detailed
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    Cleanuparr/Cleanuparr repo (checked root, docker/, deploy/, contrib/ —
+    all 404 on raw.githubusercontent.com) or as a downloadable release
+    asset. The official docs site's "Detailed Installation" page
+    (cleanuparr.github.io/docs/installation/detailed) embeds the full
+    compose YAML inline rather than linking to a separate file, so that
+    page is the closest thing to an official source and is what's recorded
+    here. It is a rolling reference to whatever the docs site currently
+    shows (no version pinning, no release-tag anchor), and it uses the
+    `ghcr.io/cleanuparr/cleanuparr:latest` tag rather than a pinned version.
+    The page presents only one variant (SQLite-backed, GHCR image); it
+    mentions Postgres is "also supported" but does not show a Postgres
+    compose example, pointing instead to a separate database-configuration
+    page — so no GPU/CPU or sqlite/postgres compose choice was needed here,
+    sqlite is simply the only one shown.
+
+version_health:
+  latest_version: "v2.10.3"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v2.10.3 published 2026-08-02, three days before today
+    (2026-08-05). Releases are frequent (10 tags between 2026-05-05 and
+    2026-08-02, roughly one every 1-2 weeks), including a breaking-change
+    release (v2.10.0, Postgres support) as recently as 2026-07-25. Clearly
+    active, well-maintained upstream. Note: there is an unrelated fork/rename
+    "shaneholloman/cleanarr" that surfaces in search — not the same project,
+    ruled out in favor of the canonical Cleanuparr/Cleanuparr org repo.
+
+catalogue_fit:
+  categories: [automation, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches the Servarr/media-
+    acquisition space at all — we have no Sonarr, Radarr, Prowlarr, or
+    download-client (qBittorrent/Transmission/Deluge) recipe for Cleanuparr
+    to sit in front of. It is a pure companion/utility app: it has no
+    standalone function of its own and does nothing useful until pointed at
+    an existing Sonarr/Radarr instance and download client, none of which we
+    currently offer. Adding it now would ship a recipe whose entire value
+    proposition is inert on a fresh IONOS deployment.
+  usefulness: low
+  usefulness_rationale: >
+    The app itself is well-built and actively maintained, but usefulness to
+    an AF customer is gated entirely on already running (or us later adding)
+    a Sonarr/Radarr/download-client stack. As a day-one recipe with no
+    Servarr siblings in the catalogue, it provides no value out of the box —
+    this is a "build the *arr stack first" gap, not a Cleanuparr-specific one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Not a secret-projection blocker: Cleanuparr boots with no required
+      credentials — it ships built-in username/password auth (plus optional
+      OIDC) that the operator configures from inside the app after first
+      boot, the same self-service pattern already accepted for Immich and
+      Open WebUI. No blocking_issue on the auth mechanism itself.
+    - >
+      Functional blocker instead: at first boot Cleanuparr requires the URL
+      + API key of at least one Sonarr/Radarr/Lidarr/Readarr/Whisparr
+      instance and one download client (qBittorrent/Transmission/Deluge) to
+      do anything at all. None of those exist as recipes in this catalogue
+      today, so a customer installing Cleanuparr alone gets a working web UI
+      with nothing to clean up. This is a catalogue-composition gap, not a
+      per-customer-secret channel gap — those integration credentials are
+      entered by the customer directly into the app's own settings UI after
+      deploy, the same way Sonarr/Radarr API keys would be entered into any
+      other app, so they don't need a `/compose` input channel either.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Cleanuparr is mechanically installable today — single container, single
+  HTTP port, self-service login created post-deploy, no customer-supplied
+  secret needs a `/compose` channel — and upstream is clearly active
+  (release three days ago, steady biweekly cadence). The reason to pass on it
+  now is fit, not mechanism: it is a pure Servarr-ecosystem companion tool
+  with zero standalone value, and we carry no Sonarr/Radarr/download-client
+  recipe for it to attach to. Recommend not_recommended until/unless the
+  catalogue adds a Servarr stack, at which point Cleanuparr would become a
+  reasonable follow-on recipe.

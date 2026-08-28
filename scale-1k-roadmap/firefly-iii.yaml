@@ -1,0 +1,101 @@
+slug: firefly-iii
+name: Firefly III
+source_description: "Professional self-hosted personal finance and budget manager"
+
+upstream:
+  url: https://www.firefly-iii.org/
+  repo_url: https://github.com/firefly-iii/firefly-iii
+  license: AGPL-3.0
+  docker_image: fireflyiii/core
+  compose_file_url: https://github.com/firefly-iii/docker/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official — firefly-iii/docker is the project's own repository for its
+    Docker setup, linked from the project's install docs
+    (docs.firefly-iii.org/how-to/firefly-iii/installation/docker/). Link is
+    a rolling reference to the default `main` branch, not version-pinned;
+    the file itself also uses unpinned image tags (fireflyiii/core:latest,
+    mariadb:lts). Picked docker-compose.yml (the standard MariaDB-backed
+    setup) over the repo's other variant, docker-compose-importer.yml,
+    which additionally bundles the optional Data Importer sidecar — the
+    plain variant matches the base app this recipe covers.
+
+version_health:
+  latest_version: "version-6.6.6"
+  latest_release_date: "2026-07-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.6.6 was tagged 2026-07-01, about 5 weeks before today (2026-08-05) —
+    the longest gap in the visible tag history, but not unusual: the year
+    leading up to it shows near-continuous releases (multiple tags most
+    months, e.g. four releases in Feb 2026, three in March 2026, three in
+    April 2026). A `develop-20260805` pre-release tag exists dated today,
+    confirming active ongoing development even during the stable-release
+    gap. Repo is not archived, has continuous commit activity, and shows
+    no maintenance-only or EOL signal.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers personal finance.
+    Within the broader candidate pool though, this overlaps two other
+    finance gap analyses not yet built: apps-gaps/actual-budget.yaml
+    (lighter envelope budgeting, SQLite, no separate DB, self-registration
+    on first visit) and apps-gaps/akaunting.yaml (small-business
+    double-entry accounting, BSL-licensed with usage caps). Firefly III
+    sits between them: full double-entry personal/family bookkeeping
+    (accounts, budgets, bills, piggy banks, rules engine, multi-currency,
+    reports, REST API) aimed at power users who outgrow simple envelope
+    budgeting, but under a plain AGPL-3.0 license with no seat/company/
+    invoice caps unlike Akaunting. It is one of the most recognized
+    self-hosted personal-finance projects (in continuous development since
+    2013), so it is a credible, well-known name to add — but if
+    actual-budget is also built, the catalogue would carry two
+    personal-finance apps aimed at overlapping audiences; worth deciding
+    which one (or both) to build rather than defaulting to all three.
+  usefulness: high
+  usefulness_rationale: >
+    Personal finance is a strong, mainstream self-hosting draw ("keep my
+    bank data off someone else's server"), and Firefly III is one of the
+    most widely recommended self-hosted finance tools in that community,
+    with a mature feature set (multi-currency, rules, bill tracking,
+    reporting API) that goes beyond Actual Budget's simpler envelope model.
+    No license caps, unlike Akaunting.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, DB_PASSWORD, STATIC_CRON_TOKEN]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: STATIC_CRON_TOKEN
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Firefly III is a multi-container PHP app (fireflyiii/core behind a single
+  HTTP port 8080, backed by a MariaDB/MySQL container, plus an optional
+  Alpine cron sidecar for scheduled jobs) — structurally close to the
+  paperless-ngx pattern already in the catalogue. Unlike paperless-ngx it
+  injects no admin credential via env var at all: APP_KEY, the DB
+  password, and STATIC_CRON_TOKEN are opaque random strings the app never
+  surfaces to the customer, all generatable server-side by install.sh with
+  no customer input. The actual admin login is created by the customer
+  themselves through the app's own registration form on first browser
+  visit (first registered account becomes admin) — the same
+  self-registration pattern already accepted for Actual Budget and
+  Uptime Kuma, needing no root-password projection or basic-auth gate.
+  That clears the /compose constraint with zero blocking issues. Release
+  cadence is active (near-continuous tags through the past year, latest
+  stable 5 weeks old, a same-day develop pre-release confirming ongoing
+  work) with no EOL signal. Recommend build_now: it's a well-known,
+  fully free (no license caps) finance app that fills a real catalogue
+  gap — though if apps-gaps/actual-budget.yaml is also greenlit, weigh
+  whether the catalogue needs both personal-finance apps or just one.

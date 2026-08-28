@@ -1,0 +1,114 @@
+slug: stump
+name: Stump
+source_description: "Self-hosted comic, manga, and ebook server with OPDS and e-reader sync"
+
+upstream:
+  url: https://www.stumpapp.dev
+  repo_url: https://github.com/stumpapp/stump
+  license: MIT (the bundled Expo mobile app is GPL-3.0; server/web is MIT)
+  docker_image: aaronleopold/stump
+  compose_file_url: https://www.stumpapp.dev/docs/getting-started/installation/docker
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists in the stumpapp/stump
+    repo (root, docker/, deploy/, contrib/ all checked — none present); the
+    only official compose example is embedded inline in the docs page above
+    (source: content/docs/getting-started/installation/docker.mdx on the
+    nightly branch). It is a rolling reference tracking the default branch,
+    not version-pinned, and uses the `:latest` image tag. Only one variant
+    is shown (single service, bind-mounted config/data dirs, PUID/PGID/
+    STUMP_CONFIG_DIR env vars) — no GPU/CPU or sqlite/postgres alternatives
+    exist since Stump is single-container with no external DB.
+
+version_health:
+  latest_version: "v0.1.6"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.1.6 shipped 2026-08-02, three days before today (2026-08-05). Recent
+    cadence is roughly monthly through 2026 (v0.1.0 on 2026-03-29, v0.1.1
+    04-04, v0.1.2 04-18, v0.1.3 05-17, v0.1.4 05-29, v0.1.5 06-20, v0.1.6
+    08-02). There was a ~6-month gap between v0.0.12 (2025-10-05) and v0.1.0
+    (2026-03-29) that coincided with a major internal rewrite (Prisma to
+    SeaORM), not a maintenance lapse. Repo is not archived; latest commit
+    push was 2026-08-06 (yesterday relative to today). Upstream itself
+    labels the project "beta" and pre-1.0 — active development, but the
+    maintainer is explicit there is "no guarantee of any timeline for
+    features or bug fixes" since this is a free-time project for a single
+    primary maintainer (bus-factor risk worth flagging even though current
+    activity is healthy).
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes serves comics/manga/ebooks. Immich
+    covers photos/video, Paperless-ngx covers scanned documents, Syncthing
+    and Gitea are general file/code sync — none overlap with a dedicated
+    reading server with OPDS feeds and Kobo/KoReader e-reader sync, which is
+    a distinct, recognizable self-hosted-app category customers search for
+    by name (comparable to Kavita/Komga/Calibre-Web in the space).
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, well-scoped single-purpose app (single container, config/data
+    volumes, no external DB) with a real niche audience among self-hosters
+    who read digital comics/manga/ebooks. Capped at medium rather than high
+    because it is still pre-1.0 beta software by the maintainer's own
+    description, and the audience is narrower than general-purpose media
+    tools already in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Stump has no admin-credential environment variable at all (confirmed
+      against the official docker-compose install docs at
+      stumpapp.dev/docs/getting-started/installation/docker — only PUID,
+      PGID, and STUMP_CONFIG_DIR are configurable). The container boots
+      with zero users; the first visitor to the public URL is presented
+      with an open registration form and becomes the sole admin-account
+      owner. There is no `type: password` login parameter to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"` — the credential is created
+      client-side via self-registration, not injected via env var at
+      container start, so root-password projection has nothing to attach
+      to.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app does not
+      close this race on its own: the gate uses the platform's single
+      root-password-projection slot, but the app's own first-visitor-wins
+      registration form is still reachable by anything that can present
+      that gate credential — including our own automated first-boot
+      health-check, which would race the customer to complete
+      self-registration and could claim the admin account before the
+      customer ever visits. There is no channel today to hand the customer
+      a second, distinct credential to pre-seed Stump's own signup
+      separately from the gate. This is the same structural blocker
+      recorded for `apps-gaps/2fauth.yaml`, another open-self-registration
+      app.
+    - >
+      Name ambiguity check: "Stump" also refers to `stumpwm` (an unrelated
+      X11 tiling window manager) and a couple of unrelated CLI/markdown
+      tools of the same name. The Hostinger description ("comic, manga, and
+      ebook server with OPDS and e-reader sync") unambiguously matches
+      `stumpapp/stump`, the project analyzed here — no other candidate
+      considered.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Stump is an active, actively-released (beta, pre-1.0) single-container
+  comic/manga/ebook server with OPDS and Kobo/KoReader sync that would fill a
+  genuine content-type gap in the catalogue — nothing else covers this
+  niche. It fails the installability test purely on the platform mechanism:
+  like 2FAuth, its one admin account is provisioned via an open, unauthenticated
+  self-registration form with no env-var hook, so neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely hand
+  the customer their own exclusive first-run credential without racing our
+  own health-check or any other early visitor. Revisit once the platform
+  supports either a preset-admin-via-env-var injection (would require an
+  upstream feature request to stumpapp/stump) or a second customer-facing
+  credential channel beyond the single root-password projection.

@@ -1,0 +1,136 @@
+slug: tasktrove
+name: TaskTrove
+source_description: "Self-hosted task manager with natural language input and multiple views"
+
+upstream:
+  url: https://tasktrove.io
+  repo_url: https://github.com/dohsimpson/TaskTrove
+  license: >
+    Sustainable Use License v1.0 (source-available, not OSI-approved).
+    Limitations clause: "You may use or modify the software only for your
+    own internal business purposes or for non-commercial or personal use.
+    You may distribute the software or provide it to others only if you do
+    so free of charge for non-commercial purposes." Files under ".pro."
+    paths are excluded entirely and require a separate paid "TaskTrove Pro
+    License" (LICENSE_PRO.md). Confirmed via LICENSE.md on the main branch,
+    not training-data recall.
+  docker_image: "ghcr.io/dohsimpson/tasktrove:v0.12.4"
+  compose_file_url: "https://raw.githubusercontent.com/dohsimpson/TaskTrove/main/selfhost/docker-compose.yml"
+  compose_file_notes: >
+    Official — the project's own docs (docs.tasktrove.io/installation)
+    instruct users to `git clone` the repo and run `docker-compose up -d`
+    from the `selfhost/` directory, which contains this file. This is a
+    rolling reference to the default (main) branch, not version-pinned:
+    the file itself pulls `ghcr.io/dohsimpson/tasktrove:latest` rather
+    than a tagged version. Only one variant exists for the free/open
+    edition; a second file, `docker-compose-pro.yml`, lives alongside it
+    in the same directory for the separately-licensed Pro edition
+    (invoked via `-f docker-compose-pro.yml`) and was not chosen since
+    Pro requires a paid license outside the scope of this recipe.
+
+version_health:
+  latest_version: "v0.12.4"
+  latest_release_date: "2026-01-09"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Confirmed via the GitHub releases and commits APIs, not recall. Release
+    history shows a tight, active cadence through late 2025 into early
+    2026: v0.9.1 (2025-11-03) → v0.10.0 (2025-11-21) → v0.11.0/v0.11.1
+    (2025-12-06, the latter a same-day CVE-2025-55182 React security patch)
+    → v0.12.0/v0.12.1/v0.12.3/v0.12.4, all four released within 09:52 UTC
+    on 2026-01-07 through 2026-01-09. Since v0.12.4 (2026-01-09), as of
+    today 2026-08-05, there has been no new release and no new commit to
+    the repo at all — `pushed_at` on the repo API is 2026-01-09T20:52:24Z,
+    identical to the last release timestamp. That is just under 7 months
+    of total silence (releases and commits both) following what had been a
+    multiple-releases-per-week pace, a sharp change in trajectory rather
+    than a gradual slowdown. Repo is not archived and still has 33 open
+    issues with 1.1k stars, so this reads as "maintainer went quiet"
+    rather than a formal EOL announcement — calling it dormant/
+    maintenance-only rather than archived/eol, but this is exactly the
+    kind of abrupt stop worth flagging rather than smoothing over.
+
+catalogue_fit:
+  categories: [productivity, task-management, todo]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers personal/team task or to-do management.
+    apps-gaps/planka.yaml previously analyzed Planka for the adjacent
+    kanban/project-board niche (also blocked, on a similar commercial-
+    hosting license restriction); TaskTrove is a lighter-weight personal
+    task manager with natural-language due-date parsing and multiple views
+    (list/kanban/calendar), closer to a self-hosted Todoist than a Trello
+    clone. Would be a genuinely new category if the licensing question
+    clears.
+  usefulness: medium
+  usefulness_rationale: >
+    Real self-hosted-alternative demand (Todoist/TickTick replacement) and
+    a clean single-container fit next to recipes like Uptime Kuma, but
+    capped below "high" by the ~7-month release silence above and the
+    commercial-hosting license restriction below — both are gating factors
+    independent of how useful the app itself is.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Licensing, not mechanism: the Sustainable Use License's Limitations
+      clause restricts use to "your own internal business purposes or...
+      non-commercial or personal use," and permits redistribution to
+      others only "free of charge for non-commercial purposes." Offering
+      TaskTrove as a paid, one-click hosted recipe on IONOS Application
+      Factory is a commercial third-party hosting use that this clause
+      does not appear to permit — the same shape of blocker previously
+      flagged for Planka (apps-gaps/planka.yaml) and NocoDB
+      (apps-gaps/nocodb.yaml). Needs explicit legal sign-off, or contact
+      with the maintainer for a commercial arrangement, before this can
+      ship regardless of the technical mechanism question below.
+    - >
+      No project-level admin-bootstrap env var exists. By default
+      TaskTrove ships with no login at all (any visitor has full access).
+      Setting AUTH_SECRET (an encryption key, not a password) switches on
+      auth, but the first person to visit the running instance is prompted
+      to create the account interactively through the web UI — there is no
+      env var carrying a plaintext or hashed initial credential, so
+      `generated_from` has no field to project the customer's root
+      password into. This is the same first-come-first-served exposure
+      window seen with NocoDB: the fix is gating the whole app behind a
+      Traefik `basic_auth: true` wall (auto-generated credential) until
+      the customer visits and claims the account through TaskTrove's own
+      signup screen, at which point that becomes the durable login.
+    - >
+      No external database dependency — TaskTrove stores tasks as JSON
+      files under a mounted volume (`/app/data`), so there is no
+      additional server-generated secret beyond AUTH_SECRET itself, which
+      needs no customer input.
+    - >
+      Project appears dormant since 2026-01-09 (see version_health) —
+      worth weighing alongside the licensing question, since it affects
+      how much confidence to place in a timely licensing response from the
+      maintainer if pursued.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  TaskTrove is mechanically installable today: a single official
+  ghcr.io/dohsimpson/tasktrove image with one HTTP port (3000) that works
+  cleanly behind Traefik, no database dependency, and a Traefik
+  `basic_auth` gate standing in for the missing admin-bootstrap env var
+  (same NocoDB-style workaround) to close the first-come-first-served
+  signup window. It would also fill a genuinely new category — no current
+  recipe covers personal task/to-do management. The recommendation is
+  `not_recommended` for two independent reasons: the Sustainable Use
+  License's restriction to internal/non-commercial use does not clearly
+  permit IONOS reselling it as a paid hosted recipe (same shape of blocker
+  as Planka and NocoDB, needing legal sign-off before revisiting), and the
+  upstream repo has had zero commits or releases for nearly 7 months as of
+  2026-08-05 after a very active prior cadence, an abrupt stop worth
+  re-checking before committing build effort even if the licensing
+  question clears.

@@ -1,0 +1,95 @@
+slug: wingfit
+name: Wingfit
+source_description: "Wingfit is an open-source minimalist fitness app for tracking workouts and progress"
+
+upstream:
+  url: https://wingfit.fr
+  repo_url: https://github.com/itskovacs/wingfit
+  license: CC BY-NC 4.0
+  docker_image: ghcr.io/itskovacs/wingfit
+  compose_file_url: https://raw.githubusercontent.com/itskovacs/wingfit/main/docker-compose.yml
+  compose_file_notes: >
+    Official — the only docker-compose.yml the project ships, at the repo
+    root, and the README's Docker deployment section explicitly says to
+    "use the docker-compose.yml file provided in this repository." Rolling
+    reference to the default branch (`main`), not version-pinned: compared
+    byte-for-byte against the same path on the `5.3.1` tag (the latest
+    release) and the two are identical, so pinning vs. rolling makes no
+    difference today, but the URL itself tracks `main` going forward. There
+    is only one variant — no GPU/CPU or sqlite/postgres split — though note
+    it builds the image locally (`build: .`) rather than pulling the
+    published `ghcr.io/itskovacs/wingfit` image referenced elsewhere in
+    this file.
+
+version_health:
+  latest_version: "5.3.1"
+  latest_release_date: "2025-08-11"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Frequent releases (roughly weekly) from 1.2.0 (2025-02-21) through
+    5.3.1 (2025-08-11), then nothing since — no new tag and, per the GitHub
+    API, no push to `main` (`pushed_at: 2025-08-11`) in the ~12 months up to
+    today (2026-08-05). Unlike a project that's still committing without
+    tagging, this repo shows zero commit activity in that window, so
+    "dormant" is the accurate read, not just "no new release." The repo is
+    not GitHub-archived and there's no explicit EOL statement from the
+    single maintainer, so `eol_status: maintenance-only` is used as the
+    least-overclaiming label available in the schema's enum — but a year
+    of total silence on a 520-star, single-maintainer project (5 open
+    issues, 0 open PRs) is a real risk signal for shipping a recipe on top
+    of it.
+
+catalogue_fit:
+  categories: [health, fitness, personal]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the current 24-recipe catalogue covers fitness
+    or workout tracking — this would be a new category rather than
+    competing with something we already ship.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal fitness tracking (workout planning, PR tracking, smartwatch
+    import) is a plausible self-hoster want and fills a category gap, but
+    it's a niche single-user/family use case rather than something with
+    broad customer pull, and the single-maintainer dormancy above tempers
+    how much to invest here regardless of category novelty.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      License is CC BY-NC 4.0 (Creative Commons Attribution-NonCommercial;
+      the README additionally advertises it as "CC BY-NC-SA 4.0", but the
+      repo's own license.txt is NC-only, not NC-SA — the two disagree, and
+      either way both prohibit commercial use). Offering Wingfit as a
+      recipe inside a paid IONOS hosting product is very plausibly
+      "commercial use" under this license's own definition ("intended for
+      or directed towards commercial advantage or monetary compensation"),
+      which the license does not permit without a separate arrangement
+      with the author. This is a licensing blocker independent of the
+      mechanical installability analysis below.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Wingfit is a single-container FastAPI/Angular app (image
+  ghcr.io/itskovacs/wingfit, single HTTP port 8000/8080, SQLite +
+  filesystem storage) with self-service signup enabled by default
+  (`REGISTER_ENABLE`) and no fixed admin credential to project via
+  `generated_from` — mechanically it would be installable behind a domain +
+  Traefik `basic_auth:true` gate (same pattern as n8n/WhoDB), with the
+  customer registering their own in-app account once past the gate. That
+  mechanical path is moot, though: the app's own license (CC BY-NC /
+  BY-NC-SA per the README-vs-license.txt inconsistency, both
+  non-commercial) explicitly forbids commercial use, which bundling it into
+  a paid hosting catalogue would likely trigger. Combined with a full year
+  of zero commit or release activity from a single maintainer as of
+  2026-08-05 despite a real 2025 release cadence, this is a
+  `not_recommended` — legal risk first, dormancy risk second.

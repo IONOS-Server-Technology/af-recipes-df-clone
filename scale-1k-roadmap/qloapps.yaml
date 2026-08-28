@@ -1,0 +1,145 @@
+slug: qloapps
+name: QloApps
+source_description: "Open-source hotel management and reservation system with booking engine and PMS"
+
+upstream:
+  url: https://qloapps.com/
+  repo_url: https://github.com/Qloapps/QloApps
+  license: OSL-3.0
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose file exists anywhere in the project's own materials.
+    QloApps' GitHub README's only Docker mention is a link to
+    hub.docker.com/r/webkul/qloapps_docker (the community image already
+    documented as this analysis's blocking issue) with a bare
+    `docker pull` / `docker run` command; the Docker Hub page itself
+    likewise offers only `docker run` invocation instructions, no compose
+    file. devdocs.qloapps.com's install page documents just the browser
+    wizard and the CLI installer script, neither of which is Docker-based.
+    There is no official compose file to adopt, and the community image
+    that exists is not accompanied by one either.
+
+version_health:
+  latest_version: "1.7.0"
+  latest_release_date: "2025-07-04"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Confirmed via GitHub releases/tags and corroborated by Softaculous's own
+    "updated to 1.7.0.0" news entry dated 2025-07-08 (Softaculous typically
+    picks up a release within days, so this pins the actual tag date to
+    early July 2025 rather than the ambiguous 2024/2025 year shown by some
+    scraped views of the same GitHub release page). As of today 2026-08-05
+    that is just over 13 months ago. Prior releases: 1.6.1 (2024-10-10, per
+    Softaculous 2024-10-14), 1.6.0 (2023-04-17), 1.5.2 (2023-02-10), 1.5.1
+    (2022-03-31), 1.5.0 (2021-09-14) — roughly annual major/minor releases
+    for the last three years, so 13 months since 1.7.0 is within the
+    established cadence, not yet a red flag on its own. The core repo's
+    `pushed_at` is 2026-07-29 (last week), 14.2k stars, 161 open issues, not
+    archived — code activity (commits, issue triage) is clearly ongoing
+    even though tagged releases are infrequent. Calling this `slowing`
+    rather than `active` because the ~12-13 month gap between the last two
+    releases is longer than the ~6-9 month gaps earlier in the project's
+    history, but `eol_status: active` since there is no maintenance-only
+    announcement, no archive, and visible recent commit activity.
+
+catalogue_fit:
+  categories: [business, hospitality, booking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches hotel/property
+    management or booking-engine use cases; the closest business-app
+    neighbors (paperless-ngx, n8n) are document management and automation,
+    not reservations/PMS. A working QloApps recipe would be genuinely new
+    ground, not an overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Hotel PMS/booking-engine is a real, recognizable self-hosting niche
+    (QloApps is built on the PrestaShop 1.6 core and is one of the few
+    open-source options in this space, 14.2k GitHub stars), but it is a
+    narrower audience than general productivity/collaboration tools already
+    well represented in the catalogue, and the packaging problems below
+    make it considerably more expensive to ship than a typical recipe.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_ROOT_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      QloApps has no official Docker image at all. devdocs.qloapps.com's
+      installation page documents only two supported paths — a browser GUI
+      wizard and a CLI script (`install/index_cli.php`) — and does not
+      mention Docker. The only Docker packaging that exists is a
+      third-party community image, `webkul/qloapps_docker` (published by
+      the vendor's own GitHub org but not referenced from QloApps' own
+      docs), whose tags top out at 1.6.1 — it has never been rebuilt for
+      1.7.0 (released 2025-07-04, 13 months ago) and still ships Ubuntu
+      18.04 + PHP 7.2 + MySQL 5.7, all of which are themselves past their
+      own upstream EOL, and PHP 7.2 in particular is below the PHP 8.1+
+      that QloApps 1.7.0 itself now requires per its changelog. Building a
+      recipe on this image means shipping a customer-facing app on a
+      three-versions-stale, EOL-on-EOL base; building our own image from
+      the QloApps source instead is a materially bigger lift than the
+      typical "pin an official tag" recipe.
+    - >
+      The one image that exists bundles the web app, MySQL, and an SSH
+      server into a single container (env vars `USER_PASSWORD` for SSH,
+      `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`), rather than the
+      app+db multi-service split every other compose recipe in this
+      catalogue uses. It could still be fronted by Traefik on the HTTP
+      port alone (leaving 3306/2222 unpublished), so this by itself is a
+      packaging wart rather than a hard blocker, hence
+      `reverse_proxy_compatible: false` above reflects the image's own
+      design, not a Traefik incompatibility.
+    - >
+      Per the image's own README, first boot does NOT auto-complete the
+      QloApps install: "go to your browser and hit your IP or domain name
+      and start qloapps installation process" — i.e. the unauthenticated
+      PrestaShop-style setup wizard is exposed on the public HTTP port
+      until a human manually finishes it, then must manually delete the
+      `install/` directory and rename the admin folder. This is the same
+      unauthenticated-setup-wizard race class of blocker noted for
+      ProjectSend (apps-gaps/projectsend.yaml) and ships open on the
+      internet by default.
+    - >
+      Even switching to the documented non-interactive
+      `install/index_cli.php --email=... --password=...` path (which
+      would close the wizard-race problem and could feed ADMIN_EMAIL) does
+      not resolve the credential channel for ADMIN_PASSWORD: that flag
+      takes the admin account's *plaintext* password, which
+      QloApps/PrestaShop core then hashes internally at account-
+      creation time. There is no documented way to hand it a pre-computed
+      bcrypt/argon2 hash instead. `generated_from: "<algo>:ROOT_PASSWORD"`
+      only ever carries a hash of the customer's root password, so
+      projecting it into `--password` would store the hash-of-the-hash as
+      the login, silently locking the customer out — the same structural
+      mismatch documented for Pydio Cells (apps-gaps/pydio-cells.yaml).
+      A Traefik `basic_auth` gate does not substitute here either, since
+      QloApps has its own admin login the gate would sit in front of
+      without fixing the provisioning problem.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  QloApps fills a real gap (hotel PMS/booking engine, nothing comparable in
+  the current 24 recipes) and the upstream project itself is still active
+  (commits within the last week, releases roughly annually, not archived or
+  EOL). It is not recommended today for two independent reasons rather than
+  one platform-mechanism gap: first, there is no official Docker image —
+  the only one that exists is community-maintained, three releases stale,
+  and built on an EOL Ubuntu/PHP/MySQL base incompatible with QloApps'
+  own current PHP 8.1+ requirement, meaning a real recipe would need a
+  from-scratch image build, not a pinned-tag compose file. Second, even a
+  fixed image would hit the same structural credential blocker as Pydio
+  Cells: QloApps' only non-interactive install path takes a plaintext admin
+  password that it hashes itself, with no channel for the hash-only value
+  `generated_from` produces, and its own admin login means a Traefik
+  `basic_auth` gate doesn't route around that. Revisit only if Webkul ships
+  and maintains a current, split app/db Docker image AND a future platform
+  mechanism can carry more than a single hash to an app's own install flow.

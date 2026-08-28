@@ -1,0 +1,117 @@
+slug: fusionauth
+name: FusionAuth
+source_description: "Self-hosted customer identity platform with OAuth, OIDC, SAML, and MFA"
+
+upstream:
+  url: https://fusionauth.io/
+  repo_url: null
+  license: "FusionAuth Community License (free, closed-source binary — not OSI-approved open source; client libraries/SDKs are separately Apache-2.0)"
+  docker_image: fusionauth/fusionauth-app
+  compose_file_url: https://raw.githubusercontent.com/FusionAuth/fusionauth-containers/main/docker/fusionauth/docker-compose.yml
+  compose_file_notes: >
+    Official, published by FusionAuth itself in its own
+    fusionauth-containers repo (github.com/FusionAuth/fusionauth-containers,
+    path docker/fusionauth/docker-compose.yml) and linked directly from the
+    project's own docs at fusionauth.io/docs/get-started/download-and-
+    install/docker. This is a rolling reference to the `main` branch, not a
+    version-pinned release tag — the raw URL points at
+    `/main/docker/fusionauth/...`, so it tracks whatever is current on the
+    default branch rather than a fixed release. The repo also ships
+    profile-based variants in the same file (e.g. a `caddy` profile for a
+    reverse-proxying edge and a `mailcatcher` profile for a dev SMTP
+    server) rather than separate compose files; I picked the base file
+    with no profiles enabled (Postgres + FusionAuth + OpenSearch as
+    search engine, per the stack this repo's own version_health/
+    installability analysis already assumes) since that is what loads by
+    default with no extra `--profile` flags.
+
+version_health:
+  latest_version: "1.68.0"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 1.68.0 was pushed to Docker Hub 2026-06-30, about five weeks
+    before today (2026-08-05). Checking the prior ~12 months of tags shows a
+    steady cadence of a new minor roughly every 3-5 weeks (1.67.1 on
+    2026-06-08, 1.67.0 on 2026-06-01, 1.66.0 on 2026-05-05, 1.65.0 on
+    2026-04-30, back through 1.62.0-1.64.x over late 2025/early 2026) with
+    no gaps of more than ~7 weeks. No dormancy, archival, or EOL signal.
+
+catalogue_fit:
+  categories: [security, identity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [authentik, casdoor, authorizer]
+  differentiation: >
+    FusionAuth is a CIAM platform (OAuth2/OIDC/SAML, MFA, breach detection,
+    passwordless) aimed at the same "add centralized identity/SSO" job as
+    the three identity apps already flagged in this gap analysis
+    (Authentik, Casdoor, Authorizer). Its niche within that group is closer
+    to Authorizer (a backend a customer wires into their own application
+    via SDKs) than to Authentik (a general SSO gateway fronting other
+    apps), though FusionAuth's SAML and enterprise-MFA feature set is
+    broader than Authorizer's. It does not add a capability absent from
+    the other three, and its Community edition is a free but closed-source
+    binary rather than OSS, which is a negative differentiator against the
+    already-flagged Authentik/Casdoor (both actively developed OSS).
+  usefulness: low
+  usefulness_rationale: >
+    A fourth self-hosted identity/CIAM candidate in the same niche as three
+    already-analyzed apps (Authentik, Casdoor, Authorizer) adds little
+    incremental catalogue value, and its closed-source licensing model is
+    less attractive than the OSS alternatives already flagged. Would only
+    be worth prioritizing over those if a customer specifically needs
+    FusionAuth's SAML/enterprise-MFA feature set, which is a narrow case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [FUSIONAUTH_ADMIN_EMAIL, FUSIONAUTH_ADMIN_PASSWORD, DATABASE_ROOT_PASSWORD, DATABASE_PASSWORD]
+  secrets_expressible_today:
+    - secret: DATABASE_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: DATABASE_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      FusionAuth has no env-var-driven admin bootstrap. The first admin
+      account is created either (a) interactively through the browser
+      Setup Wizard on first visit to port 9011, where the operator types
+      an email and plaintext password (min 8 chars), or (b) via a Kickstart
+      file (`FUSIONAUTH_APP_KICKSTART_FILE`) that POSTs a user-creation API
+      call containing a `password` field — but that field is documented as
+      plaintext too; FusionAuth hashes it server-side with its own
+      configurable algorithm, it does not accept a pre-computed hash as
+      input. Kickstart also only runs once, against a completely untouched
+      instance (no existing API keys/users/tenants). Per SCHEMA.md, a
+      genuine plaintext-only requirement (not just an unsupported hash
+      algorithm) is a structural blocker, not a `blocked_on_platform` gap
+      like Authentik's `pbkdf2_sha256` case — there is no channel here to
+      project even a hash of the customer's root password.
+    - >
+      A Traefik `basic_auth` gate in front of the whole app is not a
+      substitute: FusionAuth's single public port (9011) serves both the
+      admin UI and the OAuth2/OIDC/SAML endpoints (`/oauth2/authorize`,
+      `/oauth2/token`, hosted login pages, SAML ACS) that end users of
+      whatever application the customer builds against it must reach —
+      gating the whole origin would break the product's actual purpose,
+      same reasoning as the Authentik and Authorizer analyses.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  FusionAuth is an actively maintained (release roughly every 3-5 weeks,
+  latest 1.68.0 on 2026-06-30), mechanically simple recipe candidate — a
+  single fusionauth/fusionauth-app container plus Postgres (Elasticsearch/
+  OpenSearch can be avoided by setting the search engine to `database`),
+  one HTTP port, fully reverse-proxy compatible. It fails installability
+  today for the same reason as Authorizer: its admin bootstrap accepts only
+  a plaintext password (via the interactive Setup Wizard or a one-shot
+  Kickstart file), with no way to supply a pre-computed hash, so
+  `generated_from` cannot reach it and it is a genuine structural blocker
+  rather than a missing-algorithm gap. It also overlaps heavily with three
+  identity/CIAM apps already flagged in this catalogue (Authentik, Casdoor,
+  Authorizer) and brings a closed-source license instead of their OSS
+  ones, making it the lowest-priority of the four even once platform
+  constraints loosen. Recommend `blocked_on_platform` with low re-
+  evaluation priority.

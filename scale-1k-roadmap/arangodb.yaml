@@ -1,0 +1,119 @@
+slug: arangodb
+name: ArangoDB
+source_description: "Native multi-model database for graphs, documents, and key-value data"
+
+upstream:
+  url: https://arangodb.com
+  repo_url: https://github.com/arangodb/arangodb
+  license: >
+    Business Source License 1.1 (core source, converts to Apache-2.0 after
+    4 years) for the OSS code; the shipped Community Edition binaries/Docker
+    image are additionally governed by the separate "ArangoDB Community
+    License" (effective with 3.12, released 2024-Q1), which is not
+    Apache-2.0 despite older versions having used that license.
+  docker_image: arangodb/arangodb
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists. The product repo
+    (github.com/arangodb/arangodb) and the Docker image repo
+    (github.com/arangodb/arangodb-docker) contain no compose file at their
+    root or under docker/, deploy/, or contrib/. The official docs
+    (docs.arangodb.com, now redirecting to docs.arango.ai post-rebrand) and
+    the official Docker Hub page (hub.docker.com/_/arangodb) document only
+    a bare `docker run` command (e.g. `docker run -d -p 8529:8529 -e
+    ARANGO_RANDOM_ROOT_PASSWORD=1 arangodb`), never a compose file. The
+    only compose YAML found on an ArangoDB-owned property is embedded
+    inline in an arango.ai blog post ("Deploying and Securing an ArangoDB
+    Cluster Using Docker") describing a multi-node cluster — a one-off
+    tutorial snippet in prose, not a file the project publishes/maintains
+    or links to as an install artifact, so it does not qualify as the
+    official compose file. Community-maintained compose files exist (e.g.
+    ArangoDB-Community/ArangoBnB's docker-compose.yml, and several
+    unaffiliated GitHub repos) but are not adopted here per the "official
+    only" rule.
+
+version_health:
+  latest_version: "3.12.10"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.12.10 was pushed to Docker Hub about a day before today (2026-08-05);
+    3.12.9.x patches shipped roughly monthly before that (3.12.9 ~4 months
+    ago, 3.12.8 ~5 months ago, 3.12.7 ~6 months ago, relative to today).
+    Upstream states major releases are supported 18+ months and minor
+    releases 12+ months from GA; 3.12 (GA 2024-03-21) and 3.11 (GA
+    2023-05-23) are both still in active support. 3.10 and 3.9 have already
+    gone EOL on schedule. Clearly active development, not slowing or
+    dormant.
+
+catalogue_fit:
+  categories: [database, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a standalone database — existing
+    recipes (n8n, paperless-ngx, etc.) run Postgres/MySQL internally as a
+    private backing service, never exposed to the customer. ArangoDB would
+    be the first recipe where the database itself is the product: a
+    single-port (8529) server with its own built-in web UI (query editor,
+    graph visualizer, collection browser) that a customer — typically a
+    developer building on graph/document data — interacts with directly,
+    rather than a generic admin front-end for someone else's database (cf.
+    the separate Adminer gap-analysis).
+  usefulness: medium
+  usefulness_rationale: >
+    Real but niche appeal: valuable to developers/teams building
+    graph-native or document-native applications who want a managed
+    instance without provisioning their own server, but it has no
+    broad-consumer use case the way productivity or media recipes do.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [arango_root_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: arango_root_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The Docker image only accepts the root password as plaintext via
+      ARANGO_ROOT_PASSWORD (or a random one via ARANGO_RANDOM_ROOT_PASSWORD)
+      — there is no way to hand it a pre-hashed value, so it cannot receive
+      a customer-chosen password through `generated_from` (which only ever
+      carries a hash). Workaround used here: generate ARANGO_ROOT_PASSWORD
+      randomly server-side (a secret the customer never needs to know) and
+      make the real customer-facing auth boundary a mandatory Traefik
+      basic_auth gate in front of port 8529, projected from the customer's
+      root password — the same pattern used for Adminer/n8n/WUD.
+    - >
+      Licensing: starting with 3.12, ArangoDB's Community Edition ships
+      under a new "ArangoDB Community License" (not the old Apache-2.0)
+      that explicitly disallows use "for your managed service (DBaaS,
+      SaaS)" or "distributing it to your customers along with your
+      software" without a commercial agreement. Offering ArangoDB as an
+      Application Factory recipe — a hosting provider provisioning it
+      per-customer at catalogue scale — reads as exactly the managed-service
+      / distribution use case the license carves out. This needs
+      legal/commercial review with ArangoDB before shipping; it is not
+      resolved by any af-recipes mechanism (cf. the AFFiNE gap-analysis for
+      a similar licensing caveat).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ArangoDB is a single-container, single-HTTP-port (8529) Docker Compose app
+  with an active release cadence (3.12.10 shipped ~1 day before today) and
+  no EOL risk. It would be the first standalone database recipe in the
+  catalogue and fills a real gap for developers wanting managed graph/document
+  storage, though it's a technical/niche audience rather than a broad-appeal
+  app. Mechanically it's installable today via the same
+  generate-server-side-secret-plus-mandatory-basic_auth-gate pattern used for
+  Adminer, since the app's own root-password field only accepts plaintext.
+  The bigger open issue is licensing: the Community Edition's post-3.12
+  terms explicitly restrict managed-service/DBaaS and customer-distribution
+  use without a commercial agreement, which is close to a description of
+  what shipping this as an AF recipe would be — recommend build_with_caveats
+  pending legal sign-off, not build_now.

@@ -1,0 +1,101 @@
+slug: foxel
+name: Foxel
+source_description: "Self-hosted private cloud storage with AI semantic search for photos and files"
+
+upstream:
+  url: https://foxel.cc
+  repo_url: https://github.com/DrizzleTime/Foxel
+  license: MIT
+  docker_image: ghcr.io/drizzletime/foxel:v2.2.2
+  compose_file_url: https://raw.githubusercontent.com/DrizzleTime/Foxel/main/compose.yaml
+  compose_file_notes: >
+    Official compose.yaml lives at the repo root
+    (github.com/DrizzleTime/Foxel/blob/main/compose.yaml) and is the file
+    the README's Quick Start section tells users to curl down. This is a
+    rolling reference to the default branch, not version-pinned — it
+    itself pulls image ghcr.io/drizzletime/foxel:latest (with pull_policy:
+    always), not a tagged release, so both the compose file and the image
+    it references track main/latest rather than a fixed version. Only one
+    variant is shipped (no GPU/CPU or sqlite/postgres split); a commented-out
+    line offers an alternate China-region registry mirror
+    (ghcr.nju.edu.cn/drizzletime/foxel:latest) for the same image, not a
+    functionally different variant.
+
+version_health:
+  latest_version: "v2.2.2"
+  latest_release_date: "2026-05-10"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Today is 2026-08-05. v2.2.2 (2026-05-10) is the newest tagged release,
+    about 3 months old. Releases were roughly monthly through the project's
+    first half of 2026 (v1.7.2 2026-01-16 through v2.2.2 2026-05-10, ten
+    tagged releases in under 4 months), but no new version tag has landed
+    since — only a rolling `dev` image tag (last pushed ~13 days ago,
+    ~2026-07-24). Commit history on `main` shows activity as recently as
+    2026-07-24 (dependency bumps plus small feature/fix commits), so the
+    project is not dormant, but the pace of cut releases has visibly slowed
+    relative to the Jan-May cadence. Repo is young (first tag Jan 2026, ~1.0k
+    GitHub stars, 91 forks) with no maintenance-only or EOL signal.
+
+catalogue_fit:
+  categories: [media, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Immich is the closest existing recipe (also AI-search-over-photos), but
+    Immich is scoped to mobile photo/video backup and organizing. Foxel is a
+    general-purpose private cloud drive (Nextcloud-style unified browser for
+    local storage, S3, WebDAV, SFTP/FTP, Google Drive/OneDrive/Dropbox,
+    Telegram, AList) with AI semantic search layered across all file types,
+    not just photos. None of the current 24 recipes cover general
+    multi-backend cloud storage, so Foxel would fill that gap; the overlap
+    with Immich is real but partial (photo AI search vs. general file
+    storage AI search).
+  usefulness: medium
+  usefulness_rationale: >
+    Self-hosted "own your files" cloud storage is a consistently popular
+    self-hosting want, and the AI semantic search angle differentiates it
+    from a plain file browser. Capped at medium rather than high because
+    full semantic search depends on configuring an external embedding
+    provider (OpenAI-compatible API key) and a vector database (Milvus or
+    Qdrant) — the headline AI feature isn't fully usable out of the box
+    the way it is for Immich, which ships local ML models.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECRET_KEY, TEMP_LINK_SECRET_KEY]
+  secrets_expressible_today:
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: TEMP_LINK_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Full AI semantic search requires the customer to supply an external
+      embedding-provider API key (OpenAI-compatible) with no input channel
+      today; this is not a hard blocker on the base app (storage/browsing
+      works without it) but means the app's headline feature would ship
+      non-functional out of the box.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Foxel is mechanically simple to install today: one container
+  (ghcr.io/drizzletime/foxel:v2.2.2), a single HTTP port (8088→80, Traefik
+  friendly), SQLite plus an embedded Milvus Lite vector store with no
+  required external database, and a first-boot setup wizard where the
+  customer creates their own admin username/password interactively through
+  the app's own UI — the same no-boot-secret pattern already used for
+  gitea and Immich, so it is not blocked by the root-password-hash /
+  basic-auth-only mechanism. The compose file's internal signing keys
+  (SECRET_KEY, TEMP_LINK_SECRET_KEY) are trivially server-generated with no
+  customer input needed. The catch is the marquee AI semantic search
+  feature: it needs an externally-configured embedding provider (API key)
+  and optionally a standalone Milvus/Qdrant instance, neither of which have
+  a customer-input channel today, so a shipped recipe would boot fine but
+  land with search effectively disabled until a customer manually configures
+  it post-install. Combined with a recent slowdown in tagged releases (last
+  one 3 months ago against a prior near-monthly cadence), recommend
+  build_with_caveats rather than build_now.

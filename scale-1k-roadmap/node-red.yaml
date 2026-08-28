@@ -1,0 +1,95 @@
+slug: node-red
+name: Node-RED
+source_description: "Low-code visual tool for wiring IoT devices, APIs, and online services"
+
+upstream:
+  url: https://nodered.org/
+  repo_url: https://github.com/node-red/node-red
+  license: Apache-2.0
+  docker_image: nodered/node-red
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists, in either the main
+    node-red/node-red repo or the node-red/node-red-docker repo (which
+    builds the official nodered/node-red image; checked root and the
+    .docker/ and docker-custom/ directories there, neither contains a
+    compose file). The official docs page
+    (nodered.org/docs/getting-started/docker) shows an inline example
+    Docker Compose YAML snippet (named docker-compose-node-red.yml in the
+    prose) for reference, but it is not a file the project publishes,
+    hosts, or versions anywhere — a user must copy the snippet and save it
+    themselves. That does not qualify as an official compose file per this
+    task's bar, so recording null rather than pointing at the docs-page
+    snippet.
+
+version_health:
+  latest_version: "5.0.4"
+  latest_release_date: 2026-07-30
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.0.4 published 2026-07-30, 6 days before today (2026-08-05), part of a
+    same-day patch burst (5.0.2, 4.1.12, 5.0.3, 5.0.4, 4.1.13 all landed
+    2026-07-30 per npm registry timestamps). Two release lines are
+    maintained in parallel: 5.x (5.0.0 milestone released 2026-06-09,
+    requires Node.js 22.9+, new editor) and 4.1.x (maintenance line for
+    users not yet on Node 22). GitHub repo pushed to as recently as
+    2026-08-01, 23.5k stars, 317 open issues, not archived. Long-running
+    OpenJS Foundation project with a steady multi-year release history —
+    clearly active, no EOL or maintenance-only signal.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [n8n]
+  differentiation: >
+    Both are low-code, node-based flow editors for wiring APIs/services
+    together, and both would sit in the same "automation" category — real
+    overlap on the core value prop. Node-RED differentiates with a lineage
+    and strength in IoT/hardware (MQTT, GPIO, Modbus, serial, BLE nodes) and
+    a much larger free community node ecosystem (Node-RED Library), while
+    n8n leans more toward SaaS/API business-workflow automation with a
+    built-in queue-backed execution model and commercial support offering.
+    A customer wiring together IoT devices or physical hardware would reach
+    for Node-RED specifically; a customer automating SaaS/business workflows
+    would reach for n8n. Distinct enough audiences to justify both, but the
+    catalogue should expect some customer confusion between the two given
+    the near-identical one-line pitch.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct demand (IoT/hardware integration) not fully served by
+    the existing n8n recipe, backed by a mature, very actively maintained,
+    widely-adopted (23k+ stars) OpenJS Foundation project. Not high because
+    the catalogue already has an automation-category recipe covering
+    adjacent ground, and Node-RED's typical use case (talking to local
+    IoT/hardware devices) is a slightly awkward fit for a cloud VM deployment
+    versus n8n's cloud-native SaaS focus.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Node-RED is a single-container Node.js app (official image
+  nodered/node-red, pin nodered/node-red:5.0.4) that needs only a persistent
+  /data volume and exposes one HTTP port (1880) for its editor UI — no
+  database, no extra raw ports, fully Traefik-compatible. The editor ships
+  with authentication (adminAuth) disabled by default; it is not an
+  env-var-driven login but a bcrypt-hash entry in settings.js, so the
+  straightforward path under the current mechanism is the same one used for
+  other no-built-in-login apps: gate the whole app behind a Traefik
+  basic_auth challenge derived from the customer's root password, rather
+  than trying to template a custom settings.js at install time. That makes
+  it installable_today with no blocking issues. It overlaps meaningfully
+  with the existing n8n recipe on the "low-code automation" pitch,
+  differentiated mainly by an IoT/hardware angle, but that overlap is a
+  catalogue-fit fact, not a reason to hold back the build. Recommend
+  build_now — a solid, actively maintained, low-effort recipe with a clean
+  installability path.

@@ -1,0 +1,104 @@
+slug: dittofeed
+name: Dittofeed
+source_description: "Open-source customer engagement platform for automated multi-channel messaging"
+
+upstream:
+  url: https://www.dittofeed.com/
+  repo_url: https://github.com/dittofeed/dittofeed
+  license: MIT
+  docker_image: "dittofeed/dittofeed-lite (all-in-one image; also requires postgres + clickhouse/clickhouse-server + temporalio/auto-setup as mandatory sidecars)"
+  compose_file_url: https://raw.githubusercontent.com/dittofeed/dittofeed/main/docker-compose.lite.yaml
+  compose_file_notes: >
+    Official — linked directly from the project's own self-hosting docs
+    (docs.dittofeed.com/deployment/self-hosted/docker-compose), which
+    instruct cloning the repo and running
+    `docker compose -f docker-compose.lite.yaml up -d`. This is a rolling
+    reference to the `main` branch, not version-pinned to a release tag —
+    the repo has no tagged release-asset copy of this file, so watching
+    for changes means tracking `main`, not a specific tag. The repo ships
+    three compose variants at root: docker-compose.yaml (full/dev stack),
+    docker-compose.lite.yaml (the all-in-one "lite" image + Postgres +
+    ClickHouse + Temporal, matching the `docker_image` recorded above and
+    the stack described in this file's summary/installability sections),
+    and docker-compose.ee.yaml (enterprise edition). Picked
+    docker-compose.lite.yaml since it's the one the docs recommend for
+    initial self-hosted setup and the one this recipe's installability
+    analysis is based on.
+
+version_health:
+  latest_version: "v0.23.0 (stable); v0.24.0-alpha.17 (pre-release, most recent tag overall)"
+  latest_release_date: "2025-11-30 (v0.23.0 stable); 2026-03-27 (v0.24.0-alpha.17, most recent tag of any kind)"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    The project has never cut a stable release past v0.23.0 (2025-11-30);
+    everything since has shipped only as v0.24.0-alpha.N pre-releases,
+    itself a sign the 0.24 line has been stuck in alpha for 9+ months.
+    Alpha releases and commits to `main` were frequent through
+    Dec 2025-Mar 2026 (multiple alphas some weeks apart), but the most
+    recent commit of any kind is v0.24.0-alpha.17 on 2026-03-27 — as of
+    today (2026-08-05) that is just over 4 months with zero commits,
+    following what had been a fairly active cadence. Not old enough to
+    call archived/EOL, but the sudden 4+ month silence right after a busy
+    stretch is a real slowdown worth flagging, not a project I'd call
+    confidently `active` right now.
+
+catalogue_fit:
+  categories: [marketing, communication, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does customer-engagement
+    messaging (multi-channel email/SMS/push/WhatsApp/Slack campaigns,
+    segmentation, and journey/workflow builders driven by user events).
+    n8n covers generic workflow automation but has no concept of customer
+    segments, message templates, or engagement journeys; it would be a
+    genuinely new category (marketing/CRM-adjacent) rather than a repeat
+    of an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiator for a segment (small marketing/growth teams,
+    indie SaaS builders) not served by anything else we carry, and it has
+    a proper dashboard web UI. Capped at medium because the self-hosted
+    "lite" stack is heavy for what it does (Postgres + ClickHouse +
+    Temporal + the app itself — 4 containers just to boot) and the
+    product's own alpha-for-9-months status makes it a riskier long-term
+    bet than a mature single-purpose tool.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, CLICKHOUSE_PASSWORD, SECRET_KEY, basic_auth gate credential]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: CLICKHOUSE_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Dittofeed is mechanically installable today: run it in the default
+  `anonymous` auth mode (no app-level login at all, same posture as
+  Adminer/n8n-without-basic-auth) and put the mandatory Traefik
+  basic_auth gate in front of the dashboard/API instead of using the
+  app's own `single-tenant` mode — that mode's `PASSWORD` env var wants
+  a plaintext shared password with no hash-projection support, which
+  `generated_from` cannot supply, so anonymous-mode + Traefik gate is the
+  only expressible path, not a blocker. All internal creds (Postgres,
+  ClickHouse, the session `SECRET_KEY`) are server-generated with no
+  customer input needed. Worth noting for context: the self-hosted "lite"
+  stack still needs 4 containers (app + Postgres + ClickHouse + Temporal)
+  to reach first boot — closer to immich/anytype in complexity than our
+  single-container recipes — and the upstream has gone quiet for 4+ months
+  after a busy Dec 2025-Mar 2026 stretch, with no stable release past
+  v0.23.0 and the 0.24 line still alpha-only. Neither of those is a
+  blocking issue: there are no blocking_issues and it is installable_today,
+  so recommend build_now. Watch the release cadence going forward — if the
+  silence continues past another quarter, revisit as a potential
+  dormant/maintenance-only call.

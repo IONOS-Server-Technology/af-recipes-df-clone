@@ -1,0 +1,107 @@
+slug: wakapi
+name: Wakapi
+source_description: "Self-hosted coding time tracker with statistics and productivity insights"
+
+upstream:
+  url: https://wakapi.dev/
+  repo_url: https://github.com/muety/wakapi
+  license: MIT
+  docker_image: ghcr.io/muety/wakapi
+  compose_file_url: https://github.com/muety/wakapi/blob/master/compose.yml
+  compose_file_notes: >
+    Official — README's "Docker Compose" section (under "Option 3: Use
+    Docker") links directly to this file for configuration details. This is
+    a rolling reference to the default `master` branch (no version tag or
+    release-asset pin), so it tracks whatever the file currently contains
+    rather than a specific release. Only one variant is shipped: it targets
+    PostgreSQL (not SQLite) and provisions `WAKAPI_PASSWORD_SALT`,
+    `WAKAPI_DB_PASSWORD`, and `WAKAPI_MAIL_SMTP_PASS` via Docker secrets
+    rather than plain environment variables.
+
+version_health:
+  latest_version: "2.17.5"
+  latest_release_date: "2026-07-17"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Steady near-monthly cadence throughout 2025-2026 (2.14.1 on 2025-07-18,
+    2.15.0 on 2025-09-05, 2.16.0 on 2025-10-12, 2.16.1 on 2025-11-03, 2.17.0
+    on 2025-12-29, 2.17.1 on 2026-01-21, 2.17.2 on 2026-03-01, 2.17.3 on
+    2026-04-03, 2.17.4 on 2026-05-26, 2.17.5 on 2026-07-17). Latest release
+    is about 3 weeks old as of 2026-08-05. Repo is not archived, issues/PRs
+    actively triaged, new features still landing (OIDC login, multiple API
+    keys, distroless base image) — clearly an actively maintained project.
+
+catalogue_fit:
+  categories: [developer-tools, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers personal coding-activity
+    tracking (WakaTime-compatible time-per-language/project/editor stats).
+    Gitea (source hosting) and Portainer/Uptime Kuma (infra tooling) are the
+    closest dev-facing neighbors but serve entirely different purposes.
+    Wakapi is a distinct, well-known niche (self-hosted alternative to the
+    hosted wakatime.com/WakaTime service) that developers specifically
+    search for.
+  usefulness: medium
+  usefulness_rationale: >
+    Single-container, SQLite-by-default, low-resource app with a clear,
+    recognizable use case for a developer audience — a natural fit for an
+    IDE-plugin-driven self-hosted stack. Capped at medium rather than high
+    because it is a niche personal-productivity tool (smaller addressable
+    audience than, e.g., a password manager or monitoring dashboard) and its
+    stored data (coding activity metadata) is low-sensitivity, so it doesn't
+    carry the differentiating "this needs to be self-hosted for privacy"
+    urgency some other candidates have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Wakapi has no environment variable or config option to pre-provision
+      an admin/user account (confirmed against config.default.yml and the
+      upstream README/wiki — only `WAKAPI_PASSWORD_SALT`, a pepper for
+      hashing, and `WAKAPI_ALLOW_SIGNUP`, a boolean gate on the registration
+      form, are exposed). There is no `type: password` parameter on an app
+      login to target with `generated_from: "<algo>:ROOT_PASSWORD"` — the
+      only officially documented way to get a first account is to leave
+      `WAKAPI_ALLOW_SIGNUP=true`, let the operator register through the web
+      UI, then manually flip it back to `false`. That is a first-come,
+      first-served open registration form, not an injectable credential.
+      (Note: some third-party guides claim Wakapi ships a hardcoded default
+      `admin`/`admin` account on first boot; this could not be confirmed
+      against the current official README, wiki, or config.default.yml and
+      appears to be outdated or conflated with an unofficial fork/image —
+      treated here as unverified, not as the fixed-default-credential case
+      the schema would otherwise treat as installable via a `basic_auth`
+      gate alone.)
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app (using the
+      root-password projection) would close off the registration race from
+      the public internet, but per the precedent set in `apps-gaps/2fauth.yaml`
+      (the structurally identical case), that only moves the same open
+      self-registration race one layer in — anyone who reaches the app
+      through the gate is still racing to register the one account, and
+      today's mechanism has no channel to hand the customer a second,
+      distinct credential for the app's own login beyond the single
+      root-password projection already spent on the gate itself.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Wakapi is an active, well-maintained, lightweight single-container app
+  (SQLite by default) that would add a genuinely new category to the
+  catalogue — self-hosted developer time tracking — with no overlap among
+  the current 24 recipes. It fails the installability test on the same
+  platform-mechanism grounds as 2FAuth: the app provisions its one admin
+  account via an open, unauthenticated self-registration form with no
+  env-var hook, so neither `generated_from:ROOT_PASSWORD` nor a `basic_auth`
+  gate alone gives the customer an exclusive, platform-provisioned
+  credential. Revisit once the platform supports injecting a preset admin
+  login via env var (would require an upstream feature request) or a second
+  customer-facing credential channel beyond the single root-password
+  projection.

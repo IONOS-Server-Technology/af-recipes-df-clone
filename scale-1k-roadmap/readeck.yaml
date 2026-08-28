@@ -1,0 +1,82 @@
+slug: readeck
+name: Readeck
+source_description: "Self-hosted read-it-later app that archives readable web content forever"
+
+upstream:
+  url: https://readeck.org/
+  repo_url: https://codeberg.org/readeck/readeck
+  license: AGPL-3.0
+  docker_image: codeberg.org/readeck/readeck
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The upstream repo
+    (codeberg.org/readeck/readeck) has no compose.yaml/docker-compose.yaml
+    at its root or under any subdirectory (checked root, docs/, tools/) —
+    the README's Docker section only documents a bare `docker run --rm -ti
+    -p 8000:8000 -v readeck-data:/readeck codeberg.org/readeck/readeck:latest`
+    command. The project's docs site does publish compose files at
+    readeck.org/en/docs/compose (a SQLite-only variant and a PostgreSQL
+    variant), but that page explicitly labels them "community provided
+    configuration files" and credits an outside contributor
+    (@ghost_of_cerberus) for the initial files — not an official
+    project-maintained artifact, so not adopted here per the "official
+    only" rule.
+
+version_health:
+  latest_version: "0.22.3"
+  latest_release_date: "2026-04-16"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release 0.22.3 (2026-04-16), ~3.5 months before today
+    (2026-08-05). Preceding releases show a steady roughly-monthly cadence
+    (0.21.5 2025-12-19, 0.21.6 2026-01-15, 0.22.0 2026-03-04, 0.22.1
+    2026-03-06, 0.22.2 2026-03-08, 0.22.3 2026-04-16), each shipping real
+    feature work (TOTP support, mTLS, bookmark annotations, import
+    adapters). No release since 0.22.3 is a bit longer than the typical gap
+    but not dramatically so, and there is no archival/EOL signal on the
+    repo — treating as active rather than slowing.
+
+catalogue_fit:
+  categories: [productivity, archiving]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover read-it-later / web-content
+    archiving. Readeck saves articles, images, and videos from URLs into a
+    permanent, readable, ad-free local copy (a self-hosted Pocket/Wallabag
+    alternative) — distinct from Paperless-ngx (scanned personal documents)
+    and from ArchiveBox-style full-page snapshotting (not currently in the
+    catalogue either). Fills a real, broadly-understood consumer use case.
+  usefulness: high
+  usefulness_rationale: >
+    Read-it-later / "save this for later, keep it forever" is a mainstream
+    self-hosting want (explicitly pitched by upstream as a Pocket/Wallabag
+    replacement), lightweight (single Go binary, bundled SQLite, one HTTP
+    port), and has no equivalent anywhere in the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Readeck is a single-container, single-HTTP-port (8000) Go app with a
+  bundled SQLite database under /readeck — no external DB service needed,
+  matching the Uptime Kuma / Actual Budget single-container pattern. It has
+  no baked-in admin credential and no env var carrying a customer secret at
+  boot: on first browser visit, the customer is guided through an
+  onboarding page where they create their own admin account directly in
+  the app's UI, exactly like Actual Budget's first-visit setup wizard. That
+  means af-api needs to pass no customer-specific secret at all — just the
+  domain param (plus READECK_ALLOWED_HOSTS and READECK_USE_X_FORWARDED=true
+  for correct behavior behind Traefik) — clearing the current /compose
+  constraint with zero blocking issues. AGPL-3.0 licensed, hosted on
+  Codeberg (readeck/readeck) with an official container image, active and
+  steadily released (latest 0.22.3, ~3.5 months old, no EOL signal).
+  Recommend building the recipe now: it's a clean, differentiated addition
+  with no overlap in the current 24-recipe catalogue.

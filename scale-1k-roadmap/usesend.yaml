@@ -1,0 +1,114 @@
+slug: usesend
+name: useSend
+source_description: "Open-source transactional and marketing email sending platform"
+
+upstream:
+  url: https://usesend.com/
+  repo_url: https://github.com/usesend/usesend
+  license: AGPL-3.0
+  docker_image: usesend/usesend
+  compose_file_url: https://github.com/usesend/usesend/blob/main/docker/prod/compose.yml
+  compose_file_notes: >
+    Official — linked directly from the project's own docs (Docker setup
+    page at docs.usesend.com/get-started/set-up-docker, "Download the
+    Docker Compose file from the useSend repository"). The link is a
+    rolling reference to the default branch (`blob/main/...`), not
+    version-pinned to a release tag or commit SHA — it will always reflect
+    whatever is currently on main. The repo ships three compose variants
+    under `docker/` (`dev`, `prod`, `testing`); picked `docker/prod/compose.yml`
+    since that's the one the official docs page points to and matches the
+    production Postgres+Redis+app(+MinIO) stack this analysis already
+    describes.
+
+version_health:
+  latest_version: "v1.9.6"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.9.6 published 2026-07-23, ~13 days before this analysis
+    (2026-08-05). Prior releases: v1.9.5 (2026-07-12), v1.9.4 (2026-05-18),
+    v1.9.3 (2026-05-17), v1.9.2 (2026-03-22) — roughly monthly with an
+    occasional faster back-to-back patch pair. Repo pushed_at is
+    2026-07-24 and the GitHub Actions/issue tracker shows continued
+    commit activity (e.g. PRs merged into v1.9.5/v1.9.6 in July 2026).
+    Not archived, no EOL or maintenance-mode announcement found. Single
+    primary maintainer (KMKoushik) but activity is steady and recent.
+
+catalogue_fit:
+  categories: [email, developer-tools, marketing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [listmonk, keila, emailengine]
+  differentiation: >
+    None of the current 24 shipped recipes cover transactional/marketing
+    email sending. useSend is closest in spirit to a self-hosted
+    Resend/Postmark/SendGrid alternative: REST API + SMTP endpoint for
+    transactional email, plus a marketing-campaign/contact-list builder on
+    top, all riding on the customer's own AWS SES account for actual
+    delivery. `apps-gaps/listmonk.yaml` and `apps-gaps/keila.yaml` cover
+    the newsletter/campaign-only niche without a transactional-API angle;
+    `apps-gaps/emailengine.yaml` covers a different niche (proxying
+    existing IMAP/SMTP mailboxes to a REST API, not composing/sending new
+    mail). useSend sits between these — a developer-facing "email
+    infrastructure" product — considered here on its own merits, not a
+    duplicate of any of the three.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct developer-facing use case (self-hosted transactional +
+    marketing email API) with no functional overlap in the current
+    catalogue, and an active, growing project (4.6k+ GitHub stars). Value
+    is capped for our customer base by two mandatory external dependencies
+    the app cannot function without at all: an AWS account (for SES/SNS)
+    and a GitHub OAuth app registration (the only supported login method) —
+    see blocking_issues.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - GITHUB_ID (GitHub OAuth app credential — the only supported login method)
+    - GITHUB_SECRET (GitHub OAuth app credential — the only supported login method)
+    - AWS_ACCESS_KEY_ID (customer's own AWS account, used for SES send + SNS delivery-status callbacks)
+    - AWS_SECRET_ACCESS_KEY (customer's own AWS account, used for SES send + SNS delivery-status callbacks)
+    - NEXTAUTH_SECRET
+  secrets_expressible_today:
+    - secret: NEXTAUTH_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      useSend has no email/password login — authentication is GitHub OAuth
+      only (the docs state plainly: "useSend uses GitHub authentication for
+      login... If you want email/password login, please help us out with
+      the code"). Login requires a GitHub OAuth App registered by the
+      customer (GITHUB_ID/GITHUB_SECRET) with a callback URL pointing at
+      the instance's own domain, which by definition can't be known until
+      after the instance is provisioned — a chicken-and-egg OAuth app
+      registration flow with no input channel in `/compose` today, and not
+      something `generated_from` or `basic_auth` can substitute for since
+      it isn't a password at all.
+    - >
+      The app is non-functional for its core purpose without AWS SES (to
+      send mail) and SNS (to receive delivery/bounce callbacks) credentials
+      — AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY for an AWS account the
+      customer must separately own and configure (attach
+      AmazonSESFullAccess/AmazonSNSFullAccess policies, verify a sending
+      domain, request SES production access). This is an arbitrary external
+      third-party credential with no input channel today, same class of
+      blocker as an API key.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  useSend is an actively maintained (monthly release cadence, most recent
+  tag 13 days old), AGPL-3.0 self-hosted transactional/marketing email
+  platform with an official Docker image and a Postgres+Redis+app stack
+  structurally similar to recipes/n8n, exposing one HTTP port that would
+  sit fine behind Traefik. It fills a real gap — nothing in the current
+  24-recipe catalogue does transactional email sending — but cannot ship
+  today: login is GitHub-OAuth-only with no email/password fallback (a
+  chicken-and-egg OAuth app registration problem, not just an unsupported
+  hash algorithm), and the app cannot send any mail at all without a
+  customer-supplied AWS SES/SNS account. Both are external-credential input
+  problems with no channel in `/compose` today. Recommend
+  blocked_on_platform — revisit if a generic customer-supplied
+  external-credential/OAuth-app input channel is added to the platform.

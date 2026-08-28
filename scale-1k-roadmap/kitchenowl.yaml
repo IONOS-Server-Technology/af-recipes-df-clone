@@ -1,0 +1,85 @@
+slug: kitchenowl
+name: KitchenOwl
+source_description: "Self-hosted shared grocery list, recipe manager, and meal planner"
+
+upstream:
+  url: https://kitchenowl.org
+  repo_url: https://github.com/TomBursch/kitchenowl
+  license: AGPL-3.0
+  docker_image: tombursch/kitchenowl
+  compose_file_url: https://raw.githubusercontent.com/TomBursch/kitchenowl/main/docker-compose-single.yml
+  compose_file_notes: >
+    Official, from the project's own repo root. The project ships two
+    compose files documented side-by-side at
+    docs.kitchenowl.org/latest/self-hosting/: docker-compose.yml (split
+    front+back containers, images tombursch/kitchenowl-web +
+    tombursch/kitchenowl-backend) and docker-compose-single.yml (one
+    all-in-one container, image tombursch/kitchenowl:latest). Picked
+    docker-compose-single.yml because it matches this recipe's
+    installability analysis, which is built around the single
+    tombursch/kitchenowl all-in-one image. Both files use sqlite by
+    default; a separate advanced-options doc page (not a shipped compose
+    file) covers adding Postgres. This is a rolling reference to the
+    `main` branch, not version-pinned — the file has no release-tag or
+    /releases/latest/download/ variant, so this URL will always reflect
+    whatever is currently on main.
+
+version_health:
+  latest_version: "v0.7.10"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v0.7.10 shipped 2026-07-26, ~10 days before this analysis
+    (2026-08-05). Release history over the last 12 months (v0.7.4 through
+    v0.7.10) shows a release roughly every 1-2 months, with a burst of three
+    releases in a single week around v0.7.7/v0.7.8/v0.7.9-era work. No signs
+    of maintenance-only mode or slowdown; CI still publishes `latest`,
+    `beta`, and `dev` tags alongside pinned version tags on every release.
+
+catalogue_fit:
+  categories: [productivity, household]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover grocery lists, recipe management,
+    or meal planning — this is a genuinely new category (household/personal
+    organization) rather than a duplicate of anything shipping today.
+  usefulness: medium
+  usefulness_rationale: >
+    Niche but well-defined use case (shared household grocery/recipe/meal
+    planning) with a polished official mobile app ecosystem (Flutter, iOS +
+    Android) that would drive repeat engagement with a self-hosted instance
+    — a good "sticky" reason to keep paying for a server. Not as broadly
+    applicable as security/monitoring/automation tools already in the
+    catalogue, hence medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - JWT_SECRET_KEY
+    - initial_access_gate
+  secrets_expressible_today:
+    - secret: JWT_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: initial_access_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  KitchenOwl is mechanically installable today: the single required secret,
+  JWT_SECRET_KEY, is a patternless signing key the app never surfaces to a
+  user and can be server-generated with no customer input. KitchenOwl has no
+  admin-account env var of its own — the first person to open the app after
+  deploy self-registers and becomes the household owner, so (like n8n,
+  Open WebUI, and Immich) the install window needs a Traefik basic_auth gate
+  projected from the customer's root password to stop a third party from
+  claiming that owner slot before the real customer does. Runs as a single
+  official all-in-one image (tombursch/kitchenowl) on one HTTP port, so it
+  drops behind Traefik on <slug>.<base_domain> exactly like our existing
+  single-container web-app recipes (uptime-kuma, vaultwarden). Upstream is
+  active with regular releases and no overlap with the current catalogue —
+  a reasonable build_now candidate.

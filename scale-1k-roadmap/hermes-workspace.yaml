@@ -1,0 +1,120 @@
+slug: hermes-workspace
+name: Hermes Workspace
+source_description: "Open-source web UI command center for the Hermes AI agent"
+
+upstream:
+  url: https://hermes-workspace.com/
+  repo_url: https://github.com/outsourc-e/hermes-workspace
+  license: MIT
+  docker_image: ghcr.io/outsourc-e/hermes-workspace
+  compose_file_url: https://raw.githubusercontent.com/outsourc-e/hermes-workspace/main/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the exact file the project's own README "Docker
+    Compose" quickstart (the first of its three documented install paths)
+    tells users to run via `docker compose up` after `cp .env.example .env`.
+    Rolling reference to the `main` branch, not version-pinned (the repo
+    has no tagged releases/release-asset compose file to link instead —
+    v2.3.0 etc. are git tags only, no GitHub Releases with attached
+    assets). Pulls the two pre-built images by default
+    (nousresearch/hermes-agent:latest and
+    ghcr.io/outsourc-e/hermes-workspace:latest), which is the variant a
+    customer install should use. The repo also ships
+    docker-compose.dev.yml, an overlay meant to be layered on top with
+    `-f docker-compose.yml -f docker-compose.dev.yml` for building the
+    workspace image from local source during development — not an
+    alternative for production/first-boot use, so it was not chosen.
+
+version_health:
+  latest_version: "v2.3.0"
+  latest_release_date: "2026-05-08"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v2.3.0 shipped 2026-05-08, ~3 months before today (2026-08-05) — a clear
+    slowdown from the release pace that preceded it (v1.0.0 on 2026-04-10,
+    then five more tags through v2.3.0 inside the following four weeks).
+    Not dormant, though: commit activity on `main` (dependency bumps, test
+    fixes, feature PRs) continues at least through 2026-07-05, one month
+    ago, and CHANGELOG.md has an "Unreleased" entry for a docker-pull
+    default change. Repo is not archived. Reads as active development that
+    has simply stopped cutting tagged releases, not maintenance-only or EOL.
+
+catalogue_fit:
+  categories: [ai, automation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [hermes-agent]
+  differentiation: >
+    Hermes Workspace is a richer front-end for the exact same backend
+    already in the catalogue as recipes/hermes-agent: it runs vanilla
+    `nousresearch/hermes-agent` and adds a second container (chat with SSE
+    streaming, a Monaco-based file browser, a cross-platform PTY terminal,
+    a memory/skills browser, an MCP catalog, and a "Swarm"/"Conductor"
+    multi-agent orchestration UI) on top of it. It does not introduce a new
+    backend capability — a customer who wants the Hermes agent already has
+    it via the existing recipe with its own dashboard. The differentiator
+    is UI depth (terminal + file access + multi-agent ops) rather than a
+    new job-to-be-done, and that added depth is also what drives the
+    installability problem below.
+  usefulness: medium
+  usefulness_rationale: >
+    The extra surface (in-browser terminal, file browser, multi-agent
+    Swarm/Conductor control plane) is genuinely more capable than the
+    existing hermes-agent dashboard for a power user who wants to actively
+    operate the agent rather than just message it — but it duplicates the
+    same underlying product already in the catalogue, and the added
+    terminal/exec access raises the stakes of getting the auth story right
+    (see below), which caps this at medium rather than high.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [HERMES_PASSWORD, API_SERVER_KEY]
+  secrets_expressible_today:
+    - secret: API_SERVER_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against src/server/auth-middleware.ts (verifyPassword()):
+      HERMES_PASSWORD is compared to the login form submission with a
+      plain Buffer/timingSafeEqual comparison — there is no hashing on
+      either side. The app never hashes the configured secret, so it
+      cannot accept an argon2/bcrypt digest as its "password"; the value
+      in the env var IS the literal string the customer must type at
+      login. `generated_from: "<algo>:ROOT_PASSWORD"` only ever projects a
+      hash, never the customer's plaintext root password, so it cannot
+      target this parameter — this is the "genuine requirement for the
+      plaintext password" case called out as a hard structural blocker in
+      SCHEMA.md, not an unsupported-hash-algorithm gap.
+    - >
+      A Traefik `basic_auth: true` gate does not fully substitute either:
+      the app has its own login by design (server-entry.js refuses to bind
+      a non-loopback host at all unless HERMES_PASSWORD is set, specifically
+      to protect "a high-privilege control plane: terminals, files,
+      agents"). Satisfying that boot-time check without a real customer-
+      known secret would require setting HERMES_ALLOW_INSECURE_REMOTE=1 to
+      bypass the app's own fail-closed guard and relying solely on the
+      Traefik gate — leaving the container's full terminal/file/exec
+      surface unauthenticated at the application layer, one hop behind
+      whatever fronts it. That is a materially bigger downside than the
+      basic_auth pattern used for apps with no login of their own (Adminer,
+      n8n), where the app has no privileged local-shell capability to begin
+      with.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Hermes Workspace is a real, actively-developed (if no-longer-frequently-
+  tagged) two-container add-on UI for the Hermes Agent already in the
+  catalogue via recipes/hermes-agent — chat, file browser, terminal, memory/
+  skills inspector, and multi-agent Swarm/Conductor orchestration in one
+  workspace. It fails the installability test on its own login: HERMES_PASSWORD
+  is compared as a literal plaintext string (Node's timingSafeEqual over
+  raw buffers, no hashing), so `generated_from:ROOT_PASSWORD` — which only
+  ever carries a hash — cannot supply it, and there is no other channel for
+  the customer to set it at order time. Bypassing the app's own auth guard
+  to lean on a Traefik basic_auth gate instead would leave a
+  terminal/file/exec control plane running with no application-level
+  authentication, which is a bigger risk than the apps that pattern was
+  designed for. This is a hard structural blocker, not just a lower
+  priority — revisit only if upstream adds hash-based comparison for
+  HERMES_PASSWORD.

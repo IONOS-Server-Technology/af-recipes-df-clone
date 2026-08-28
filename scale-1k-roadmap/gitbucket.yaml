@@ -1,0 +1,106 @@
+slug: gitbucket
+name: GitBucket
+source_description: "Open-source self-hosted Git platform with a GitHub-style interface on the JVM"
+
+upstream:
+  url: https://gitbucket.github.io/
+  repo_url: https://github.com/gitbucket/gitbucket
+  license: Apache-2.0
+  docker_image: gitbucket/gitbucket:4.38.4
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. GitBucket's own README documents
+    only WAR/servlet-container installation. The project's GitHub wiki
+    "Docker" page (github.com/gitbucket/gitbucket/wiki/Docker) documents a
+    single `docker run -d -p 8080:8080 -v \`pwd\`/gitbucket-data:/gitbucket
+    gitbucket/gitbucket` command, not a compose file, and explicitly notes
+    that docker-compose is only relevant if you bring your own external
+    database setup (no example given). The image's source repo,
+    github.com/gitbucket/gitbucket-docker, contains only a Dockerfile and
+    Dockerfile-nightly at its root — no docker-compose.yaml/yml anywhere in
+    it. No community-maintained compose file was adopted either, since none
+    was found in the official channels checked.
+
+version_health:
+  latest_version: "4.46.1"
+  latest_release_date: "2026-04-18"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    The GitBucket project itself is still active at the source level:
+    4.45.0 (Jan 2026), 4.46.0 (Mar 2026), and 4.46.1 (18 Apr 2026) show a
+    steady ~6-8 week release cadence through early 2026. However, 4.46.1
+    is now ~3.5 months old as of this analysis (2026-08-05) with no newer
+    tag, longer than the established gap between prior releases, so
+    "slowing" rather than "active" pending confirmation of a mid-2026
+    release. Separately, and more importantly for this recipe's viability:
+    the official Docker Hub image `gitbucket/gitbucket` has NOT been
+    rebuilt in over 3 years — its newest tag is still 4.38.4, roughly
+    8 minor versions and 3+ years behind the current 4.46.1 WAR release.
+    Upstream's own README documents only `java -jar gitbucket.war` or
+    deployment to a servlet container (Jetty/Tomcat/JBoss) as supported
+    installation methods; Docker is not mentioned as an official path at
+    all. The Docker Hub image appears to be a community/CI artifact that
+    was abandoned mid-2022 even though the underlying project kept
+    shipping source releases — a distribution-level dormancy that would
+    not be obvious from the app's GitHub activity alone.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [gitea, opengist]
+  differentiation: >
+    GitBucket's pitch is a GitHub-style UI plus GitHub API compatibility
+    (useful for reusing GitHub-ecosystem tooling/plugins) on a Scala/JVM
+    stack instead of Gitea's Go stack. Functionally the two overlap almost
+    completely for a self-hoster: git hosting, PRs, issues, wiki, web UI,
+    optional SSH access. GitBucket does not add a capability Gitea (already
+    in the catalogue, actively maintained image, lighter footprint) lacks;
+    if anything it trades a smaller, faster Go binary for a heavier JVM
+    runtime for the sake of GitHub API parity most self-hosters won't use.
+  usefulness: low
+  usefulness_rationale: >
+    Gitea already covers this need in the catalogue with a current,
+    actively-rebuilt official image and lower resource footprint. GitBucket
+    would be a near-duplicate offering with no meaningful workflow
+    differentiation for our target audience, and (see installability) the
+    only Docker artifact available to build a recipe on is itself 3+ years
+    stale.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [GITBUCKET_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: GITBUCKET_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No actively maintained official Docker image exists. The only image
+      on Docker Hub (`gitbucket/gitbucket`) was last pushed ~3 years ago at
+      version 4.38.4, while the project has continued releasing through
+      4.46.1 (Apr 2026) via WAR file only. Pinning a recipe to 4.38.4 would
+      ship a multi-year-old build missing since-added security fixes (e.g.
+      the SHA-256 webhook signature support added in 4.46.0). There is no
+      upstream-provided current image to pin to, and hand-rolling and
+      maintaining our own Dockerfile around the WAR file is out of scope
+      for a recipe (we pin to upstream-provided image tags, we don't
+      invent/maintain our own container builds).
+    - >
+      GitBucket's default admin account is a hardcoded root/root login with
+      no documented env var or config-time override for the initial
+      password — not a hard blocker on its own (a fixed default credential
+      can sit behind a Traefik `basic_auth` gate per SCHEMA.md), but it
+      compounds the stale-image problem: the shipped GitBucket build itself
+      would be missing over three years of patches behind that one gate.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  GitBucket the open-source project is still alive (steady releases through
+  4.46.1 in Apr 2026), but the only Docker artifact available to build a
+  recipe on has been dormant for 3+ years and is 8 minor versions behind
+  current — upstream itself only documents WAR/servlet-container
+  installation, not Docker. Hand-rolling and maintaining our own Dockerfile
+  around the WAR file is out of scope for a recipe, so there is no
+  trustworthy pinned image to build on today. Not recommended.

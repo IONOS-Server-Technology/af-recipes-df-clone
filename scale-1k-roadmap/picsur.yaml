@@ -1,0 +1,113 @@
+slug: picsur
+name: Picsur
+source_description: "Picsur is a self-hosted image hosting service with shareable links"
+
+upstream:
+  url: https://picsur.org/
+  repo_url: https://github.com/CaramelFur/Picsur
+  license: AGPL-3.0
+  docker_image: ghcr.io/caramelfur/picsur:0.5.6
+  compose_file_url: https://github.com/CaramelFur/Picsur/blob/master/README.md
+  compose_file_notes: >-
+    Picsur ships no standalone docker-compose.yaml/.yml file — confirmed
+    absent at the repo root (both filenames 404 on raw.githubusercontent.com
+    for the master branch) and no docker/, deploy/, or contrib/ directory
+    exists. The only official compose configuration is a single inline
+    example embedded directly in the README's Docker section (image
+    ghcr.io/caramelfur/picsur, one Postgres 17-alpine sidecar, no
+    GPU/CPU or sqlite/postgres variants offered — this is the only
+    variant). The link above points to the README itself (there is no
+    extractable raw file to link to) and is a rolling reference to the
+    default (master) branch, not version-pinned — it will reflect
+    whatever the maintainer last edited, though per version_health the
+    project is explicitly declared unmaintained so drift risk is low.
+
+version_health:
+  latest_version: "0.5.6"
+  latest_release_date: "2024-11-01"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >-
+    Latest tagged release (and matching ghcr.io image tag) is v0.5.6,
+    published 2024-11-01 — about 21 months before today (2026-08-05), with
+    no release since. The repo itself is not archived and saw one more
+    commit after that on 2025-10-12 ("Clarify project maintenance status in
+    README"), but that commit's own content is the tell: the README now
+    states in bold, right under the title, "NOT MAINTAINED, see the FAQ",
+    with the maintainer quoted as "Nope, not anymore, I simply haven't got
+    the time or energy" and inviting someone else to fork or take over.
+    The software was also never past self-declared "Beta" status. This is
+    an explicit upstream maintenance-mode/abandonment statement, not just
+    an inferred gap from release timing.
+
+catalogue_fit:
+  categories: [productivity, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the current 24 recipes cover ad-hoc image upload + shareable-
+    link hosting (the "Imgur clone" / ShareX-screenshot-tool niche). Immich
+    is a personal photo/video backup-and-management suite with AI search,
+    a fundamentally different use case from Picsur's throwaway
+    upload-and-link workflow; Opengist covers text/code snippets, not
+    images. That said, this exact niche was already gap-analyzed for
+    `apps-gaps/chibisafe.yaml`, which covers the identical "upload a file,
+    get a shareable link" pitch (ShareX-compatible, invite-only vaults) and
+    is actively maintained (v6.5.5, 2026-07-05) versus Picsur's abandoned
+    v0.5.6 (2024-11-01). If only one recipe in this niche is built, Chibisafe
+    is the stronger pick on maintenance health alone; per the "overlapping
+    apps are fine" policy this isn't a reason to reject Picsur outright, but
+    it is directly relevant to a build-priority call between the two.
+  usefulness: low
+  usefulness_rationale: >-
+    The "quick self-hosted Imgur" use case has real demand (ShareX users,
+    screenshot workflows), but Picsur is explicitly unmaintained, never
+    left beta, and a materially healthier competitor covering the same
+    pitch (Chibisafe) already exists in the gap-analysis backlog. Shipping
+    a recipe on top of an app the author has publicly abandoned is a poor
+    long-term bet regardless of mechanical installability.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, PICSUR_DB_PASSWORD, PICSUR_JWT_SECRET]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: PICSUR_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: PICSUR_JWT_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >-
+      Picsur's only login is a fixed "admin" username whose password comes
+      from the `PICSUR_ADMIN_PASSWORD` env var. Checked against the
+      backend source (`user-db.module.ts` / `user-db.service.ts`): this
+      value is consumed as plaintext at container start and bcrypt-hashed
+      internally by the app itself — there is no way to hand it an
+      already-hashed credential, so `generated_from` (which only ever
+      produces a hash of ROOT_PASSWORD) cannot be projected into it
+      directly. Workaround: generate `PICSUR_ADMIN_PASSWORD` randomly
+      server-side (customer never needs it) and put the whole app behind a
+      Traefik `basic_auth: true` gate carrying the actual customer-facing
+      credential (bcrypt hash of ROOT_PASSWORD) — the same pattern used
+      for Chibisafe and Alerta's equivalent plaintext-only admin passwords.
+      This is a design-choice workaround, not a hard blocker.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >-
+  Picsur is mechanically installable today: it's a single app container
+  (ghcr.io/caramelfur/picsur) plus Postgres behind one HTTP port (8080),
+  no extra raw ports, no external API key or OAuth requirement. Its
+  plaintext-only admin-password env var can't take a `generated_from` hash
+  directly — the standard workaround (random server-generated admin
+  password internally, real customer credential enforced via a Traefik
+  `basic_auth` gate, the same pattern used for Chibisafe and Alerta) makes
+  it installable now, but that workaround is the caveat: build_with_caveats.
+  Separately, the maintainer has explicitly and publicly declared the
+  project "NOT MAINTAINED" (README, as of the 2025-10-12 commit) and it
+  never progressed past self-declared beta; that upstream-health fact and
+  the overlap with `chibisafe`'s identical "upload image/file, get
+  shareable link" niche are worth noting for a build-priority call but are
+  not inputs to this mechanism-driven recommendation.

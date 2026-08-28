@@ -1,0 +1,96 @@
+slug: dhis2
+name: DHIS2
+source_description: "Open-source health information platform used by national HMIS programs worldwide"
+
+upstream:
+  url: https://dhis2.org
+  repo_url: https://github.com/dhis2/dhis2-core
+  license: BSD-3-Clause
+  docker_image: "dhis2/core (official, on Docker Hub — pin to a specific patch tag, e.g. 2.43.1, not :latest or a bare major-line tag like 2.43)"
+  compose_file_url: "https://raw.githubusercontent.com/dhis2/docker-deployment/master/docker-compose.yml"
+  compose_file_notes: >-
+    dhis2-core (github.com/dhis2/dhis2-core) also ships a docker-compose.yml
+    at its repo root, but that one is explicitly a dev/eval file — the
+    developer portal's Docker tutorial (developers.dhis2.org/docs/tutorials/dhis2-docker)
+    that links back to it says in-file "DO NOT use this Docker Compose file
+    in production!" and points instead to dhis2/docker-deployment for real
+    deployments. docker-deployment is the official dhis2-org repo built for
+    that purpose (DHIS2 + Postgres/PostGIS + Traefik, with optional
+    monitoring/APM overlays), so its docker-compose.yml is the one recorded
+    here rather than the dhis2-core one. It is a rolling reference to the
+    `master` branch, not a version-pinned tag — the repo's own README
+    describes master as v1.0, "intended for public testing and evaluation"
+    and "NOT yet recommended for production or critical data" (v2.0 work is
+    on a separate development-2.0 branch), so this should be watched as a
+    moving target, not treated as a stable release artifact.
+
+version_health:
+  latest_version: "2.43.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), 2.43.1 shipped 2 days ago; a 2.43.1.0-rc
+    candidate preceded it 6 days ago. DHIS2 publishes one major version per
+    year (v43 is current, following v42 and v41) but keeps at least the
+    last two-to-three major lines under active patch support in parallel —
+    the `dhis2/core` Docker Hub tags show 2.41.9 pushed about a month ago
+    and 2.40.12 also about a month ago, alongside the 2.43.x line. This is
+    a well-resourced, actively maintained project (University of Oslo/HISP
+    Centre) with dense, overlapping release trains rather than a single
+    thin cadence — clearly `active`, not slowing or dormant.
+
+catalogue_fit:
+  categories: [healthcare, data-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches health-sector data
+    management — the closest thing by shape (Postgres-backed single web
+    app, e.g. n8n/paperless-ngx) is a workflow/document tool, not a
+    domain-specific aggregate + individual-tracker health data platform.
+    DHIS2 is the de facto standard HMIS (health management information
+    system) for national ministries of health and NGOs across 80+
+    countries, so it would open a genuinely new customer segment (public
+    health / global health / government) rather than compete with an
+    existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct value for a specific institutional audience (health
+    ministries, NGOs, health-data implementers) that is not served by
+    anything else we carry — but that audience is narrow relative to the
+    general self-hosting/SMB customer the rest of the catalogue targets,
+    and DHIS2 is a heavyweight Java/Tomcat + Postgres+PostGIS stack (docs
+    recommend several GB of RAM and real CPU headroom for anything beyond
+    a toy instance) rather than a lightweight single-purpose tool. Capped
+    at medium: high value to the niche it fits, low relevance outside it.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DHIS2 (official `dhis2/core` image) is mechanically installable today: a
+  fresh instance auto-creates its own Postgres+PostGIS schema on first boot
+  with no external database dump required, needs only a generated,
+  non-customer-facing Postgres password, and exposes a single HTTP port
+  (8080, configurable via `DHIS2_SERVER_BASE_URL`) that works behind
+  Traefik like our other single-domain recipes. The catch is its login: a
+  fresh instance always seeds the fixed, well-known `admin:district`
+  credential with no environment variable or first-boot parameter to
+  override it, so — following the same pattern already used elsewhere in
+  this catalogue for apps with a fixed default login — it needs a Traefik
+  `basic_auth` gate (IF-1312) projected from the root-password hash in
+  front of the app; the customer would then be expected to change the
+  in-app admin password after their first authenticated login. With no
+  blocking issues and a working secret-injection path for every
+  first-boot secret, this is `build_now`.

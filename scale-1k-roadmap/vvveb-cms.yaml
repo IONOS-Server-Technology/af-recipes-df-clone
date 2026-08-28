@@ -1,0 +1,103 @@
+slug: vvveb-cms
+name: Vvveb CMS
+source_description: "Vvveb is a drag-and-drop CMS for building websites, blogs, and ecommerce stores"
+
+upstream:
+  url: https://www.vvveb.com/
+  repo_url: https://github.com/givanz/Vvveb
+  license: AGPL-3.0
+  docker_image: vvveb/vvvebcms:latest
+  compose_file_url: https://raw.githubusercontent.com/givanz/Vvveb/master/docker-compose.yaml
+  compose_file_notes: >
+    Official — lives at the root of the givanz/Vvveb repo itself (not a
+    third-party template). It is a rolling reference to the `master`
+    branch, not version-pinned to a release tag; the project has no
+    tagged-release compose asset to link instead. The repo ships two
+    compose files at root: docker-compose.yaml (used here) runs the
+    pre-built `vvveb/vvvebcms:latest` image against a MySQL sidecar plus
+    phpmyadmin, matching this recipe's `docker_image`; docker-compose-
+    apache.yaml is a second variant that instead builds from
+    `Dockerfile-apache` locally (source build, not the published image)
+    and layers on a commented-out CLI auto-install step. Picked the
+    image-based file since it matches the app's public distribution
+    mechanism (docker_image above) rather than a local Apache source
+    build.
+
+version_health:
+  latest_version: "1.0.8.6"
+  latest_release_date: "2026-06-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.0.8.6 shipped 2026-06-11, ~2 months before this analysis (2026-08-05).
+    The preceding releases (1.0.8.5 2026-06-07, 1.0.8.4 2026-05-28, 1.0.8.3
+    2026-05-13, 1.0.8.2 2026-05-04, 1.0.8.1 2026-04-19, 1.0.8 2026-02-19)
+    show a roughly monthly-or-tighter cadence through most of 2026, and
+    commit activity on the `master` branch is current as of today
+    (2026-08-05) — several commits landed the same day as this analysis,
+    including security fixes (hash_equals hardening, path/URL validation).
+    The official `vvveb/vvvebcms` Docker image's `latest` and
+    `php8.5-fpm-alpine` tags were both last pushed within the last day per
+    Docker Hub, ahead of the last tagged GitHub release, which is a minor
+    provenance wrinkle (image tracks `master`, not strictly pinned
+    releases) but not a health concern. Not archived, no EOL notice.
+
+catalogue_fit:
+  categories: [cms, website-builder, ecommerce]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose website/CMS
+    builder — closest neighbors (Gitea, Opengist) are developer/source-
+    control tools, not content management for a public-facing site. Vvveb
+    fills the same broad "build me a website/blog/store without hand-
+    coding" gap already identified by several other unbuilt apps-gaps
+    candidates in this same space (Joomla, Drupal, Ghost, Grav,
+    Cockpit CMS, October CMS, Strapi, Directus) — it does not duplicate an
+    existing recipe, but it is one of many competing candidates for the
+    same slot, distinguished mainly by its visual drag-and-drop page
+    builder (VvvebJs) and lighter PHP/MySQL footprint versus Joomla/
+    Drupal's larger ecosystems.
+  usefulness: medium
+  usefulness_rationale: >
+    CMS/website-builder is a commonly requested self-hosting category, and
+    Vvveb's drag-and-drop, no-code page builder is a genuine differentiator
+    for non-technical users versus template-and-plugin CMSes like Joomla
+    or Drupal. Medium rather than high because Vvveb is a much smaller
+    project (~1.2k GitHub stars vs. Joomla/Drupal's tens of thousands) with
+    a correspondingly smaller theme/plugin ecosystem and community, and the
+    catalogue already has several stronger, better-established candidates
+    competing for the same "general CMS" slot.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DB_PASSWORD, ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Vvveb is a single-container PHP app (official `vvveb/vvvebcms` image,
+  port 80) plus a MySQL sidecar, structurally close to the Gitea/Joomla
+  pattern and a straightforward fit behind Traefik on a single HTTP port.
+  Unlike Ghost (whose admin "Owner" account can only be claimed through an
+  unauthenticated browser wizard with no CLI/env path), Vvveb ships a
+  documented `cli.php install ... admin[email]=... admin[password]=...`
+  command that performs the full first-boot install non-interactively,
+  taking a plaintext admin password the same way Joomla's own installer
+  CLI does — install.sh can run this once at first boot to set the DB
+  connection and admin account without ever exposing an open, unclaimed
+  install wizard on the public port. DB_PASSWORD is server-generated with
+  no customer input, and ADMIN_PASSWORD projects cleanly via
+  generated_from off the customer's root password, clearing the /compose
+  constraint with zero hard blocking issues, so it's build_now. It
+  overlaps with other unbuilt CMS/website-builder candidates already
+  sitting in apps-gaps (Joomla, Drupal, Ghost), distinguished mainly by
+  its drag-and-drop builder and lighter footprint, but that overlap is
+  descriptive only and does not affect this recommendation.

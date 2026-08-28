@@ -1,0 +1,145 @@
+slug: greptimedb
+name: GreptimeDB
+source_description: "Open-source unified database for metrics, logs, and traces with SQL and PromQL"
+
+upstream:
+  url: https://greptime.com/
+  repo_url: https://github.com/GreptimeTeam/greptimedb
+  license: Apache-2.0
+  docker_image: greptime/greptimedb
+  compose_file_url: https://raw.githubusercontent.com/GreptimeTeam/greptimedb/main/docker/docker-compose/cluster-with-etcd.yaml
+  compose_file_notes: >
+    The main GreptimeTeam/greptimedb repo does carry an official compose
+    file, under docker/docker-compose/cluster-with-etcd.yaml — this was
+    missed in an earlier pass, which incorrectly claimed no compose file
+    lives in that repo. This file stands up a full distributed cluster
+    (etcd0 + a TLS-variant etcd, metasrv, datanode, frontend, flownode),
+    using build-arg-style env vars with defaults: `GREPTIMEDB_VERSION`
+    defaults to `latest` (unpinned) and `ETCD_VERSION` defaults to a pinned
+    `v3.5.10`. It's a rolling reference to the main branch, not a tagged
+    release. The project also publishes a simpler standalone compose file
+    in the sibling GreptimeTeam/dashboard repo (README: "We recommend using
+    docker-compose to setup both GreptimeDB and Dashboard"), pairing
+    greptimedb standalone with greptime/greptimedb-dashboard, both pinned
+    to `latest`. The cluster-with-etcd.yaml file is chosen here as the
+    recorded official reference because it lives directly in the primary
+    greptimedb repo (not a sibling project) and is the canonical multi-node
+    deployment topology; the dashboard repo's file remains a legitimate
+    lighter-weight standalone+dashboard alternative but is not the one
+    recorded here.
+
+version_health:
+  latest_version: "v1.1.4"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v1.1.4 shipped 2026-07-24 (12 days before today, 2026-08-05), a
+    maintenance release fixing streaming Flow expiration correctness and
+    MySQL timestamp presentation. Prior patches: v1.1.3 (2026-07-17),
+    v1.1.2 (2026-07-02), v1.1.1 (2026-06-18, a critical JSON-compatibility
+    fix for v1.0.x→v1.1.0 upgraders). v1.0.0 GA landed 2026-04-08. A
+    v1.2.0-beta.1 (2026-08-04, adding Prometheus Remote Write v2 and a
+    JSON2 column type) and nightly builds on the v1.2 line are also
+    shipping in parallel. Patch cadence of roughly every 2-3 weeks on the
+    stable line plus active beta work — clearly active, not archived or
+    maintenance-only.
+
+catalogue_fit:
+  categories: [monitoring, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is an observability database.
+    GreptimeDB positions itself as a unified replacement for
+    Prometheus+Loki+Elasticsearch-style stacks: metrics, logs, and traces
+    in one engine, queryable via SQL or PromQL, with object-storage-backed
+    elastic scaling. Broader in scope than a single-purpose log store
+    (compare apps-gaps/grafana-loki.yaml, logs only) — this is a genuine,
+    distinct niche versus anything currently offered, aimed at a
+    developer/ops customer who wants to centralize telemetry from their
+    own other AF apps.
+  usefulness: medium
+  usefulness_rationale: >
+    Real value for a customer running several other self-hosted apps who
+    wants one place to store and query metrics/logs/traces, especially
+    given native OpenTelemetry/Prometheus-remote-write ingestion. But it's
+    a developer/ops-facing backend, not a consumer app, and — like
+    grafana-loki — most of its value depends on the customer pointing
+    external agents (OTel collectors, Prometheus remote-write, log
+    shippers) at it, which is setup work outside what a recipe installs.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      GreptimeDB's bundled dashboard (served at /dashboard on the HTTP
+      port, 4000) has no login of its own by default — the instance is
+      wide open unless the operator enables GreptimeDB's built-in "static
+      user provider". That provider's user file supports three password
+      formats (per
+      https://docs.greptime.com/user-guide/deployments-administration/authentication/static/):
+      `plain:<password>` (plaintext, the default), `mysql_native_password:
+      <sha1-hash>` (MySQL wire-protocol handshake), and
+      `pbkdf2_sha256:<iterations>:<salt>:<hash>` — a hash stored at rest,
+      usable with the HTTP/gRPC and PostgreSQL protocols. So this is not
+      the genuine-plaintext-requirement case; GreptimeDB's own auth CAN be
+      populated with a hash. The real gap is that `generated_from`'s
+      currently-supported algorithm list (`argon2`, `bcrypt`) doesn't
+      include `pbkdf2_sha256` yet, so that hash can't be produced by the
+      platform today. Per the schema, that makes GreptimeDB's own login a
+      `blocked_on_platform` case (needed algo: `pbkdf2_sha256`), not a hard
+      structural blocker — once `generated_from` supports `pbkdf2_sha256`,
+      GreptimeDB's own per-app admin login would be the preferred
+      customer-facing auth path over a shared gate credential. Until then,
+      the practical mechanism expressible today is the same as
+      grafana-loki.yaml: leave GreptimeDB's built-in auth disabled and put
+      a Traefik `basic_auth` gate in front of the dashboard/HTTP port
+      instead.
+    - >
+      GreptimeDB exposes three additional raw (non-HTTP) protocol ports
+      for actually writing/reading data — gRPC (4001), MySQL wire protocol
+      (4002), PostgreSQL wire protocol (4003) — none of which a Traefik
+      HTTP `basic_auth` middleware can gate, since that only applies to
+      HTTP traffic. If these are made public (needed for a customer to
+      ingest metrics/logs from agents running outside the AF customer's
+      own docker network, the product's main use case) they would sit
+      open on the internet with no authentication, because GreptimeDB's
+      only auth mechanism (the static-user provider, discussed above) has
+      no expressible path today — `generated_from` doesn't support the
+      `pbkdf2_sha256` hash it needs, and a Traefik `basic_auth` gate can't
+      protect non-HTTP wire protocols. Mitigation: keep 4001-4003 un-published (internal
+      docker-network only, reachable only by other containers on the same
+      customer stack) and restrict the recipe to HTTP-based ingestion
+      paths (OTLP/HTTP, Prometheus remote-write, InfluxDB line protocol —
+      all available over the port-4000 HTTP API) behind the same
+      Traefik basic_auth gate as the dashboard. This materially narrows
+      what the recipe can offer (no MySQL/PostgreSQL/gRPC clients) versus
+      GreptimeDB's full feature set, but keeps the instance closed to
+      unauthenticated raw-protocol writes.
+  installable_today: true
+  recommendation: build_with_caveats
+summary: >
+  GreptimeDB (image `greptime/greptimedb`, pin `v1.1.4`) is an actively
+  maintained, Apache-2.0 unified metrics/logs/traces database with SQL and
+  PromQL query support and a bundled web dashboard on its HTTP port
+  (4000) — a genuine gap versus the current 24 recipes, none of which is
+  an observability datastore. It has no login of its own by default; its
+  built-in static-user auth mechanism does support a hashed credential
+  (`pbkdf2_sha256`), but that algorithm isn't in `generated_from`'s
+  currently-supported list (`argon2`, `bcrypt`) yet, so it's a
+  `blocked_on_platform` gap rather than a structural blocker — until that
+  lands, the dashboard needs a Traefik `basic_auth` gate the same way
+  grafana-loki.yaml resolves it. The bigger caveat is its three raw
+  non-HTTP protocol ports (gRPC 4001, MySQL 4002, PostgreSQL 4003) used
+  for data ingestion/query — a Traefik basic_auth gate cannot protect
+  those, so a recipe would need to
+  keep them internal-only and restrict customers to HTTP-based ingestion
+  (OTLP, Prometheus remote-write, InfluxDB line protocol), a real reduction
+  from GreptimeDB's full protocol surface. Installable today with that
+  design constraint; recommend `build_with_caveats`.

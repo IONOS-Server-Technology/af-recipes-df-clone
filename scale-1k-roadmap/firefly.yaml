@@ -1,0 +1,118 @@
+slug: firefly
+name: Firefly
+source_description: "Simple WireGuard VPN server with web management interface"
+
+upstream:
+  url: https://github.com/Safe3/firefly
+  repo_url: https://github.com/Safe3/firefly
+  license: >
+    Proprietary/"personal free use only" — upstream README states "Firefly
+    is only for personal free use. If you want to buy the source code,
+    please contact us." Not an OSI/SPDX open-source license; the web
+    frontend alone is derived from wg-easy under CC 4.0. A fork
+    (bbroot/firefly-wireguard) exists but carries the same license note.
+    Name is ambiguous: there is no relation to "Firefly III" (personal
+    finance manager) or other unrelated "Firefly" projects — Safe3/firefly
+    is the correct match for Hostinger's "WireGuard VPN server with web
+    management interface" description.
+  docker_image: uusec/firefly:latest (no pinned-version tags published on Docker Hub beyond a stray v3.1 layer; upstream's own docker-compose.yml uses :latest)
+  compose_file_url: https://raw.githubusercontent.com/Safe3/firefly/main/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the file the upstream README itself points to
+    ("download docker-compose.yml and execute docker compose up -d"), and
+    it lives at the repo root. It is a rolling reference to the default
+    branch (main), not a version-pinned release asset — the project does
+    not publish this file as a release artifact, and its GitHub Releases
+    page only ships source archives, not compose files. Only one variant
+    exists (no GPU/CPU or sqlite/postgres split); it's the same file
+    already described above under docker_image (network_mode: host,
+    cap_add NET_ADMIN/SYS_MODULE, :latest image tag).
+
+version_health:
+  latest_version: "v4.4"
+  latest_release_date: "2025-02-21"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Latest GitHub release is v4.4 (2025-02-21), about 17.5 months before
+    today (2026-08-05). Releases have historically clustered in bursts
+    (v4.0-v4.3 all within June-Aug 2024, v4.4 in Feb 2025) with long gaps
+    between bursts. Most recent commit to main is dated 2025-10-31 (~9
+    months ago, "update"), so the repo isn't abandoned, but there has been
+    no tagged release in over a year and no evidence of active feature
+    development — consistent with maintenance-only rather than active.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy]
+  differentiation: >
+    None of substance. Firefly is functionally the same product category as
+    the existing wg-easy recipe (WireGuard VPN server + web management UI
+    for adding/removing peers) — in fact Firefly's own web frontend is a
+    derivative of wg-easy's. It adds a TCP-relay/anti-QoS-throttling mode
+    and multi-language UI polish, but no capability our catalogue doesn't
+    already offer via wg-easy, which is open-source (Apache-2.0-family,
+    actively maintained) versus Firefly's restrictive personal-use-only
+    license.
+  usefulness: low
+  usefulness_rationale: >
+    A second WireGuard-with-web-UI recipe would duplicate wg-easy for no
+    customer-facing gain, while inheriting a license that explicitly
+    forbids the commercial redistribution a hosted-catalogue offering
+    constitutes, plus a deployment model (host networking, kernel module
+    access) that's harder to sandbox per-customer than wg-easy's existing
+    bridge-network setup.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [web_ui_admin_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      License: upstream explicitly restricts Firefly to "personal free
+      use" and requires purchasing the source for other use. Bundling it
+      into a commercial hosting catalogue (Hostinger reselling it as a
+      one-click app) is very likely outside that grant — this is a legal
+      blocker independent of any technical mechanism question.
+    - >
+      Web UI admin login: the app stores/compares the login as a plaintext
+      value (docker-compose.yml sets `FIREFLY_PASSWORD=firefly` directly,
+      and the on-disk config.json field is a plaintext `"password"` string
+      with no documented option to accept a pre-hashed value). Per the
+      schema, a genuine requirement for the plaintext password — not any
+      supported hash — is a structural blocker for `generated_from`, since
+      that mechanism only ever projects a hash (argon2/bcrypt) into the
+      app. Gating instead with Traefik `basic_auth` would work as a
+      workaround, but doesn't change the license blocker above.
+    - >
+      Deployment shape: upstream's docker-compose.yml runs the container
+      with `network_mode: host`, `cap_add: [NET_ADMIN, SYS_MODULE]`, and a
+      bind-mounted `/lib/modules`, and exposes a WireGuard UDP port
+      alongside the web UI TCP port. Host networking is a poor fit for a
+      shared multi-tenant recipe platform (no port isolation from other
+      containers on the same node) and only the web UI TCP port could ever
+      sit behind Traefik — the UDP WireGuard port would still need direct
+      raw-port exposure either way, same constraint the existing wg-easy
+      recipe already documents and manages.
+    - >
+      No pinned Docker image tag is published for general use — Docker Hub
+      shows `uusec/firefly:latest` as the only documented tag in upstream's
+      own compose file, violating the pin-a-stable-tag research bar before
+      any recipe could be drafted.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Firefly is a WireGuard VPN server with a web management UI (its own web
+  frontend is a derivative of the wg-easy project we already ship as a
+  recipe). Its license explicitly limits it to personal, non-commercial
+  use, which conflicts with reselling it via a hosted catalogue; separately,
+  its admin login is a plaintext-only credential with no hashed-input path,
+  its compose file only offers an unpinned `:latest` image, and its
+  host-networking/kernel-module deployment model is a poor fit for a
+  shared multi-tenant platform. Not recommended — the license blocker alone
+  rules out commercial redistribution, and the plaintext-credential and
+  unpinned-image issues would block a clean mechanism fit even if the
+  license were resolved.

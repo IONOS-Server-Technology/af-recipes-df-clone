@@ -1,0 +1,112 @@
+slug: invoice-ninja
+name: Invoice Ninja
+source_description: "Open-source invoicing and billing platform for freelancers and small businesses"
+
+upstream:
+  url: https://www.invoiceninja.com/
+  repo_url: https://github.com/invoiceninja/invoiceninja
+  license: "Elastic License (source-available, not OSI-approved open source; a separate paid white-label license removes Invoice Ninja branding)"
+  docker_image: invoiceninja/invoiceninja
+  compose_file_url: https://raw.githubusercontent.com/invoiceninja/dockerfiles/debian/debian/docker-compose.yml
+  compose_file_notes: >
+    Official file from the invoiceninja/dockerfiles repo (linked from
+    https://github.com/invoiceninja/dockerfiles and referenced by the
+    project's self-host docs), on the `debian` branch, which the repo's
+    README identifies as the current recommended install path (`git clone
+    ... -b debian`) over the older root-level docker-compose.yml on
+    `master` (which uses the legacy invoiceninja/invoiceninja:5 image and
+    lacks Redis). This is a rolling reference to the default `debian`
+    branch, not pinned to a release tag or commit; it builds the app image
+    locally from that branch's Dockerfile with `image:
+    invoiceninja/invoiceninja-debian:${TAG:-latest}`, so both the branch
+    content and the `latest` tag default can change over time. Only one
+    variant is offered on this branch (MySQL + Redis + nginx + app); no
+    separate GPU/CPU or sqlite/postgres alternative exists.
+
+version_health:
+  latest_version: "v5.13.30"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v5.13.30 published 2026-08-06 (today), with v5.13.29 the day
+    before and a steady stream of 5.13.x point releases roughly every 1-4
+    weeks going back through 2026 (5.13.27 on 08-04, 5.13.26 on 06-26,
+    5.13.25 on 06-22, 5.13.24 on 06-08, etc.). The Docker Hub `latest`,
+    `5.13`, and `5` tags all track the same current build. This is a
+    healthy, actively maintained project, not dormant or maintenance-only.
+
+catalogue_fit:
+  categories: [finance, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-recipe catalogue covers client invoicing,
+    quotes, recurring billing, or online payment collection. The closest
+    adjacent gap candidate is apps-gaps/akaunting.yaml, which is
+    double-entry small-business bookkeeping (bills, bank reconciliation,
+    multi-company books) rather than client-facing invoicing/quoting with
+    payment-gateway integration — a different primary workflow even though
+    both target freelancers/small businesses. Invoice Ninja would be a
+    genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Client invoicing with payment collection is a real draw for the
+    freelancer/small-business segment Hostinger targets, and the app is
+    actively maintained. Two things temper it from "high": (1) Hostinger's
+    "open-source" framing is imprecise — Invoice Ninja ships under the
+    Elastic License, a source-available model, not an OSI license like the
+    AGPL/MIT tools elsewhere in the catalogue; and (2) meaningful use
+    (online payment collection) depends on configuring third-party payment
+    gateway API keys post-install, which this recipe mechanism cannot
+    inject at first boot (see blocking_issues) — the app is usable for
+    invoicing/quoting without gateways, but a chunk of its headline value
+    needs manual follow-up configuration.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [IN_PASSWORD, DB_PASSWORD, DB_ROOT_PASSWORD, APP_KEY]
+  secrets_expressible_today:
+    - secret: IN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: DB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Payment gateway integration (Stripe, PayPal, etc.) — the app's
+      headline "collect online payments" feature requires the customer to
+      enter their own third-party gateway API keys through the Invoice
+      Ninja UI after install. There is no first-boot env var for this and
+      no channel today for a customer-supplied API key, so this piece of
+      functionality is unavailable at deploy time regardless of recipe
+      mechanics (not unique to this app, but worth flagging since it's core
+      to the product's value proposition).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Invoice Ninja is a Laravel/PHP app (official image invoiceninja/invoiceninja,
+  currently at v5.13.30, released today) that needs its own MySQL and Redis
+  containers alongside the app container — structurally similar to the
+  paperless-ngx/n8n multi-container pattern and reverse-proxy friendly
+  behind a single HTTP port. IN_USER_EMAIL/IN_PASSWORD create the first
+  admin account on boot (defaulting to admin@example.com/changeme! if
+  unset, so the recipe must not leave them unset); IN_PASSWORD projects
+  cleanly from the customer's root password via generated_from, while
+  DB_PASSWORD, DB_ROOT_PASSWORD, and the Laravel APP_KEY are all plain env
+  vars the platform can generate server-side with no customer input,
+  clearing the /compose constraint with no blocking issues on the core
+  install. The project is actively released (multiple 2026 point releases,
+  latest today) and not EOL. The two real caveats are non-mechanical: the
+  Elastic License is source-available rather than truly open source
+  (undercutting Hostinger's "open-source" framing, similar to the
+  Akaunting BSL case), and the payment-gateway piece of the product needs
+  post-install manual configuration with no first-boot input channel.
+  Recommend build_with_caveats — technically installable today, but both
+  the licensing framing and the gateway-config gap should be surfaced to
+  customers before shipping this as a recipe.

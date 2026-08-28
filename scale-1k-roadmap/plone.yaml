@@ -1,0 +1,125 @@
+slug: plone
+name: Plone
+source_description: "Secure enterprise-grade open-source CMS with versioning and access control"
+
+upstream:
+  url: https://plone.org
+  repo_url: https://github.com/plone/Plone
+  license: GPL-2.0
+  docker_image: "plone/plone-backend (paired with plone/plone-frontend for the Volto UI)"
+  compose_file_url: https://6.docs.plone.org/install/containers/examples/nginx-volto-plone-postgresql.html
+  compose_file_notes: >
+    No standalone downloadable docker-compose.yml is published by the
+    project (no release asset, no compose file at the plone/plone-backend
+    or plone/plone-frontend repo roots or under a docker/deploy/contrib
+    directory) — plone/plone-backend ships only Dockerfiles. The closest
+    thing to an official compose file is embedded as literal YAML inside
+    the project's own container documentation (source:
+    github.com/plone/documentation, active `6.0` branch, file
+    docs/install/containers/examples/nginx-volto-plone-postgresql.md),
+    which this URL renders. This is a rolling reference, not a version
+    pin: it tracks the active `6.0` docs branch, and the backend image tag
+    in the embedded YAML is a doc-build placeholder
+    (`plone/plone-backend:{PLONE_BACKEND_MINOR_VERSION}`) substituted with
+    whatever the current Plone 6 minor release is, not a literal tag.
+    The docs list six variants (nginx+Volto+backend; +ZEO; +PostgreSQL;
+    nginx+backend only in Classic UI; HAProxy+ZEO; Traefik+Volto+Varnish).
+    Picked the nginx-volto-plone-postgresql variant: it pairs the
+    default modern Plone 6 UI (Volto) with Postgres/RelStorage for
+    persistent storage, which is closer to this catalogue's typical
+    app+DB shape than the ZEO (file-based clustering) or Classic-UI-only
+    variants, and doesn't swap in an alternate reverse proxy (HAProxy/
+    Traefik) as its main point of difference. Note the example also
+    requires a separate nginx `default.conf` file shown alongside it on
+    the same page — the compose file alone is not sufficient to run the
+    stack as documented.
+
+version_health:
+  latest_version: "6.2.1"
+  latest_release_date: "2026-06-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via plone.org's release-schedule page: 6.2.0 shipped 2026-05-19,
+    6.2.1 followed 2026-06-26 (~5 weeks later); the 6.1 line also got a patch
+    (6.1.5, 2026-06-25) the same week, showing both the current and prior
+    minor are still actively maintained in parallel. As of today (2026-08-05)
+    that is about 6 weeks since the last release — well within the project's
+    stated 1-2 month patch cadence for maintained lines. Plone follows a
+    published policy (5 years of security support per major version from
+    its initial release date, minor versions roughly every 12-18 months),
+    which is a healthier, more explicit maintenance signal than most
+    candidates in this catalogue. Not dormant, not archived, not EOL.
+
+catalogue_fit:
+  categories: [cms, website-builder, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are a general-purpose content management
+    system / website builder. Paperless-ngx and Gitea/Opengist are adjacent
+    in "manage documents/content" spirit but serve document-archival and
+    code-hosting workflows respectively, not building and publishing a
+    public-facing website with pages, versioning, and role-based access
+    control. Plone would open a genuinely new "build a website" category for
+    the catalogue, and its enterprise/government heritage (accessibility,
+    fine-grained permissions, audit trail) is a distinct value prop from
+    lighter CMS competitors.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for a self-hosted, no-vendor-lock-in CMS, and Plone's
+    long track record (20+ years, still funded, used by large
+    institutions/governments) makes it a credible, low-risk choice to offer.
+    Held at "medium" rather than "high" because Plone 6's architecture
+    (separate Volto/React frontend + Zope backend + ZODB or
+    RelStorage/Postgres, plus an optional ZEO layer for scaling) is
+    noticeably heavier to operate than our current single-container-plus-DB
+    recipes, and the admin-account bootstrapping story (see below) is
+    rougher than most of our other CMS-adjacent recipes.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ZOPE_ADMIN_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: ZOPE_ADMIN_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Plone's Zope root/emergency admin account ships with a fixed default
+      credential (admin/admin, the classic Zope "inituser") and the
+      official plone/plone-backend image documents no environment variable
+      to set or override that password at container start — env vars cover
+      site auto-creation (SITE, TYPE, PROFILES) and DB/CORS wiring
+      (RELSTORAGE_DSN, CORS_ALLOW_ORIGIN), but not admin credentials.
+      Changing the password today requires either a pre-boot buildout
+      artifact or logging in via the Zope Management Interface after first
+      start and changing it manually — there is no `generated_from:
+      "<algo>:ROOT_PASSWORD"` hook to project the customer's server
+      password into it. Per the schema's guidance this is not a hard
+      blocker on its own: a fixed, unchangeable default credential behind a
+      Traefik `basic_auth` gate is an accepted pattern (the gate becomes the
+      real auth boundary), so this app is installable_today provided the
+      whole stack sits behind mandatory basic_auth rather than exposing the
+      admin/admin login directly to the internet.
+  installable_today: true
+  recommendation: build_with_caveats
+  # caveats: operational weight (Volto frontend + Zope backend + ZEO/Postgres
+  # storage) is heavier than our current single-container recipes, and the
+  # mandatory Traefik basic_auth gate must be enforced (not optional) since
+  # the app's own login cannot be customer-provisioned.
+
+summary: >
+  Plone is a mature, actively maintained enterprise CMS (6.2.1, released
+  2026-06-26, ~6 weeks before today with a healthy multi-year support
+  policy) and would fill a genuine gap: none of the current 24 recipes cover
+  general-purpose website/content management. It is mechanically
+  installable today, but only via the Traefik basic_auth workaround —
+  the official plone/plone-backend image has no supported way to set the
+  Zope admin password at boot (it ships hardcoded admin/admin), so the
+  customer's own password can't be projected into it via generated_from the
+  way Vaultwarden or n8n do. Recommend build_with_caveats: worth building,
+  but plan for a mandatory basic_auth gate up front and expect a heavier
+  multi-container stack (Volto frontend, Zope backend, and ZEO or
+  Postgres/RelStorage for object storage) than our typical single-app+DB
+  recipes.

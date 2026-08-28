@@ -1,0 +1,99 @@
+slug: mitra
+name: Mitra
+source_description: "Lightweight Rust federated social network with full Mastodon API support"
+
+upstream:
+  url: https://codeberg.org/silverpill/mitra
+  repo_url: https://codeberg.org/silverpill/mitra
+  license: AGPL-3.0
+  docker_image: null  # no official image from upstream; only community-maintained third-party images exist (fjox/mitra, bleakfuture0/mitra on Docker Hub) — neither is published/pinned by the project itself
+  compose_file_url: null
+  compose_file_notes: >
+    The repo root has a docker-compose.yaml
+    (https://codeberg.org/silverpill/mitra/raw/branch/main/docker-compose.yaml),
+    but its own first line states "This compose file is used for
+    development" — it only spins up Postgres (and, under an optional
+    "monero" profile, a regtest Monero node/wallet/LWS trio) as test
+    dependencies. It does not run the Mitra service itself and is not a
+    deployment recipe. The README's own "Other installation methods"
+    section explicitly labels Docker images (codeberg package registry,
+    hub.docker.com/r/fjox/mitra) as "maintained by the community," not
+    official. No official app-deployment compose file exists upstream.
+
+version_health:
+  latest_version: v5.8.0
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5 days since the latest release (v5.8.0, 2026-07-31) as of today
+    (2026-08-05). Release history shows a new tag roughly every 2-4 weeks
+    (v5.0.0 2026-03-23 through v5.8.0 2026-07-31, 8 releases in ~4.5 months).
+    4,300+ commits total, main branch under continuous active development.
+    No signs of maintenance-only mode or abandonment.
+
+catalogue_fit:
+  categories: [social, communication]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the catalogue covers federated social
+    networking / microblogging (ActivityPub, Mastodon-API-compatible).
+    Mitra would be the first "run your own fediverse instance" offering,
+    appealing to customers who want a personal or small-community
+    Mastodon-compatible server without the heavier resource footprint of
+    running actual Mastodon (Ruby/Rails + Sidekiq + Redis + Postgres).
+  usefulness: medium
+  usefulness_rationale: >
+    Fediverse self-hosting has a real, if niche, hobbyist/enthusiast
+    audience, and "lightweight Rust alternative to Mastodon" is a
+    genuine differentiator. Usefulness is capped at medium rather than
+    high because Mitra is a much smaller, less-known project than
+    Mastodon itself (fewer users familiar with the brand), and — see
+    installability below — the admin bootstrap flow does not fit our
+    current provisioning mechanism at all.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - INITIAL_ADMIN_PASSWORD
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Mitra has no web-based signup for its first/admin account. The
+      only supported way to create an account (admin or otherwise) is
+      the CLI command `mitra create-account <username> <password>
+      admin`, which must be run once against the running container
+      before the instance is usable, and which takes the account's
+      PLAINTEXT password as a literal argument — Mitra hashes it
+      internally with its own scheme. `generated_from` only ever
+      projects a pre-computed hash (argon2/bcrypt) of ROOT_PASSWORD,
+      never the plaintext, so there is no way to feed this command a
+      password that matches what the customer actually knows. Per
+      SCHEMA.md's own criterion, a genuine requirement for the
+      plaintext password (not any hash) is a structural blocker, and
+      that is exactly the shape of this requirement.
+    - >
+      A Traefik `basic_auth` gate does not substitute here either:
+      Mitra has its own real login system (Mastodon-API-compatible
+      auth), so gating the whole domain behind basic auth would not
+      give the customer a working admin login inside the app itself —
+      it would just add an extra password on top of an admin account
+      that still has no way to be provisioned with a customer-known
+      credential.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mitra is a small but genuinely active Rust-based ActivityPub/Mastodon-API
+  server with no overlap in our current 24-recipe catalogue and a real
+  differentiation angle (lightweight fediverse hosting). It is
+  reverse-proxy-friendly (single HTTP port, Postgres-backed, structurally
+  similar to recipes/gitea and recipes/n8n). However, it cannot be
+  provisioned under the current mechanism: the only account-creation path
+  is a CLI command that demands the admin's plaintext password, and neither
+  `generated_from` (hash-only) nor Traefik `basic_auth` (no substitute for
+  a real in-app login) can satisfy that. Revisit if/when a plaintext
+  root-password-projection channel exists, or if upstream adds a
+  web-based first-run admin signup.

@@ -1,0 +1,90 @@
+slug: archivebox
+name: ArchiveBox
+source_description: "Self-hosted internet archiving solution for preserving web pages and media"
+
+upstream:
+  url: https://archivebox.io/
+  repo_url: https://github.com/ArchiveBox/ArchiveBox
+  license: MIT
+  docker_image: archivebox/archivebox
+  compose_file_url: https://raw.githubusercontent.com/ArchiveBox/ArchiveBox/dev/docker-compose.yml
+  compose_file_notes: >-
+    Official, from the repo root. The compose file's own header comments
+    tell users to fetch it via the project's short-link
+    `https://docker-compose.archivebox.io`, which currently 302-redirects
+    to this `dev` branch path — a rolling reference to whatever is on
+    `dev` at fetch time, not a pinned tag (there is no equivalent file
+    published as a versioned release asset). Only one variant is
+    published; it defaults to SQLite with no separate Postgres/GPU/CPU
+    compose file, and the image tag itself defaults to
+    `archivebox/archivebox:dev` inside the file (overridable via
+    `ARCHIVEBOX_IMAGE`), consistent with the version_health note that
+    the stable release line is stale and real activity is on the
+    unreleased/rc train.
+
+version_health:
+  latest_version: "0.7.4"
+  latest_release_date: "2026-05-18"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    0.7.4 (2026-05-18) is the latest tagged *stable* release on PyPI, about
+    2.5 months before today (2026-08-05) — the prior stable, 0.7.2, shipped
+    2024-01-05, so the stable line moves in multi-year jumps. In parallel,
+    upstream has been publishing a continuous 0.9.35 release-candidate
+    train (0.8.5rc0 on 2024-10-05 through 0.9.35rc203 on 2026-08-05 — the
+    day of this analysis — with 379 rc builds counted on PyPI) without ever
+    promoting it to stable. Commit/build activity is clearly very active
+    (multiple rc pushes per week, several on 2026-08-01 alone), so this is
+    not dormant, but the project has been stuck in an ~22-month "next major
+    version" pre-release limbo, and the actual stable artifact a recipe
+    would pin to is old and rarely touched. No archival or EOL notice on
+    the repo.
+
+catalogue_fit:
+  categories: [productivity, archiving]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    None of the 24 current recipes cover web/media archiving or bookmark
+    preservation. ArchiveBox snapshots URLs into HTML, PDF, screenshot,
+    and media formats for long-term storage — closer in spirit to
+    Paperless-ngx's "durable personal archive" niche than to anything else
+    in the catalogue, but for web content rather than scanned documents.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuine, broadly-understood use case (link rot / personal web archive)
+    that self-hosters commonly want, and it's a single lightweight
+    container with no external DB dependency — easy operationally. Held to
+    medium rather than high because the stable release it would have to
+    pin to is old and the project's real development energy is tied up in
+    an unreleased rewrite, which is a maintenance-risk flag for a recipe
+    that customers will run unattended.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  ArchiveBox is a single-container, MIT-licensed app (official image
+  `archivebox/archivebox`) with a built-in SQLite backend, one HTTP port
+  (8000) for both the public archive UI and the Django-admin-backed
+  management panel, so it fits the Traefik/single-domain pattern cleanly.
+  Its one login is set via `ADMIN_USERNAME`/`ADMIN_PASSWORD` env vars at
+  container start, which projects onto `generated_from:
+  "<algo>:ROOT_PASSWORD"` the same way Vaultwarden's `ADMIN_TOKEN` does —
+  no platform blocker. Note by default ArchiveBox's public index/snapshot
+  views can be openly browsable (`PUBLIC_INDEX`/`PUBLIC_SNAPSHOTS`) even
+  though the admin panel is gated — a recipe should set those to a private
+  default so a customer doesn't unknowingly publish their archive.
+  Recommend build_now: installable today with no blocking issues; the
+  public-view defaults and the stale-stable/long-pending-rewrite release
+  history are implementation details for the recipe author to address, not
+  installability blockers.

@@ -1,0 +1,88 @@
+slug: glpi
+name: GLPI
+source_description: "Open-source IT asset management and help desk software for IT operations"
+
+upstream:
+  url: https://www.glpi-project.org
+  repo_url: https://github.com/glpi-project/glpi
+  license: GPL-3.0-or-later
+  docker_image: glpi/glpi:11.0.8
+  compose_file_url: https://raw.githubusercontent.com/glpi-project/docker-images/main/docker-compose.example.yml
+  compose_file_notes: >
+    Official file, from glpi-project/docker-images (the org's dedicated
+    Docker image repo — linked from the "Run GLPI with Docker" page on
+    glpi-project.org and from that repo's own README). This is a rolling
+    reference to the default branch, not version-pinned: the URL points at
+    `main` and the image tag inside is `glpi/glpi:latest`. There is only
+    one variant shipped (single app+MySQL compose, no GPU/CPU or
+    sqlite/postgres alternatives), so no selection was needed. Note the
+    glpi-project/glpi app repo itself also has a docker-compose.yaml at
+    its root, but that one is the project's own dev/test harness (spins up
+    mailpit, dbgate, openldap, E2E test ports) and is not the end-user
+    deployment file — the docker-images repo's example is the one the
+    project points users at.
+
+version_health:
+  latest_version: "11.0.8"
+  latest_release_date: "2026-06-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    11.0.8 shipped 2026-06-24 — about six weeks before this analysis
+    (2026-08-05). The project runs two parallel supported streams, current
+    (11.x) and a maintenance LTS-style line (10.x), and releases both in
+    lockstep on the same date roughly every 5-8 weeks (11.0.8/10.0.26
+    2026-06-24, 11.0.7/10.0.25 2026-04-29, 11.0.6/10.0.24 2026-03-03,
+    11.0.5/10.0.23 2026-01-28, 11.0.4/10.0.22 2025-12-04). That coordinated
+    dual-branch cadence is a strong maintenance signal, not a single
+    slowing HEAD.
+
+catalogue_fit:
+  categories: [productivity, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    GLPI is IT asset management + ITIL-style service desk (hardware/license
+    inventory, ticketing, SLAs, change/problem management) — a distinct
+    category from anything in the current 24-recipe catalogue. Nothing
+    existing covers asset tracking or help-desk ticketing (Uptime Kuma and
+    Portainer are infra-monitoring/container-management, not asset/ticket
+    tracking). This would be a genuine net-new capability for customers
+    running an internal IT department or MSP practice, not a duplicate of
+    an existing recipe.
+  usefulness: high
+  usefulness_rationale: >
+    Fills a real gap — self-hosted IT asset/help-desk tooling is a common
+    small-business and MSP need with no equivalent in the catalogue today.
+    Mature, widely deployed (20+ year history), single web UI, standard
+    LAMP-style stack (PHP app + MySQL) that fits our existing
+    Traefik-fronted deployment model well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - mysql_app_db_password
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: mysql_app_db_password
+      mechanism: server_generated_no_customer_input
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  GLPI is an actively maintained (11.0.8, 2026-06-24, ~6-8 week coordinated
+  dual-branch release cadence), GPL-3.0 IT asset management and help-desk
+  platform with an official Docker image (glpi/glpi) and a standard
+  app+MySQL compose shape that fits our existing recipe patterns well. It
+  fills a real gap in the current 24-recipe catalogue — no existing recipe
+  covers asset inventory or ITIL-style ticketing. The app auto-installs
+  with fixed default credentials (glpi/glpi and friends) and no env var to
+  change them at boot, but per the "fixed default credential" rule this is
+  not a blocker: the app-level default sits behind a mandatory Traefik
+  basic_auth gate (projected from the customer's root password) until they
+  log in and change it, and the MySQL password is server-generated. Zero
+  blocking issues — recommend building this recipe now.

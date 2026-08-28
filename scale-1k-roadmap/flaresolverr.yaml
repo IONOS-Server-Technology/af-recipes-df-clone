@@ -1,0 +1,104 @@
+slug: flaresolverr
+name: FlareSolverr
+source_description: "Proxy server to bypass Cloudflare protection for web scraping"
+
+upstream:
+  url: https://github.com/FlareSolverr/FlareSolverr
+  repo_url: https://github.com/FlareSolverr/FlareSolverr
+  license: MIT
+  docker_image: flaresolverr/flaresolverr
+  compose_file_url: https://raw.githubusercontent.com/FlareSolverr/FlareSolverr/master/docker-compose.yml
+  compose_file_notes: >
+    Official docker-compose.yml at the root of the FlareSolverr/FlareSolverr
+    repo, linked directly from the README's Docker install instructions.
+    This is a rolling reference to the default (master) branch, not
+    version-pinned to a release tag — it will track whatever is currently
+    on master rather than a specific tagged release. There is only one
+    variant shipped (single flaresolverr service, image
+    ghcr.io/flaresolverr/flaresolverr:latest); no GPU/CPU or dev/prod
+    split to choose between.
+
+version_health:
+  latest_version: "v3.5.0"
+  latest_release_date: "2026-05-26"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    ~71 days between today (2026-08-05) and the latest tagged release
+    (v3.5.0, 2026-05-26). Release history is bursty rather than steady: a
+    dense run of 8 releases between 2025-08-25 (v3.4.0) and 2025-11-29
+    (v3.4.6), then a ~6-month gap before v3.5.0 landed. Repo is not
+    archived, has no deprecation notice, MIT-licensed, and 409+ commits on
+    master with active issues/PRs — genuinely maintained, just in
+    irregular bursts rather than a predictable cadence. Note there are
+    also `FlareSolverr1` and `FlareSolverr2` repos under the same GitHub
+    org, both archived 2025-12-16; these are unrelated legacy/experimental
+    forks, not the active project. The recipe candidate here is the
+    canonical `FlareSolverr/FlareSolverr` repo, which remains unarchived
+    and is the one Docker Hub's `flaresolverr/flaresolverr` image tracks.
+
+catalogue_fit:
+  categories: [networking, scraping-utility]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No current recipe does anything like this. FlareSolverr is not a
+    standalone destination app — it's a headless REST API (a single POST
+    endpoint at /v1) that other self-hosted apps (Jackett, Prowlarr,
+    Sonarr/Radarr, various scrapers) call over an internal network to get
+    past Cloudflare/DDoS-Guard JS challenges on third-party sites. None of
+    those consumer apps are in the current catalogue, so FlareSolverr
+    would ship with no consumer to call it and no UI for a customer to
+    interact with directly.
+  usefulness: low
+  usefulness_rationale: >
+    Zero standalone value: a customer landing on flaresolverr.<base_domain>
+    gets a bare JSON API with nothing to look at or configure. It only
+    becomes useful paired with an *arr-style indexer/automation app we
+    don't currently offer, and upstream's own docs actively discourage
+    running it as an internet-facing service at all (see below) — the
+    opposite of how every other recipe in the catalogue is meant to be
+    deployed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      FlareSolverr has no login or auth of its own — every request to
+      /v1 is served to whoever can reach the port. A Traefik basic_auth
+      gate is mechanically expressible (same pattern as WUD/Adminer), so
+      this alone would not block installable_today.
+    - >
+      Structural mismatch, not a secrets gap: upstream's own README states
+      plainly "DO NOT expose FlareSolverr to the internet, as it can be
+      abused" — it is a generic URL-fetching proxy, and putting it on a
+      public subdomain (even behind basic_auth, which only the paying
+      customer can pass) still hands that one customer an anonymizing
+      fetch proxy reachable from the open internet, which is a different
+      risk profile than every other app in the catalogue. Its documented
+      deployment pattern is a sidecar container on an internal Docker
+      network reached only by another app's process (e.g. Jackett), never
+      a Traefik-fronted, publicly routable service — which is the only
+      deployment shape our recipe mechanism currently produces.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  FlareSolverr (flaresolverr/flaresolverr, MIT, v3.5.0 as of 2026-05-26) is
+  an actively-maintained-if-bursty single-container project, and mechanically
+  it could ship: no login of its own, and a Traefik basic_auth gate is a
+  supported way to close that off. The real problem is fit, not mechanism.
+  It is a headless REST API with zero web UI, meant to be called by other
+  self-hosted apps (Jackett/Prowlarr/Sonarr-style indexers) that aren't in
+  our 24-app catalogue, so a standalone customer would get a bare JSON
+  endpoint and nothing to do with it. Worse, upstream explicitly warns
+  against exposing it to the internet at all, which is the exact opposite
+  of how every AF recipe is deployed (public subdomain via Traefik).
+  Recommend not_recommended: not a platform blocker, a poor-fit candidate —
+  it's plumbing for apps we don't offer, not a destination app in its own
+  right.

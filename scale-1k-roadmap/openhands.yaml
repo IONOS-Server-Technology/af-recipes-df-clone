@@ -1,0 +1,124 @@
+slug: openhands
+name: OpenHands
+source_description: "Open-source autonomous AI agent for software engineering tasks"
+
+upstream:
+  url: https://www.openhands.dev
+  repo_url: https://github.com/OpenHands/OpenHands
+  license: MIT
+  docker_image: ghcr.io/openhands/agent-canvas
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists anywhere in the project.
+    The README's Docker section documents only a bare `docker run` command
+    (`docker run -it --rm -p 8000:8000 -v "$HOME/.openhands:/home/openhands/.openhands"
+    -v "${PROJECTS_PATH}:/projects" ghcr.io/openhands/agent-canvas:1.13.0`);
+    docs/SELF_HOSTING.md's own recommended self-hosting path bypasses
+    Docker entirely in favor of `npx @openhands/agent-canvas --public` run
+    directly on the host via tmux/systemd. The repo root has no
+    docker-compose file, and there is no docker/, deploy/, or contrib/
+    directory containing one (docker/ holds only a Dockerfile and
+    entrypoint.sh for building the image itself). A prior community
+    request for one (github.com/OpenHands/OpenHands/issues/5392) was
+    closed as stale with no compose file ever added. No third-party
+    community compose file was found either, so there is nothing to note
+    as an unofficial alternative.
+
+version_health:
+  latest_version: "v1.10.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active, releasing today (2026-08-05): v1.10.0 (2026-08-05),
+    v1.9.0 (2026-08-03), v1.8.0/v1.7.2/v1.7.1 (2026-07-30), v1.7.0
+    (2026-07-29), v1.6.1 (2026-07-24) — multiple tagged releases per week.
+    83k+ stars, 10.7k forks, ~8k commits on main. No archival, EOL notice,
+    or maintenance-mode signal. The project started as OpenDevin (early
+    2024), rebranded to OpenHands under the All-Hands-AI org, and in 2026
+    the GitHub org itself moved from All-Hands-AI to OpenHands with the
+    web UI consolidated around a new "Agent Canvas" interface — an active
+    rebrand/restructure, not a sign of decline.
+
+catalogue_fit:
+  categories: [ai, developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [claude-code, hermes-agent, openclaw]
+  differentiation: >
+    Closest existing recipe is claude-code (native, terminal-only, single
+    agent backend, Anthropic models only). OpenHands/Agent Canvas is a
+    browser-based control center that can drive multiple coding-agent
+    backends (its own OpenHands agent, Claude Code, Codex, Gemini, or any
+    ACP-compatible agent) against real project repos, plus scheduling,
+    webhook-triggered automation, and GitHub/Linear/Slack integrations —
+    a materially different, broader product from a single CLI tool.
+    Hermes Agent and OpenClaw are messaging-driven personal-assistant
+    agents (Telegram-first); OpenHands is squarely a software-engineering
+    tool (reads/writes/runs code in a project directory, opens PRs) with
+    no messaging-app angle, so the overlap with those two is thin.
+  usefulness: high
+  usefulness_rationale: >
+    Distinct "autonomous coding agent with a web UI" niche not covered by
+    any of the 24 current recipes; claude-code covers only the terminal
+    case. Genuine differentiator (multi-backend, PR automation, project
+    scheduling) for customers who want a persistent hosted agent rather
+    than a local CLI session.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Upstream Docker setup (`ghcr.io/openhands/agent-canvas`) ships with
+      no built-in login of its own — `docker run -p 8000:8000
+      ghcr.io/openhands/agent-canvas` opens straight into the UI. Third-
+      party self-hosted deployment guides (e.g. the Azure Marketplace
+      listing) all layer HTTP basic auth via a reverse proxy in front of
+      it, confirming there is no first-party auth to project a root-
+      password hash into. A mandatory Traefik basic_auth gate is therefore
+      required, same pattern as OpenClaw/Open Agent — expressible today,
+      not a hard blocker.
+    - >
+      Its "Docker" sandbox backend (the mode used to actually execute
+      agent-written code safely) works by mounting the host's
+      /var/run/docker.sock into the container so it can spawn sibling
+      sandbox containers on demand — i.e. it requires giving the
+      container root-equivalent control of the host Docker daemon.
+      Upstream's own docs warn this grants the container access to all
+      other Docker resources on the host. That is a materially different
+      and larger blast radius than any current recipe's docker-compose
+      footprint and needs an explicit platform/security decision before
+      this ships, independent of the customer-input constraint that is
+      the focus of this schema.
+    - >
+      Functionally requires an LLM provider API key ("bring your own
+      model" — Anthropic/OpenAI/etc.) to do anything useful. Like
+      hermes-agent/openclaw, this has no first-boot input channel today;
+      it would ship undocumented as an empty value and be set by the
+      customer post-provision via the authenticated (basic-auth-gated) UI
+      settings screen, not at order time. Not a hard blocker (app boots
+      and the settings UI is reachable without it) but it does mean the
+      app is non-functional until the customer performs an extra manual
+      step.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OpenHands (GitHub org OpenHands/OpenHands, image
+  ghcr.io/openhands/agent-canvas, MIT) is an unusually active, high-star
+  autonomous coding-agent platform with a real web UI, distinct from every
+  current recipe including claude-code (native/terminal-only). It has no
+  built-in login, so it needs the same mandatory Traefik basic_auth gate
+  already used for OpenClaw/Open Agent, and the LLM provider key is set
+  post-provision like Hermes Agent/OpenClaw — both are handled by existing
+  patterns, not new blockers. The real open question is its Docker-in-
+  Docker sandbox requirement (mounting /var/run/docker.sock to spawn
+  sibling containers), which is a bigger host-access footprint than any
+  current recipe and warrants an explicit platform decision before
+  building. Note: the name "OpenHands" is also used by an unrelated,
+  no-longer-maintained sign-language-recognition project
+  (AI4Bharat/OpenHands) — not a candidate, ruled out.

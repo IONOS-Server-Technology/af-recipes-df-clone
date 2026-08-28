@@ -1,0 +1,150 @@
+slug: komari
+name: Komari
+source_description: "Lightweight self-hosted server monitoring dashboard with real-time metrics"
+
+upstream:
+  url: https://github.com/komari-monitor/komari
+  repo_url: https://github.com/komari-monitor/komari
+  license: MIT
+  docker_image: ghcr.io/komari-monitor/komari
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yml/.yaml file exists anywhere — not at the
+    repo root, not under docker/, deploy/, or contrib/ (all 404 on the
+    default branch), and not as a downloadable/release asset. The
+    project's own docs (komari.wiki/en/install/docker) embed a
+    compose snippet inline on the page itself (services.komari,
+    image ghcr.io/komari-monitor/komari:latest, port 25774,
+    ./data:/app/data volume) rather than linking to a file — there is
+    nothing to point compose_file_url at. That inline example pins to the
+    rolling `:latest` tag, not a specific release, so even if adopted it
+    would need to be watched as a moving target rather than a pinned
+    version. The Quick Start page (komari.wiki/en/install/quick-start)
+    only shows a `docker run` one-liner and explicitly does not provide or
+    link a compose file at all. Only one variant is documented anywhere
+    (single SQLite container, no GPU/dev/postgres alternates), so there
+    was no variant choice to make.
+
+version_health:
+  latest_version: "1.4.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    1.4.0 tagged 2026-08-05 — today. Preceding tags show a very tight
+    cadence: 1.3.2 (2026-07-30), 1.3.1 (2026-07-28), 1.3.0 (2026-07-22),
+    1.2.5-fix2/fix1 (2026-07-20), i.e. multiple releases most weeks, plus
+    frequent unversioned "Snapshot-*" pre-release builds between tags.
+    Repo is not archived; last push 2026-08-05T13:17Z, ~5.6k GitHub stars.
+    Unambiguously active — a young, fast-moving project rather than
+    mature/stable (breaking storage-format changes between 1.3.x point
+    releases per the release notes), so pin carefully and expect the
+    pinned tag to age quickly.
+    SECURITY: the upstream README links directly to a Huntress
+    security-research post, "Komari: The 'Monitoring' Tool That Didn't
+    Need Weaponising" (huntress.com/blog/komari-c2-agent-abuse, published
+    2026-04-30), documenting a real-world intrusion on 2026-04-16 in which
+    a threat actor with stolen VPN credentials installed the stock,
+    unmodified Komari agent as a persistent SYSTEM-level Windows service
+    ("Windows Update Service" via NSSM) to get command-and-control with no
+    custom infrastructure and no modification to Komari at all. The
+    agent's server-to-agent control channel ships three capabilities
+    enabled by default: exec (arbitrary PowerShell/sh command execution),
+    terminal (interactive PTY reverse shell rendered in the operator's
+    browser), and ping (network probing). Only `--disable-web-ssh` turns
+    off the interactive-terminal piece, and it is opt-in at install time,
+    not the default. Huntress' framing: "You do not weaponise [Komari];
+    you just point it at a server you 'own' and type an install command."
+
+catalogue_fit:
+  categories: [monitoring, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    The catalogue's one existing monitoring recipe, uptime-kuma, checks
+    external endpoint availability (HTTP/TCP/ping probes against services
+    you point it at). Komari is a different job: an agent-based system
+    resource monitor — a lightweight agent runs on each server being
+    watched and streams CPU/RAM/disk/network metrics back to a central
+    Komari dashboard, multi-server fleet view included. No shipped recipe
+    covers server-resource telemetry (a Netdata/Glances-style role), so
+    this is genuine differentiation rather than a near-duplicate of
+    uptime-kuma.
+  usefulness: low
+  usefulness_rationale: >
+    There is a real gap (no resource-monitoring recipe today) and a clean
+    single-port web UI, superficially similar to uptime-kuma which already
+    shipped successfully. That would justify "medium" or higher on
+    functional grounds alone. But Komari is not just a passive metrics
+    dashboard with an incidental remote-control extra: its agent ships
+    exec/terminal/ping control-channel capabilities enabled by default,
+    and it has a documented, named real-world abuse case (see
+    version_health.notes — the Huntress C2-agent-abuse writeup) of exactly
+    that default-on capability being used to establish persistent
+    SYSTEM-level backdoors with zero modification to the software. Hosting
+    this on customer infrastructure means shipping a functioning C2
+    implant by default unless every deployment is deliberately
+    hardened — a materially different (and higher) risk than any other
+    app in the catalogue. That risk, not just "bigger blast radius",
+    drives the rating down to low regardless of the monitoring-gap value.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No official docker-compose.yml is published upstream — only a
+      `docker run` one-liner in the quick-start docs
+      (ghcr.io/komari-monitor/komari, port 25774, /app/data volume). Not a
+      blocker, just means a recipe's compose file would be authored from
+      scratch rather than adapted from an upstream example.
+    - >
+      Admin account creation is a first-run web wizard ("on first access,
+      use the installation guide to create the administrator account and
+      site settings") — the customer sets their own username/password
+      interactively after deploy, the same pattern uptime-kuma already
+      ships with. No af-api-projected secret is needed for this. However,
+      upstream docs do not clarify whether the dashboard or its data is
+      reachable before that wizard is completed, so this should be
+      verified hands-on (deploy + curl before completing the wizard)
+      before a recipe ships, rather than assumed safe by analogy alone.
+    - >
+      Komari's agent control channel ships exec (arbitrary PowerShell/sh
+      command execution), terminal (interactive PTY reverse shell in the
+      operator's browser), and ping — all THREE ENABLED BY DEFAULT, not
+      opt-in. Huntress documented a real-world incident (2026-04-16) where
+      this default-on capability was used, with zero modification to
+      Komari, to install a persistent SYSTEM-level Windows backdoor after
+      a VPN credential compromise (see version_health.notes). The only
+      documented mitigation flag, `--disable-web-ssh`, only disables the
+      interactive-terminal piece — `exec` (arbitrary remote command
+      execution) and `ping` remain enabled regardless, so there is no
+      documented way to fully turn off the C2-capable surface even with
+      hardening flags applied. This is not a customer-secret/input-channel
+      gap the current `/compose` mechanism could close (it isn't about
+      `generated_from` or `basic_auth` at all) — it is a property of the
+      shipped software itself, so no platform change (IF-1420, IF-1312, or
+      otherwise) would resolve it.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Komari is an actively-maintained (1.4.0 released today, 2026-08-05, on a
+  multiple-releases-per-week cadence), single-container, single-HTTP-port
+  (25774) server-resource-monitoring dashboard with a genuine web UI and no
+  overlap with the catalogue's existing uptime-kuma (endpoint-availability,
+  not resource metrics) recipe, and it is mechanically installable today
+  (the app's own first-run wizard lets the customer set their admin login
+  directly, no customer secret needed at first boot). Despite that, it is
+  not recommended: Komari's own README links to a Huntress security-
+  research writeup documenting a real 2026-04-16 intrusion in which the
+  stock, unmodified Komari agent was installed as a persistent SYSTEM-level
+  Windows backdoor after a VPN credential compromise — enabled by the
+  agent's exec/terminal/ping control channel, all three of which ship
+  ENABLED BY DEFAULT, with only partial mitigation (`--disable-web-ssh`
+  disables the terminal only; `exec` remains live regardless). This is a
+  documented, named C2-abuse case in default configuration, not a
+  theoretical concern, and no platform mechanism (current or pending)
+  changes that risk — recommend not_recommended over pursuing a recipe.

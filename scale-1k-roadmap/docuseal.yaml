@@ -1,0 +1,81 @@
+slug: docuseal
+name: DocuSeal
+source_description: "Open-source document signing platform with e-signature capabilities"
+
+upstream:
+  url: https://www.docuseal.com
+  repo_url: https://github.com/docusealco/docuseal
+  license: "AGPL-3.0 with Section 7(b) additional terms (source-available, not plain AGPL)"
+  docker_image: docuseal/docuseal
+  compose_file_url: https://raw.githubusercontent.com/docusealco/docuseal/master/docker-compose.yml
+  compose_file_notes: >
+    Official, published in the project's own README as the recommended
+    "private server" install path (curl this file, then run
+    `HOST=your-domain docker compose up`). Rolling reference to the
+    default branch (master), not version-pinned to a release tag — no
+    /releases/latest/download/ variant is offered. Only one variant
+    exists (no GPU/CPU or sqlite/postgres split); it bundles the
+    docuseal/docuseal app image with a Postgres db service and a Caddy
+    sidecar for automatic HTTPS/cert issuance.
+
+version_health:
+  latest_version: "3.1.7"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (3.1.7) was cut 2 days before this analysis
+    (2026-08-05). Releases have shipped roughly weekly since at least
+    3.0.0 (2026-06-01) through 3.1.7 (2026-08-03) — this is a fast-moving,
+    actively maintained project, not slowing or dormant.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers document/e-signature workflows.
+    paperless-ngx and paperless-ai handle document archiving and OCR, not
+    signing; gitea, opengist etc. are unrelated. DocuSeal is a DocuSign-style
+    self-hosted alternative — a distinct, in-demand category (contracts,
+    forms, HR paperwork) with no catalogue overlap today.
+  usefulness: high
+  usefulness_rationale: >
+    E-signature is a common SMB/freelancer need with no self-hosted option
+    in the current 24-recipe catalogue, and DocuSeal is one of the most
+    popular OSS DocuSign alternatives (active development, single-container
+    web app, no raw-protocol requirements).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DATABASE_URL (Postgres password), SECRET_KEY_BASE, basic_auth_password]
+  secrets_expressible_today:
+    - secret: DATABASE_URL (Postgres password)
+      mechanism: server_generated_no_customer_input
+    - secret: SECRET_KEY_BASE
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  DocuSeal is an active, weekly-releasing e-signature platform with no
+  overlap in the current catalogue. Upstream's own compose file bundles
+  Postgres and a Caddy reverse-proxy sidecar, but the app is a plain
+  single-HTTP-port (3000) service that drops in behind Traefik, with only
+  server-generated secrets (DB password, Rails SECRET_KEY_BASE) needed at
+  boot. However, per upstream source (app/controllers/setup_controller.rb),
+  the app's /setup screen that creates the first admin account is gated
+  only by "skip_before_action :authenticate_user!" plus a check that
+  redirects once any User already exists — meaning on a fresh instance
+  that screen is open to any unauthenticated visitor who reaches the
+  domain first, not just the customer. This is the same public
+  first-run-setup shape already identified for Docmost
+  (apps-gaps/docmost.yaml): the fix is a mandatory Traefik basic_auth:true
+  gate (projected from the customer's root password via generated_from)
+  in front of the app until the customer completes their own setup. That
+  clears the /compose constraint today with zero hard blocking issues —
+  installable_today, blocking_issues empty — so build_now.

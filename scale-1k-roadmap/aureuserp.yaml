@@ -1,0 +1,86 @@
+slug: aureuserp
+name: AureusERP
+source_description: "Open-source ERP platform covering finance, HR, inventory, sales, and CRM"
+
+upstream:
+  url: https://aureuserp.com/
+  repo_url: https://github.com/aureuserp/aureuserp
+  license: MIT
+  docker_image: webkul/aureuserp:latest
+  compose_file_url: null
+  compose_file_notes: >
+    No official production compose file exists. devdocs.aureuserp.com's
+    Docker installation guide
+    (devdocs.aureuserp.com/master/installation/docker.html) documents
+    production deployment as a bare `docker run` command against
+    webkul/aureuserp:latest (bundled Nginx+PHP-FPM+MySQL+Supervisor image),
+    not docker-compose. The repo does contain a docker-compose.yml at its
+    root (github.com/aureuserp/aureuserp/blob/master/docker-compose.yml),
+    but that file is a Laravel Sail local-development environment
+    (separate laravel.test/mysql/redis/mailpit services) explicitly for
+    contributor setup, not a production deployment artifact — adopting it
+    would misrepresent a dev tool as the official production compose file.
+
+version_health:
+  latest_version: v1.5.0
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v1.5.0 shipped 2026-08-04, one day before today (2026-08-05).
+    Prior tags show a steady, still-accelerating cadence since the project's
+    v1.0.0 debut on 2025-09-12: v1.1.0 (2025-09-30), v1.2.0 (2025-10-28),
+    v1.3.0-BETA1..3 (2026-01 to 2026-02) folding into v1.3.0 (2026-03-20),
+    v1.3.1 (2026-03-23), v1.4.0 (2026-05-13), v1.5.0 (2026-08-04). That's
+    under 11 months old with 3,500+ commits and 11k+ GitHub stars — young
+    but clearly active, no archive/EOL signal.
+
+catalogue_fit:
+  categories: [finance, crm, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches ERP/finance/HR/inventory/CRM
+    business-management software — n8n is the closest neighbor by "business
+    tooling" framing but automates workflows rather than running books,
+    stock, or a sales pipeline. AureusERP would be a genuinely new category:
+    a self-hosted alternative to Odoo/SAP Business One for SMEs.
+  usefulness: high
+  usefulness_rationale: >
+    ERP is mainstream SME demand and a real self-hosting draw ("keep my
+    financial and HR data off a SaaS vendor's server"), and this is a fresh
+    category the catalogue currently has zero coverage of.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - traefik basic-auth gate credential
+  secrets_expressible_today:
+    - secret: traefik basic-auth gate credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  AureusERP is a Laravel/FilamentPHP app with an official image
+  (webkul/aureuserp) that bundles Apache and its own MySQL 8.0 server
+  inside a single container, listening on :80 (HTTP UI) and :3306 (MySQL,
+  which the recipe would simply not publish). The admin account is created
+  by `php artisan erp:install` with a fixed, undocumented-as-configurable
+  default (admin@example.com / admin@123) — the image exposes no
+  ADMIN_EMAIL/ADMIN_PASSWORD env vars to override it, and dev-docs issue
+  aureuserp/dev-docs#5 confirms users hit exactly this "can't log in with
+  my own credentials" friction. Per SCHEMA.md's guidance on unchangeable
+  default credentials, gating the app behind Traefik basic_auth (projected
+  from the customer's root-password hash) closes that exposure and clears
+  installable_today with zero blocking issues, so this is a clean
+  build_now. Worth noting for whoever builds it: the official image's
+  all-in-one app+DB bundling (Apache and MySQL 8.0 in one container) means
+  no external backup/restore path for the DB short of execing into the
+  container, and no ability to swap in a managed/separate MySQL later
+  without a custom rebuild — a real tradeoff to weigh during
+  implementation, but not a blocker to recommending the build. Upstream is
+  young (not yet a year old as of 2026-08-05) but actively and increasingly
+  shipping, so the eol_status concern is minimal.

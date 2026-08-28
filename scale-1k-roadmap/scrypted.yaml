@@ -1,0 +1,134 @@
+slug: scrypted
+name: Scrypted
+source_description: "High performance home video integration platform and NVR with smart detections"
+
+upstream:
+  url: https://scrypted.app
+  repo_url: https://github.com/koush/scrypted
+  license: >
+    Mixed / per-directory. LICENSE.md at the repo root explicitly declines
+    to state a single license ("See individual project directories for
+    licensing, as it will vary throughout the repository"); the server
+    package @scrypted/server is published to npm as ISC, some plugins pull
+    GPL dependencies, and the Scrypted NVR plugin (@scrypted/nvr) is a
+    proprietary paid subscription product.
+  docker_image: >
+    ghcr.io/koush/scrypted — pin a versioned variant tag, e.g.
+    v0.143.0-noble-full (equal by digest to the current :latest). The
+    upstream compose file uses an untagged image plus a bundled Watchtower
+    auto-updater; a recipe must pin and drop Watchtower. Variants:
+    -noble-lite (no ML runtimes), -noble-full, -noble-intel, -noble-nvidia,
+    -noble-amd.
+  compose_file_url: https://raw.githubusercontent.com/koush/scrypted/main/install/docker/docker-compose.yml
+  compose_file_notes: >
+    Official — published by koush/scrypted itself and linked from
+    docs.scrypted.app's Linux-Docker install page, which has the user curl
+    install/docker/install-scrypted-docker-compose.sh from this same repo
+    path to fetch and run it. It is a rolling reference to the default
+    (main) branch, not version-pinned — no tagged/release-asset variant
+    exists; the repo doesn't cut compose-file-specific releases. Only one
+    service definition is shipped (commented-out blocks toggle NVR network
+    storage, Avahi/mDNS mode, and GPU passthrough via image/device swaps
+    within the same file), so there is no separate variant to choose
+    between. As already captured above, this file uses an untagged
+    `ghcr.io/koush/scrypted` image and bundles a Watchtower auto-updater
+    container — a recipe must pin the image to a versioned tag and drop
+    Watchtower.
+
+version_health:
+  latest_version: "0.143.0"
+  latest_release_date: "2025-10-28"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Two different clocks here, and they disagree. The *server/container*
+    line has been quiet: stable 0.143.0 was published to npm and tagged on
+    GitHub on 2025-10-28 — 281 days (~9.3 months) before today
+    (2026-08-05) — the newest beta is 0.144.1 (2025-11-07), and the newest
+    container tags in ghcr.io/koush/scrypted are v0.144.1-noble-*, with the
+    :latest manifest (== v0.143.0-noble-full) built 2025-11-16, ~8.6 months
+    ago. The *project* is anything but dormant: main has commits dated
+    2026-08-05 (the day before this analysis: "snapshot: work around vips
+    load crash", "rebroadcast: fix socket leak"), ~8.5k commits, 5.8k
+    stars, ~30 open issues, not archived, no EOL notice. The reason is
+    architectural: functionality lives in plugins that install and update
+    from npm into the volume at runtime, and those ship constantly —
+    @scrypted/nvr published 0.12.105 on 2026-08-06. So the pinned image is
+    stale-but-supported rather than abandoned; cadence is marked slowing
+    (not active) because the artefact a recipe would actually pin has not
+    moved in ~9 months, and dormant/EOL would be plainly wrong. Practical
+    consequence for a recipe: pinning the image does NOT pin behaviour,
+    because plugins self-update inside /server/volume.
+
+catalogue_fit:
+  categories: [media, security, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [home-assistant]
+  differentiation: >
+    Nothing in the current 24-recipe catalogue does video: Scrypted would
+    be the first camera/NVR app. The overlap with recipes/home-assistant is
+    partial and real — both are local-first smart-home hubs that bridge
+    devices to HomeKit/Google Home/Alexa — but Home Assistant is a
+    general automation engine with weak video, whereas Scrypted is a
+    video-first hub (ONVIF/RTSP onboarding, hardware-accelerated
+    rebroadcast, HomeKit Secure Video) with an NVR and object detection
+    bolted on. Per CLAUDE.md that overlap is not itself a reason to
+    reject it.
+  usefulness: low
+  usefulness_rationale: >
+    The value proposition does not survive the move to a public cloud VM.
+    Scrypted must pull RTSP/ONVIF streams *from* the cameras, and a
+    customer's cameras sit on their home LAN behind NAT — an IONOS VM
+    cannot reach them without the customer first building port forwards or
+    a VPN, which is exactly the kind of setup our one-click install cannot
+    do for them. Even where reachable, continuous NVR recording of remote
+    streams means permanent inbound WAN bandwidth plus a large data disk,
+    and the advertised "smart detections" want a GPU/Coral/QuickSync device
+    that our VM flavours do not offer. On top of that the NVR plugin
+    carrying the headline features is a paid Scrypted subscription, so the
+    free install a customer would get is the camera hub only. This is a
+    LAN-appliance app (NAS, Pi, home server), not a hosted-VM app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Mechanically, Scrypted fits our mechanism: one container, one volume
+  (/server/volume), no database, no companion services once upstream's
+  bundled Watchtower is dropped, and a pinnable tag
+  (v0.143.0-noble-full). It serves its own web UI on 10443 (self-signed
+  HTTPS) and, per server/src/server-settings.ts, an equivalent plain-HTTP
+  listener on 11080 — Traefik should front 11080 on
+  scrypted.<base_domain>, and the UI's WebSockets are transparent to
+  Traefik; note the server sets `trust proxy` to loopback only, so it will
+  not believe X-Forwarded-Proto and issues its `login_user_token_insecure`
+  cookie, which is functional but means TLS must be terminated at Traefik.
+  Auth needs a mandatory Traefik basic_auth gate (IF-1312): there is no
+  seeded credential — the first HTTP caller to POST /login simply creates
+  the admin account (addUserInternal in scrypted-server-main.ts), so an
+  ungated install is claimable by whoever finds it first, and the app's own
+  password path is unusable for projection because it stores
+  sha256(salt+password) in an internal database, not an env var
+  (SCRYPTED_ADMIN_USERNAME only creates a user with a random password for
+  token/ingress auth). That is the only secret needed, installable_today is
+  true, and there are no blocking issues, so recommendation is build_now.
+  Fit concerns remain worth flagging for whoever prioritizes/builds this
+  (see catalogue_fit above and usefulness_rationale): the cameras Scrypted
+  exists to record live on the customer's NAT'd home LAN and are
+  unreachable from an IONOS VM, "smart detections" want accelerator
+  hardware we do not offer, recording remote streams burns continuous WAN
+  bandwidth and disk, and the NVR plugin behind the headline feature set is
+  a paid subscription — leaving customers a bare camera hub with no
+  cameras. Also worth flagging: dropping upstream's `network_mode: host`
+  for our bridge+Traefik shape costs multicast/mDNS camera discovery and
+  the HomeKit/Google Home bridges, which is moot on a cloud VM but is a
+  real functional difference from every install guide the customer will
+  find. None of that changes the mechanism-driven recommendation.

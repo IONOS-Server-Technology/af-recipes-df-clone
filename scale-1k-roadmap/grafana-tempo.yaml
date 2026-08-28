@@ -1,0 +1,101 @@
+slug: grafana-tempo
+name: Grafana Tempo
+source_description: "Distributed tracing backend with OpenTelemetry, Jaeger, and Zipkin support"
+
+upstream:
+  url: https://grafana.com/oss/tempo/
+  repo_url: https://github.com/grafana/tempo
+  license: AGPL-3.0
+  docker_image: grafana/tempo
+  compose_file_url: https://raw.githubusercontent.com/grafana/tempo/main/example/docker-compose/single-binary/docker-compose.yaml
+  compose_file_notes: >
+    Official — from grafana/tempo's own example/docker-compose/single-binary
+    directory, referenced from the repo's own docs. This is a rolling
+    reference to the default branch (main), not version-pinned to a
+    release tag — it will track whatever the current dev tip looks like,
+    not a specific Tempo release. The repo ships several docker-compose
+    variants under example/docker-compose/ (single-binary, distributed,
+    multitenant, migrate-to-3, debug); single-binary was picked because
+    it's the only topology that matches this recipe's
+    recipe_type_guess (docker-compose, single-instance) — distributed and
+    multitenant are multi-service microservices topologies requiring
+    Kafka/object storage that don't fit a single-recipe deployment. Note
+    this example bundles Tempo with Alloy, Grafana, Prometheus, and load
+    generators (k6-tracing, tempo-vulture) for demo purposes — it is not a
+    minimal Tempo-only compose file.
+
+version_health:
+  latest_version: "3.0.2"
+  latest_release_date: "2026-06-09"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    3.0.2 (Docker Hub, amd64/arm64) was pushed 2026-06-09, ~2 months before
+    today (2026-08-05) — the last patch on the current 3.0.x line. Tempo
+    3.0.0 itself landed 2026-05-28 as a major release completing a new
+    ingest/write architecture and graduating TraceQL metrics to GA. The
+    older 2.9.x line is still receiving backport patches (2.9.4 pushed
+    2026-07-23, more recent by date than 3.0.2, but that's a maintenance
+    patch on a superseded major, not the current stable tip) — Grafana Labs
+    states 2.9.x support runs through 2026-12-31 before EOL. Repo is not
+    archived and commit/release activity is continuous. No ambiguity on
+    project identity — this is Grafana Labs' grafana/tempo, distinct from
+    the already-analyzed Grafana (recipes/apps-gaps/grafana.yaml), which
+    flagged Tempo/Loki/Mimir as separate potential recipes.
+
+catalogue_fit:
+  categories: [monitoring, observability, tracing]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Tempo is a distributed-tracing storage/query backend: it ingests spans
+    over OTLP, Jaeger, and Zipkin protocols, buffers and writes them to
+    object storage (or local disk in single-binary/monolithic mode), and
+    answers TraceQL queries. It has no web UI of its own — traces are
+    browsed through a separate Grafana instance's Explore/Traces Drilldown
+    view, which must be deployed and wired up independently (as
+    apps-gaps/grafana.yaml already flags for Grafana's own data-source
+    dependency, this recipe would carry the same problem in the opposite
+    direction). None of the 24 shipped recipes touch distributed tracing,
+    so it would fill a genuine category gap, but only for a customer who
+    already runs (or is willing to separately stand up) both a Grafana
+    instance to query it and OpenTelemetry-instrumented applications to
+    feed it.
+  usefulness: low
+  usefulness_rationale: >
+    Tempo has zero standalone value: with no web UI, a bare install
+    answers no questions for a customer until they also deploy Grafana
+    (itself only build_with_caveats in our catalogue) and instrument their
+    own applications to export traces to it. That's a two-hop dependency
+    chain beyond what a typical AF "install one appliance and use it"
+    customer is set up for, and well past the technical depth of the
+    catalogue's current audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "Tempo ships with no built-in authentication layer at all (upstream docs explicitly say to run an authenticating reverse proxy in front of it); the only expressible gate today is Traefik basic_auth on the HTTP query API port (3200), which is workable for that one port."
+    - "The ingestion surface (OTLP gRPC 4317, OTLP HTTP 4318, Zipkin 9411, Jaeger thrift/gRPC 14268/14250) is what the source description actually advertises, and is not reasonably gate-able with Traefik basic_auth the way the query API is — trace-sending agents/SDKs would need per-protocol credential wiring that's outside anything our recipe mechanism can project today. Leaving those ports open and unauthenticated (the common real-world Tempo posture, behind a private network) is not an option for a recipe that must expose ports on the public internet."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Grafana Tempo (3.0.2, actively maintained, June 2026) is a competent
+  distributed-tracing backend, but it is not a fit for the current recipe
+  mechanism or catalogue. It has no web UI of its own — it's inert without
+  a separately-run Grafana to query it — and its actual value-delivering
+  surface, the multi-protocol trace-ingestion ports (OTLP/Jaeger/Zipkin),
+  cannot be meaningfully gated by the one auth mechanism we can project
+  today (Traefik basic_auth over HTTP). Confirmed via upstream docs that
+  Tempo's monolithic/single-binary mode (the only sane fit for a
+  single-instance recipe) does not require Kafka despite that being a hard
+  requirement for 3.0's microservices mode, so that specific complexity
+  concern doesn't apply here — the blocker is the missing auth story and
+  the two-hop dependency on a separately-deployed Grafana, not deployment
+  topology. Recommend not_recommended: low standalone usefulness combined
+  with a real installability gap on the ports that matter.

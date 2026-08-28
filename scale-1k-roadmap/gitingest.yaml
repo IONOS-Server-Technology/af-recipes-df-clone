@@ -1,0 +1,105 @@
+slug: gitingest
+name: GitIngest
+source_description: Git to LLM-friendly text converter for AI-powered code analysis
+
+upstream:
+  url: https://gitingest.com
+  repo_url: https://github.com/coderamp-labs/gitingest
+  license: MIT
+  docker_image: ghcr.io/coderamp-labs/gitingest
+  compose_file_url: https://raw.githubusercontent.com/coderamp-labs/gitingest/main/compose.yml
+  compose_file_notes: >
+    Official file, published by the project itself at the repo root
+    (`compose.yml`) and documented in the README's "Self-host" section. This
+    is a rolling reference to the `main` branch's default HEAD, not a
+    version-pinned release asset — matches the earlier finding that no
+    semver release tag exists on ghcr, only 'latest'/CI-build/'pr-*' tags,
+    so a pinned link isn't available either. The file defines two profiles
+    via Compose `profiles`: `prod` (the `app` service, pulling
+    ghcr.io/coderamp-labs/gitingest:latest) and `dev` (the `app-dev` service,
+    built from source, plus a `minio`/`minio-setup` pair for local
+    S3-compatible storage). Picked the single file as-is rather than a
+    profile-specific variant since profiles are just selectors within one
+    file, not separate compose files; the `prod` profile
+    (`docker compose --profile prod up -d`) is the one relevant to
+    self-hosting a production instance.
+
+version_health:
+  latest_version: "v0.3.1"
+  latest_release_date: "2025-07-31"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    Repo is not GitHub-archived (archived flag is false) and stars/community
+    activity look healthy (15k+ stars, open issues/PRs filed as recently as
+    2026-08-05), but nothing has actually landed on `main` since commit
+    4e259a0 on 2025-08-16 — confirmed via `main` branch HEAD sha/date, which
+    matches the last-built ghcr image tag (main-4e259a0-1755307869). That is
+    354 days, just under 12 months (~11.5 months) of zero merges as of today
+    (2026-08-05), despite a growing backlog of unmerged renovate
+    dependency-bump PRs (e.g. #500, #518, #528 — long-standing and unmerged,
+    though actually opened 2025-08-07/2025-08-18/2025-09-09, not recently)
+    and PRs that are genuinely recent but still unmerged (e.g. #595-#598,
+    dated 2026-07/08, mostly chore/deps plus one docs PR; contributor fix
+    #587 "logging fix" opened 2026-06-17 is also still open). This reads as
+    a maintainer-gone-dark project: the appearance of activity is bots and
+    outside contributors, not a merging maintainer. Setting eol_status to
+    maintenance-only rather than archived: GitHub's own archived flag is
+    false and the repo could in principle resume merging, but treat it as
+    functionally dormant for planning purposes.
+
+catalogue_fit:
+  categories: [developer-tools, ai-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers this niche: a single-purpose tool that turns a
+    git repo into an LLM-friendly text digest (paste a repo URL, get a
+    token-counted text dump for pasting into a prompt). Distinct from our
+    git-hosting recipes (gitea, opengist) and our LLM-serving recipes
+    (ollama, open-webui) — it's a small utility that could complement them
+    but doesn't replace anything in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Niche developer convenience tool rather than something customers
+    self-host as an ongoing service — most usage of this exact workflow
+    already happens for free at gitingest.com, and the self-hosted value-add
+    (private repos via a PAT) has no way to be wired up under our current
+    mechanism (see blocking_issues). Combined with the dormancy above, low
+    priority.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "No pinned, versioned Docker tag exists on the registry. The only
+      published image is ghcr.io/coderamp-labs/gitingest with tags limited to
+      'latest', 'main-<sha>-<timestamp>' CI build artifacts, and 'pr-*'
+      per-PR builds — there is no semver-style release tag (e.g. 'v0.3.1')
+      pushed to ghcr at all. Pinning would mean pinning to a CI build
+      identifier rather than a release, which we don't do for other recipes."
+    - "The app itself has no login, so a public instance lets anyone on the
+      internet run arbitrary GitHub-repo ingests through the customer's
+      server; a Traefik basic_auth gate covers that (expressible today), but
+      it also means the useful 'private repo' feature (GITHUB_TOKEN PAT env
+      var) has no per-customer input channel today — a customer could not
+      supply their own PAT to unlock private-repo support, only self-hosting
+      the public-repo functionality that's already free at gitingest.com."
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  GitIngest is mechanically installable today — single container, one HTTP
+  port, no login of its own to project a secret into, so a Traefik
+  basic_auth gate covers the only required first-boot secret. But upstream
+  has had zero merges to main for just under 12 months (~11.5 months) despite
+  an active queue of unmerged dependency and contributor PRs, there is no
+  versioned Docker tag
+  to pin to (only CI build artifacts), and the differentiated self-hosted
+  value (private-repo PAT support) has no customer-input channel under our
+  current mechanism. Not recommended: low usefulness plus a dormant, hard-to
+  -pin upstream outweighs its clean mechanical fit.

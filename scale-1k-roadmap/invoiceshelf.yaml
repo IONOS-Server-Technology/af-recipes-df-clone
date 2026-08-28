@@ -1,0 +1,90 @@
+slug: invoiceshelf
+name: InvoiceShelf
+source_description: "Open-source invoicing platform with estimates, expenses, and payment portal"
+
+upstream:
+  url: https://invoiceshelf.com/
+  repo_url: https://github.com/InvoiceShelf/InvoiceShelf
+  license: AGPL-3.0
+  docker_image: invoiceshelf/invoiceshelf:2.4.2
+  compose_file_url: https://raw.githubusercontent.com/InvoiceShelf/docker/master/docker-compose.sqlite.yml
+  compose_file_notes: >
+    Official — docs.invoiceshelf.com/install/docker.html directs users to
+    clone the project's separate `InvoiceShelf/docker` repo and pick one of
+    four ready-made compose variants (docker-compose.sqlite.yml,
+    docker-compose.mysql.yml, docker-compose.pgsql.yml, or the base
+    docker-compose.yml). Picked the sqlite variant since it matches this
+    recipe's single-container, no-external-DB installability analysis
+    below. This is a rolling reference to the default branch, not
+    version-pinned: the file itself points at `invoiceshelf/invoiceshelf:latest`
+    and its inline comment says to change the image tag manually (e.g. to
+    an exact `:2.4.0`-style tag) before first start if pinning is desired.
+
+version_health:
+  latest_version: "v2.4.2"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.4.2 (stable) released 2026-07-29, ~1 week before this analysis
+    (2026-08-06); 2.4.3-beta.1 through .3 pre-releases also landed the same
+    day, showing active in-flight work. Prior stable cadence:
+    v2.3.1/.2/.3 (2026-04-05/06/07) → v2.4.0 (2026-06-12) → v2.4.1
+    (2026-06-14) → v2.4.2 (2026-07-29). The 2.x line is now in feature
+    freeze — upstream states security patches only through 2027-09-01 —
+    while active development has moved to a 3.0.0-alpha.1 line (Vue 3,
+    TypeScript, Laravel) released 2026-06-14. Not archived or dormant, but
+    a customer-facing recipe today would pin the maintenance-mode 2.x
+    branch, not the actively-developed 3.x line.
+
+catalogue_fit:
+  categories: [business, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers invoicing, billing,
+    or small-business finance — the closest analogues (paperless-ngx,
+    paperless-ai) are document-archive tools, not transactional
+    bookkeeping apps. InvoiceShelf would open a genuinely new "run your
+    small business" category: estimates, invoices, expense tracking, and a
+    client payment portal, self-hosted on the customer's own server.
+  usefulness: medium
+  usefulness_rationale: >
+    Invoicing/estimates/expense-tracking is a real SMB need with clear
+    appeal for a hosting customer who wants to own their financial data
+    instead of using a SaaS like FreshBooks or InvoiceNinja's cloud tier.
+    Rated medium rather than high because the 2.x line customers would
+    actually get is in feature-freeze/security-only mode, and the payment
+    portal's usefulness depends on the customer separately configuring a
+    payment gateway (Stripe/PayPal/etc.) post-install, which is outside
+    what a recipe can automate.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  InvoiceShelf is a single-container Laravel app (SQLite mode needs no
+  separate DB service) on one HTTP port (8090 default), reverse-proxy
+  friendly, with no external API key or OAuth registration required to
+  boot. Admin account creation happens exclusively through a browser-based
+  first-run setup wizard — there's no env-var or API channel to inject a
+  fixed admin credential — so the recipe cannot use `generated_from`
+  root-password projection for the app's own login. That's not a blocker
+  though: gating the whole app behind Traefik `basic_auth: true` (same
+  pattern as n8n/Open WebUI) closes the window during which an
+  unauthenticated visitor could reach the setup wizard and claim the admin
+  account first; the customer then completes the wizard themselves,
+  self-service, picking their own admin email/password with no need for a
+  `/compose`-supplied value. Recommend build_now: mechanically installable
+  today and fills a real gap (invoicing/SMB finance) not covered by any of
+  the current 24 recipes, tempered only by upstream having moved active
+  development to a 3.x line while the pinnable 2.x branch is in
+  security-only maintenance mode.

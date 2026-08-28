@@ -1,0 +1,101 @@
+slug: spacedrive
+name: Spacedrive
+source_description: "Open-source file manager for organizing assets across devices and cloud storage"
+
+upstream:
+  url: https://spacedrive.com
+  repo_url: https://github.com/spacedriveapp/spacedrive
+  license: FSL-1.1-ALv2 (Functional Source License; source-available today, converts to Apache-2.0 two years after each release)
+  docker_image: null  # see blocking_issues: a published tag exists but is ~2yr stale on the abandoned 0.4.x line, not the active v2 alpha
+  compose_file_url: https://raw.githubusercontent.com/spacedriveapp/spacedrive/main/apps/server/docker-compose.yml
+  compose_file_notes: >
+    Rolling main-branch reference (no version-pinned release asset is
+    offered) at apps/server/docker-compose.yml in the spacedriveapp/spacedrive
+    monorepo. This is the project's own file, presented in apps/server/README.md
+    under "Docker Deployment (Recommended)" as the recommended way to run
+    sd-server. Only one variant exists (no GPU/CPU or dev/prod split); it
+    builds the image from source (`build: context: ../.. dockerfile:
+    apps/server/Dockerfile`) rather than referencing a published registry
+    tag, consistent with the blocking_issues note that the v2 line has no
+    maintained pinned image.
+
+version_health:
+  latest_version: "v2.0.0-alpha.3"
+  latest_release_date: "2026-04-17"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v2.0.0-alpha.3 shipped 2026-04-17, just under 4 months before today
+    (2026-08-05). This is a ground-up Rust rewrite line: v2.0.0-alpha.1
+    (2025-12-26) came after the prior stable 0.4.x line was explicitly
+    paused — the 0.4.3 release notes (2025-03-25) stated "we must
+    temporarily pause our development roadmap ... due to current funding
+    constraints and related challenges". After that ~9-month stoppage,
+    the v2 rewrite resumed on a roughly 6-8 week cadence (alpha.1
+    2025-12-26, alpha.2 2026-02-07, alpha.3 2026-04-17), then has gone
+    quiet again for the last ~3.5 months with no alpha.4. Repo itself is
+    not archived and shows continued commit activity (e.g. redundancy-
+    filter work landing in the alpha.3 changelog), so this reads as
+    "slowing" rather than "dormant" — a real but not yet alarming
+    deceleration on a project with one prior extended funding-driven
+    pause already on record.
+
+catalogue_fit:
+  categories: [productivity, file-management]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: [syncthing]
+  differentiation: >
+    On paper Spacedrive's pitch (content-addressed dedup via BLAKE3,
+    cross-device virtual filesystem, AI-safety-screened indexing of
+    email/notes/cloud sources, P2P sync via Iroh/QUIC) goes well beyond
+    Syncthing's plain folder-sync. In practice none of that is reachable
+    through a browser: the self-hostable piece (`apps/server`, "sd-server")
+    is an RPC-only headless backend with, per its own README, "no bundled
+    web UI" and a "Future web UI (not yet implemented)" placeholder. A
+    customer's actual interface to any of Spacedrive's features is the
+    native Tauri desktop app or the React Native mobile app running on
+    their own device and pairing with the server over RPC/P2P — neither
+    of which our recipe mechanism installs or configures. So there is no
+    deliverable differentiation over Syncthing for a browser-only
+    customer today; Syncthing already covers the "sync files across my
+    own devices, no cloud" niche with a real web UI on port 8384.
+  usefulness: low
+  usefulness_rationale: >
+    A customer who provisions this recipe would get a domain that serves
+    a bare `/health` check and a `/rpc` JSON-RPC endpoint — nothing
+    resembling the file manager described in the Hostinger listing.
+    Getting any actual value out of it requires installing and pairing a
+    separate native client the recipe mechanism has no part in
+    delivering, which is a fundamentally different customer journey than
+    every other recipe in the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["basic_auth gate credential"]
+  secrets_expressible_today:
+    - secret: "basic_auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "sd-server has no reachable web UI to log into; its own SD_AUTH does HTTP Basic auth via a plaintext user:pass env var, so a Traefik basic_auth gate could stand in for it, but there is nothing behind the gate for a browser user to use."
+    - "sd-server ships no web UI at all. Its own README states it 'Provides only RPC endpoints (no bundled web UI)' with a 'Future web UI (not yet implemented)' note — fronting port 8080 with Traefik exposes only a health-check endpoint and raw JSON-RPC, not an application a customer can use in a browser. This is a product/architecture mismatch, not something the auth-projection or basic_auth mechanisms can fix."
+    - "ghcr.io/spacedriveapp/spacedrive/server does have published semver tags (0.4.0, 0.4.1, 0.4.2) plus a 'latest' tag pointing at 0.4.2 — but those are ~2 years stale and belong to the old, paused pre-rewrite 0.4.x line, not the actively developed v2 alpha. The v2 line (the one with any recent release activity, see version_health) has no maintained pinned tag: its only recent tags are per-commit SHAs (e.g. 61c0503) plus a 'staging' tag, and its own docker-compose.yml builds the image from source (`build: context: ../.. dockerfile: apps/server/Dockerfile`) rather than referencing a published tag. Pinning to the stale 0.4.2 tag would ship a different, superseded codebase than what upstream is currently developing/documenting."
+    - "The only actively developed line (v2 rewrite) is pre-1.0 alpha; upstream's own v2.0.0-alpha.2 release notes warn 'Many features are NOT working so test with caution', which is not a basis for a production recipe."
+    - "Core selling point (P2P device sync over UDP 7373) has no meaning in a single, customer-facing hosted-server deployment with no client to pair — the feature that would justify choosing this app over Syncthing is unusable in our delivery model."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Spacedrive's headless server component (sd-server) has no web UI
+  whatsoever — by upstream's own admission it is RPC-only, meant to be
+  paired with the native Tauri/React Native client running on the
+  customer's own device, not accessed through a domain in a browser.
+  Even setting aside that there is no officially published pinned Docker
+  tag (only per-commit SHAs and a "staging" tag) and that the only active
+  line is a pre-1.0 alpha still recovering from a funding-driven
+  development pause in 2025, the fundamental blocker is architectural:
+  fronting this app with Traefik would give a customer a domain that
+  returns a health-check string and JSON-RPC errors, not the file manager
+  described in the Hostinger listing. Recommendation is not_recommended —
+  this isn't a case of waiting on a platform mechanism (IF-1420/1312)
+  to unblock it, since even solved auth wouldn't produce a usable app.

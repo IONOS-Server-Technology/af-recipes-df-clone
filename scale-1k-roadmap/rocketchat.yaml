@@ -1,0 +1,147 @@
+slug: rocketchat
+name: Rocket.Chat
+source_description: "Open-source team messaging with real-time chat, video calls, and integrations"
+
+upstream:
+  url: https://rocket.chat/
+  repo_url: https://github.com/RocketChat/Rocket.Chat
+  license: MIT (Expat) for the core; `ee/` and `apps/meteor/ee/` directories are under a separate proprietary Rocket.Chat enterprise license (repo LICENSE is dual, GitHub reports NOASSERTION)
+  docker_image: registry.rocket.chat/rocketchat/rocket.chat (mirrored on Docker Hub as rocketchat/rocket.chat)
+  compose_file_url: https://raw.githubusercontent.com/RocketChat/rocketchat-compose/main/compose.yml
+  compose_file_notes: >
+    Official — docs.rocket.chat's "Deploy with Docker/Docker Compose" page
+    doesn't embed a compose file inline; it points to the RocketChat-org-
+    owned github.com/RocketChat/rocketchat-compose repo as "the official
+    rocketchat-compose repository". That repo splits deployment into several
+    combinable files rather than one all-in-one file: `compose.yml` (the
+    Rocket.Chat app service itself, image pinned via `${RELEASE:-8.0.1}`
+    default but overridable), `compose.database.yml` (MongoDB, required —
+    `compose.yml` already points MONGO_URL at a `replicaSet=rs0`, matching
+    the replica-set requirement noted below), plus opt-in add-ons
+    (`compose.traefik.yml`, `compose.monitoring.yml`, `compose.nats.yml`,
+    `compose.drachtio.yml`/`compose.freeswitch*.yml` for voice/video,
+    `podman.yml`/`podman-rootful.yml` for Podman). Picked `compose.yml` as
+    the primary/recorded file since it's the core app service upstream
+    itself calls out; a real build would also need `compose.database.yml`
+    layered in via Compose's multi-file `-f` mechanism. This is a rolling
+    reference to the repo's default `main` branch, not a version-pinned
+    release tag or asset — the image tag itself defaults to a specific
+    release (`8.0.1` at time of writing, via `${RELEASE:-8.0.1}`) but the
+    compose file's own content can change on `main` between visits.
+
+version_health:
+  latest_version: "8.6.1"
+  latest_release_date: "2026-07-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    8.6.1 is the newest non-prerelease tag, published 2026-07-10 — 27 days
+    before today (2026-08-06). The 8.7.0 line is mid-release-candidate
+    (8.7.0-rc.0 on 2026-07-21 through 8.7.0-rc.5 on 2026-08-04, all marked
+    prerelease on GitHub and pushed as `8.7.0-rc.N` tags on Docker Hub), so a
+    recipe would pin 8.6.1, not an RC. Rocket.Chat ships a new minor roughly
+    monthly (8.5.x, 8.6.0 on 2026-07-03, 8.6.1 on 2026-07-10) and maintains
+    an unusually wide set of parallel patch branches — on 2026-07-10/11 alone
+    it cut 7.10.14, 8.0.8, 8.1.7, 8.2.7, 8.3.7, 8.4.5, 8.5.2 and 8.6.1 in one
+    coordinated sweep. `develop` has commits from today. Clearly active and
+    commercially backed, not maintenance-only, archived, or EOL. Separate
+    commercial caveat, not a version-health problem: the free self-managed
+    Community tier is user-capped (workspaces crossing 25 users / 100 monthly
+    active contacts are auto-enrolled in a 30-day trial and must then upgrade,
+    reduce users, or fall back to Community), and the Pro plan was retired to
+    legacy on 2026-04-29.
+
+catalogue_fit:
+  categories: [communication, collaboration, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers team chat/messaging, so
+    this would open a new category rather than duplicate anything. Against the
+    other messaging candidates already analysed under apps-gaps/, Rocket.Chat
+    is the closest sibling to apps-gaps/mattermost.yaml (self-hosted
+    Slack/Teams alternative, single HTTP app + one database), and unlike
+    apps-gaps/matrix-synapse.yaml + apps-gaps/element.yaml it is a single
+    self-contained product — server and web client in one image — so no second
+    recipe is needed to make it usable.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted team chat is a mainstream, frequently requested workload
+    (avoiding Slack/Teams SaaS pricing and keeping message data on the
+    customer's own server), and Rocket.Chat is one of the two best-known
+    options in that space. It serves its own full web UI on a single HTTP port
+    (3000) with WebSocket upgrades, which Traefik fronts fine on
+    `<slug>.<base_domain>`, so it fits the existing proxy model without raw
+    ports. The Community user cap tempers this for larger teams but not for
+    the small-team case the catalogue mostly targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASS]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Rocket.Chat's only supported way to preseed the first admin account is
+      the documented `INITIAL_USER=yes` + `ADMIN_USERNAME` / `ADMIN_EMAIL` /
+      `ADMIN_PASS` env-var set (plus `OVERWRITE_SETTING_Show_Setup_Wizard=completed`
+      to skip the wizard). `ADMIN_PASS` takes the **plaintext** password —
+      Rocket.Chat hashes it itself on first boot and there is no env var,
+      setting, or API field that accepts a pre-computed hash. Per SCHEMA.md's
+      decision table this is a structural blocker: `generated_from:
+      "<algo>:ROOT_PASSWORD"` only ever carries a hash, so it has nowhere to
+      project. Same shape as the blocker in apps-gaps/matrix-synapse.yaml.
+    - >
+      Skipping the env vars and letting the customer run the built-in setup
+      wizard doesn't help either: that route creates the admin credential
+      client-side in the browser, so again there is no `type: password`
+      metadata parameter on Rocket.Chat's own login for the root-password
+      projection to target — and until someone completes it the fresh
+      workspace sits on the public domain with an open wizard/registration
+      form (`Accounts_RegistrationForm` defaults to public), so whoever
+      reaches the domain first owns the workspace.
+    - >
+      A Traefik `basic_auth: true` gate is a poor substitute here for exactly
+      the reason given in apps-gaps/mattermost.yaml: Rocket.Chat is explicitly
+      multi-user team software, so a permanent gate over the whole hostname
+      would also lock out every teammate the customer invites (none of whom
+      know the customer's server root password), and would break the mobile
+      and desktop clients' REST/WebSocket connections to the same port.
+      Removing the gate after bootstrap needs a manual out-of-band step the
+      install flow doesn't support today. The single root-password projection
+      is also already consumed by the gate, leaving no channel for a second,
+      distinct in-app admin credential.
+    - >
+      Secondary, not boot-blocking: teammate email invites, password resets
+      and push notifications beyond the Community tier's 10k/month cap depend
+      on customer-supplied external SMTP / cloud-workspace credentials, and
+      `ROCKETCHAT_LICENSE` (needed for any paid tier) is likewise a
+      customer-supplied value — none of which has an input channel in
+      `/compose`. A Community-tier install boots fine without them.
+    - >
+      Mechanical caveat for whoever builds this later, not a platform
+      blocker: Rocket.Chat requires MongoDB configured as a **replica set**
+      (`?replicaSet=rs0`), not a standalone mongod. Upstream's compose ships
+      an entrypoint script that runs `rs.initiate()` on first start; the
+      recipe would have to carry that init step, which is more involved than
+      the plain `postgres:16-alpine` sidecar in recipes/n8n or
+      recipes/paperless-ngx.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Rocket.Chat is an actively developed (monthly minors, 8.6.1 on 2026-07-10,
+  8.7.0 currently in RC, commits today), commercially backed team-chat
+  platform that would fill a genuine messaging gap in the current 24-recipe
+  catalogue with no overlap against anything shipping. Architecturally it fits
+  well — one image serving both server and web UI on a single HTTP port behind
+  Traefik — with the one mechanical wrinkle that its MongoDB must be a
+  replica set rather than a plain sidecar. It is not installable today because
+  the only supported first-admin provisioning path (`INITIAL_USER` +
+  `ADMIN_PASS`) demands the plaintext password, which the hash-only
+  `generated_from` mechanism cannot supply, while the alternative — the
+  built-in setup wizard on an openly registerable domain — creates the
+  credential client-side and can't be safely gated behind Traefik basic auth
+  for multi-user chat software. Recommend `blocked_on_platform`, revisit
+  alongside apps-gaps/mattermost.yaml and apps-gaps/matrix-synapse.yaml once
+  the platform can seed or surface a first-boot plaintext credential.

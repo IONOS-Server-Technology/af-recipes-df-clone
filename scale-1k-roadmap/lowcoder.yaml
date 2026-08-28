@@ -1,0 +1,85 @@
+slug: lowcoder
+name: Lowcoder
+source_description: Open-source low-code platform for building internal apps and admin dashboards
+
+upstream:
+  url: https://lowcoder.cloud
+  repo_url: https://github.com/lowcoder-org/lowcoder
+  license: AGPL-3.0
+  docker_image: lowcoderorg/lowcoder-ce
+  compose_file_url: https://raw.githubusercontent.com/lowcoder-org/lowcoder/main/deploy/docker/docker-compose.yaml
+  compose_file_notes: >
+    Official file, published in-repo at deploy/docker/docker-compose.yaml
+    and linked directly from the self-hosting docs
+    (docs.lowcoder.cloud/lowcoder-documentation/setup-and-run/self-hosting),
+    which instructs `curl .../main/deploy/docker/docker-compose.yaml -o
+    docker-compose.yml`. This is a rolling reference to the `main` branch,
+    not a version-pinned tag or release asset. Picked the all-in-one
+    variant (single lowcoderorg/lowcoder-ce container) over the
+    docker-compose-multi.yaml variant in the same directory, since the
+    multi-image variant splits frontend/backend into separate stateless
+    services for clustered scaling and doesn't match the single-container
+    image this recipe's summary is built around.
+
+version_health:
+  latest_version: "2.7.6"
+  latest_release_date: "2026-01-03"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    2.7.6 ("Equilibrium") is 7 months old as of 2026-08-05 — no new tag since.
+    Prior cadence (2.6.5 → 2.7.6) was roughly monthly through mid-2025, so a
+    7-month gap with zero new tags is a real slowdown. Repo itself is not
+    dormant: default `pushed_at` is 2026-08-04 and the `dev` branch has
+    commits through late April 2026 (feature work, PR merges), so upstream
+    is still developing — it just hasn't cut a release in a while. Not
+    archived, not announced EOL.
+
+catalogue_fit:
+  categories: [low-code, internal-tools, dashboards, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover low-code/no-code internal app or
+    admin-dashboard building. n8n covers workflow automation, not UI/app
+    building; runtipi/portainer are app-store/container-management tools,
+    not app builders. Lowcoder would be a genuinely new category
+    (Retool/Appsmith/Tooljet-style builder) rather than overlapping ground.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted low-code app builders, and this fills
+    a category gap. Medium rather than high because the app is heavier
+    (bundles Mongo+Redis, higher RAM footprint than most current recipes)
+    and the slowing release cadence adds some risk to shipping it as a
+    flagship recipe right now.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  The all-in-one `lowcoderorg/lowcoder-ce` image is a single container on
+  port 3000 that bundles MongoDB + Redis internally — no extra services, no
+  raw ports, fully reverse-proxy-compatible. Lowcoder's admin account can be
+  created either via LOWCODER_SUPERUSER_USERNAME/PASSWORD env vars
+  (plaintext value the app hashes itself — not expressible via
+  generated_from, which only ever carries a hash) or via first-run
+  self-service signup where the visitor types their own password directly
+  into the Lowcoder UI. The signup path needs no secret projection at all —
+  the customer sets their real password themselves, in-app — so the only
+  genuine first-boot secret is gating the domain with Traefik basic_auth
+  (root-password-derived) so an anonymous visitor can't race the customer to
+  the first signup and claim the instance/workspace before they do. That
+  makes it installable today with no platform blockers. The one soft caveat
+  is a slowing release cadence (7 months since the 2.7.6 tag, though
+  upstream dev activity on the `dev` branch is still ongoing) and a heavier
+  resource footprint than most existing recipes — still a reasonable
+  build_now given it fills a genuine category gap (no low-code app builder
+  in the current 24-recipe catalogue).

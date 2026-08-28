@@ -1,0 +1,107 @@
+slug: otobo
+name: OTOBO
+source_description: "Open-source help desk and ITSM ticketing system with SLA and automation"
+
+upstream:
+  url: https://otobo.io/
+  repo_url: https://github.com/RotherOSS/otobo
+  license: GPL-3.0
+  docker_image: rotheross/otobo
+  compose_file_url: null
+  compose_file_notes: >
+    No single canonical docker-compose.yaml exists. OTOBO's official Docker
+    deployment lives in a separate repo, github.com/RotherOSS/otobo-docker,
+    and is assembled at runtime from multiple fragment files under its
+    docker-compose/ directory (otobo-base.yml plus one of
+    otobo-override-http.yml / otobo-override-https.yml /
+    otobo-override-https-kerberos.yml / otobo-nginx-custom-config.yml /
+    otobo-selenium.yml, etc.), selected via the COMPOSE_FILE variable in a
+    .env file the user copies from one of the repo's
+    .docker_compose_env_{http,https,https_custom_nginx,https_kerberos,...}
+    templates (documented at
+    doc.otobo.org/manual/installation/11.0/en/content/installation/installation-docker.html).
+    None of the fragment files is deployable standalone, so there is no
+    single URL that represents "the" official compose file the way Immich
+    ships one — the closest is the always-included base fragment,
+    raw.githubusercontent.com/RotherOSS/otobo-docker/master/docker-compose/otobo-base.yml
+    (a rolling reference to the default branch), but it requires an
+    override fragment merged in via COMPOSE_FILE to be usable.
+
+version_health:
+  latest_version: "11.0.17"
+  latest_release_date: "2026-07-27"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Two lines are under active security support in parallel: 11.0 (latest
+    11.0.17, released 2026-07-27, ~9 days before today 2026-08-05) and 10.1
+    (latest 10.1.18, also 2026-07-27). Monthly-ish patch cadence with
+    frequent security fixes (e.g. 11.0.16 closed a CVE in April 2026). The
+    prior 10.0 line reached EOL on 2026-01-01, so upstream does retire old
+    minors on a published schedule — pin to 11.0.x, not 10.x. OTOBO is a
+    2019 community fork of ((OTRS)) Community Edition, maintained by Rother
+    OSS GmbH; not to be confused with the original OTRS project (now
+    proprietary under a different vendor) or other OTRS forks (Znuny) —
+    RotherOSS/otobo is the correct upstream for the Hostinger "OTOBO" slug.
+
+catalogue_fit:
+  categories: [productivity, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue covers help desk / ITSM
+    ticketing — closest neighbors (gitea, opengist) are dev-tooling, not
+    support workflows. OTOBO would open a genuinely new category: customer
+    service ticketing, SLA tracking, and ITSM (CMDB, change management) for
+    small teams that want an on-prem alternative to Zendesk/Freshdesk/OTRS
+    SaaS.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand exists for self-hosted help desk software, and OTOBO is a
+    credible, actively-maintained option in that space. Usefulness is
+    "medium" rather than "high" because the stack is heavy for a single-VM
+    recipe (see installability) and the admin-onboarding blocker below means
+    it can't ship as smoothly as our single-container or basic-auth-gated
+    recipes today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [OTOBO_DB_ROOT_PASSWORD, OTOBO_ROOT_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: OTOBO_DB_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      OTOBO's own documented production install path has no env-var or CLI
+      hook to set the initial admin (root@localhost) agent password. The
+      supported flow is the interactive web installer wizard
+      (http://<host>/otobo/installer.pl), a multi-step, CSRF-tokened HTTP
+      form flow that a human must complete in a browser — there is no
+      env-var equivalent to project a `generated_from` root-password hash
+      into it, unlike Vaultwarden's ADMIN_TOKEN.
+    - >
+      The one scriptable shortcut, `bin/docker/quick_setup.pl`, is
+      documented by upstream as a dev/test-suite convenience, not a
+      supported production path, and it auto-generates a random
+      root@localhost password that it only prints to container stdout —
+      there is no channel today for install.sh to read that value back out
+      and no channel to hand the customer's own credential in instead.
+    - >
+      Full stack (web, daemon, db/MariaDB, Elasticsearch, redis, optional
+      nginx) is heavier than most current recipes — not a hard blocker but
+      raises the min-spec bar and install-script complexity.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  OTOBO is an actively maintained, single-HTTP-port, Traefik-compatible
+  ticketing/ITSM app that would fill a genuinely empty category in the
+  catalogue. It is not installable today because the only two supported
+  first-boot secret mechanisms (root-password-hash projection, Traefik
+  basic_auth) have no way to reach OTOBO's admin account: the app's own
+  installer requires a live interactive browser wizard, and its scripted
+  shortcut only yields a self-generated password with no output channel.
+  Revisit once there's either a way to run install.sh through the installer
+  wizard headlessly (scripted HTTP form submission) or an OTOBO CLI command
+  confirmed to accept a pre-hashed admin password directly.

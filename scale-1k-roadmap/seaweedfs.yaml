@@ -1,0 +1,132 @@
+slug: seaweedfs
+name: SeaweedFS
+source_description: "Fast distributed file system with S3 compatibility for scalable object storage"
+
+upstream:
+  url: https://seaweedfs.org/
+  repo_url: https://github.com/seaweedfs/seaweedfs
+  license: Apache-2.0
+  docker_image: chrislusf/seaweedfs
+  compose_file_url: https://raw.githubusercontent.com/seaweedfs/seaweedfs/master/docker/seaweedfs-compose.yml
+  compose_file_notes: >
+    Official — upstream's own docker/README.md instructs `wget
+    https://raw.githubusercontent.com/seaweedfs/seaweedfs/master/docker/seaweedfs-compose.yml`
+    under "Try it out". This is a rolling reference to the default
+    (master) branch, not a version-pinned tag — the file itself pulls the
+    unpinned `chrislusf/seaweedfs` image (equivalent to `:latest`), which
+    the version_health notes above already flag as unsuitable to reuse
+    verbatim given weekly releases. Picked seaweedfs-compose.yml over the
+    sibling seaweedfs-dev-compose.yml in the same directory: the README
+    labels the dev variant "Try latest tip" (built from source against
+    the master branch tip), whereas seaweedfs-compose.yml is the
+    plain "Try it out" stable-image variant — the appropriate one to use
+    as a reference. Both are six-service (master/volume/filer/s3/webdav)
+    layouts, matching the "six-service upstream
+    docker/seaweedfs-compose.yml" already referenced in this file's
+    summary — this record just adds the concrete URL.
+
+version_health:
+  latest_version: "4.41"
+  latest_release_date: "2026-08-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Extremely active. 4.41 was tagged on 2026-08-06 — today — and the
+    chrislusf/seaweedfs:4.41 image was pushed to Docker Hub the same
+    morning (08:43 UTC). The preceding ten releases all landed inside the
+    last two months: 4.40 (2026-07-20), 4.39 (2026-07-10), 4.38
+    (2026-07-06), 4.37 (2026-06-29), 4.36 (2026-06-25), 4.35 (2026-06-22),
+    4.34 (2026-06-15), 4.33 (2026-06-11), 4.32 (2026-06-08) — roughly one
+    release every 5–10 days. Repo is not archived (~33k stars, ~14.6k
+    commits on master, issues and PRs actively triaged). No EOL or
+    maintenance-only signal anywhere. The practical version_health risk is
+    the opposite of dormancy: a release every week means a pinned tag goes
+    stale fast, and `:latest` / `:dev` must not be used. Note the images
+    are published under the personal namespace `chrislusf/seaweedfs`
+    (project founder Chris Lu) rather than an org namespace — that is the
+    official image referenced by upstream's own docker/ compose files, not
+    a third-party rebuild.
+
+catalogue_fit:
+  categories:
+    - storage
+    - developer-tools
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue provides object storage or
+    an S3-compatible API. Syncthing (recipes/syncthing/) is the only
+    storage-adjacent recipe and solves an unrelated problem — P2P
+    device-to-device file sync, no server-side API, no buckets, no
+    programmatic access. SeaweedFS would add the "self-hosted S3
+    endpoint" primitive: a backing store other applications write to via
+    the AWS SDK, plus a filer with WebDAV and an Iceberg REST catalog.
+    Note this is infrastructure a developer consumes from code, not an
+    end-user product like Nextcloud (apps-gaps/nextcloud.yaml) or
+    ownCloud (apps-gaps/owncloud.yaml) — those target humans browsing
+    files, SeaweedFS targets applications storing objects. The two do not
+    substitute for each other.
+  usefulness: medium
+  usefulness_rationale: >
+    Real and unmet need — S3-compatible storage is a common dependency for
+    backups (restic, Velero), CI artifacts, and app media, and running it
+    on your own VM is a genuine draw. But the audience is developers and
+    operators rather than the general self-hosting customer, and the value
+    of a *single-node* SeaweedFS is much lower than the distributed
+    deployment the project is designed for: on one VM it is essentially a
+    local-disk S3 gateway, with none of the replication or horizontal
+    scaling the description advertises. Useful, not headline.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - WEED_ADMIN_PASSWORD
+    - S3_BOOTSTRAP_ACCESS_KEY_SECRET
+  secrets_expressible_today:
+    - secret: WEED_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+    - secret: S3_BOOTSTRAP_ACCESS_KEY_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  SeaweedFS is mechanically installable today as a single container. The
+  `weed mini` all-in-one command (upstream's own documented single-node
+  production mode) starts master, volume server, filer, S3 gateway,
+  WebDAV, Iceberg catalog and Admin UI in one process from
+  chrislusf/seaweedfs:4.41 (pin the numeric tag; never :latest or :dev,
+  which are rebuilt weekly), so the recipe is closer in shape to
+  recipes/uptime-kuma/ than to the six-service upstream
+  docker/seaweedfs-compose.yml. Both first-boot secrets are expressible:
+  the Admin UI (port 23646) takes `-admin.password` / WEED_ADMIN_PASSWORD
+  as an arbitrary string with a fixed default username "admin", which
+  fits generated_from:"<algo>:ROOT_PASSWORD" the same way ownCloud's
+  ADMIN_PASSWORD does (apps-gaps/owncloud.yaml); and the S3 gateway needs
+  one identity seeded server-side in its -s3.config JSON, because with
+  zero identities configured it runs in documented "Allow-All Mode" where
+  every S3 operation succeeds unauthenticated — a wide-open bucket store
+  on a public IP. That bootstrap key can be random and never shown to the
+  customer, since the authenticated Admin UI's Object Store Users page
+  lets them create their own access/secret pairs afterwards (existing
+  secret keys are masked there, so the seeded one is genuinely
+  server-only). The caveats are about exposure, not secrets.
+  reverse_proxy_compatible is false: this is two distinct public HTTP
+  services, not one. The Admin UI can sit on <slug>.<base_domain> behind
+  Traefik (upstream even ships `-admin.urlPrefix` for that), but the S3
+  endpoint on 8333 cannot share that hostname — path-style S3 requests
+  are `/<bucket>/<key>` at the root and collide with the admin routes,
+  virtual-host-style needs wildcard DNS we do not issue, and a Traefik
+  basic_auth gate in front of S3 would break every AWS SDK client because
+  basic auth and SigV4 both claim the Authorization header. So S3 has to
+  be published as a raw port (8333, like recipes/syncthing/'s 22000),
+  which means plain HTTP with no TLS termination unless a second Traefik
+  route is added — acceptable for a first cut, but it should be a
+  conscious decision by the reviewer, and the master (9333) and filer
+  (8888) UIs must stay unpublished since they have no authentication at
+  all. Recommend build_now: mechanically installable_today with no
+  blocking issues — both first-boot secrets are expressible and the
+  exposure/routing questions above are implementation decisions for
+  whoever writes the recipe, not blockers to installability.

@@ -1,0 +1,118 @@
+slug: errbit
+name: Errbit
+source_description: "Self-hosted Airbrake-compatible error tracker for Ruby, Rails, and other apps"
+
+upstream:
+  url: https://github.com/errbit/errbit
+  repo_url: https://github.com/errbit/errbit
+  license: MIT
+  docker_image: errbit/errbit
+  compose_file_url: https://raw.githubusercontent.com/errbit/errbit/main/docker-compose.yml
+  compose_file_notes: >
+    Official, but only a mongo-only dev-convenience file, not a full
+    app+db deployment compose. The repo root docker-compose.yml (also
+    present verbatim at the v0.11.3 tag) defines a single `mongo:8.2`
+    service and volume — no `errbit` app service at all — meant to spin up
+    a local MongoDB for `bundle exec rails server` during native
+    development, per the README's Ruby/MongoDB native install path. This
+    contradicts docs/deployment/docker.md, which describes a fuller
+    "Errbit + Dependencies via Docker Compose" workflow (`docker-compose up`
+    starting both an errbit and mongo container, then `docker exec
+    errbit_errbit_1 bundle exec rails errbit:bootstrap`) — but no such
+    two-service compose file exists anywhere in the repo (checked root,
+    docker/, deploy/, docs/deployment/, docs/deployment/example/); that
+    doc section is stale/aspirational and does not match the actual
+    tracked file. The link above is a rolling main-branch raw link (no
+    release-pinned equivalent is offered — the project's own docker.md
+    says non-latest tags haven't been pushed to Docker Hub since v0.9.0 in
+    2020, so `errbit/errbit:latest` is the only image tag they recommend
+    tracking). No official app+mongo compose file exists to adopt as-is.
+
+version_health:
+  latest_version: "v0.11.3"
+  latest_release_date: "2026-07-18"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release v0.11.3 shipped 2026-07-18 — only 18 days before
+    today (2026-08-05). GitHub's release history (verified via the
+    releases.atom feed, not relative-time UI text) shows a healthy,
+    continuing monthly-ish cadence: 0.10.8 (2026-02-16), 0.10.9
+    (2026-04-07), 0.10.11 (2026-05-19), 0.11.0 (2026-06-10), 0.10.12 and
+    0.11.1 (both 2026-06-20), and 0.11.2/0.11.3 (both 2026-07-18). Commit
+    history also shows daily activity through early August 2026
+    (dependency bumps, CI/Rails updates, and occasional maintainer commits
+    from biow0lf), 4.3k stars, 989 forks, and dozens of open issues/PRs
+    actively triaged. The Docker Hub image tracks this — `errbit/errbit`
+    tags match each release, with 0.11.3 pushed around the same date as
+    the 2026-07-18 tag. This is a currently-active, well-maintained
+    project, not one that has gone quiet. Note also v0.11.0's release
+    notes call it "last branch that support MongoDB" — a signal the
+    project may be moving off MongoDB in a future major version, worth
+    rechecking before building a recipe on the current Mongo-based stack.
+
+catalogue_fit:
+  categories: [devtools, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers application error
+    tracking/exception monitoring (a Sentry-like function) — this would be
+    net-new ground aimed at developers self-hosting their own apps who
+    want Airbrake-API-compatible error collection without sending
+    exception data to a third-party SaaS.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful specifically to a developer/technical customer segment running
+    their own Ruby/Rails (or any Airbrake-client-compatible) applications;
+    it has no standalone value for a customer not already shipping code
+    that reports errors to it. Medium rather than high because the
+    addressable audience within a general self-hosting catalogue is
+    narrower than, e.g., password managers or workflow automation, but the
+    "no login of its own to reuse" gap below caps it further regardless of
+    audience size.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["ERRBIT_ADMIN_PASSWORD (initial admin login)"]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Errbit's first admin account is created by a `db:seed` task
+      (`rails errbit:bootstrap`) that reads `ERRBIT_ADMIN_PASSWORD` (falling
+      back to a random `SecureRandom` value if unset) and passes it straight
+      to a Devise `User` model, which bcrypt-hashes whatever plaintext it
+      receives on save. The platform's only per-customer secret channel,
+      `generated_from: "<algo>:ROOT_PASSWORD"`, projects an already-hashed
+      value — feeding that into `ERRBIT_ADMIN_PASSWORD` would get
+      double-hashed by Devise and produce a password the customer's actual
+      root password can never match. This is a genuine plaintext-password
+      requirement (not a hash-algorithm mismatch), so it is a structural
+      blocker rather than something `generated_from` can be extended to
+      cover.
+    - >
+      Errbit's own login screen can't be bypassed with a Traefik
+      `basic_auth` gate either, because (unlike n8n/WUD/Open WebUI) it has
+      a mandatory built-in login of its own — gating the reverse-proxy edge
+      doesn't get the customer past Errbit's internal sign-in, and there is
+      no documented env var to disable that internal auth.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Errbit is mechanically simple to deploy (one app container plus a
+  MongoDB 7.0+ container, a single HTTP port on 3000, official pinned
+  image tags on Docker Hub, e.g. errbit/errbit:0.11.3, works fine behind
+  Traefik) and fills a real gap in the catalogue — nothing else here does
+  error tracking — but it is blocked by the platform's secret-input
+  constraint: its first-run admin password must be supplied as plaintext
+  to a Devise model that hashes it itself, so the platform's hash-only
+  `generated_from` mechanism cannot produce a working login, and Errbit's
+  mandatory built-in auth can't be swapped out for a Traefik basic_auth
+  gate the way it can for apps with no login of their own. Upstream health
+  is good (active daily commits and a monthly-ish tagged-release cadence
+  through 2026-07-18, just 18 days before this analysis); the blocker is
+  purely the missing plaintext-secret input channel, so this should be
+  revisited if/when the platform gains a way to pass a customer-facing
+  plaintext credential rather than only a hash.

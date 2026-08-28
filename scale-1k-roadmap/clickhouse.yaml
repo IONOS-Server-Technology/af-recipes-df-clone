@@ -1,0 +1,111 @@
+slug: clickhouse
+name: ClickHouse
+source_description: "Columnar OLAP database for real-time analytics with millisecond query latency"
+
+upstream:
+  url: https://clickhouse.com
+  repo_url: https://github.com/ClickHouse/ClickHouse
+  license: Apache-2.0
+  docker_image: clickhouse/clickhouse-server:25.8.29.51
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists. ClickHouse's own install
+    docs (clickhouse.com/docs/install/docker) and the official Docker Hub
+    image documentation (docker-library/docs clickhouse/README.md) both
+    only document a bare `docker run` invocation — neither mentions or
+    links a compose file. The ClickHouse/ClickHouse repo's docker/ tree
+    (docker/bare, docker/keeper, docker/server) contains only Dockerfiles,
+    an entrypoint script, and config XML — no compose file at the root or
+    under docker/, deploy/, or contrib/. Compose files do exist in
+    ClickHouse's client-library repos (clickhouse-js, clickhouse-rs,
+    clickhouse-connect), but those are test harnesses for the client
+    drivers, not an official deployment artifact for the server itself, so
+    they are not adopted here. ClickHouse also publishes "ClickStack" (an
+    observability stack bundling ClickHouse + HyperDX) with its own
+    docker-compose docs, but that is a distinct product from plain
+    ClickHouse server and out of scope for this recipe.
+
+version_health:
+  latest_version: "26.7 (26.7.2.59-stable, 2026-07-22); 25.8 LTS train (25.8.29.51) currently supported"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    CalVer (Year.Month.Patch.Build) with a new minor cut roughly every
+    month: 26.5 (2026-05-21), 26.6 (2026-06-25), 26.7 (2026-07-22) — 2 weeks
+    before this 2026-08-05 analysis. Two LTS trains per year (typically
+    March and August); current LTS is 25.8 (released 2025-08-29, supported
+    through 2026-08-29) with 26.3 LTS (2026-03-26) already in parallel
+    support. The last three minor releases are patched for bugs/security.
+    No archival, no slowdown, no EOL signal — this is one of the more
+    aggressively active upstreams reviewed in this batch.
+
+catalogue_fit:
+  categories: [database, analytics, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a customer-facing database engine —
+    existing recipes use Postgres/Redis/etc. only as internal sidecars for
+    an app (n8n, paperless-ngx, CKAN-in-progress). ClickHouse would be the
+    first recipe where the database itself is the product: a columnar OLAP
+    store for real-time analytics/dashboards/event pipelines, aimed at
+    developers rather than end users.
+  usefulness: medium
+  usefulness_rationale: >
+    Real demand from developers who want a fast, self-hosted analytics
+    backend (event tracking, log/metrics analytics, BI query layer) without
+    standing up a managed ClickHouse Cloud instance. Narrower audience than
+    our general productivity/self-hosting recipes (needs SQL/analytics
+    know-how, not a point-and-click app), but distinctive and non-duplicative
+    if it ships.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - BASIC_AUTH_GATE
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      ClickHouse's own auth is not usable through our mechanism: the
+      official docker-entrypoint.sh only accepts the default user's
+      password as a plaintext env var (CLICKHOUSE_PASSWORD or
+      CLICKHOUSE_PASSWORD_FILE), which it writes verbatim into the user
+      config for ClickHouse to hash internally at parse time. There is no
+      pre-hashed-password input (no CLICKHOUSE_PASSWORD_SHA256_HEX-style
+      var supported by the entrypoint), so `generated_from` — which only
+      ever carries a hash, never plaintext — cannot project the customer's
+      root password into it. This is treated the same way as CKAN's fixed
+      sysadmin default (IF-1312 precedent): rather than a hard blocker, the
+      workaround is to leave ClickHouse's own auth unconfigured/default and
+      put the real auth boundary at Traefik `basic_auth` in front of the
+      whole app, the same pattern used for Adminer.
+    - >
+      ClickHouse also exposes a native TCP client protocol on port 9000
+      (used by clickhouse-client and many BI/driver integrations), which is
+      not HTTP and so cannot be gated by Traefik basic_auth. A recipe would
+      need to simply not publish port 9000 (HTTP-only on 8123 behind
+      Traefik), which is workable but limits the app to HTTP-interface
+      clients (fine for curl/Grafana/DBeaver-over-HTTP, not for
+      clickhouse-client's default native-protocol mode).
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  ClickHouse is an aggressively active project (monthly CalVer releases,
+  dual LTS trains, no EOL signal) and would be a genuinely new category for
+  the catalogue — the first recipe where a database, not an app on top of
+  one, is the product. It's mechanically installable today only with a
+  workaround: ClickHouse's own user auth can't accept a projected root-
+  password hash (the docker entrypoint only takes a plaintext password), so
+  the recipe would leave the built-in `default` user unconfigured and rely
+  entirely on a Traefik `basic_auth` gate over the HTTP interface (port
+  8123) for the real auth boundary — the same precedent already accepted
+  for CKAN's fixed sysadmin default and for Adminer. The native TCP protocol
+  port (9000) would simply not be published, limiting customers to
+  HTTP-interface access. These two functional caveats — no projectable
+  root-password hash, and no native-protocol client support — are why this
+  is a build-with-caveats candidate rather than a clean build-now.

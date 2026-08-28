@@ -1,0 +1,118 @@
+slug: shoutrrr
+name: Shoutrrr
+source_description: "Self-hosted social media scheduler for X, Bluesky, and LinkedIn networks"
+
+upstream:
+  url: https://shoutrrr.com/
+  repo_url: https://github.com/coollabsio/shoutrrr
+  license: Apache-2.0
+  docker_image: ghcr.io/coollabsio/shoutrrr
+  compose_file_url: https://raw.githubusercontent.com/coollabsio/shoutrrr/main/docker-compose.production.yaml
+  compose_file_notes: >
+    Official — the repo's own README "Docker Compose" section names this
+    exact file as "the bundled production file" and gives the run
+    commands for it directly (docker compose -f
+    docker-compose.production.yaml up -d). This is a rolling reference to
+    the default branch (main), not a version-pinned tag or release asset;
+    there is no tagged/pinned compose download equivalent to Immich's
+    releases/latest/download pattern in this repo. Picked over the
+    sibling docker-compose.development.yaml (which builds the image
+    locally from source instead of pulling the prebuilt
+    ghcr.io/coollabsio/shoutrrr image) and docker-compose.dev.yml, since
+    production/prebuilt-image is the variant the README recommends for
+    self-hosting.
+
+version_health:
+  latest_version: "v1.4.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Repo is brand new: v1.0.0 shipped 2026-06-29, and it has already reached
+    v1.4.1 as of today (2026-08-05) — six releases (v1.0.0 through v1.4.1,
+    plus several v1.3.0 release candidates) in five and a half weeks, with
+    the two most recent (v1.4.0 and v1.4.1) both landing today. Not archived,
+    pushed_at is today (2026-08-06), 6 open issues, 271 stars. Extremely
+    active, but also extremely young — no track record yet for whether this
+    pace is sustained or a launch-week burst.
+
+catalogue_fit:
+  categories: [productivity, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers social-media scheduling, so
+    this would be a new category for the catalogue. However, it is not a
+    novel gap: apps-gaps/postiz.yaml already analyzed the same product
+    category (self-hosted Buffer/Hootsuite alternative) and recommended
+    build_with_caveats. Postiz is the more mature, broader candidate —
+    it already supports X, LinkedIn, Instagram, Facebook, Reddit, Threads,
+    Mastodon, Bluesky, TikTok, and YouTube, plus AI content generation and
+    team collaboration, versus Shoutrrr's newer and narrower feature set
+    (X, Bluesky, LinkedIn, with Meta/Threads/Discord added only in its most
+    recent releases). A customer choosing between the two today would most
+    likely prefer Postiz's platform coverage and longer track record.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, common self-hosting ask (self-hosted social scheduler), and the
+    single-container SQLite-by-default deployment is operationally lighter
+    than Postiz's multi-service Temporal stack. Capped at medium rather
+    than high because Postiz already covers the same job more completely,
+    and because — as detailed below — two of Shoutrrr's three headline
+    networks (X, LinkedIn) can't actually be used without a customer-
+    supplied OAuth app registration that has no input channel today, which
+    undercuts the exact use case in Hostinger's own description.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APP_KEY, admin_signup_credential]
+  secrets_expressible_today:
+    - secret: APP_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      Confirmed against the upstream README and docker-compose.production.yaml:
+      Shoutrrr has no admin-credential environment variable at all. The
+      container boots with zero users; the first visitor to the app's URL
+      is presented with an open registration form ("register the first
+      account, and you're in") and becomes the sole owner. Per the
+      precedent already accepted for n8n and Postiz (self-service signup on
+      a URL only the customer knows is not treated as a blocker), this on
+      its own does not block installability — there is no `type: password`
+      parameter to target with `generated_from`, but none is needed since
+      the customer sets their own credential directly in the browser after
+      deployment, not through /compose.
+    - >
+      The structural blocker is different: X and LinkedIn publishing —
+      two of the three networks named in Hostinger's own description —
+      require operator/customer-obtained OAuth app credentials
+      (X_CLIENT_ID/X_CLIENT_SECRET, LINKEDIN_CLIENT_ID/LINKEDIN_CLIENT_SECRET)
+      set as environment variables before those integrations work at all.
+      These are external, customer-registered developer-portal credentials
+      (X in particular now requires business verification), not a hash of
+      the root password and not something af-api can generate — this is
+      exactly the "external API key/token the app can't function without"
+      case with no supported channel per apps-gaps/SCHEMA.md. Only Bluesky
+      (via a per-user app password entered live in the UI, no pre-boot
+      secret) and Discord (webhook URL, also entered live) would work
+      out of the box; X and LinkedIn would sit visibly present in the UI
+      but permanently non-functional for every customer unless we ship a
+      manual per-instance setup step outside the recipe mechanism.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Shoutrrr is a very young (five and a half weeks old) but fast-shipping
+  self-hosted social-media scheduler that would open a new category for the
+  catalogue — except apps-gaps/postiz.yaml already covers the same category
+  with a broader, more established candidate. Its self-service admin signup
+  is not a blocker on its own (same accepted pattern as n8n/Postiz), but two
+  of its three headline networks — X and LinkedIn — require a customer-
+  supplied OAuth app registration with no input channel in the current
+  recipe mechanism, leaving only Bluesky and Discord functional out of the
+  box. That gap matters more for Shoutrrr than for Postiz, since Postiz's
+  pitch spans many more platforms and losing two is proportionally smaller.
+  Revisit only if the platform gains a channel for customer-supplied
+  external credentials, and even then, prioritize Postiz first given its
+  maturity and broader coverage.

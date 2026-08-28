@@ -1,0 +1,139 @@
+slug: tubearchivist
+name: TubeArchivist
+source_description: "Self-hosted YouTube archiver with channel sync, full-text search, and web playback"
+
+upstream:
+  url: https://www.tubearchivist.com
+  repo_url: https://github.com/tubearchivist/tubearchivist
+  license: GPL-3.0
+  docker_image: bbilly1/tubearchivist
+  compose_file_url: https://raw.githubusercontent.com/tubearchivist/tubearchivist/master/docker-compose.yml
+  compose_file_notes: >
+    Official — this is the exact file the project's own docs
+    (docs.tubearchivist.com/installation/docker-compose/) tell users to
+    save locally, described there as "the docker-compose.yml file from the
+    Tube Archivist repository." It also lives at the repo root
+    (github.com/tubearchivist/tubearchivist/blob/master/docker-compose.yml).
+    This is a rolling reference to the `master` branch, not a version-
+    pinned release asset — TubeArchivist has no tagged-release compose
+    file to link instead (unlike e.g. Immich's per-release download URL),
+    and the docs explicitly instruct users to keep re-saving this same
+    branch-tracked file rather than pin a copy. Only one variant is
+    shipped (no GPU/CPU or sqlite/postgres split): the three-service stack
+    (app + archivist-redis + archivist-es).
+
+version_health:
+  latest_version: "v0.5.10"
+  latest_release_date: "2026-03-28"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    About 4.3 months since the latest tagged release (v0.5.10, 2026-03-28)
+    as of today (2026-08-05). Release history (v0.5.1 2025-05-11, v0.5.2
+    2025-05-14, v0.5.3 2025-06-08, v0.5.4 2025-06-11, v0.5.5 2025-07-31,
+    v0.5.6 2025-08-18, v0.5.7 2025-08-21, v0.5.8 2025-11-08, v0.5.9
+    2026-02-07, v0.5.10 2026-03-28) shows cadence slowing from roughly
+    monthly through mid-2025 to roughly quarterly since. However, this is
+    not a maintenance slowdown of the project itself: the repo also ships a
+    continuously-updated `unstable` Docker tag (pushed within the last 10
+    days) and commit history shows steady activity through at least
+    2026-07-27 (multiple commits/day from several contributors, not just
+    the lead maintainer). TubeArchivist's practice is to batch fixes onto
+    `unstable` and cut a versioned `v0.5.x` tag only periodically, so the
+    ~4-month gap in named releases overstates staleness — treat as active
+    development with a slow, deliberate formal-release cadence rather than
+    dormant or maintenance-only.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [pinchflat]
+  differentiation: >
+    Nothing in the current 24 built recipes archives YouTube content;
+    Immich is the closest by category (photo/video library) but manages
+    media the customer already has rather than fetching it from YouTube.
+    TubeArchivist is functionally close to apps-gaps/pinchflat.yaml — both
+    are standing "subscribe to a channel, keep downloading" archivers
+    rather than one-off URL-paste tools like apps-gaps/metube.yaml or
+    apps-gaps/alltube.yaml. The differentiator is that TubeArchivist is a
+    self-contained watch experience: it bundles its own Elasticsearch-
+    backed full-text search and web video player, so the customer never
+    needs a separate Plex/Jellyfin instance to consume the archive.
+    Pinchflat instead produces a Plex/Jellyfin/Kodi-ready file layout for
+    an external media server to serve. Which one a customer wants depends
+    on whether they already run (or want to run) a separate media server.
+  usefulness: medium
+  usefulness_rationale: >
+    Distinct, popular niche (11k+ GitHub stars) with real demand for
+    "archive channels I care about before they're taken down/demonetized/
+    deleted," and its built-in search+playback avoids a second app
+    dependency that Pinchflat requires. Held to medium rather than high
+    because it overlaps meaningfully with Pinchflat's use case (see
+    apps-gaps/pinchflat.yaml) and because YouTube-scraping tools built on
+    yt-dlp carry the same third-party-ToS and extractor-breakage exposure
+    already flagged across the other video-download gap candidates in this
+    directory.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ta_admin_password, elastic_password]
+  secrets_expressible_today:
+    - secret: elastic_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      TA_PASSWORD (the app's own initial-admin-user credential, required at
+      first boot) is documented as accepting a plaintext password only —
+      "no hashes" — with an optional `_FILE` (Docker secret) suffix for
+      *where* it's read from, not what format it's in. `generated_from`
+      only ever projects a hash (argon2/bcrypt) of the customer's root
+      password, so it structurally cannot supply this field regardless of
+      which hash algorithm is added to the supported list. This matches
+      the SCHEMA.md "genuine requirement for the plaintext password" case,
+      which is called out as a hard blocker, not a `blocked_on_platform`
+      algorithm gap.
+    - >
+      Gating with Traefik `basic_auth` in front (our other supported
+      mechanism) does not resolve this on its own: TubeArchivist has its
+      own required login (unlike Adminer/n8n/WUD, which have no native
+      auth), so a customer who only knows their root-password-derived
+      basic-auth credential would be locked out of the app's actual login
+      screen if TA_USERNAME/TA_PASSWORD were instead set to a
+      server-generated value the customer never sees.
+    - >
+      TubeArchivist does support delegating auth to a reverse proxy
+      (TA_ENABLE_AUTH_PROXY, using Django's RemoteUserBackend, reading a
+      configurable header — default `Remote-User` — for the
+      authenticated identity) which could in principle let a Traefik
+      basic_auth gate double as the app's real login. This is a plausible
+      future path but is not the same mechanism as either of our two
+      supported patterns today: it needs the reverse-proxy layer to inject
+      a specific trusted identity header rather than just gate access, and
+      auto-provisions/trusts whatever username appears in that header with
+      no documented tie-in to `generated_from` or the existing
+      `basic_auth: true` toggle. Flagging as a platform gap worth
+      revisiting, not as something achievable with the current two
+      mechanisms.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  TubeArchivist is a well-regarded, actively-developed YouTube archiver
+  (channel sync, yt-dlp downloads, Elasticsearch-backed full-text search,
+  built-in web player) that would meaningfully extend the catalogue's media
+  category alongside — not simply duplicating — apps-gaps/pinchflat.yaml.
+  It is reverse-proxy-compatible (single HTTP port, no raw protocols) and
+  the project shows no EOL/dormancy risk despite a slowing formal-release
+  cadence. It is blocked today, though, on the same first-boot mandatory
+  admin login as Immich/Vaultwarden-style recipes need to solve, except
+  TubeArchivist's TA_PASSWORD field only accepts a plaintext value with no
+  hash-based alternative, so `generated_from` cannot reach it, and its own
+  built-in login means a plain Traefik `basic_auth` gate would either
+  leave a server-generated credential the customer never learns, or expose
+  the app's real login unprotected. TubeArchivist's auth-proxy header mode
+  is a plausible bridge between the two but isn't equivalent to either
+  supported mechanism as they exist today. Recommend `blocked_on_platform`:
+  revisit once auth-proxy-header projection (or a documented way to feed a
+  plaintext credential derived from the root password) is supported, not
+  `not_recommended` — the app itself is healthy and differentiated.

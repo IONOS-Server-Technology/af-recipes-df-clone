@@ -1,0 +1,94 @@
+slug: shaarli
+name: Shaarli
+source_description: "Personal, minimalist, flat-file bookmarking service that runs without any database server"
+
+upstream:
+  url: https://shaarli.readthedocs.io/
+  repo_url: https://github.com/shaarli/Shaarli
+  license: Zlib
+  docker_image: ghcr.io/shaarli/shaarli
+  compose_file_url: https://raw.githubusercontent.com/shaarli/Shaarli/master/docker-compose.yml
+  compose_file_notes: >
+    Official — a docker-compose.yml lives at the repo root (the only
+    compose file in the repo; the sibling .docker/ directory holds
+    nginx/php-fpm/.htaccess config, not another compose variant). This is
+    a rolling reference to the default (master) branch, not a
+    version-pinned release asset: the Shaarli image tag itself is left as
+    the ${SHAARLI_DOCKER_TAG} env var rather than hardcoded, so pinning a
+    version happens at deploy time via env, not by pointing at a tagged
+    copy of the compose file. It wires Shaarli up behind a Traefik 1.7
+    reverse proxy with Let's Encrypt, matching what version_health/summary
+    above already describe.
+
+version_health:
+  latest_version: "v0.16.5"
+  latest_release_date: "2026-07-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.16.5 was published 2026-07-31, only 5 days before today (2026-08-05),
+    as a same-day follow-up to v0.16.4. Preceding releases: v0.16.3
+    (2026-05-28), v0.16.2 (2026-05-23), v0.16.1 (2026-01-24), v0.16.0
+    (2026-01-23), v0.15.0 (2025-08-16), v0.14.0 (2024-12-08), v0.13.0
+    (2023-11-22), v0.12.2 (2023-03-18). Releases are steady rather than
+    frequent — roughly one feature release a year with security patch
+    clusters in between — and cadence has picked up recently: three
+    release clusters in the last 12 months alone.
+    Repo is not archived and carries no unmaintained notice. The official
+    GHCR image is in step with upstream — `ghcr.io/shaarli/shaarli` has a
+    `v0.16.5` tag alongside every other release tag back to v0.12.2, so a
+    recipe can pin the current version with no image lag (unlike the Baikal
+    and Bludit cases).
+
+catalogue_fit:
+  categories: [productivity, bookmarks]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a bookmark manager; the closest
+    catalogue neighbours (Gitea, OpenGist) are code-sharing tools, not
+    link collections. Shaarli's specific angle is being genuinely
+    dependency-free — flat-file storage, no database container at all —
+    so the whole recipe is one small PHP/nginx container plus a data
+    volume, which is a materially cheaper deployment than the other
+    bookmarking candidates already analysed (Linkding, Linkwarden,
+    Karakeep, Readeck), none of which have shipped as recipes either.
+  usefulness: medium
+  usefulness_rationale: >
+    Bookmarking/link-logging is a broadly understood self-hosting use case
+    with zero catalogue coverage, and Shaarli's no-database footprint makes
+    it one of the cheapest possible recipes to run and support. Usefulness
+    is medium rather than high because it is a single-purpose niche tool
+    with a dated UI, and its blog-like "shaare" model appeals to a narrower
+    audience than a modern read-it-later or tag-search bookmark manager.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential (protects the unauthenticated first-run install page, which is where the customer picks their own Shaarli admin login and password — the ghcr.io/shaarli/shaarli image exposes no env var for credentials; the only documented SHAARLI_* variables are SHAARLI_VIRTUAL_HOST, SHAARLI_LETSENCRYPT_EMAIL and SHAARLI_DOCKER_TAG, none of which touch auth)"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential (protects the unauthenticated first-run install page, which is where the customer picks their own Shaarli admin login and password — the ghcr.io/shaarli/shaarli image exposes no env var for credentials; the only documented SHAARLI_* variables are SHAARLI_VIRTUAL_HOST, SHAARLI_LETSENCRYPT_EMAIL and SHAARLI_DOCKER_TAG, none of which touch auth)"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Shaarli is an actively released (v0.16.5, 2026-07-31), non-EOL,
+  single-container flat-file bookmarking service with an official GHCR
+  image that is fully in step with upstream releases, one HTTP port
+  (container port 80) and no database — upstream's own docker-compose
+  example already fronts it with Traefik, so reverse-proxy compatibility
+  is proven rather than assumed. It fills a real catalogue gap: no
+  existing recipe manages bookmarks. Like Baikal and Bludit it has no
+  env-var path to seed an admin account — credentials are set on an
+  unauthenticated first-run install page and stored as a salted SHA-1
+  digest of password+login+salt in data/config.json.php, which
+  `generated_from` (argon2/bcrypt, hash-only) cannot produce — so the
+  install page must be gated with a Traefik basic_auth credential
+  projected from the customer's root password so no stranger can claim
+  the instance first. That clears the /compose constraint with no hard
+  blockers, and unlike the two comparable wizard-based candidates there
+  is no stale-image caveat, so this is build_now rather than
+  build_with_caveats.

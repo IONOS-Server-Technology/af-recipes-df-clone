@@ -1,0 +1,105 @@
+slug: m3db
+name: M3DB
+source_description: "Distributed time-series database and Prometheus long-term storage backend"
+
+upstream:
+  url: https://m3db.io/
+  repo_url: https://github.com/m3db/m3
+  license: Apache-2.0
+  docker_image: quay.io/m3db/m3dbnode
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The official quickstart
+    (m3db.io/docs/quickstart/docker/) only documents a bare `docker run`
+    command for a single-node m3dbnode container — no compose file is
+    linked or embedded. The m3db/m3 repo does contain two docker-compose
+    files, but neither is presented as an install method: the root
+    docker-compose.yml is Buildkite CI tooling (runs docker-in-docker for
+    the build pipeline), and
+    scripts/development/m3_stack/docker-compose.yml spins up a full
+    multi-node dev/test stack (m3db nodes, aggregator, coordinator,
+    Prometheus, Grafana, Jaeger) for contributor use, not end-user
+    deployment. Neither is referenced from any docs page.
+
+version_health:
+  latest_version: "v1.5.0"
+  latest_release_date: "2022-04-07"
+  release_cadence: dormant
+  eol_status: maintenance-only
+  notes: >
+    No tagged release since v1.5.0 on 2022-04-07 — over 4 years and 4 months
+    before this analysis (2026-08-05). The repo itself is not archived and
+    still receives commits (last commit 2026-05-20, e.g. m3db-client
+    circuit-breaker work), so this isn't a fully dead project, but it has
+    stopped cutting versioned releases entirely. Worse for packaging: the
+    quay.io/m3db/m3dbnode image's `master` tag (the only tag newer than
+    v1.5.0) was itself last built 2023-11-01 — nearly 3 years stale — so
+    even tracking `master` instead of a version tag would not pick up any
+    of the 2024-2026 source commits. There is no current image to pin.
+
+catalogue_fit:
+  categories: [databases, monitoring, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes touch metrics storage or observability
+    infrastructure, so on paper M3DB would fill a real gap: long-term,
+    horizontally-scalable storage for Prometheus remote_write. In practice
+    though it's infrastructure that other infrastructure (a customer's own
+    Prometheus/Grafana stack) talks to, not something a customer opens in a
+    browser and uses directly.
+  usefulness: low
+  usefulness_rationale: >
+    M3DB is built for horizontally-scaled, multi-node Prometheus deployments
+    at a scale far beyond a single self-hosted VM customer's needs — most
+    self-hosters running Prometheus rely on its built-in local TSDB and
+    never need a dedicated long-term-storage backend. The audience that
+    would actually want this (teams operating enough Prometheus volume to
+    outgrow local storage) is a poor match for our single-VM,
+    domain-per-recipe customer profile.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      M3DB has no browser web UI at all — it exposes a REST admin/data API
+      (placement + namespace management on :7201, metrics scrape on :7203)
+      meant to be called by machine clients (a customer's own Prometheus for
+      remote_write, Grafana for queries), not opened by a customer in a
+      browser on <slug>.<base_domain>. Gating the whole thing behind Traefik
+      basic_auth would satisfy our secret-projection mechanism, but it would
+      also break the actual use case: Prometheus remote_write would then
+      need that same basic-auth credential embedded in the customer's own
+      Prometheus config, and we have no channel to hand that credential to
+      an external system the customer configures themselves.
+    - >
+      No current pinned image exists to build a recipe on: the last
+      versioned tag is v1.5.0 (2022-04-07) and the `master` tag has not
+      been rebuilt since 2023-11-01, despite source commits continuing into
+      2026. There is nothing recent to pin.
+    - >
+      First boot is a multi-step imperative bootstrap, not boot-and-serve:
+      POST /api/v1/database/create to define a placement + namespace, poll
+      until all shards move from INITIALIZING to AVAILABLE (~1-2 minutes),
+      then POST the namespace as ready. Scriptable in install.sh in
+      principle, but adds real complexity on top of the two blockers above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  M3DB does not fit our recipe mechanism or our customer profile. It has no
+  web UI to gate or log into — it's a machine-facing REST API meant to
+  receive Prometheus remote_write traffic and serve Grafana-style queries —
+  so a Traefik basic_auth gate would technically satisfy the secret-input
+  rule but would break the actual integration path with a customer's own
+  Prometheus. On top of that, upstream has not cut a versioned release since
+  2022-04-07 and hasn't even refreshed its `master` Docker tag since
+  2023-11-01, despite the source repo staying nominally alive with sporadic
+  commits through 2026 — there is no current image to pin. Combined with a
+  usefulness case that's weak for single-VM self-hosters in the first place,
+  this is a clear not_recommended.

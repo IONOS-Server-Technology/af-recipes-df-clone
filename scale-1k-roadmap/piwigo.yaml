@@ -1,0 +1,99 @@
+slug: piwigo
+name: Piwigo
+source_description: "Mature open-source photo gallery with 200+ plugins and granular sharing"
+
+upstream:
+  url: https://piwigo.org/
+  repo_url: https://github.com/Piwigo/Piwigo
+  license: GPL-2.0
+  docker_image: linuxserver/piwigo
+  compose_file_url: https://raw.githubusercontent.com/Piwigo/piwigo-docker/main/compose.yaml
+  compose_file_notes: >
+    Official file from the Piwigo org's own piwigo-docker repo (linked from
+    piwigo.org/guides/install/docker), not the linuxserver/piwigo image used
+    elsewhere in this analysis. Rolling reference to the main branch (no
+    version-pinned tag or release asset exists for this repo) — the
+    compose.yaml itself pins the app to image piwigo/piwigo:latest, so the
+    file's own content is also unpinned. Picked compose.yaml (the default,
+    bundled-MariaDB variant) over the repo's other file, compose-nodb.yaml,
+    which targets an externally-provided MySQL/MariaDB database rather than
+    self-contained deployment.
+
+version_health:
+  latest_version: "16.4.0"
+  latest_release_date: "2026-05-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Releases have landed roughly every 1-3 months over the past year
+    (16.0.0 2025-11-24, 16.1.0 2025-12-02, 16.2.0 2025-12-30, 16.3.0
+    2026-02-24, 16.4.0 2026-05-03), including RC/beta cycles ahead of each
+    minor. As of today (2026-08-05) the latest release is ~3 months old,
+    well within an active cadence. linuxserver/piwigo tracks upstream
+    closely, with its own image rebuild for 16.4.0 as recently as 12 days
+    before this analysis. No archival or EOL signal from either the
+    upstream repo or the community image maintainer.
+
+catalogue_fit:
+  categories: [media, photos]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich]
+  differentiation: >
+    Both are self-hosted photo tools, but they target different jobs.
+    Immich (already in the catalogue) is a personal photo/video backup
+    app with mobile-app sync and AI-powered search — optimized for "back
+    up my camera roll". Piwigo is a gallery/publishing platform aimed at
+    curating and sharing albums with granular per-group/per-user
+    permissions, batch metadata management, and a large (200+) plugin and
+    theme ecosystem — closer to a lightweight photo CMS for
+    clubs/teams/photographers who want to publish organized, permissioned
+    galleries to an audience rather than just back up and browse their own
+    library. A customer who wants "curate and publish a gallery for
+    others to view" is not well served by Immich's personal-library model.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (public/permissioned gallery publishing vs.
+    personal backup) and a mature, actively maintained upstream, but it's
+    a narrower audience than Immich's broad appeal and the photo-hosting
+    slot in the catalogue is already covered for the majority use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [db_password, basic_auth_password]
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Piwigo has no environment-variable or config-file path to
+      pre-provision the admin account. The linuxserver/piwigo image
+      documents no admin-user/password/email env vars at all — first
+      boot serves an interactive browser install wizard where a human
+      picks the admin username and password (and confirms DB
+      connection details) by hand. There is no single param af-api could
+      hash-project a value into the way generated_from does for
+      Vaultwarden's ADMIN_TOKEN; the credential is chosen freely through
+      a multi-field web form, not read from one env var at container
+      start.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Piwigo is an active, well-maintained gallery/publishing app, and it is
+  mechanically deployable today: bundle a MariaDB/MySQL sidecar with a
+  server-generated DB password (no customer input needed, same pattern as
+  n8n/paperless-ngx), and put the whole app — including the first-run
+  install wizard — behind a mandatory Traefik basic_auth gate whose
+  password is projected from the customer's root password via
+  generated_from. That gate is necessary rather than optional here:
+  without it, anyone who reaches the domain before the customer completes
+  Piwigo's own install wizard could claim the admin account. The wizard
+  itself still requires the customer to manually choose their in-app admin
+  username/password on first visit after logging in through the gate;
+  that hop is unavoidable since Piwigo gives no other input channel, and
+  it is a real functional caveat rather than a structural blocker.
+  Recommend build_with_caveats: installable now, with the install-wizard
+  hand-off called out clearly in the recipe's post-install instructions.

@@ -1,0 +1,94 @@
+slug: chibisafe
+name: Chibisafe
+source_description: "Self-hosted file vault for uploading and sharing files with shareable links"
+
+upstream:
+  url: https://chibisafe.app
+  repo_url: https://github.com/chibisafe/chibisafe
+  license: MIT
+  docker_image: chibisafe/chibisafe-server (backend) + chibisafe/chibisafe (frontend), both official on Docker Hub
+  compose_file_url: https://raw.githubusercontent.com/chibisafe/chibisafe/master/docker-compose.example.yml
+  compose_file_notes: >
+    Official, from the project's own repo root and linked from its docs
+    page (chibisafe.app/docs/installation/running-with-docker), which
+    walks through the same 3-service (chibisafe frontend, chibisafe_server
+    backend, bundled Caddy) stack this file defines. This is a rolling
+    reference to the default branch (master), not version-pinned to a
+    release tag — the repo has no tagged release-asset copy of this file.
+    Picked docker-compose.example.yml over the sibling
+    docker-compose.dev.yml, which builds from local source for
+    contributor development rather than pulling the published
+    chibisafe/chibisafe and chibisafe/chibisafe-server images.
+
+version_health:
+  latest_version: v6.5.5
+  latest_release_date: "2026-07-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v6.5.5 shipped 2026-07-05, about 1 month before this analysis
+    (2026-08-05). Prior releases (v6.5.4 2026-03-25, v6.5.3 2026-03-16,
+    v6.5.0 2026-02-01, v6.4.2-6.4.5 clustered Jan-May) show a steady
+    patch/minor cadence over the last year, multiple contributors, and an
+    actively maintained GitHub Packages registry (dev tag rebuilt within the
+    last 2 months). No archival notice, no EOL announcement.
+
+catalogue_fit:
+  categories: [productivity, file-sharing]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes cover ad-hoc file upload + shareable-link
+    distribution (ShareX/iOS-shortcut style). Immich is photo/video-specific
+    with AI search; Syncthing is peer device sync, not link sharing;
+    Opengist is text/code snippets only. Chibisafe fills a distinct
+    "quick dropbox-style link sharing" niche.
+  usefulness: medium
+  usefulness_rationale: >
+    Clear, narrow use case (screenshot/file sharing tools, ShareX,
+    invite-only file vaults) that a subset of self-hosters actively want,
+    but it's a smaller audience than general-purpose apps already in the
+    catalogue and has no differentiators (e.g. AI, sync) beyond "upload,
+    get link."
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic_auth_password
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Chibisafe creates a hardcoded first-run admin account (admin/admin)
+      and only exposes an `ADMIN_PASSWORD` env var that sets that password
+      as plaintext — not a hash. `generated_from` only ever produces a hash
+      of ROOT_PASSWORD, so it cannot be projected into `ADMIN_PASSWORD`
+      directly. Workaround: leave the default admin/admin credential as-is
+      internally and put the whole app behind a Traefik `basic_auth: true`
+      gate (bcrypt hash of ROOT_PASSWORD), same pattern used for other
+      apps with a fixed/unprojectable admin credential. This is not a hard
+      blocker, just a required design choice.
+    - >
+      Stack is 3 containers (chibisafe frontend, chibisafe-server backend,
+      bundled Caddy reverse proxy) that upstream wires together with its
+      own Caddyfile on one published port (24424->80). A recipe would drop
+      the bundled Caddy and let our own Traefik front the frontend/backend
+      pair directly — mechanically straightforward but needs the internal
+      routing (frontend -> backend at :8000) reproduced without the
+      upstream Caddyfile.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Chibisafe is an actively maintained (latest v6.5.5, 2026-07-05), MIT-licensed
+  file-vault/link-sharing app with no overlap in our current 24-recipe
+  catalogue. It's mechanically installable today only via a Traefik
+  basic_auth gate in front of its hardcoded admin/admin login, since its
+  ADMIN_PASSWORD env var takes a plaintext value our `generated_from` hash
+  mechanism can't supply. Recommend build_with_caveats: worth adding for
+  the differentiated use case, but the 3-container upstream compose needs
+  reworking to drop its bundled Caddy in favor of our own Traefik, and the
+  admin login must ship behind a mandatory basic_auth gate rather than a
+  customer-controlled credential.

@@ -1,0 +1,101 @@
+slug: parseable
+name: Parseable
+source_description: "Open-source observability data lake for logs, metrics, and traces"
+
+upstream:
+  url: https://www.parseable.com/
+  repo_url: https://github.com/parseablehq/parseable
+  license: AGPL-3.0
+  docker_image: quay.io/parseablehq/parseable (also mirrored on Docker Hub as parseable/parseable)
+  compose_file_url: https://www.parseable.com/parseable/docker-compose.yaml
+  compose_file_notes: >
+    Official file, hosted and served directly by the project itself (not a
+    docs-page embed or third-party mirror) and linked from their own
+    self-hosted docs at
+    parseable.com/docs/self-hosted/installation/distributed/docker-compose
+    via `wget https://www.parseable.com/parseable/docker-compose.yaml`. It
+    is a rolling reference with no version pin: the file has no tag/commit
+    in its URL and its Parseable services use the `edge` image tag (i.e.
+    it always tracks the moving development build, not a stable release).
+    Only one variant is published — the distributed topology (one query
+    node + four ingest nodes + a MinIO S3 backend), there is no
+    single-container/standalone compose variant to choose instead; the
+    project's standalone docs
+    (self-hosted/installation/standalone/docker) show only a bare `docker
+    run` command with an external S3 target, no compose file at all.
+
+version_health:
+  latest_version: v2.9.5
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.9.5 shipped 2026-07-22, ~2 weeks before today (2026-08-05). Recent
+    history shows a steady near-weekly cadence: v2.9.4 (2026-07-11), v2.9.3
+    (2026-06-27), v2.9.2 (2026-06-23), v2.9.1 (2026-06-16), v2.9.0
+    (2026-06-13), v2.8.0 (2026-05-28). No signs of slowing, maintenance-only
+    status, or archival.
+
+catalogue_fit:
+  categories: [monitoring, observability, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers a logs/metrics/traces data
+    lake. Uptime Kuma (our only monitoring recipe) is a lightweight
+    up/down status checker, a different niche entirely. Parseable would let
+    a customer running other AF apps (n8n, Immich, Gitea, etc.) centralize
+    ingestion and querying of logs/metrics/traces with a built-in web
+    console, single Rust binary, columnar on-disk/S3 storage. Same broad
+    niche already covered on the gap-analysis side by openobserve.yaml and
+    grafana-loki.yaml (neither built yet), so this is one of several
+    competing candidates for the same observability slot rather than a
+    unique gap — see CLAUDE.md note that catalogue overlap between
+    candidates is not itself a reason to reject one.
+  usefulness: medium
+  usefulness_rationale: >
+    Observability/log-aggregation is a real, recurring self-host need with
+    no representative in the shipped catalogue, and Parseable's
+    single-binary/single-container local-storage mode keeps the resource
+    floor low. It's a developer/ops-facing tool rather than a broad-appeal
+    consumer app, and most of its value depends on pointing other
+    services' log/metric shippers at it after install — setup work outside
+    what the recipe itself provisions.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [P_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Parseable has its own mandatory built-in login (HTTP Basic Auth
+      against P_USERNAME / P_PASSWORD, default admin/admin) that gates the
+      entire console and API — there is no way to use the app without
+      authenticating to it directly, so a Traefik basic_auth gate cannot
+      substitute for it (same shape as apps-gaps/openobserve.yaml).
+    - >
+      P_PASSWORD is read by the container as a plaintext credential set
+      directly via env var at startup — the app does not accept a
+      pre-computed hash in any algorithm. Per apps-gaps/SCHEMA.md this is
+      the genuine-plaintext case: generated_from only ever projects a hash
+      of the customer's root password, never the plaintext, so there is no
+      channel to populate this variable with a customer-meaningful value
+      today.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Parseable is an actively maintained (near-weekly releases, latest
+  v2.9.5 from 2026-07-22), single-binary/single-container Rust
+  observability data lake with a genuine web console and no equivalent
+  already shipped in the 24-recipe catalogue. It is otherwise
+  mechanically simple to deploy behind Traefik (one public HTTP port for
+  local-storage mode, local-disk or S3 backing storage), but its own
+  mandatory admin login only accepts a plaintext P_PASSWORD env var at
+  startup, which the current /compose mechanism has no channel to supply
+  (generated_from projects a hash, not plaintext, and a basic_auth gate
+  can't substitute for a login the app itself enforces). Structurally
+  identical blocker to apps-gaps/openobserve.yaml; revisit as build_now
+  once a plaintext-password (or app-side hash support) projection channel
+  exists.

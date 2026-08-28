@@ -1,0 +1,108 @@
+slug: octobot
+name: OctoBot
+source_description: "Open-source crypto trading bot for automated strategies across 15+ exchanges"
+
+upstream:
+  url: https://www.octobot.cloud
+  repo_url: https://github.com/Drakkar-Software/OctoBot
+  license: GPL-3.0
+  docker_image: drakkarsoftware/octobot:2.1.1
+  compose_file_url: https://github.com/Drakkar-Software/OctoBot/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root (https://raw.githubusercontent.com/Drakkar-Software/OctoBot/master/docker-compose.yml).
+    Rolling reference to the default branch (master), not version-pinned: it
+    hardcodes `image: drakkarsoftware/octobot:stable`, which per
+    version_health above currently resolves to the 3.0.0-beta1 node-mode
+    release, not the classic :2.1.1 UI this analysis targets — watch for
+    drift if this link is used as a tracking source. The repo ships two
+    variants: this plain docker-compose.yml (single octobot service plus a
+    watchtower auto-updater) and docker-compose.https.yml (same octobot
+    service plus Traefik with Let's Encrypt and watchtower). Picked the
+    plain variant as the closer match to this catalogue's pattern of a
+    single app container behind our own Traefik/basic-auth, rather than one
+    that bundles its own Traefik+ACME stack.
+
+version_health:
+  latest_version: "3.0.0-beta1 (2026-07-30) is the newest release and is what :stable and :latest now point to; 2.1.1 (2026-03-30) is the last pre-node-mode release"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Verified directly against Docker Hub and the upstream README, not just
+    the changelog: drakkarsoftware/octobot:stable and :latest are NOT the
+    classic 2.1.1 web UI — as of the 3.0.0-beta1 release (2026-07-30, 6 days
+    before this analysis on 2026-08-05), :stable's image digest is identical
+    to :3.0.0-beta1's, while :2.1.1 is a separate, older digest. The upstream
+    README's docker one-liner uses :stable and states directly above it
+    "Starting the latest release runs OctoBot in node mode" — i.e. pulling
+    :stable or :latest today boots into node mode, not the classic
+    self-contained UI. Node mode makes the local instance a backend that
+    pairs with a cloud-hosted interface (new.mobile.octobot.cloud) for
+    managing wallets/automations; docs describe reaching a "home dashboard"
+    only after following a connection/pairing flow from the node's settings,
+    and give no documented env var to disable node mode on the stable/latest
+    image. A "manual OctoBot instance" for classic backtesting/Telegram/
+    TradingView workflows can reportedly be started from within the node
+    interface, but that path itself starts from the node/pairing framework,
+    and upstream docs do not confirm it is usable without a cloud-linked
+    account. Given that ambiguity, this analysis targets the last tag known
+    to run the classic, fully local web UI with no cloud dependency:
+    :2.1.1 (released 2026-03-30, ~4 months before this analysis). The
+    project overall is clearly active (releases roughly every 2-4 weeks
+    through 2025-2026, now shipping a major architecture rework), but the
+    actively developed line has moved to a cloud-paired model; :2.1.1 is a
+    frozen point release on a superseded architecture, not the tip of an
+    active branch.
+
+catalogue_fit:
+  categories: [finance, trading, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue touches crypto trading or
+    portfolio automation. OctoBot (pinned to the classic :2.1.1 tag) would be
+    a genuinely new category: self-hosted automated trading (grid/DCA/
+    TradingView-signal strategies) across 15+ exchanges (Binance, OKX,
+    Kucoin, Hyperliquid, etc.), with a single-container web UI on port 5001
+    behind Traefik like our other single-service apps.
+  usefulness: medium
+  usefulness_rationale: >
+    Distinct niche with real demand (active GitHub community, DigitalOcean
+    Marketplace listing already exists), but it's a narrower audience than
+    most of our current catalogue (media/productivity/dev-tooling) and
+    carries financial-trading risk/liability considerations that are a
+    business call, not a technical one. Pinning to :2.1.1 to get a usable
+    self-contained UI also means shipping a version already superseded by
+    upstream's default architecture (node mode/cloud pairing as of 3.0), with
+    no clear path to track upstream's actively developed line without
+    introducing a third-party cloud-account dependency.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [web UI basic-auth gate]
+  secrets_expressible_today:
+    - secret: web UI basic-auth gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "OctoBot's own web-UI password is off by default on :2.1.1 and, per upstream docs, can only be set through the UI itself (Accounts > Interfaces) or by hand-editing user/config.json after first boot — there is no environment variable or startup argument to seed it. This rules out generated_from projection onto the app's own login; a Traefik basic_auth gate is the only available boundary."
+    - "The current :stable/:latest tags (3.0.0-beta1 onward) default to node mode, which pairs the self-hosted instance with a cloud-hosted OctoBot interface/account — a third-party account-linking dependency with no input channel today per SCHEMA.md. A recipe must pin the explicit :2.1.1 tag to avoid this; tracking upstream's :stable going forward would reintroduce the blocker the moment a recipe's compose file is refreshed."
+    - "Core function (placing real trades) requires the customer's own exchange API keys, entered through OctoBot's own UI after the app is running. This is not a first-boot blocker (the app boots and serves its UI, including paper-trading/demo mode, with zero exchange keys configured) — it's ordinary post-install customer configuration, same pattern as n8n credentials. Noted here for completeness, not as a blocker on installable_today."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OctoBot is mechanically installable today only if pinned to the explicit
+  :2.1.1 tag: single container, one HTTP port (5001), no login of its own
+  configured at boot, so a Traefik basic_auth gate is a sufficient and
+  available first-boot secret channel. The current :stable/:latest tags are
+  NOT equivalent to :2.1.1 — verified against Docker Hub digests, they
+  already point at the 3.0.0-beta1 node-mode release, which pairs with a
+  cloud-hosted account and has no confirmed local-only path, making it a
+  structural blocker rather than a caveat. OctoBot would fill a genuinely new
+  category (self-hosted crypto trading automation) with zero overlap in the
+  current 24-recipe catalogue. The real caveat is mechanical: a recipe must
+  pin to :2.1.1 to get a usable self-contained UI, which ships a version
+  already superseded by upstream's actively developed, cloud-tied
+  architecture, with no clear upgrade path that preserves local-only
+  operation without reintroducing the node-mode/cloud-account dependency.

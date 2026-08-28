@@ -1,0 +1,104 @@
+slug: technitium-dns-server
+name: Technitium DNS Server
+source_description: "Open-source DNS server with ad blocking, encrypted DNS, and web management"
+
+upstream:
+  url: https://technitium.com/dns/
+  repo_url: https://github.com/TechnitiumSoftware/DnsServer
+  license: GPL-3.0
+  docker_image: technitium/dns-server
+  compose_file_url: https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — README's own Docker section links this exact file:
+    "Use the docker-compose.yml example to create a new container...".
+    It's a single file (no GPU/CPU or sqlite/postgres variants), so there
+    was no variant choice to make. This is a rolling reference to the
+    `master` branch, not a version-pinned tag or release asset — the repo
+    has no GitHub Releases with attached compose assets, so there is no
+    Immich-style `/releases/latest/download/...` link to prefer instead.
+
+version_health:
+  latest_version: "v15.4.0"
+  latest_release_date: "2026-07-11"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v15.4.0 shipped 2026-07-11, less than a month before today (2026-08-05).
+    Recent history shows a fast, steady cadence: v15.0.0 (2026-04-25, major
+    release adding OIDC Single Sign-On) → v15.0.1 (2026-04-26) → v15.1.0
+    (2026-05-03) → v15.2.0 (2026-05-09) → v15.3.0 (2026-07-05) → v15.4.0
+    (2026-07-11). No archival notice, no EOL announcement, official Docker
+    image kept in lockstep with releases. Clearly an actively maintained
+    project.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [adguard-home, pihole]
+  differentiation: >
+    Technitium's core pitch — network-wide DNS-based ad/tracker blocking
+    with a web console — is the same job already covered twice in the
+    catalogue by adguard-home and pihole, both shipped as
+    WireGuard-VPN-only recipes for the same structural reason (DNS runs on
+    raw port 53, not HTTP, so it can't sit behind Traefik). Technitium adds
+    real extra capability beyond either (authoritative + recursive DNS,
+    DNS-over-TLS/HTTPS/QUIC, built-in DHCP, clustering, OIDC SSO), but none
+    of that changes the primary customer-facing use case Hostinger's own
+    description highlights ("ad blocking, encrypted DNS, and web
+    management"), which a customer already gets from either existing
+    recipe.
+  usefulness: low
+  usefulness_rationale: >
+    A third DNS-ad-blocker recipe targeting the same narrow "customer runs
+    their own network-wide resolver over WireGuard" niche adds maintenance
+    surface without opening a new customer segment — the two recipes
+    already in the catalogue saturate this use case.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [DNS_SERVER_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Confirmed against upstream's DockerEnvironmentVariables.md:
+      DNS_SERVER_ADMIN_PASSWORD (or DNS_SERVER_ADMIN_PASSWORD_FILE) takes
+      the admin web-console password as a plain-text string read once on
+      first boot — there is no argon2/bcrypt hash format the server
+      accepts instead. `generated_from: "<algo>:ROOT_PASSWORD"` only ever
+      produces a hash, never the plaintext password, so it cannot be
+      projected onto this field at all (not even a "not-yet-supported
+      algorithm" case — this is the genuine plaintext-requirement blocker
+      called out in apps-gaps/SCHEMA.md).
+    - >
+      Auto-generating DNS_SERVER_ADMIN_PASSWORD server-side (the pattern
+      pihole's WEBPASSWORD uses) doesn't solve it either: like Ackee's
+      ACKEE_PASSWORD (see apps-gaps/ackee.yaml), this is the literal
+      credential the customer must type into Technitium's own login screen
+      to manage DNS zones, blocklists, and settings — the entire point of
+      the app's "web management" pitch — so a random value never surfaced
+      to the customer would lock them out of the product's main feature.
+      Gating the console behind Traefik `basic_auth` doesn't help either,
+      since the customer still needs to get past Technitium's internal
+      login once through the gate.
+    - >
+      Independent of the credential issue, DNS service itself runs on raw
+      port 53/tcp+udp, not HTTP — same as adguard-home and pihole, this
+      cannot sit behind Traefik and would need the same WireGuard-VPN-only
+      exposure pattern those two recipes already use.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Technitium DNS Server (technitium/dns-server, web console on 5380, DNS on
+  53/tcp+udp) is an actively maintained project with a fast release cadence
+  and genuinely more DNS-protocol capability than either adguard-home or
+  pihole, though its core customer-facing pitch overlaps with both. It is
+  not installable today: DNS_SERVER_ADMIN_PASSWORD only accepts a
+  plaintext password (no hash format `generated_from` could target), and
+  that password is the customer's actual login for the web console's core
+  functionality, so it can't be auto-generated and withheld either.
+  Independently, DNS runs on raw port 53/tcp+udp and can't sit behind
+  Traefik. Recommend not_recommended: no expressible secret exists for the
+  admin password, and the DNS protocol surface would need the same
+  WireGuard-VPN-only exposure pattern as the existing DNS recipes.

@@ -1,0 +1,87 @@
+slug: spliit
+name: Spliit
+source_description: "Open-source Splitwise alternative for tracking and splitting group expenses"
+
+upstream:
+  url: https://spliit.app
+  repo_url: https://github.com/spliit-app/spliit
+  license: MIT
+  docker_image: ghcr.io/spliit-app/spliit:1.19.0
+  compose_file_url: https://github.com/spliit-app/spliit#run-with-docker-compose
+  compose_file_notes: >
+    No standalone compose file is published; the official source is a
+    docker-compose.yml sample embedded inline in the README's "Run with
+    Docker compose" section, which pulls the published `ghcr.io/spliit-app/
+    spliit:latest` image (a rolling reference to whatever is newest, not
+    version-pinned) plus a `postgres:17.3` database. The repo root does
+    contain a real `compose.yaml` file
+    (https://github.com/spliit-app/spliit/blob/main/compose.yaml), but that
+    one is a dev-build harness matching the README's separate "Run in a
+    container" section (`build: .` from the local Dockerfile, tagged
+    `spliit:latest`) — not a deploy compose for the published GHCR image —
+    so it was not used here. No release-pinned or tagged variant of either
+    file exists; both are rolling references to the `main` branch.
+
+version_health:
+  latest_version: "1.19.1"
+  latest_release_date: "2025-12-06"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Releases come in bursts followed by multi-month silence (e.g. no tags
+    between 2024-10-20 and 2025-04-19, a ~6-month gap), then another gap
+    before the 2025-09 through 2025-12 burst. As of today (2026-08-05) it
+    has been just under 8 months since 1.19.1 (2025-12-06) and there have
+    been no commits to `main` since that release. Repo is not archived, has
+    246 open issues, and 2.8k stars, so this reads as a small,
+    sporadically-maintained project rather than a confirmed abandonment —
+    but the current silence is long enough to watch. Also note: 1.19.1 was
+    a patch release ("fix(db): correct local db script volume mount for
+    modern postgres images" plus a dependency upgrade) but the published
+    GHCR image only goes up to 1.19.0 — the fix itself was never published
+    as a tagged container image, so the pinned image below is one
+    patch behind the latest source release.
+
+catalogue_fit:
+  categories: [finance, productivity, collaboration]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal-finance/expense-splitting.
+    Spliit fills a distinct niche (shared group expense tracking, à la
+    Splitwise) that customers otherwise have no self-hosted option for in
+    this catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, recognizable use case (replacing Splitwise) with a simple
+    single-service-plus-Postgres footprint, but it's a niche personal-use
+    tool rather than infrastructure — lower expected demand than e.g. n8n
+    or Immich.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - POSTGRES_PASSWORD
+    - traefik basic-auth gate credential (app has no login/account system of its own)
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: traefik basic-auth gate credential (app has no login/account system of its own)
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Spliit is a small, MIT-licensed, actively-maintained (if sporadically
+  released) Splitwise alternative: a single Next.js container plus Postgres,
+  one HTTP port, an official (if slightly lagging) GHCR image, and no
+  overlap with the existing 24-recipe catalogue. It has no built-in
+  login/account system — anyone with the group URL can view and edit
+  expenses — so it must ship gated behind Traefik `basic_auth` rather than
+  relying on any app-native auth. Optional S3 (receipt image upload) and
+  OpenAI (receipt scanning) integrations are nice-to-have and not required
+  to boot, so they don't block installability. Overall: installable today,
+  worth building, but a lower-priority/niche addition rather than a
+  high-demand app.

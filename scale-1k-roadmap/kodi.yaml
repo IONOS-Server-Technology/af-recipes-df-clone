@@ -1,0 +1,136 @@
+slug: kodi
+name: Kodi
+source_description: "Headless Kodi server for sharing a centralised media library across clients"
+
+upstream:
+  url: https://kodi.tv
+  repo_url: https://github.com/xbmc/xbmc
+  license: GPL-2.0
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Team Kodi/XBMC Foundation
+    (github.com/xbmc/xbmc) does not publish a Docker image or a
+    docker-compose file anywhere in the repo, on kodi.tv, or in their
+    documentation/wiki — installation guidance there covers native
+    packages (Windows/macOS/Linux/Android) and, per the forum thread
+    "how to: run Kodi in a Docker container with audio and video"
+    (forum.kodi.tv/showthread.php?tid=330615), containerization is a
+    community workaround, not an upstream-supported path. Every
+    docker-compose.yml found (e.g. matthuisman/docker-kodi-headless,
+    mrskug/docker-headless-kodi-video-server, bpawnzZ/kodi-docker,
+    ehough/docker-kodi) is an independent third-party project, consistent
+    with docker_image being null above; none is adopted here as if it
+    were official.
+
+version_health:
+  latest_version: "21.3 (Omega)"
+  latest_release_date: "2025-12-15"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Kodi 21.3 "Omega" shipped 2025-12-15, under 8 months before today
+    (2026-08-05). The 21.x Omega line has had regular point releases since
+    its 2023-04 debut, and a Kodi 22 "Piers" major rewrite is already in
+    alpha/beta cycling (a1 2025-08, a2 2025-12, a3 2026-04-01, b1 2026-06-29)
+    on the way to a future stable cut. Team Kodi/XBMC Foundation is clearly
+    active. However, this health check is for the upstream Kodi application
+    itself — it does NOT extend to the "headless server" packaging most
+    relevant here (see blocking_issues): Team Kodi ships no official Docker
+    image, and the community image that became the de-facto standard,
+    linuxserver/kodi-headless, was archived by its maintainers on
+    2022-02-24 and last built Kodi 18.5 "Leia" (2020-01-07) — over 6 years
+    and 3 stable major versions (19, 20, 21) out of date. The suggested
+    replacement, a single independent developer's personal fork
+    (matthuisman/kodi-headless), is more current (last bumped 2026-07/08 to
+    track 22.0b1) but is a one-person side project, not a vendor-backed or
+    widely-adopted image.
+
+catalogue_fit:
+  categories: [media, home-automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers this ground, but "headless
+    Kodi as a shared library server" is a fundamentally different product
+    than the personal-media-streaming category a customer would expect
+    from a hosted Kodi recipe. Kodi's web UI (Chorus2) is a remote-control
+    surface for a local Kodi instance's own playback, not a browser-based
+    video player/transcoder the way Jellyfin or Plex are — headless Kodi
+    has no video output at all. Its actual purpose, per Hostinger's
+    description, is letting several separate physical Kodi installs (TVs,
+    Android boxes, HTPCs on a home LAN) share one library database (MySQL/
+    MariaDB, configured by hand-editing advancedsettings.xml) and discover
+    each other over UPnP/DLNA/EventServer (UDP 9777) — all LAN-local,
+    multi-device protocols that don't map onto "one cloud VM behind one
+    HTTPS domain for one customer."
+  usefulness: low
+  usefulness_rationale: >
+    A cloud-hosted single-domain instance cannot deliver the feature that
+    makes headless Kodi useful (multiple home-network Kodi clients
+    discovering and syncing against a shared library over local UPnP/DLNA
+    and a shared DB) — those clients live on the customer's LAN, not on
+    the internet-facing VM. What would actually be reachable through
+    Traefik is just the JSON-RPC/remote-control web UI, which is not
+    itself a media-streaming or media-management experience a self-hosting
+    customer is likely to want in isolation. Jellyfin (see apps-gaps/
+    jellyfin.yaml) already covers the "self-hosted video streaming server
+    with a real web UI" niche far better structurally, if that's the gap
+    being targeted.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [WEBUI_BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: WEBUI_BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No official Docker image. Team Kodi does not publish or endorse a
+      container image; every option found is third-party. The one that
+      became the de-facto community standard, linuxserver/kodi-headless,
+      was archived 2022-02-24 and frozen on Kodi 18.5 (2020), so it cannot
+      be used as a current, supportable base image. The maintained
+      alternative (matthuisman/kodi-headless) is a single hobbyist's
+      personal repo with no organizational backing, SLA, or multi-maintainer
+      continuity — a materially weaker supply-chain position than every
+      other image currently in the catalogue.
+    - >
+      Kodi's web interface ships with authentication off by default (no
+      env var to enable/seed a username+password at first boot in either
+      community image); a Traefik basic_auth gate closes that specific
+      perimeter gap and is expressible today, but it only secures the
+      remote-control API surface, not the feature the app is being
+      recommended for.
+    - >
+      The actual value proposition Hostinger's description calls out —
+      "sharing a centralised media library across clients" — requires
+      pointing the instance at an external MySQL/MariaDB database by
+      hand-editing advancedsettings.xml inside the container after boot;
+      there is no env var for this in either community image, and even if
+      there were, the "clients" that would consume that shared library are
+      separate physical Kodi installs on the customer's home LAN, which
+      cannot reach a UPnP/DLNA/EventServer-based discovery flow through a
+      single Traefik HTTPS domain. This is a structural fit problem, not
+      just a missing-secret-channel problem.
+  installable_today: true
+  recommendation: not_recommended
+
+summary: >
+  Kodi the application is actively maintained upstream, but "headless Kodi
+  server" as packaged for Docker is not: there is no official image, the
+  community image that used to be the standard has been archived since
+  2022 and is 6+ years / 3 major versions stale, and the only current
+  alternative is an unaffiliated single maintainer's personal fork. More
+  fundamentally, the feature Hostinger's blurb is selling — a centralised
+  library shared across multiple Kodi clients — depends on LAN-local
+  protocols (UPnP/DLNA, a hand-configured shared MySQL DB) that don't
+  translate to a single customer VM behind one Traefik domain; what would
+  actually be reachable over HTTPS is just a remote-control web UI with no
+  video playback of its own. A Traefik basic_auth gate makes it
+  mechanically installable, but the resulting recipe wouldn't deliver the
+  product a customer is expecting. Recommend not building; Jellyfin (see
+  apps-gaps/jellyfin.yaml, currently blocked_on_platform on the admin-setup
+  wizard) is the structurally better candidate for the "self-hosted media
+  streaming" gap this app is adjacent to.

@@ -1,0 +1,116 @@
+slug: emby
+name: Emby
+source_description: "Personal media server with automatic streaming and device conversion"
+
+upstream:
+  url: https://emby.media/
+  repo_url: null
+  license: "Proprietary (closed-source since v3.5.3; free core server, paid Emby Premiere tier for extra client/sync features)"
+  docker_image: emby/embyserver
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone/downloadable official docker-compose.yaml exists. Emby's
+    own install docs (emby.media/docker-server.html) only point to the
+    Docker Hub image pages (per-architecture) and do not host or link a
+    compose file. The official emby/embyserver Docker Hub repo (maintained
+    by the Emby team itself, is_automated) embeds a docker-compose example
+    directly in its README/overview text (services: emby, image:
+    emby/embyserver, ports 8096/8920, config+media volumes, UID/GID/GIDLIST
+    env vars, optional nvidia runtime and network_mode: host for DLNA/WoL,
+    optional /dev/dri and /dev/vchiq device mounts for hardware
+    transcoding) — but this is prose/markdown in a docs page, not a
+    fetchable file with its own URL, and there is no version pinning since
+    it's just documentation text, not a release artifact. There is also no
+    source repository to check for a docker/ or deploy/ compose file, since
+    Emby has been closed-source since v3.5.3 (see version_health notes).
+
+version_health:
+  latest_version: "4.10.0.22 (beta channel); 4.9.5.0 (last stable)"
+  latest_release_date: "2026-08-01 (beta 4.10.0.22); 2026-05-18 (stable 4.9.5.0)"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Docker Hub emby/embyserver has beta-channel tags pushed roughly weekly
+    (4.10.0.17 through 4.10.0.22 all landed between ~1 month ago and 5 days
+    before today, 2026-08-05). The last numbered stable release, 4.9.5.0, is
+    dated 2026-05-18 — about 2 months 18 days before today — and the one
+    before that, 4.9.3, was 2026-01-15, roughly a 4-month stable cadence.
+    Combined with the near-continuous beta/dev builds, this reads as active
+    development, not dormant or maintenance-only. Note: there is no public
+    source repository — Emby has been fully closed-source since v3.5.3
+    (this is what motivated the Jellyfin fork). MediaBrowser/Emby.Releases
+    on GitHub is only a binary-distribution mirror for client apps
+    (Android/Android TV/macOS/Tizen), not the server source, so
+    repo-activity signals (stars/commits there) don't reflect server
+    development and were not used for this assessment.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Immich (existing recipe) is a photo/video backup-and-organize tool with
+    AI search — a personal-photos product. Emby is a general home-theater
+    media server (movies, TV, music) with on-the-fly transcoding, live
+    TV/DVR, and casting/device-conversion for streaming to phones, smart
+    TVs, and media players. No existing recipe covers this "Plex/Jellyfin-
+    style" home media streaming category, which has a large, distinct
+    self-hosting audience from photo management.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted movie/TV/music streaming (Plex/Jellyfin/Emby-style) is one
+    of the most commonly searched self-hosting use cases and would be a
+    genuinely new, broadly appealing category for the catalogue. Emby
+    specifically is a well-known, actively developed, mainstream choice in
+    that space.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_setup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Emby has no environment variable, config-file, or build-arg hook to
+      pre-seed an admin username/password (confirmed against the official
+      emby/embyserver Docker Hub page and emby.media's Installation docs —
+      the image only documents UID/GID/GIDLIST for the running user, not
+      account credentials). On first boot, the container serves an open
+      setup wizard at :8096 where the first visitor to reach it enters
+      their own admin username and password directly; there is no
+      pre-existing or fixed login and no `type: password` field on the
+      app's own admin parameter to target with
+      `generated_from: "<algo>:ROOT_PASSWORD"`.
+    - >
+      This is the same structural gap already documented for Cal.com
+      (apps-gaps/calcom.yaml), Activepieces (apps-gaps/activepieces.yaml),
+      and 2FAuth (apps-gaps/2fauth.yaml): a Traefik `basic_auth: true` gate
+      would close the "stranger races to the setup wizard first" window,
+      but per that precedent it does not resolve the underlying gap —
+      `basic_auth` only carries the single root-password projection for
+      the gate credential itself, with no second channel today to also
+      hand the customer a distinct credential for Emby's own in-app admin
+      account. (Note: apps-gaps/affine.yaml treated an equivalent
+      open-setup-wizard case as resolved by a `basic_auth` gate alone;
+      that earlier file is inconsistent with the 2FAuth/Cal.com/
+      Activepieces reasoning applied here — flagging for whoever
+      reconciles the two rather than silently picking one.)
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Emby is a single-container, Traefik-friendly web app (HTTP :8096, optional
+  HTTPS :8920 which reverse-proxy deployments don't need) that would fill a
+  real, currently-empty "home media streaming" gap in the 24-recipe
+  catalogue — distinct from Immich's photo-backup focus. Upstream is
+  actively developed (near-weekly beta Docker tags, a stable release every
+  few months) and not at EOL, despite being closed-source since v3.5.3.
+  It is blocked today on the same platform mechanism gap as Cal.com,
+  Activepieces, and 2FAuth: Emby provisions its one admin account through
+  an open first-run setup wizard with no environment-variable hook, so
+  neither `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone
+  safely hands the customer their own exclusive first-run credential.
+  Revisit once the platform gains either a way to inject a preset admin
+  login via env var (would require upstream support, which doesn't exist)
+  or a second customer-facing credential channel beyond the single
+  root-password projection.

@@ -1,0 +1,73 @@
+slug: drizzle-gateway
+name: Drizzle Gateway
+source_description: "Free self-hosted Drizzle Studio on steroids for database management"
+
+upstream:
+  url: https://gateway.drizzle.team/
+  repo_url: https://github.com/drizzle-team/gateway-website
+  license: "Proprietary freeware — no OSS source repo found; distributed only as a prebuilt binary image (ghcr.io/drizzle-team/gateway). gateway-website repo is docs/marketing only, not the app source."
+  docker_image: ghcr.io/drizzle-team/gateway
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The project's own docs
+    (gateway.drizzle.team/docs/docker) only document a bare `docker run`
+    command (pull ghcr.io/drizzle-team/gateway:latest, create a volume,
+    run with -p 4983:4983 and PORT/STORE_PATH/MASTERPASS env vars) — no
+    compose file is linked or embedded there. A user-contributed
+    docker-compose.yml was posted in an open GitHub issue
+    (github.com/drizzle-team/gateway-website/issues/5, "Add docker
+    compose to docs") requesting the maintainers add one, but as of this
+    check that issue is still open and no PR has been merged, so it is
+    community-only and not adopted here.
+
+version_health:
+  latest_version: "1.4.1"
+  latest_release_date: "2026-07-24"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Five tags published on the GHCR package (1.1.1, 1.2.0, 1.3.0, 1.4.0,
+    1.4.1) with 1.4.1 published ~12 days before this analysis (2026-08-05),
+    i.e. around 2026-07-24. Steady point-release cadence, actively maintained
+    by the Drizzle team alongside their broader drizzle-orm ecosystem.
+
+catalogue_fit:
+  categories: [developer-tools, database-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24-app catalogue offers a database
+    browsing/schema-management GUI. Several existing recipes (n8n,
+    paperless-ngx, immich, anytype-server) run their own internal
+    Postgres/SQLite databases that customers otherwise have no
+    self-hosted way to inspect. Drizzle Gateway is a lightweight,
+    single-container way to connect to and browse Postgres/MySQL/SQLite
+    databases through a browser UI.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful to technically-inclined customers running their own
+    databases or other recipes' backing stores, but it's a niche
+    developer-facing admin tool rather than a general end-user app, so
+    expected demand is narrower than most of the current catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["gateway access gate credential"]
+  secrets_expressible_today:
+    - secret: "gateway access gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Drizzle Gateway is a single-container, single-HTTP-port (4983) app that
+  runs fine behind Traefik and fills a real gap — no existing recipe offers
+  a database-management GUI. Its own auth is an optional MASTERPASS env var
+  with no documented support for hash-based verification, so it can't use
+  generated_from directly; instead the app should ship with MASTERPASS unset
+  and be gated entirely by Traefik basic_auth (mechanism already used for
+  no-native-login apps like n8n/WUD), keeping it installable under the
+  current recipe mechanism. Recommend build_now: mechanically installable
+  today with no blocking issues.

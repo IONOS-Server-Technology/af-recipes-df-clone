@@ -1,0 +1,102 @@
+slug: zitadel
+name: ZITADEL
+source_description: "Open-source identity and access management with SSO, OIDC, passkeys, and multi-tenancy"
+
+upstream:
+  url: https://zitadel.com/
+  repo_url: https://github.com/zitadel/zitadel
+  license: AGPL-3.0 (core, Console, and Login moved from Apache-2.0 to AGPL-3.0 with the v3 release, 2025-03-31; proto/API/SDK packages remain Apache-2.0)
+  docker_image: ghcr.io/zitadel/zitadel:v4.16.2
+  compose_file_url: https://raw.githubusercontent.com/zitadel/zitadel/main/deploy/compose/docker-compose.yml
+  compose_file_notes: >
+    Official compose file, referenced from ZITADEL's own docs at
+    zitadel.com/docs/self-hosting/deploy/compose, which instructs users to
+    `curl -fsSLO` this exact raw.githubusercontent.com URL. It is a rolling
+    reference to the `main` branch, not version-pinned to a release tag —
+    the docs pin ZITADEL's actual version separately via a ZITADEL_VERSION
+    variable in an accompanying .env file, not via the compose file's git
+    ref. This is the base/default variant (Postgres backend, no TLS
+    termination); the docs also publish optional overlay files for
+    prodlike, letsencrypt, external-tls, and local-tls modes, but the base
+    docker-compose.yml above is the one referenced first and is sufficient
+    to run ZITADEL standalone.
+
+version_health:
+  latest_version: "v4.16.2"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest v4.16.2 shipped 2026-07-29, 7 days before today (2026-08-05).
+    Recent tag history shows a steady multi-times-per-month cadence on
+    both the current v4 line (v4.15.1 2026-06-08, v4.15.2 2026-06-17,
+    v4.15.3 2026-06-22, v4.16.0 2026-07-10, v4.16.1 2026-07-17, v4.16.2
+    2026-07-29) and a still-maintained v3 LTS line (v3.4.11 2026-06-10
+    through v3.4.13 2026-07-17). No dormancy or EOL signal; this is a
+    well-resourced, VC-backed project (Zitadel GmbH) with an active
+    commercial cloud offering funding upstream development.
+
+catalogue_fit:
+  categories: [identity, security, sso, oidc]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe in the 24-app catalogue provides SSO/OIDC/SAML
+    identity-provider functionality — Vaultwarden and Guacamole are the
+    closest security-adjacent recipes but solve different problems
+    (password vaulting, remote-desktop gateway). ZITADEL would let a
+    customer stand up their own IdP to centralize login for other
+    self-hosted apps (OIDC/SAML relying parties), passkey/WebAuthn login,
+    and multi-tenant org management — a genuinely new category for the
+    catalogue, not a variant of anything already offered.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted SSO/IAM is a common "grow into" need once a customer runs
+    several other self-hosted apps, and ZITADEL is one of the more
+    actively developed, modern options (OIDC, SAML, passkeys) compared to
+    older incumbents like Keycloak. Its web console + login UI are the
+    only customer-facing surfaces needed to operate it, matching our
+    Traefik-fronted model well.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ZITADEL_MASTERKEY
+    - POSTGRES_ADMIN_PASSWORD
+    - POSTGRES_ZITADEL_PASSWORD
+    - basic_auth_gate_credential
+  secrets_expressible_today:
+    - secret: ZITADEL_MASTERKEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_ZITADEL_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ZITADEL is an actively maintained, well-funded open-source IAM/SSO
+  platform (latest v4.16.2, 2026-07-29, multiple releases per month) that
+  fills a genuine gap — no existing recipe offers identity/SSO. It has a
+  web console and login UI, runs behind a reverse proxy on standard HTTP
+  ports, and its only first-boot secrets (a 32-byte masterkey, two
+  Postgres passwords) can all be server-generated with no customer input
+  needed, matching the "server_generated_no_customer_input" mechanism.
+  The one wrinkle: ZITADEL's bootstrap admin account
+  (zitadel-admin@zitadel.localhost) only accepts its initial password as
+  plaintext via ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD in steps.yaml —
+  there is no pre-hashed/bcrypt-hash input path, so `generated_from`
+  cannot project the customer's root-password hash into it the way
+  Vaultwarden's ADMIN_TOKEN does. The practical fix is to ship it with
+  the documented fixed default password
+  (Password1!/PasswordChangeRequired=true, forcing an in-app change on
+  first login) and gate the whole public surface behind Traefik
+  basic_auth using the root-password hash, the same "fixed admin
+  credential behind a mandatory gate" pattern already accepted for other
+  recipes. That keeps it installable today with no blocking issues, so
+  it's build_now.

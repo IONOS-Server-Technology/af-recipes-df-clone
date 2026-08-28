@@ -1,0 +1,96 @@
+slug: silex
+name: Silex
+source_description: "Open-source no-code website builder with drag-and-drop editing and HTML output"
+
+upstream:
+  url: https://www.silex.me/
+  repo_url: https://github.com/silexlabs/Silex
+  license: AGPL-3.0
+  docker_image: silexlabs/silex-platform
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists for either Docker image. The
+    self-hosting guide (docs.silex.me/en/dev/run) documents only `docker
+    run ...` invocations for both `silexlabs/silex` (single-site, no
+    dashboard) and `silexlabs/silex-platform` (full/multi-site, the image
+    this recipe targets) -- no compose example is given for either. The
+    silexlabs/Silex monorepo does have a root-level `docker-compose.yml`
+    (rolling reference, default branch), but it `build:`s the image
+    from local source via the repo's own Dockerfile rather than pulling
+    the published `silexlabs/silex-platform` image, and mounts
+    `$PWD/storage`/`$PWD/hosting` for a local dev checkout -- a
+    contributor build/dev harness, not a deployment artifact for the
+    published image (same category as the Shlink precedent: present in
+    the repo root but not meant to be deployed as-is). silexlabs/silex-lib
+    and silexlabs/silex-platform (both referenced as the source for the
+    two Docker images) ship no docker-compose file of their own at all.
+
+version_health:
+  latest_version: "3.9.0"
+  latest_release_date: "2026-07-26"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v3.9.0 was published 2026-07-26, about 10 days before today (2026-08-05).
+    A newer prerelease line (v3.10.0-canary.0 on 2026-07-26, then
+    v3.10.0-canary.2 on 2026-07-31) is already in progress, and the
+    silexlabs/silex-platform Docker image mirrors both: `3.9.0`/`latest`
+    pushed 11 days ago and `3.10.0-canary.2` pushed 6 days ago. Preceding
+    stable releases (v3.8.0 on 2026-06-16, v3.7.3 on 2026-05-16) show a
+    steady ~4-6 week cadence with no long gaps. Not archived, no
+    unmaintained notice; the wiki explicitly marks the older Silex v2 as
+    obsolete/unsupported in favor of the actively developed v3 line
+    evaluated here, which is the version the current Docker image and
+    releases correspond to.
+
+catalogue_fit:
+  categories: [productivity, website-builder, cms]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers a visual/no-code
+    website builder. Silex is a drag-and-drop editor (built on GrapesJS)
+    that exports clean static HTML/CSS with no vendor lock-in -- a distinct
+    use case from every existing recipe (dev tools, monitoring, media,
+    automation, security). It fills a genuine "I want a marketing/portfolio
+    site without writing code" gap.
+  usefulness: medium
+  usefulness_rationale: >
+    Broad appeal (non-technical customers wanting a simple website) but the
+    self-hosted filesystem-storage mode is effectively single-project,
+    single-editor -- there is no multi-user account system -- so it suits a
+    small business/personal site rather than an agency managing many
+    client sites. Still a clear, easy-to-explain product a customer would
+    recognize as valuable.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Silex ships an official single-container image (`silexlabs/silex-platform`,
+  matching pinned tags for every release including the current `3.9.0`)
+  exposing one HTTP port (6805), making it reverse-proxy-friendly like our
+  existing single-container web-app recipes. The online/default deployment
+  normally stores projects via a GitLab OAuth connector
+  (GITLAB_CLIENT_ID/GITLAB_CLIENT_SECRET), which would be a hard blocker --
+  no channel exists today for a customer to supply an OAuth app registration.
+  However, Silex also ships a filesystem-only storage/hosting connector
+  (`STORAGE_CONNECTORS=fs`, `HOSTING_CONNECTORS=fs`, with SILEX_FS_ROOT /
+  SILEX_FS_HOSTING_ROOT for local paths) that needs no external account or
+  API key at all -- just a domain. Silex has no built-in login of its own in
+  this mode (anyone reaching the URL can edit the site), so like
+  Adminer/WUD/n8n it needs a mandatory Traefik basic_auth gate, with the
+  gate password projected from the customer's root password via
+  `generated_from` (IF-1312 pattern). Upstream is releasing roughly every
+  4-6 weeks with a prerelease canary line actively in progress, well within
+  "active" health. No overlap with anything in the current 24-recipe
+  catalogue -- recommend building now, using the `fs` connector mode only
+  (never the GitLab-OAuth default).

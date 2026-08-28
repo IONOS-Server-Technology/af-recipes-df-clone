@@ -1,0 +1,88 @@
+slug: jsreport
+name: jsreport
+source_description: "Self-hosted report server for PDF, Excel, and DOCX from HTML templates"
+
+upstream:
+  url: https://jsreport.net/
+  repo_url: https://github.com/jsreport/jsreport
+  license: LGPL-3.0
+  docker_image: jsreport/jsreport
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists anywhere in the jsreport
+    project. Checked the docs site (jsreport.net/on-prem and
+    jsreport.net/learn/docker), the main repo README, and the
+    packages/jsreport/docker/README.md in github.com/jsreport/jsreport
+    (master branch) — all of them only document `docker run` commands
+    against the jsreport/jsreport image (default, full, and
+    windowsservercore Dockerfile variants), never a compose file. The
+    formerly separate github.com/jsreport/docker repo is explicitly marked
+    deprecated, with its Dockerfiles (not a compose file either) moved into
+    the main repo. The only docker-compose.yml files found anywhere under
+    the jsreport GitHub org are in example integration repos (e.g.
+    jsreport/jsreport-dotnet-example-docker-compose), which demonstrate
+    wiring jsreport up alongside a sample .NET app — not a canonical
+    single-service install file for jsreport itself, so not adopted here.
+
+version_health:
+  latest_version: "4.14.1"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via npm registry publish timestamps (more reliable than Docker
+    Hub's relative "N days ago" copy): 4.10.0 2025-07-24, 4.10.1 2025-08-13,
+    4.11.0 2025-11-26, 4.12.0 2026-02-04, 4.13.0 2026-04-29, 4.14.0
+    2026-08-04, 4.14.1 2026-08-05 (today). Minor releases land roughly every
+    2-4 months with patch releases in between; the latest patch shipped
+    same-day as this analysis. Repo has 2,500+ commits on master and active
+    CI. Clearly an actively maintained project, not dormant or in
+    maintenance-only mode.
+
+catalogue_fit:
+  categories: [reporting, document-generation, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover report/document generation (PDF,
+    Excel, DOCX rendered from HTML/JS templates). jsreport would add a
+    genuinely new category aimed at developers who need a report-rendering
+    backend for their own apps, rather than duplicating an existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    The use case (a report-generation microservice consumed by other apps
+    via its API) is real but developer-niche rather than broadly consumer-
+    facing, and the audience overlaps with people already comfortable
+    self-hosting infra. It's also meaningfully capped for our paying
+    customers: jsreport's LGPL-3.0 license is free for personal/non-profit
+    use or commercial use with 5 or fewer stored templates, but commercial
+    use beyond 5 templates requires a paid jsreport license — a business
+    running this recipe for real commercial reporting work would likely hit
+    that wall quickly, which caps how much value the recipe delivers before
+    the customer needs to pay a third party on top of AF.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: ["Traefik basic-auth gate credential (Studio UI/API has no auth enabled by default)"]
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential (Studio UI/API has no auth enabled by default)"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "jsreport's own authentication extension is opt-in and, per upstream docs, only accepts an admin username/password as plaintext config (extensions_authentication_admin_username / extensions_authentication_admin_password) — there is no documented hashed/bcrypt admin-password option. That means jsreport's own login cannot be wired up via generated_from (which only ever projects a hash, never plaintext). The workaround is to leave jsreport's built-in auth disabled (its default state) and gate the whole app behind Traefik basic_auth instead, the same pattern used for n8n/WUD/Open WebUI — this is not a hard blocker, just means the app's own admin login is unusable under the current mechanism."
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  jsreport is an actively maintained, single-container report-rendering
+  server (HTTP on port 5488, no extra raw ports) that would add a new
+  category to the catalogue. It ships with no built-in login by default, so
+  it's installable today by gating the whole app behind a Traefik
+  basic_auth credential rather than trying to configure jsreport's own
+  admin login, which only accepts a plaintext password and has no channel
+  under the current mechanism. The main caveat is commercial value: jsreport
+  is free only for personal/non-profit use or up to 5 stored templates
+  commercially, so a paying customer doing real report-generation work would
+  likely need a separate paid jsreport license fairly quickly. Recommend
+  build_with_caveats — mechanically fine to ship, but flag the license cap
+  to whoever prioritizes it.

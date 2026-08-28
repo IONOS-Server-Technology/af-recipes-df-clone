@@ -1,0 +1,101 @@
+slug: alltube
+name: AllTube
+source_description: "Web interface for downloading videos from YouTube and other sites"
+
+upstream:
+  url: https://github.com/Rudloff/alltube
+  repo_url: https://github.com/Rudloff/alltube
+  license: GPL-3.0
+  docker_image: rudloff/alltube
+  compose_file_url: null
+  compose_file_notes: >
+    No docker-compose.yaml/.yml exists anywhere in the Rudloff/alltube repo
+    (root, or any docker/deploy/contrib-style directory) — checked the full
+    repo root listing via the GitHub API. The repo ships only a bare
+    Dockerfile plus a Procfile/heroku.yml for Heroku deployment; the README's
+    "Setup" section documents release packages, git+Composer, Heroku, and
+    Cloudron installs, none of which involve docker-compose. No
+    community-maintained compose file was adopted in its place either, per
+    this issue's scope. Consistent with the repo being archived since
+    2023-04-22 with no further upstream activity.
+
+version_health:
+  latest_version: "3.2.0-alpha"
+  latest_release_date: "2023-04-22"
+  release_cadence: dormant
+  eol_status: archived
+  notes: >
+    The GitHub repo was archived by its owner on 2023-04-22 (same day as the
+    3.2.0-alpha tag, "switched to yt-dlp instead of youtube-dl") and is now
+    read-only — no issues, PRs, or further commits possible. That is just
+    over 3 years and 3 months before today (2026-08-05). Prior releases:
+    3.1.1 (2023-03-11), 3.1.0 (2021-10-16), 3.0.3 (2021-03-08). The official
+    Docker Hub image (rudloff/alltube, tags "latest" and "develop") is even
+    further behind — both tags last pushed roughly 5 years ago, predating
+    even the 3.1.x line, so the maintained image never shipped the yt-dlp
+    switch. No official activity of any kind since the archive date;
+    unofficial rebuilds exist (e.g. schklom/alltube, dnomd343/alltube-docker)
+    but there is no vendor-maintained current image.
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes covers video-download-from-URL as a
+    function; the closest adjacent recipes (immich, paperless-ngx) are
+    photo/document management, not video fetching. AllTube would be a novel
+    category for the catalogue, but the specific gap it fills — a
+    self-hosted youtube-dl/yt-dlp front end — is served better today by
+    actively maintained forks/alternatives such as MeTube
+    (ghcr.io/alexta69/metube, weekly-ish tagged builds through 2026) that
+    solve the same problem with a live upstream.
+  usefulness: low
+  usefulness_rationale: >
+    The underlying use case (self-hosted video downloader) has some appeal,
+    but AllTube itself is a dead project: archived over 3 years ago, its own
+    Docker image frozen even further back at ~5 years old (pre-dating the
+    yt-dlp switch), and no security-patch path since youtube-dl/yt-dlp
+    extractors break routinely as sites change their frontends. Shipping an
+    archived, unpatched app whose core function (extracting third-party
+    site URLs) is exactly the kind of thing that rots fastest is a poor
+    trade versus building the same niche on a maintained alternative.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      No official current Docker image: rudloff/alltube's "latest"/"develop"
+      tags were last pushed roughly 5 years ago and do not include the
+      3.1.x/3.2.0-alpha era changes (yt-dlp switch, PHP 8 support, SSRF/open
+      redirect fixes from 3.0.1-3.0.3). Building a recipe against the
+      official image means shipping a multi-year-stale, pre-security-fix
+      build; building against an unofficial fork (schklom/alltube,
+      dnomd343/alltube-docker) means pinning to a third party with no
+      relationship to upstream and no guaranteed maintenance either.
+    - >
+      Repo is archived (read-only since 2023-04-22) — no path for the
+      customer or IONOS to get a future security patch if a new
+      vulnerability class is found in the URL-fetching/SSRF surface (this
+      app already had two SSRF/open-redirect CVEs fixed in 3.0.1-3.0.3
+      before archival).
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  AllTube is technically a simple, single-container, single-HTTP-port PHP
+  app with no built-in login (structurally it would slot in cleanly behind
+  Traefik basic_auth, same as Adminer/WUD), but the project itself is dead:
+  archived by its owner in April 2023, and even its own Docker Hub image
+  was last pushed about 5 years ago, predating the project's final
+  yt-dlp-migration release. There is no maintained image to pin, no upstream
+  to receive future fixes for an app whose core job (parsing third-party
+  video-hosting pages) is exactly the kind of surface that needs frequent
+  patching. Recommend not building this recipe; if the "self-hosted video
+  downloader" niche is wanted, evaluate an actively maintained alternative
+  such as MeTube instead.

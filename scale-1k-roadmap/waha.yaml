@@ -1,0 +1,85 @@
+slug: waha
+name: WAHA
+source_description: "Self-hosted WhatsApp HTTP API for messaging automation and bot integration"
+
+upstream:
+  url: https://waha.devlike.pro/
+  repo_url: https://github.com/devlikeapro/waha
+  license: Apache-2.0
+  docker_image: devlikeapro/waha
+  compose_file_url: https://raw.githubusercontent.com/devlikeapro/waha/core/docker-compose.yaml
+  compose_file_notes: >
+    Official — this is the exact file the docs page
+    (waha.devlike.pro/docs/how-to/install/) points to, sitting at the repo
+    root. It is a rolling reference to the default branch ("core", not
+    "main"), not pinned to a release tag, so it will drift with upstream
+    changes rather than being frozen at a version. It defaults to the
+    commercial `devlikeapro/waha-plus` image with the free `devlikeapro/waha`
+    image left as a commented-out alternative line — the free/open-source
+    image must be substituted in when adapting this for the recipe. It also
+    ships commented-out optional blocks for Postgres, MongoDB, and MinIO
+    storage backends (sessions/media persistence) alongside the default
+    plain-filesystem session storage.
+
+version_health:
+  latest_version: "2026.7.2"
+  latest_release_date: "2026-07-29"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Roughly monthly (sometimes twice-monthly) releases through 2026:
+    2026.4.3, 2026.5.1, 2026.6.1, 2026.6.2, 2026.7.1, 2026.7.2 — the last
+    on 2026-07-29, about one week old as of 2026-08-05. Repo is not
+    archived, releases include active feature work (MCP integration,
+    session key scopes, WebAuthn pairing) as well as bug fixes across the
+    three engines (WEBJS, NOWEB, GOWS) — clearly active development.
+
+catalogue_fit:
+  categories: [automation, integration, messaging]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    WAHA is a WhatsApp connector/API layer — it exposes a REST API (plus a
+    dashboard and Swagger UI) that lets a customer's own scripts, n8n
+    workflows, or bots send/receive WhatsApp messages. This is distinct
+    from openclaw and hermes-agent, which are themselves AI agents that
+    happen to use Telegram-style messaging apps as a control surface. WAHA
+    provides no agent logic of its own; it is infrastructure a customer
+    would plug into n8n (already in the catalogue) or a custom
+    integration to add WhatsApp as a channel. No existing recipe covers
+    WhatsApp connectivity specifically.
+  usefulness: medium
+  usefulness_rationale: >
+    WhatsApp Business automation is a common ask, and pairing WAHA with
+    the existing n8n recipe is a plausible customer story. Usefulness is
+    capped at medium rather than high because it's a developer-facing API
+    product with no end-user value standalone, session linking to a real
+    WhatsApp account is a manual QR-scan step outside the platform's
+    control, and it's more of an accessory to an existing recipe (n8n)
+    than a destination app on its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [traefik_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: traefik_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  WAHA is a single-container, single-HTTP-port (3000) app with an active
+  upstream release cadence (last release 2026-07-29) and an Apache-2.0
+  license — mechanically it is a clean fit for the current recipe
+  mechanism. It ships with no mandatory login by default: the dashboard
+  password (WAHA_DASHBOARD_PASSWORD) auto-generates randomly if unset and
+  the API key (WAHA_API_KEY) is optional, so the whole app can and should
+  be gated behind a Traefik basic_auth wall the same way n8n and WUD are,
+  with no blocking dependency on unmerged root-password-hash projection.
+  Recommended `build_now`: installable today with no blocking issues. It
+  is best positioned as a companion to the existing n8n recipe rather than
+  a standalone destination, and requires a manual post-install QR-code
+  session-linking step the platform cannot automate, but neither of those
+  is a blocker to building it.

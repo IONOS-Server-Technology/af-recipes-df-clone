@@ -1,0 +1,92 @@
+slug: flatnotes
+name: flatnotes
+source_description: "Database-less Markdown note-taking app with wikilinks and full-text search"
+
+upstream:
+  url: https://github.com/dullage/flatnotes
+  repo_url: https://github.com/dullage/flatnotes
+  license: MIT
+  docker_image: dullage/flatnotes:v5.5.4
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml exists anywhere in the repo (root,
+    docker/, deploy/, contrib/, or docs/ all checked via the GitHub contents
+    API) — the repo only contains Dockerfile, entrypoint.sh, healthcheck.sh,
+    client/, server/, and non-deployment docs (no compose file, just a logo
+    in docs/). The README's "Docker Compose Example" section is an inline
+    YAML snippet embedded in prose, not a link to a fetchable file the
+    project publishes/updates, so there is nothing to point compose_file_url
+    at that would meet the "official, fetchable file" bar.
+
+version_health:
+  latest_version: v5.5.4
+  latest_release_date: 2025-10-20
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Prior history (Jun 2024 - Oct 2025) shows a fairly steady cadence of a
+    release every 1-3 months, and there has been no tagged release since
+    v5.5.4 (2025-10-20) — just over 9.5 months as of today (2026-08-05), so
+    the *release* cadence has slowed. However, the project's default branch
+    is "develop", not "main", and commit history on develop shows ongoing
+    activity well past the last release: maintenance commits in February
+    2026 (e.g. CONTRIBUTING.md update) and a burst of commits as recently
+    as 2026-08-02 (dependency updates, runtime/build container image
+    updates, python version bump, switch to uv for dependency management),
+    only 3 days before this analysis. Repo is not archived, MIT license
+    intact, 118 open issues. This reads as an actively maintained project
+    that has simply not cut a new tagged release in a while (possibly
+    accumulating changes for a future release), not a dormant/quiet one.
+
+catalogue_fit:
+  categories: [productivity, notes]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover personal note-taking / wiki-style
+    markdown editing. Closest adjacent categories are dev-tool text storage
+    (opengist, for pastes/gists, not notes) and general wikis
+    (an-otter-wiki, apache-jspwiki, dokuwiki — multi-user wiki engines, not
+    single-user note apps). flatnotes' pitch is specifically a
+    database-less, single flat folder of markdown files with wikilinks and
+    full-text search — closer to a self-hosted Obsidian/Notational Velocity
+    than a wiki, so it would be a genuinely new category for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Personal markdown note-taking is a common self-hosting want and
+    flatnotes is lightweight (single container, ~90MB image, no DB) which
+    fits the AF's low-footprint recipe profile well. Usefulness is capped
+    at medium rather than high not because of activity concerns (the
+    project is actively maintained, see version_health) but because the
+    note-taking niche is already well served by higher-profile alternatives
+    (e.g. Trilium, Joplin Server) that a future gap-analysis pass might
+    rate higher on feature grounds.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  flatnotes is a single-container, database-less markdown note app (image
+  dullage/flatnotes:v5.5.4, port 8080, one volume) that is reverse-proxy
+  compatible and would fill a genuinely empty niche in the catalogue
+  (personal note-taking, distinct from our existing wiki/pastebin recipes).
+  Its own login (FLATNOTES_AUTH_TYPE=password) needs FLATNOTES_PASSWORD as
+  plaintext, which generated_from cannot supply (it only ever projects a
+  hash) — but the app supports FLATNOTES_AUTH_TYPE=none, so the recipe can
+  disable built-in auth and gate the app entirely behind a Traefik
+  basic_auth credential instead, the same pattern used for n8n/WUD/Open
+  WebUI. That makes it mechanically installable today. No tagged release
+  has shipped since v5.5.4 (2025-10-20, 9.5+ months as of 2026-08-05), but
+  the project's default branch ("develop", not "main") shows ongoing
+  maintenance commits as recently as 2026-08-02, the repo is not archived,
+  and issues remain open at a normal volume — this is an actively
+  maintained project between releases, not an abandoned one. Recommendation
+  is build_now.

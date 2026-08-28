@@ -1,0 +1,127 @@
+slug: jobops
+name: JobOps
+source_description: "Self-hosted job hunting pipeline that searches boards and tailors CVs"
+
+upstream:
+  url: https://github.com/DaKheera47/job-ops
+  repo_url: https://github.com/DaKheera47/job-ops
+  license: "AGPL-3.0 + Commons Clause v1.0"
+  docker_image: ghcr.io/dakheera47/job-ops
+  compose_file_url: https://raw.githubusercontent.com/DaKheera47/job-ops/main/docker-compose.yml
+  compose_file_notes: >
+    Official — a single docker-compose.yml lives at the repo root and is
+    the file the README's own "docker compose up -d" instructions point
+    at (no separate docker/, deploy/, or contrib/ variant, and only one
+    service/config, so there's no GPU/CPU or sqlite/postgres choice to
+    make). The link above is a rolling reference to the default branch
+    (main), not version-pinned to a release tag — there is no
+    releases/latest/download/docker-compose.yml asset published for this
+    project, so watch the main-branch file directly for changes rather
+    than a tagged asset. It matches the ghcr.io/dakheera47/job-ops:latest
+    image and 3001→3005 port mapping already recorded in this file's
+    summary.
+
+version_health:
+  latest_version: "v0.11.0"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v0.11.0 shipped 2026-07-22, about 2 weeks before today (2026-08-05).
+    10 tagged releases visible between 2026-05-01 (v0.5.0) and 2026-07-22
+    (v0.11.0) — roughly weekly, with two patch releases (v0.6.1, v0.6.2) in
+    the same week. 775+ commits on main, ~800 users reported by the
+    project, and it was recently #3 on GitHub's TypeScript trending page.
+    No archival or slowdown signal; this is a young, fast-moving project.
+
+catalogue_fit:
+  categories: [productivity, ai, career]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches job-search/career tooling.
+    JobOps aggregates listings across 10+ job boards (LinkedIn, Indeed,
+    Glassdoor, Adzuna, Hiring Cafe, etc.), uses an LLM to score fit against
+    a profile, generates tailored CV PDFs per role, and tracks application
+    status via Gmail monitoring. It's a genuinely distinct niche, closer in
+    spirit to Paperless-AI (LLM-assisted personal productivity tool) than
+    to any media/infra/dev-tool recipe we ship today.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, differentiated niche with no catalogue overlap, but the audience
+    is narrower (active job seekers only, not an always-on service like
+    most current recipes) and the app's core value proposition — AI
+    scoring and CV tailoring — is fully dependent on a customer-supplied
+    external LLM API key, which our platform has no way to accept today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [LLM_API_KEY, BASIC_AUTH_GATE_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The app's headline features — AI fit-scoring and AI-tailored CV
+      generation — require a customer-supplied API key for an external LLM
+      provider (OpenRouter, OpenAI, Anthropic/Claude, Google Gemini, or
+      GLM/Zhipu), configured via env vars such as MODEL / LLM_PROVIDER and
+      provider-specific key vars. There is no root-password-hash or
+      Traefik-gate mechanism that can express an arbitrary third-party API
+      key; this is exactly the "external API key the app can't function
+      without" case SCHEMA.md calls a hard no. Without it the app still
+      boots, but the feature Hostinger's own description leads with
+      ("tailors CVs") does not work.
+    - >
+      Several optional integrations have the same no-input-channel problem
+      but are non-blocking on their own since the app degrades gracefully
+      without them: RXRESUME_API_KEY (PDF export via Reactive Resume — CVs
+      can otherwise be exported locally), GMAIL_OAUTH_CLIENT_ID/SECRET
+      (Gmail-based application-status tracking), ADZUNA_APP_ID/KEY and
+      APIFY_TOKEN (extra job-board coverage), and UKVISAJOBS_EMAIL/PASSWORD
+      (UK visa-sponsorship board login). None of these unblock the core
+      LLM dependency above.
+    - >
+      Upstream ships with no mandatory login (BASIC_AUTH_USER/PASSWORD are
+      optional env vars, unset by default), so a Traefik basic_auth gate is
+      needed regardless to avoid the UI and its stored job/application data
+      sitting open on the internet. That gate is expressible today via
+      generated_from root-password projection into Traefik basic_auth, but
+      it only solves the open-UI problem, not the LLM-key problem above.
+    - >
+      Licensing: upstream is AGPL-3.0 layered with the Commons Clause,
+      which explicitly withholds the right to "Sell" the software — defined
+      broadly to cover providing it to third parties for compensation
+      (including hosting fees) where the value substantially derives from
+      the software itself. Shipping this inside a paid IONOS Application
+      Factory recipe plausibly falls inside that restriction and would need
+      legal sign-off independent of the technical blockers above.
+    - >
+      Name ambiguity: "JobOps"/"jobops" is shared by several unrelated or
+      derivative projects — isjiajia01/job-ops (a customized EU-focused
+      fork) and becomdoup-spec/job-ops-1 / 0xSojalSec/AI-job-ops (mirrors of
+      the same upstream), plus an unrelated project, HireBridge/jobops (an
+      MCP server for job-search workflows driven from a chat client, not a
+      standalone web app). DaKheera47/job-ops was selected as the canonical
+      upstream because it matches Hostinger's description ("searches boards
+      and tailors CVs") and is the original, most-starred, actively
+      released repo.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  JobOps is a single-container app (ghcr.io/dakheera47/job-ops, versioned
+  tags available, HTTP port 3001 mapped to 3005, has a /health endpoint,
+  no extra raw ports) that would sit fine behind Traefik like our
+  Uptime Kuma/Open WebUI-style recipes, is under genuinely active weekly
+  release cadence, and fills a career-tooling niche nothing else in the
+  catalogue covers. It's blocked today because its core AI scoring/CV
+  tailoring functionality requires a customer-supplied external LLM API
+  key with no expressible input channel under the current generated_from
+  / Traefik-basic_auth mechanism — the same structural gap flagged for
+  other AI-key-dependent apps. It also carries an AGPL + Commons Clause
+  license that restricts commercial resale/hosting, which is a separate,
+  non-technical concern worth legal review before this is revisited.
+  Recommend re-evaluating once a real API-key input channel exists on the
+  platform, and flagging the license question to legal in parallel.

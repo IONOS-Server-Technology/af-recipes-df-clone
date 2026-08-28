@@ -1,0 +1,109 @@
+slug: kotaemon
+name: Kotaemon
+source_description: "Open-source document Q&A chatbot with multi-LLM support and OCR"
+
+upstream:
+  url: https://github.com/Cinnamon/kotaemon
+  repo_url: https://github.com/Cinnamon/kotaemon
+  license: Apache-2.0
+  docker_image: ghcr.io/cinnamon/kotaemon
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Upstream's own docs
+    (cinnamon.github.io/kotaemon/development/) and the README's Docker
+    section only show bare `docker run` commands for the lite/full/ollama
+    image variants; there is no docker-compose.yaml/.yml at the repo root
+    or under any docker/deploy/contrib directory, and no compose file is
+    linked from the docs nav. The only compose files found
+    (e.g. github.com/mdaca/kotaemon-docker-compose,
+    github.com/mdaca/kotaemon-docker-compose-oidc) are third-party
+    community repos, not published or maintained by Cinnamon — not adopted
+    here per the "official only" rule.
+
+version_health:
+  latest_version: "v0.12.0"
+  latest_release_date: "2026-05-31"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~9 weeks since v0.12.0 (2026-05-31) as of 2026-08-05. Repo is not
+    archived and shows a push as recent as 2026-07-14 (~3 weeks ago), with
+    239 open issues still being triaged — this is actively maintained, not
+    dormant. One caveat for a future recipe author: the versioned image
+    tags on GHCR (`0.11.0-lite`, `0.11.0-full`, `0.11.0-ollama`) are ~1 year
+    stale; all recent work only publishes to the floating `main-lite`,
+    `main-full`, `main-ollama` tags (last pushed ~2 months ago). There is
+    currently no versioned tag matching v0.12.0 to pin to — pinning today
+    means either accepting a year-old versioned tag or the unpinned
+    `main-*` tag, which RFC-002's pinned-tag rule would reject as-is.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, paperless-ai]
+  differentiation: >
+    Open WebUI is a general chat frontend over local/any-provider LLMs with
+    no document-specific pipeline; Paperless-ai bolts AI auto-tagging onto
+    an existing Paperless-ngx archive. Kotaemon's core is retrieval-augmented
+    document Q&A: multi-document upload, OCR/table/figure-aware parsing,
+    hybrid full-text+vector retrieval with re-ranking, in-browser PDF
+    citation highlighting, and agent-based reasoning (ReAct/ReWOO) over the
+    user's own document set. That RAG-over-your-own-files use case isn't
+    covered by anything currently in the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely different niche (document RAG/Q&A) from the existing AI
+    recipes, and it can run fully local via Ollama with no external API key
+    required, matching the catalogue's self-hosted-first audience. Held to
+    medium rather than high because the project is a research-lab-flavored
+    tool (GraphRAG/LightRAG indexing options, agent reasoning modes) with a
+    steeper first-run configuration surface than a typical AF one-click app,
+    and the stale versioned-tag situation adds real packaging friction.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_CREDENTIAL]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_CREDENTIAL
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Kotaemon's own optional multi-user login (`KH_FEATURE_USER_MANAGEMENT`)
+      is off by default; the app ships with no auth at all in that state, so
+      it needs a Traefik basic_auth gate to avoid a document-QA app with
+      arbitrary file upload sitting open on the internet. That gate is
+      expressible today via generated_from(ROOT_PASSWORD).
+    - >
+      If a recipe instead wanted to enable Kotaemon's built-in login (to get
+      per-user document collections), the admin account is set via
+      `KH_FEATURE_USER_MANAGEMENT_ADMIN`/`KH_FEATURE_USER_MANAGEMENT_PASSWORD`
+      env vars, and per source
+      (libs/ktem/ktem/pages/resources/user.py) that
+      `..._PASSWORD` value is read as **plaintext** and hashed internally
+      with `hashlib.sha256` at user-creation time — it is not a
+      pre-computed-hash field. `generated_from` only ever emits a hash, so
+      it cannot supply this parameter; per SCHEMA.md this is the genuine
+      "app needs the plaintext, not any hash" case, which is a structural
+      blocker for that path specifically. This does not block the app
+      overall, since the no-login + basic_auth path above is available and
+      is the same pattern already used for n8n/WUD/OpenClaw/Open WebUI/Immich.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Kotaemon is mechanically installable today, but only via the "no built-in
+  login, gate the whole app behind Traefik basic_auth" path — its optional
+  native user-management feature is a dead end for our mechanism because its
+  admin-password env var expects plaintext (which it then SHA-256-hashes
+  itself), not a pre-computed hash that generated_from could supply. Single
+  container, single HTTP port (7860, Gradio), reverse-proxy compatible, and
+  can run fully local via Ollama with no external API key required at boot.
+  It fills a real gap (document RAG/Q&A) not covered by open-webui or
+  paperless-ai, but recommend build_with_caveats rather than build_now: the
+  basic_auth path is the only viable one architecturally, and separately the
+  upstream image situation is messy right now — the only current tags are
+  the unpinned `main-lite`/`main-full`/`main-ollama` floating tags, since the
+  last versioned image build (0.11.0) predates the latest v0.12.0 release by
+  about a year, which a future recipe author will need to resolve before
+  this clears RFC-002's pinned-tag rule.

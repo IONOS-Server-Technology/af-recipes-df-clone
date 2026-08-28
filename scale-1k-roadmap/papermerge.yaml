@@ -1,0 +1,88 @@
+slug: papermerge
+name: Papermerge
+source_description: Open-source document management system for scanning, OCR, and organizing PDFs
+
+upstream:
+  url: https://papermerge.com
+  repo_url: https://github.com/papermerge/papermerge-core
+  license: Apache-2.0
+  docker_image: papermerge/papermerge
+  compose_file_url: https://raw.githubusercontent.com/papermerge/papermerge-core/master/docker/standard/docker-compose.yml
+  compose_file_notes: >
+    Official, but a rolling reference to the master branch — no
+    version-pinned release asset exists (the docker/standard directory
+    isn't present in the 3.5.3 tag, so it postdates that last stable
+    release; see version_health). The repo ships two variants under
+    docker/: "standard" (picked here — plain username/password auth) and
+    "oidc" (adds Keycloak/OIDC integration); standard matches this
+    recipe's simpler auth model. Note this file is dev/test-oriented per
+    its own README — it builds the papermerge image from source
+    (docker compose build --no-cache) rather than pulling the published
+    papermerge/papermerge image, and hardcodes admin/admin credentials.
+    docs.papermerge.io's docker-compose page shows several
+    production-style examples using the published image directly, but
+    only as inline code blocks with no linkable file — not adopted here
+    since it isn't a file the project publishes at a stable URL.
+
+version_health:
+  latest_version: "3.5.3"
+  latest_release_date: "2025-08-18"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    No tagged stable release since 3.5.3 (2025-08-18) — about 12 months as of
+    today (2026-08-05). Development has continued in the open in the
+    meantime as an unreleased 3.6.0 alpha line (tags up to 3.6.0a16, last
+    pushed to Docker Hub ~7 months ago, i.e. ~Jan 2026), including new
+    `-oidc` image variants. Repo itself is not archived and shows commits as
+    recently as March 2026, so the project is active, just slow to cut a new
+    stable tag. Not EOL, but the stable line is aging and a recipe pinned to
+    3.5.3 would be a year behind the project's own alpha work.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [paperless-ngx, paperless-ai]
+  differentiation: >
+    Papermerge offers group ownership/sharing, hierarchical folders (vs.
+    paperless-ngx's flat tag model), and custom metadata fields with a
+    REST API. Functionally it covers the same job as paperless-ngx (scan,
+    OCR, index, search PDFs) with no capability paperless-ngx lacks for a
+    typical customer, and paperless-ngx already has a purpose-built AI
+    companion (paperless-ai) in the catalogue that Papermerge has no
+    equivalent to.
+  usefulness: low
+  usefulness_rationale: >
+    Near-total feature overlap with paperless-ngx, which is roughly two
+    orders of magnitude larger by community size (~44k GitHub stars vs.
+    Papermerge's ~400-500) and already in our catalogue alongside its AI
+    companion. Papermerge adds no capability a customer choosing a document
+    scanning/OCR app would miss from the existing option.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [PAPERMERGE__AUTH__PASSWORD, PAPERMERGE__SECURITY__SECRET_KEY, POSTGRES_PASSWORD]
+  secrets_expressible_today:
+    - secret: PAPERMERGE__AUTH__PASSWORD
+      mechanism: generated_from_root_password
+    - secret: PAPERMERGE__SECURITY__SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Papermerge is a competent, single-container-plus-Postgres-and-Redis
+  document management/OCR app that would be mechanically installable today —
+  its admin login password can be derived from the customer's root password
+  (generated_from_root_password), while the app secret key and DB password
+  can be server-generated with no customer input, the same pattern already
+  used by the paperless-ngx recipe, with no external API keys or OAuth
+  needed. There are no blocking issues, so it is build_now. It does
+  overlap heavily with paperless-ngx (see catalogue_fit) and lags that
+  project's own alpha work by about a year, but neither overlap nor
+  audience size bears on installability, and no functional or licensing
+  blocker exists.

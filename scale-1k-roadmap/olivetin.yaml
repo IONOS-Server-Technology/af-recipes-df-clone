@@ -1,0 +1,109 @@
+slug: olivetin
+name: OliveTin
+source_description: "Self-hosted web UI for safely running predefined shell commands"
+
+upstream:
+  url: https://olivetin.app/
+  repo_url: https://github.com/OliveTin/OliveTin
+  license: AGPL-3.0
+  docker_image: "jamesread/olivetin:3000.18.1"
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    OliveTin/OliveTin repo (checked root and docker/, examples/, deploy/,
+    contrib/ — all 404 on raw.githubusercontent.com for both main branch
+    file extensions). The official docs at
+    https://docs.olivetin.app/install/docker_compose.html embed a compose
+    snippet directly as documentation prose (a `services:`/`volumes:`
+    block using image "jamesread/olivetin" with no version tag, a mounted
+    config volume, and port 1337) rather than publishing it as a
+    fetchable file or release asset. That page is the closest thing to an
+    "official" compose reference, but it is inline docs content, not a
+    file with a URL of its own to point to — so there is no direct-file
+    link (pinned or rolling) to record here.
+
+version_health:
+  latest_version: "3000.18.1"
+  latest_release_date: "2026-07-28"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Cross-checked via the GitHub releases page and Docker Hub tag list,
+    which agree closely: 3000.18.1 published ~2026-07-28/29, about 8 days
+    before today (2026-08-05). Release history shows sustained,
+    fast-moving cadence — 3000.17.0 through 3000.18.1 (six tagged releases,
+    including patch and minor bumps) landed within the ~4 weeks prior to
+    that, and the project has been shipping roughly weekly patch releases
+    with monthly minor version bumps for months (3000.10.0 through
+    3000.18.1 over the last ~6 months per Docker Hub tag ages). No archive
+    notice, no EOL signal — this is a healthy, actively maintained project.
+
+catalogue_fit:
+  categories: [automation, infrastructure, developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    OliveTin exposes a curated set of admin-defined shell commands as
+    buttons/forms in a single-page web UI (Go backend, single HTTP
+    frontend on port 1337, REST + Connect RPC API, explicitly documented
+    as compatible with Traefik/Nginx/Caddy/HAProxy reverse proxies). It is
+    not a workflow engine like n8n (no branching/scheduling/node graph) —
+    it's a much narrower "turn a shell script into a safe web button" tool
+    aimed at letting a less-technical user (or a teammate without SSH
+    access) trigger a fixed set of ops actions (restart a service, run a
+    backup, tail a log) without giving them a shell. No existing recipe in
+    the catalogue covers this niche; Portainer manages Docker objects,
+    n8n orchestrates workflows/API calls, neither runs arbitrary
+    admin-defined host/container commands from a button.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct niche and a clean single-container web app, but the
+    audience is narrower than a general infra tool: it only pays off once
+    someone has authored a config.yaml `actions:` list of real commands
+    to expose, which is a technical, per-deployment authoring step, not
+    a turnkey experience. See installability below — under our current
+    mechanism that authoring step can't happen post-install anyway, which
+    caps day-1 value further.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - olivetin_admin_password
+  secrets_expressible_today:
+    - secret: olivetin_admin_password
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      Not a blocker on basic installability, but a real usefulness cap:
+      OliveTin's core value is running admin-authored shell commands
+      defined in config.yaml's `actions:` list. That list has to be
+      written into the image/volume at recipe-build time — there is no
+      customer-facing channel in `/compose` today to let a customer
+      supply their own arbitrary command definitions post-install (that
+      would be exactly the "arbitrary customer-chosen value" the schema
+      says has no input channel). A shippable recipe would boot with only
+      whatever fixed example actions the recipe author bakes in; using
+      OliveTin for its actual purpose (running *this customer's* scripts)
+      would still require them to SSH/file-manager in and hand-edit
+      config.yaml on the mounted volume — the same raw server access
+      OliveTin exists to let them avoid granting to other people.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  OliveTin is an actively maintained (weekly-cadence releases, AGPL-3.0),
+  single-container Go web app with no overlap in the current 24-recipe
+  catalogue, a single reverse-proxy-friendly HTTP port, and a login
+  mechanism (Argon2id-hashed local users in config.yaml) that maps cleanly
+  onto our `generated_from: "argon2:ROOT_PASSWORD"` mechanism — mechanically
+  installable today. The catch is product-level, not platform-level: its
+  entire reason to exist is running commands the deployer defines, and our
+  current provisioning flow has no channel for a customer to supply their
+  own command list, so a shipped recipe could only offer a fixed,
+  recipe-author-chosen set of example actions until the customer gets raw
+  file access to the app's config volume. Worth building as a
+  build_with_caveats candidate — genuinely differentiated and cleanly
+  authenticatable — but the caveat should be surfaced to whoever scopes
+  the recipe, since "customize your own actions" (the app's main selling
+  point) isn't reachable through the AF UI on day one.

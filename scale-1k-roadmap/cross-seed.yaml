@@ -1,0 +1,124 @@
+slug: cross-seed
+name: Cross-seed
+source_description: "Automatic cross-seeding tool for private and public torrent trackers"
+
+upstream:
+  url: https://www.cross-seed.org/
+  repo_url: https://github.com/cross-seed/cross-seed
+  license: Apache-2.0
+  docker_image: ghcr.io/cross-seed/cross-seed
+  compose_file_url: https://raw.githubusercontent.com/cross-seed/cross-seed/master/cross-seed.org/docs/basics/_docker-compose.md
+  compose_file_notes: >
+    No standalone docker-compose.yml/.yaml file exists at the root or under
+    docker/, deploy/, contrib/, webui/, or scripts/ in the cross-seed/
+    cross-seed repo, and there is no release asset either. The official
+    compose example does live in the repo itself, though: it's an MDX
+    partial file, cross-seed.org/docs/basics/_docker-compose.md, which the
+    project's own getting-started.mdx docs page imports/embeds directly
+    (both under the cross-seed.org/ docs directory of the same repo). It's
+    a markdown-wrapped compose snippet rather than a bare .yml/.yaml file,
+    so the linked URL above is the raw GitHub link to that source file
+    rather than a release asset. It tracks the repo's default branch
+    (master), i.e. it's a rolling reference, not pinned to a release tag.
+    The embedded example itself pins the image to the `:6` major-version
+    tag (ghcr.io/cross-seed/cross-seed:6) — a rolling reference to the
+    latest v6.x build, not a specific patch/release tag — and is the single
+    variant documented (headless daemon mode via `command: daemon`); there
+    is no separate GPU/CPU or sqlite/postgres variant to choose between.
+
+version_health:
+  latest_version: "v6.13.7 (stable); v7.0.0-22 prerelease track"
+  latest_release_date: "2026-06-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest stable tag is v6.13.7 (2026-05-04), but the project is actively
+    cutting v7.0.0 prereleases in parallel — most recently v7.0.0-22 on
+    2026-06-01, roughly 2 months before today (2026-08-05), with a dense
+    cadence of prereleases through May-June 2026 (v7.0.0-9 through -22 in
+    about 5 months). No archival or EOL signal; upstream is clearly
+    actively developed, currently mid-way through a major-version
+    transition (v6 -> v7).
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches torrent/download automation,
+    so on paper this would be a new category. In practice, though,
+    cross-seed is not a standalone tool: its entire function is to watch
+    an existing torrent client (qBittorrent/Deluge/Transmission/rTorrent)
+    and query existing Torznab indexers (via Prowlarr or Jackett) to find
+    cross-seedable matches. None of those companion apps exist in the
+    catalogue today, so a customer deploying this recipe alone would get a
+    daemon with nothing to connect to. Note: the documented/stable install
+    path (ghcr.io/cross-seed/cross-seed:6, per cross-seed.org's own
+    getting-started docker-compose example) is a genuinely headless daemon
+    with only a webhook/job HTTP API on port 2468, no browser UI. A real
+    Web UI (dashboard, torrent-client connection flow, API-key
+    management screen) exists but only on the v7 prerelease track
+    (introduced v7.0.0-15, iterated through v7.0.0-22 as of 2026-06-01,
+    served from the same port 2468 via embedded Node SEA assets) — it has
+    not shipped in a stable/tagged release yet.
+  usefulness: low
+  usefulness_rationale: >
+    Useful only as part of a torrent-automation stack (torrent client +
+    indexer manager + cross-seed) that we don't otherwise offer; shipped
+    in isolation it has no functional value to a customer, and the target
+    audience (private-tracker/cross-seeding hobbyists) is narrow relative
+    to the rest of the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - torrent client URL + credentials (qBittorrent/Deluge/Transmission/rTorrent)
+    - Torznab indexer URLs + API keys (from a customer's own Prowlarr or Jackett instance)
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The stable/documented image (ghcr.io/cross-seed/cross-seed:6) is a
+      headless daemon configured via a JS config file (config.js), plus a
+      small HTTP API (port 2468) used for webhooks/triggers, not human
+      administration — no login screen to project a root-password hash
+      into. The v7 prerelease track does add a real browser Web UI on the
+      same port, but it authenticates via an `apiKey` (config.js-set or
+      auto-generated, shown/rotated in the UI itself) rather than a
+      username/password login — that doesn't fit `generated_from`, which
+      only ever projects a password hash, not an arbitrary API key value.
+      So even once v7 stabilizes, the app itself gives us nothing to plug
+      root-password projection into; the only available mechanism would be
+      wrapping the whole Web UI in a Traefik `basic_auth` gate (treating it
+      like a no-login app), which is expressible today in principle but
+      moot while v7 remains unreleased.
+    - >
+      The app is non-functional without a torrent client connection and at
+      least one Torznab indexer URL/API key, both of which are
+      customer-supplied, arbitrary, third-party credentials pointing at
+      services outside this recipe (and outside our current catalogue
+      entirely). There is no channel today (generated_from or otherwise)
+      to get a customer-chosen value into config.js at /compose time.
+    - >
+      Even if the credential-injection gap were solved, the recipe would
+      depend on companion recipes (a torrent client, Prowlarr/Jackett) that
+      don't exist in the catalogue yet, so it can't be usefully deployed
+      standalone regardless of the secrets question.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Cross-seed is an actively maintained (latest stable v6.13.7, prereleases
+  as recent as June 2026) but narrow-purpose daemon. The documented stable
+  install (v6) is genuinely headless; a real browser Web UI does exist on
+  the v7 prerelease track (single port, would be reverse-proxy compatible),
+  but it authenticates via an API key rather than a login, which
+  `generated_from` can't project, and it hasn't reached a stable release.
+  Regardless of that UI question, the app needs a customer-supplied
+  torrent client connection and Torznab indexer API keys to do anything
+  useful, with no channel today to get those values in at /compose time,
+  and it depends on companion apps (a torrent client, Prowlarr or Jackett)
+  that aren't in the catalogue — so it would ship as a non-functional
+  standalone container even if the credential and UI-auth problems were
+  solved. Not recommended — structurally blocked on the current /compose
+  mechanism and low-value on its own.

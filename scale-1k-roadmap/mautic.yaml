@@ -1,0 +1,120 @@
+slug: mautic
+name: Mautic
+source_description: "Open-source marketing automation for email campaigns, lead scoring, and journeys"
+
+upstream:
+  url: https://www.mautic.org/
+  repo_url: https://github.com/mautic/mautic
+  license: GPL-3.0-or-later
+  docker_image: mautic/mautic
+  compose_file_url: https://raw.githubusercontent.com/mautic/docker-mautic/main/examples/basic/docker-compose.yml
+  compose_file_notes: >
+    Official source: mautic/docker-mautic (the same org/repo that publishes
+    the mautic/mautic image) ships example compose stacks under
+    examples/{basic,fpm-nginx,rabbitmq-worker,custom-plugins}. Picked
+    "basic" as the simplest complete stack (single mautic/mautic web
+    container + mysql:lts db, matching this file's docker-compose
+    recipe_type_guess) over fpm-nginx (split php-fpm/nginx), rabbitmq-worker
+    (adds a message queue for scaled campaign processing), and custom-plugins
+    (build-from-source variant) — those cover more advanced deployment
+    shapes not needed here. This is a rolling reference to the main branch,
+    not version-pinned (no tagged-release compose asset exists in this
+    repo). The repo's own README cautions these examples show how the
+    stack "could" be used, not how it "should" be used in production, and
+    require Docker Compose v2 — still the project's own official example,
+    not a third-party template.
+
+version_health:
+  latest_version: "7.1.3"
+  latest_release_date: "2026-07-07"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    7.1.3 shipped 2026-07-07, about 4 weeks before today (2026-08-05).
+    Mautic moved to a Long Term Support model starting with 7.0 (released
+    2026-01-20, "Columba Edition"): a 4-year support window per major
+    (1 year active, 1 year security, 2 years Extended LTS), with monthly
+    minor/patch releases (7.1 "Canis Major", 7.1.2, 7.1.3, and a 7.2 release
+    already at RC) committed under that plan. The predecessor 6.0 ("Orion
+    Edition", released 2025-03-26) is a shorter bridging release nearing its
+    own EOL around July 2026 per third-party EOL trackers, which is expected
+    under the new LTS cadence rather than a sign of abandonment. Repo is
+    under active commit/PR/release activity — reads as a healthy, actively
+    maintained project.
+
+catalogue_fit:
+  categories: [marketing, automation, crm]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers marketing automation
+    (email campaign builder, lead scoring, contact segmentation, automated
+    journeys/drip sequences). n8n is the closest adjacent tool but it is a
+    generic low-code workflow/integration engine, not a purpose-built
+    marketing platform with its own contact database, campaign UI, and
+    email-sending pipeline — a customer running an email marketing program
+    would reach for Mautic specifically, not build one in n8n. This would
+    be a genuinely new category for the catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    Email marketing/CRM-lite tooling is a common paid-SaaS category
+    (Mailchimp, ActiveCampaign, HubSpot) that a self-hosted alternative
+    directly displaces for small businesses and marketers who want to own
+    their contact data. Mature, widely deployed, GPL-3.0, no commercial-tier
+    gating unlike some of the other business-app candidates reviewed.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [MAUTIC_ADMIN_PASSWORD, MAUTIC_DB_PASSWORD, MYSQL_ROOT_PASSWORD]
+  secrets_expressible_today:
+    - secret: MAUTIC_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: MYSQL_ROOT_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      DB credentials are fine: MAUTIC_DB_HOST/PORT/DATABASE/USER/PASSWORD
+      on the official mautic/mautic image are genuine env vars, so
+      MAUTIC_DB_PASSWORD and MYSQL_ROOT_PASSWORD are server-generated with
+      no customer input needed — no blocker here.
+    - >
+      The admin account is blocked. There is no MAUTIC_ADMIN_PASSWORD /
+      MAUTIC_ADMIN_EMAIL env var on the official image at all — checked
+      against github.com/mautic/docker-mautic's own README ("Environment
+      Variables" section), which lists only DB connection settings,
+      DOCKER_MAUTIC_ROLE/worker tuning, and PHP_INI_* settings. The only
+      two supported ways to create the first admin account are (a) the
+      `mautic:install` console command
+      (`php ./bin/console mautic:install <url> --admin_email=...
+      --admin_password=...`), which takes the password as a **plaintext**
+      CLI argument and hashes it internally, or (b) the browser-based
+      first-run web install wizard / REST API user-create endpoint, which
+      takes a `plainPassword` field — also plaintext only. Neither path
+      accepts a pre-computed hash. Per SCHEMA.md's decision table, a
+      genuine requirement for the plaintext password (not a hash) is a
+      structural blocker — `generated_from` only ever produces a hash, so
+      it has nowhere to project into either provisioning path. This is the
+      same failure mode as apps-gaps/matrix-synapse.yaml.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Mautic is a PHP app (official mautic/mautic image, pin to
+  7.1.3-apache) that needs a MySQL/MariaDB backend plus a recurring
+  cron/worker process for campaign triggers and email sending — a
+  three-plus-container stack similar in shape to the paperless-ngx
+  template, but with an extra always-on worker rather than paperless's
+  auxiliary services. It exposes a single HTTP port and is
+  Traefik-compatible with no other raw ports needed. DB/root MySQL
+  passwords are server-generated with no customer input, so that part of
+  the stack is fine. It fails installability today because the official
+  image has no MAUTIC_ADMIN_PASSWORD/EMAIL env var at all: the only
+  supported ways to provision the first admin account are the
+  `mautic:install` CLI command or the web install wizard/REST API, and
+  both take the account password as plaintext rather than a hash, so
+  `generated_from` (hash-only) has nothing to project into. Recommend
+  `blocked_on_platform` — a high-value, genuinely new category for the
+  catalogue, but blocked on the same plaintext-password gap identified in
+  apps-gaps/matrix-synapse.yaml until the platform gains a plaintext
+  credential channel distinct from `generated_from`.

@@ -1,0 +1,105 @@
+slug: cronicle
+name: Cronicle
+source_description: "Multi-server task scheduler and runner with web-based interface"
+
+upstream:
+  url: https://github.com/jhuckaby/Cronicle
+  repo_url: https://github.com/jhuckaby/Cronicle
+  license: MIT
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    jhuckaby/Cronicle ships no official Docker image or docker-compose file
+    anywhere in the repo (root, docs/, bin/, sample_conf/) — installation is
+    documented as a manual POSIX/Node.js `npm install` process only, with no
+    Docker or docker-compose mention in the README. The only Docker-friendly
+    option is the third-party fork cronicle-edge/cronicle-edge, which is not
+    the upstream this recipe targets and is not adopted here as if official.
+
+version_health:
+  latest_version: "0.9.125"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: maintenance-only
+  notes: >
+    Latest tag 0.9.125 landed 2026-07-30, six days before this analysis;
+    prior tags (0.9.124 on 2026-07-17, 0.9.123 on 2026-07-09, 0.9.122 on
+    2026-06-30) show a roughly weekly-to-biweekly cadence — but every one of
+    the last several releases is a dependency bump or security hardening
+    patch (bcrypt library swap, shell-quote/sanitize-html/ws CVE fixes,
+    cluster-auth validation), not a feature release. Upstream's own README
+    now names "xyOps" as "the spiritual successor to Cronicle" and states
+    Cronicle itself "will still be supported and maintained going forward
+    (mainly bug fixes and security issues will be patched)" — i.e. the
+    maintainer has explicitly moved new development elsewhere and put
+    Cronicle into maintenance mode, even though patch cadence still looks
+    active by commit-frequency alone.
+
+catalogue_fit:
+  categories: [automation, infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose job/cron scheduler.
+    n8n is workflow/API automation (event- and app-connector-driven), not a
+    server-side cron replacement with job history, alerting, and multi-server
+    worker distribution; Uptime Kuma monitors external endpoints rather than
+    running scheduled jobs. Cronicle fills a distinct "replace crontab with a
+    web UI, run scripts/pipelines on a schedule with logs and retries" niche
+    that self-hosters commonly want.
+  usefulness: medium
+  usefulness_rationale: >
+    Common, well-understood use case (cron replacement with a UI) and light
+    resource needs, but upstream itself is steering users toward xyOps as the
+    forward-looking project, and the single-node use case we'd realistically
+    ship (no multi-server failover, no shared storage) is a fraction of the
+    "multi-server" pitch in Hostinger's description.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [TRAEFIK_BASIC_AUTH_PASSWORD]
+  secrets_expressible_today:
+    - secret: TRAEFIK_BASIC_AUTH_PASSWORD
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Name/upstream ambiguity: the Hostinger slug "cronicle" and description
+      match jhuckaby/Cronicle, the original project, which ships NO official
+      Docker image (its docs describe a manual POSIX/Node.js install only).
+      The Docker-friendly option in wide use is a third-party fork,
+      cronicle-edge/cronicle-edge (Docker Hub org "cronicle", image
+      cronicle/edge, GHCR ghcr.io/cronicle-edge/cronicle-edge), which
+      periodically re-syncs jhuckaby's upstream fixes and is itself actively
+      released (v1.14.5, 2026-07-17). A recipe would have to be built against
+      this fork, not the project a customer would find at the Hostinger-listed
+      upstream URL — worth a human call on whether that substitution is
+      acceptable before building. Other community images (soulteary/cronicle,
+      intelliops/cronicle, etc.) were also considered and ruled out as
+      unmaintained (soulteary's newest tag is roughly a year old and multiple
+      major versions behind current upstream).
+    - >
+      Cronicle's own login system ships a fixed default (admin/admin) with
+      no documented environment variable or pre-seed mechanism to set the
+      initial admin password (or a pre-computed bcrypt hash of it) at
+      container first boot — the password can only be changed after logging
+      in through the web UI. There is no channel to project the customer's
+      root-password hash into it via generated_from. Per the schema's
+      guidance this is not itself a hard blocker: gating the whole app behind
+      Traefik basic_auth moves the real auth boundary in front of the app,
+      making the unchangeable admin/admin default no longer customer-facing
+      risk.
+  installable_today: true
+  recommendation: blocked_on_platform
+
+summary: >
+  Cronicle would fill a genuine gap (no cron/job-scheduler recipe exists
+  today) and is mechanically installable now via a Traefik basic_auth gate
+  in front of its fixed admin/admin login. The blocker is upstream identity:
+  the project Hostinger's catalogue entry actually points to ships no
+  official Docker image and has explicitly named a successor project
+  (xyOps) while putting itself into bug-fix-only maintenance mode, so
+  building this recipe today means depending on a third-party fork
+  (cronicle-edge) instead of the upstream the customer would recognize.
+  Recommend a human decision on the fork substitution before a build pass,
+  rather than treating this as a plain build_now.

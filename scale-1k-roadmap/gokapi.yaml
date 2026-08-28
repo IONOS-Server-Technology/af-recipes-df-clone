@@ -1,0 +1,91 @@
+slug: gokapi
+name: Gokapi
+source_description: "Self-hosted file-sharing server with expiring links and S3 support"
+
+upstream:
+  url: https://gokapi.readthedocs.io/
+  repo_url: https://github.com/Forceu/Gokapi
+  license: AGPL-3.0
+  docker_image: f0rc3/gokapi
+  compose_file_url: https://raw.githubusercontent.com/Forceu/Gokapi/master/docker-compose.yaml
+  compose_file_notes: >
+    Official file, published at the repo root (not a docs-embedded
+    snippet) and explicitly referenced from the project's own setup docs
+    (docs/setup.rst, "Docker Compose" section: "Download
+    docker-compose.yaml and .env.dist from the repository"). This is a
+    rolling reference to the default branch (master), not version-pinned
+    — the file itself pins the image to the `latest` tag
+    (`f0rc3/gokapi:latest`) rather than a specific release, so watching
+    this URL tracks whatever the maintainer currently ships, not a fixed
+    version. Only one variant exists (single service, SQLite/Redis choice
+    is made later via the in-app setup wizard, not via compose profiles),
+    so there was no GPU/CPU or dev/prod pick to make. Companion
+    `.env.dist` lives alongside it at the repo root and is referenced by
+    the compose file via `env_file`.
+
+version_health:
+  latest_version: "v2.2.4"
+  latest_release_date: "2026-03-10"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (v2.2.4, security fixes + Go 1.26.1 bump) shipped
+    2026-03-10, about 5 months before today (2026-08-05). Release history
+    shows steady activity: v2.2.0-v2.2.4 all landed within a ~6-week window
+    (2026-01-28 to 2026-03-10) following v2.1.0 (2025-08-29) and v2.0.0
+    (2025-05-31). Docker Hub's `latest-dev` tag was pushed as recently as
+    2026-07-15, so development continues past the last stable tag. Not
+    archived; single primary maintainer (Forceu) but continuous
+    commit/release cadence — reads as actively maintained, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [file-sharing, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 currently covers ephemeral, password-
+    protected, expiring file-share links (Syncthing is continuous folder
+    sync, Immich is a photo library, Opengist is text pastes — all solve a
+    different problem). However, `apps-gaps/erugo.yaml` (analyzed
+    previously, recommendation `build_now`) already covers this exact
+    "WeTransfer-style expiring link" niche as an unbuilt candidate. Gokapi
+    adds real extras over Erugo (built-in end-to-end encryption, native S3
+    backend, OIDC login, file-request/upload-from-guest links, REST API)
+    but the two would visibly duplicate each other in the catalogue if both
+    shipped — this is a reviewer decision point, not a blocker, since
+    neither is a recipe yet.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular, well-documented, actively developed tool (2.8k GitHub stars)
+    that would be a genuinely new capability if it were the only entrant in
+    this niche, but with Erugo already flagged `build_now` for the same
+    customer need, shipping both is redundant — usefulness here is
+    conditional on which one the catalogue actually picks, so scored medium
+    rather than high pending that decision.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Gokapi is a single-container Go app (image `f0rc3/gokapi`, pinned tag
+  `v2.2.4`) listening on one HTTP port (53842, configurable via
+  `GOKAPI_PORT`) with two server-side volumes (`/app/data`, `/app/config`)
+  and no raw ports beyond HTTP — a straightforward Traefik target. Like the
+  existing n8n/Audiobookshelf/Erugo pattern, it has no baked-in admin
+  credential to project and no external API key requirement: on first boot
+  it serves an interactive setup wizard where the first visitor picks the
+  database, webserver options, and admin username/password directly in the
+  app, so there's no secret for `generated_from` or `basic_auth` to carry —
+  installable today under the current `/compose` mechanism with the same
+  "first visitor claims root" caveat this catalogue already accepts
+  elsewhere, with no other blocking issues — recommend `build_now`.
+  `apps-gaps/erugo.yaml` covers the same "expiring, password-protected
+  file-share link" niche, but that overlap is a catalogue/prioritization
+  fact, not a reason to downgrade this recommendation.

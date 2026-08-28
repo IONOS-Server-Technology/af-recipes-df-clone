@@ -1,0 +1,119 @@
+slug: pulsarr
+name: Pulsarr
+source_description: "Real-time Plex watchlist monitor that syncs to Sonarr and Radarr with routing"
+
+upstream:
+  url: https://jamcalli.github.io/Pulsarr/
+  repo_url: https://github.com/jamcalli/Pulsarr
+  license: GPL-3.0
+  docker_image: lakker/pulsarr (pin to a version tag, e.g. 0.18.0 — do not follow upstream docs' :latest example)
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file is published or hosted anywhere by the
+    project — not in the repo root, not under docker/deploy/contrib, and
+    not as a linked/downloadable asset from the docs site or README. Both
+    the repo README (github.com/jamcalli/Pulsarr) and the docs quick-start
+    page (jamcalli.github.io/Pulsarr/docs/installation/quick-start) only
+    embed an inline docker-compose.yml snippet as text for the user to
+    manually create themselves, alongside a plain `docker compose pull &&
+    docker compose up -d` command; there is no file to link or fetch. The
+    repo does contain docker-compose.migration.yml at its root, but that is
+    a narrow one-off helper for SQLite-to-Postgres migration, not a general
+    install/production compose file, so it is not a substitute.
+
+version_health:
+  latest_version: "v0.18.0"
+  latest_release_date: "2026-08-05"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active, fast-moving project: v0.16.0 (2026-06-03), v0.17.0
+    (2026-07-03), v0.17.1 (2026-07-03), v0.17.2 (2026-07-04), v0.17.3
+    (2026-07-06), v0.17.4-beta.2 (2026-07-19), v0.17.4 (2026-07-23),
+    v0.18.0 (2026-08-05, released the same day as this research). The
+    lakker/pulsarr Docker Hub image tracks releases within a day
+    (0.18.0/0.18/0.18-node/latest tags all pushed ~1 day before today).
+    Repo is not archived, no EOL notice; clearly active, well-maintained
+    development.
+
+catalogue_fit:
+  categories: [media, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches Plex watchlist
+    automation. Pulsarr monitors a customer's Plex watchlist in real time
+    and automatically adds matching titles to Sonarr/Radarr with
+    predicate-based routing (e.g. by genre, user, or quality profile) —
+    a narrower, more automation-focused sibling of Jellyseerr/Overseerr
+    (request-and-approve UI) rather than a duplicate of it. Like
+    apps-gaps/jellyseerr.yaml, apps-gaps/overseerr.yaml, and
+    apps-gaps/prowlarr.yaml, its entire reason for existing depends on
+    upstream apps (Plex, and at least one of Sonarr/Radarr) that do not
+    exist as AF recipes today — Pulsarr has no independent function of
+    its own; it is pure glue between three external services.
+  usefulness: medium
+  usefulness_rationale: >
+    Well-regarded, actively developed tool in the self-hosted media
+    community and a real quality-of-life upgrade over polling-based
+    alternatives (e.g. watchlistarr) for Plex Pass users. Its value is
+    entirely conditional on the customer already running Plex plus
+    Sonarr and/or Radarr elsewhere — none of which exist in this
+    catalogue — so on its own it would ship as an automation tool with
+    nothing to automate, mirroring the same "dependent piece of a
+    pipeline that doesn't exist yet" pattern seen in prowlarr/jellyseerr.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [plex_token, sonarr_or_radarr_api_key]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Pulsarr's setup wizard requires a Plex Token before it can do
+      anything — the customer must fetch this themselves from an
+      existing, real plex.tv account (per Plex's own support docs on
+      authentication tokens) and paste it into Pulsarr's setup screen.
+      This is the same "external API key/token the app can't function
+      without" case the SCHEMA.md fit-table rules out, and the same
+      third-party-account-derived-credential shape already documented in
+      apps-gaps/plex.yaml (PLEX_CLAIM) and apps-gaps/jellyseerr.yaml — af-api's
+      JWE bootstrap token has no channel to carry a value the customer
+      must obtain from a separate service.
+    - >
+      Beyond the Plex Token, full operation also requires adding at
+      least one Sonarr and/or Radarr instance by URL plus that
+      instance's own API key. Those are credentials for services that
+      don't exist as AF recipes today, and even if they did, each would
+      be a second/third independent external secret — root-password
+      projection only covers one credential, and none of these are
+      generatable server-side (they are issued by, and only meaningful
+      to, the external Plex/Sonarr/Radarr services themselves).
+    - >
+      Pulsarr does have its own local admin account (created interactively
+      on first web UI visit, not tied to Plex sign-in) — unlike Plex or
+      Jellyseerr/Seerr, this part alone would in principle be projectable
+      via `generated_from` if the app exposed an env-var seed hook for it.
+      That does not rescue installability here, though: the Plex Token
+      and Sonarr/Radarr API key requirements are independent, mandatory
+      blockers that a local-admin fix would not touch.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Pulsarr is a small, actively developed (v0.18.0 shipped the same day as
+  this research), single-container app (lakker/pulsarr, port 3003, SQLite
+  by default, no separate database service needed) that is mechanically
+  simple and reverse-proxy compatible — the deployment shape itself is not
+  the problem. It cannot be installed via the current recipe mechanism
+  because its setup flow hard-requires a Plex Token the customer must
+  obtain from their own plex.tv account, plus at least one Sonarr/Radarr
+  instance URL and API key, none of which have an input channel today (not
+  a root-password hash, not something Traefik basic_auth can substitute
+  for). It also depends functionally on Plex, Sonarr, and Radarr, none of
+  which exist as AF recipes, so even setting installability aside it would
+  land as automation glue with nothing to connect to. Recommend
+  `blocked_on_platform`, consistent with apps-gaps/plex.yaml and
+  apps-gaps/jellyseerr.yaml; revisit only if/when the platform gains a
+  customer-supplied external-credential channel, and ideally alongside a
+  Plex/Sonarr/Radarr recipe decision.

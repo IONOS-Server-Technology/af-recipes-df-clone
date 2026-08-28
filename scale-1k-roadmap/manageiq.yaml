@@ -1,0 +1,86 @@
+slug: manageiq
+name: ManageIQ
+source_description: "Open-source hybrid cloud management platform for VMs, containers, and networks"
+
+upstream:
+  url: https://www.manageiq.org
+  repo_url: https://github.com/ManageIQ/manageiq
+  license: Apache-2.0
+  docker_image: manageiq/manageiq
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The project's own install docs
+    (manageiq.org/docs/get-started/docker) document only a bare two-step
+    `docker pull manageiq/manageiq:<tag>` + `docker run -d -p 8443:443
+    manageiq/manageiq:<tag>` sequence for the all-in-one image, with no
+    compose file linked or embedded. The ManageIQ/manageiq and
+    ManageIQ/manageiq-pods repos ship no docker-compose.yaml/.yml at their
+    roots or under docker/deploy/contrib directories (manageiq-pods is
+    Kubernetes/OpenShift-oriented, not compose). A docker-compose.yml does
+    exist in the ManageIQ-Exchange/manageiq-exchange repo, but that is a
+    separate community project (a plugin exchange/marketplace site) run by
+    ManageIQ-Exchange, not the ManageIQ project itself, so it is not adopted
+    here as an official file.
+
+version_health:
+  latest_version: spassky-1
+  latest_release_date: "2026-01-13"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tagged release (spassky-1 / radjabov-2, both cut 2026-01-13) is
+    ~7 months old as of today (2026-08-05), which is within the project's
+    normal cadence. Major named releases (chess-grandmaster codenames) land
+    roughly every 8-12 months with point releases in between (e.g.
+    radjabov-1 2025-04-04 -> radjabov-2 2026-01-13, quinteros-1/2/2.1/2.2
+    across Oct-Nov 2024). Upstream blog announced the next release
+    (Spassky GA, with HCP Terraform/Terraform Enterprise provider support)
+    on 2026-01-20, confirming ongoing active development. No archival or
+    EOL signal found.
+
+catalogue_fit:
+  categories: [infrastructure]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue manages VMs/hypervisors,
+    cloud provider inventory, or network fabric — Portainer is scoped to
+    Docker containers only, Guacamole is a remote-desktop gateway. ManageIQ
+    would be the first "hybrid cloud ops" entry, giving customers a single
+    pane of glass over VMware, oVirt, OpenStack, AWS/Azure/GCP, and
+    Kubernetes providers.
+  usefulness: low
+  usefulness_rationale: >
+    The capability gap is real, but ManageIQ is an enterprise ops tool built
+    for teams already running multiple hypervisors/clouds that need
+    aggregated inventory, chargeback, and automation policies — a mismatch
+    for the single-VPS/self-hoster audience this catalogue otherwise serves.
+    Its minimum footprint (see installability) is 3x the heaviest current
+    recipe (Immich, 4 GB RAM) and it needs the customer to already own the
+    infrastructure it manages, so most AF customers would have nothing to
+    point it at on day one.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_GATE_BASIC_AUTH]
+  secrets_expressible_today:
+    - secret: ADMIN_GATE_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  ManageIQ is mechanically installable: the all-in-one manageiq/manageiq
+  image ships a fixed admin/smartvm login with no documented env var to
+  override it at first boot, so per the schema's fixed-credential rule the
+  app can ship behind a Traefik basic_auth gate rather than blocking on it.
+  It is an active, well-maintained project (latest release 2026-01-13,
+  ~7 months old, normal cadence) with zero overlap in the current catalogue.
+  It requires 4 vCPU / 12 GB RAM / 44 GB disk minimum — far beyond every
+  existing recipe — and its entire value proposition (aggregating existing
+  VMware/OpenStack/cloud-provider inventory) assumes infrastructure most AF
+  customers won't have, but neither footprint nor audience fit is a
+  recommendation input. With no blocking installability issues, recommend
+  build_now.

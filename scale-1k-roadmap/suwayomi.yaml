@@ -1,0 +1,92 @@
+slug: suwayomi
+name: Suwayomi
+source_description: "Self-hosted manga and comics server with hundreds of Tachiyomi sources"
+
+upstream:
+  url: https://suwayomi.org
+  repo_url: https://github.com/Suwayomi/Suwayomi-Server
+  license: MPL-2.0
+  docker_image: ghcr.io/suwayomi/suwayomi-server
+  compose_file_url: https://raw.githubusercontent.com/Suwayomi/Suwayomi-Server-docker/master/docker-compose.yml
+  compose_file_notes: >-
+    Official compose file lives in the separate Suwayomi/Suwayomi-Server-docker
+    repo (the same repo that builds the ghcr.io images), not in the main
+    Suwayomi-Server repo. Its README explicitly tells users to "use the
+    template docker-compose.yml in this repo" to run the app. This is a
+    rolling reference to the default (master) branch, not version-pinned —
+    the file itself pulls ghcr.io/suwayomi/suwayomi-server:preview rather
+    than a tagged release. The repo also ships a second variant,
+    docker-compose-postgresql.yml, for a Postgres-backed setup; the plain
+    docker-compose.yml (sqlite-backed, single Suwayomi service plus a
+    bundled FlareSolverr/byparr companion service) was picked as the
+    default/simpler variant since it matches this recipe's no-external-
+    database assumption in installability.recipe_type_guess.
+
+version_health:
+  latest_version: "v2.3.2243"
+  latest_release_date: "2026-07-13"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v2.3.2243 (published 2026-07-13) is about 3 weeks before today
+    (2026-08-05). The Suwayomi-Server repo itself was pushed as recently as
+    2026-08-03, and the companion Suwayomi-Server-docker repo (which builds
+    the ghcr.io images and ships the reference compose file) was pushed
+    2026-07-25. Five releases landed in the single week of 2026-06-30 to
+    2026-07-13 alone (v2.3.2223 through v2.3.2243), on top of a steady
+    cadence going back through v2.2.2100 (2026-05-08) and v2.1.1867
+    (2025-07-31). Not archived, 175 open issues still being triaged. This
+    is a healthy, actively-maintained project, not dormant or EOL.
+
+catalogue_fit:
+  categories: [media, entertainment]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes covers manga/comics reading or
+    aggregation. Immich is photo/video management, Ampache-style media
+    servers aren't present either — this would be a genuinely new media
+    category: a self-hosted reader/downloader that pulls from hundreds of
+    Tachiyomi/Mihon-compatible extension sources and serves a web UI (plus
+    OPDS for mobile e-reader apps) so a customer can read manga from any
+    browser or e-reader without a client-side app talking to third-party
+    sites directly.
+  usefulness: medium
+  usefulness_rationale: >-
+    Clear, recognizable niche (manga/comics self-hosting) with a real and
+    fairly large enthusiast audience, single container, no external
+    dependencies to boot. Capped at medium rather than high because it's a
+    narrower hobbyist use case than our existing productivity/security/
+    monitoring recipes, and its core value (pulling from third-party manga
+    "extension" sources) sits in a legal gray area upstream does not
+    itself resolve — worth noting for anyone evaluating brand risk, though
+    that is a business call, not an installability blocker.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Suwayomi is a single-container, actively-maintained (release 3 weeks ago,
+  repo pushed days ago) manga/comics server with an official pinned Docker
+  image (ghcr.io/suwayomi/suwayomi-server:v2.3.2243), a single web port
+  (4567), and no external database requirement — structurally similar to
+  recipes/uptime-kuma. It ships with AUTH_MODE=none by default and its own
+  optional basic_auth/simple_login/ui_login modes take a plaintext
+  AUTH_USERNAME/AUTH_PASSWORD pair at container start, which the current
+  recipe mechanism cannot project (no generated_from support for a
+  plaintext credential); the safe path is to leave the app's own auth off
+  and gate the whole thing behind Traefik basic_auth, the same pattern used
+  for Adminer and other login-less apps. That makes it installable today
+  with no blocking issues, so recommend build_now. It would also fill a
+  genuinely new category gap (manga/comics reading) with no overlap in the
+  current catalogue; the narrower hobbyist audience and the third-party-
+  content legal gray area are worth flagging to whoever prioritizes the
+  build queue, but are not installability blockers.

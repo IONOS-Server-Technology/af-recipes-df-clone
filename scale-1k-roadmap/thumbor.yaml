@@ -1,0 +1,87 @@
+slug: thumbor
+name: Thumbor
+source_description: "Smart open-source image server with face-aware cropping and on-the-fly resize"
+
+upstream:
+  url: https://thumbor.readthedocs.io/
+  repo_url: https://github.com/thumbor/thumbor
+  license: MIT
+  docker_image: ghcr.io/thumbor/thumbor
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The thumbor/thumbor repo ships
+    only a Dockerfile (docker/Dockerfile) with a `docker run` command in the
+    README/docs, and the ReadTheDocs site's install/administration sections
+    document only pip/source installs and `thumbor` CLI usage — no Docker or
+    docker-compose page at all. Several community-maintained compose files
+    exist (e.g. APSL/docker-thumbor, zanui/docker-thumbor,
+    beeyev/thumbor-s3-docker, MinimalCompact/thumbor recipes) but none are
+    published or endorsed by the thumbor project itself, so none are
+    adopted here as official.
+
+version_health:
+  latest_version: "7.8.0"
+  latest_release_date: "2026-05-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag 7.8.0 was cut 2026-05-30 (~2.2 months before this analysis,
+    2026-08-05), closing several privately-reported security issues (file
+    loader path bypass, URL signature validation, DoS in filters). The prior
+    release (7.7.7) was 2025-05-15, so the 7.7.7->7.8.0 gap was ~12.5 months —
+    but repo commit activity is continuous and recent (commits as late as
+    2026-08-02, three days before this analysis), 23 open issues still being
+    triaged, not archived. Long gaps between tags with steady commit activity
+    in between; treating as active rather than slowing/dormant given the
+    ongoing daily development.
+
+catalogue_fit:
+  categories: [media, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes is a headless image-processing/resize
+    proxy. Immich is the closest thing by subject matter (photos) but is a
+    full self-hosted photo library with its own web UI, auth, and mobile
+    apps — a completely different product. Thumbor has no comparable
+    counterpart in the catalogue.
+  usefulness: low
+  usefulness_rationale: >
+    Thumbor is an unauthenticated, API-only microservice: you call it with
+    HMAC-signed URLs (e.g. /<sig>/300x200/smart/path/to/image.jpg) from your
+    own website/app code, and it returns a transformed image. It has no
+    dashboard, no login screen, and nothing to look at if a customer just
+    visits the domain — the entire value only shows up once the customer
+    writes integration code in their own separate application to generate
+    signed URLs and point it at this service. Every other recipe in the
+    catalogue gives the customer a working app UI on first boot; Thumbor
+    gives them a bare backend that requires developer work elsewhere to do
+    anything visible. That makes it a poor fit for AF's self-hosted-app
+    customer model even though it is a solid, well-regarded piece of
+    infrastructure for people who do build image-heavy sites.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [SECURITY_KEY]
+  secrets_expressible_today:
+    - secret: SECURITY_KEY
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Thumbor is a single-container, single-HTTP-port (8888) image server with
+  MIT license and an actively-developed (if slow-tagging) upstream. It has
+  no login of its own; its only "secret" is SECURITY_KEY, an HMAC signing
+  key that can be generated server-side and never needs to reach the
+  customer, so mechanically nothing blocks shipping it as a recipe today.
+  Thumbor has no web UI of its own — legitimate use requires the customer
+  to already run a separate website/app and write code to produce
+  HMAC-signed image URLs, and gating it behind Traefik basic_auth (the
+  usual fallback for no-login apps) would break its intended use, since
+  browsers loading <img> tags for anonymous site visitors don't supply
+  basic-auth credentials. That's a real product-fit consideration, but it
+  isn't an installability blocker: nothing prevents shipping the recipe
+  mechanically today. Recommend build_now.

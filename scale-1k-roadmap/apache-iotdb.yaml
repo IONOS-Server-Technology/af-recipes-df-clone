@@ -1,0 +1,91 @@
+slug: apache-iotdb
+name: Apache IoTDB
+source_description: "Time-series database for industrial IoT and high-throughput sensor telemetry"
+
+upstream:
+  url: https://iotdb.apache.org/
+  repo_url: https://github.com/apache/iotdb
+  license: Apache-2.0
+  docker_image: apache/iotdb
+  compose_file_url: https://raw.githubusercontent.com/apache/iotdb/master/docker/src/main/DockerCompose/docker-compose-standalone.yml
+  compose_file_notes: >
+    Official — published by the project itself at
+    docker/src/main/DockerCompose/docker-compose-standalone.yml in the
+    apache/iotdb repo, and documented in that directory's docker/ReadMe.md
+    as the standalone (single ConfigNode + single DataNode) quick-start
+    setup. This is a rolling reference to the default branch (master), not
+    version-pinned — no tagged-release download link is published for it,
+    so it tracks whatever is current on master rather than a specific
+    release. The repo also ships docker-compose-cluster-1c1d1a.yml,
+    docker-compose-cluster-1c2d.yml, docker-compose-host-3c3d.yml, and
+    docker-compose-ainode.yml for cluster/AINode topologies; the
+    standalone variant was picked because it matches this recipe's
+    single-node deployment model.
+
+version_health:
+  latest_version: "2.0.10"
+  latest_release_date: "2026-07-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.0.10 shipped 2026-07-04 (~1 month before today, 2026-08-05). Release
+    history shows a steady monthly-to-bimonthly cadence across both
+    supported lines: v2.0.8 (2026-04-13), v1.3.7/v2.0.7 (2026-03-04),
+    v2.0.6/v1.3.6 (2026-01-20/2026-01-07), v1.3.5 (2025-09-11). ASF
+    top-level project, clearly active. One caveat: the separate
+    `apache/iotdb-web-workbench` repo (the project's only web-console UI)
+    was archived by its owner on 2024-01-08 and is read-only — that
+    component is dead even though the core database is thriving.
+
+catalogue_fit:
+  categories: [database, iot, developer-tools]
+  has_web_ui: false
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    No existing recipe offers a standalone time-series database — the
+    closest relatives (n8n, paperless-ngx, gitea, immich) embed
+    Postgres/MySQL/SQLite purely as a private implementation detail, never
+    expose it as the product. IoTDB would be a genuinely new
+    capability class (industrial IoT / sensor-telemetry storage) if it
+    weren't for the access-model mismatch below.
+  usefulness: low
+  usefulness_rationale: >
+    The core value proposition — high-throughput sensor ingestion queried
+    over its native Thrift RPC protocol (port 6667) or JDBC/CLI drivers —
+    is not something a customer reaches through a browser or through
+    Traefik at all; it's infrastructure other software (or a data
+    engineer's own client) talks to directly. Its one HTTP surface, the
+    REST API, is off by default and the project's only browser UI
+    (iotdb-web-workbench) has been abandoned since 2024. That leaves a
+    narrow, technical-only audience even before the installability
+    problems below.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [root_password]
+  secrets_expressible_today: []
+  blocking_issues:
+    - "Primary interface is the Thrift RPC protocol on port 6667 (used by the CLI, JDBC/Session drivers, and virtually all real client traffic) — a raw non-HTTP protocol, so Traefik's basic_auth (HTTP-only) cannot gate it. reverse_proxy_compatible is false for the interface customers actually use."
+    - "Auth defaults to a hardcoded root/root account with no documented docker/env-var hook to set or hash a different password at first boot (confirmed against the official docker-compose-standalone.yml env vars and the Docker deployment guide — password can only be changed after boot via an authenticated 'ALTER USER' SQL statement issued through the CLI). Because the credential lives behind a non-HTTP port, the 'gate a fixed default password behind Traefik basic_auth' escape hatch (SCHEMA.md table) does not apply here — there is no HTTP entrypoint to put the gate on."
+    - "The only HTTP surface, the optional REST API (port 18080), is disabled by default, reuses the same un-projectable root/root credential, and is explicitly marked 'not recommended' by upstream for v1 — not a realistic substitute primary interface."
+    - "The project's own web console (iotdb-web-workbench) has been archived since 2024-01-08, so there is no maintained UI to front with Traefik even if there were an auth channel for it."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Apache IoTDB itself is actively maintained (monthly-ish releases, latest
+  2.0.10 on 2026-07-04) and would fill a real gap — no recipe currently
+  offers a standalone time-series database — but it fails our installation
+  model on two independent counts. First, the interface customers actually
+  use is a raw Thrift RPC port (6667), not HTTP, so it isn't
+  reverse-proxy-compatible and Traefik basic_auth can't gate it. Second,
+  the built-in root/root credential has no env-var/config hook to
+  customize at container start; changing it requires an authenticated SQL
+  session after boot, and there's no HTTP surface to put a basic_auth gate
+  on regardless. The project's only web UI (iotdb-web-workbench) has also
+  been archived since 2024, closing off that angle too. Recommend
+  `not_recommended`: this isn't a "wait for IF-1420/1312" case since even
+  the basic_auth escape hatch is structurally unavailable — it would need
+  a native root-password env var or JWE-carried credential in the app
+  image itself, plus a maintained web front-end, before it's a candidate.

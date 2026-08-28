@@ -1,0 +1,120 @@
+slug: elasticsearch
+name: Elasticsearch
+source_description: "Distributed search and analytics engine built on Apache Lucene"
+
+upstream:
+  url: https://www.elastic.co/elasticsearch
+  repo_url: https://github.com/elastic/elasticsearch
+  license: "Elastic License 2.0 (default distribution) / SSPL / AGPL-3.0 (dual/tri-licensed, customer picks); Apache-2.0 pre-2021 code still applies to some modules"
+  docker_image: docker.elastic.co/elasticsearch/elasticsearch
+  compose_file_url: https://raw.githubusercontent.com/elastic/elasticsearch/main/docs/reference/setup/install/docker/docker-compose.yml
+  compose_file_notes: >
+    Official — linked directly from Elastic's own docs page
+    (elastic.co/docs/deploy-manage/deploy/self-managed/
+    install-elasticsearch-docker-compose, "Start a multi-node cluster with
+    Docker Compose") as the file to download. It is a rolling reference to
+    the `main` branch, not a version-pinned release tag — the docs page
+    instructs users to download this same path regardless of the
+    Elasticsearch version they're targeting, and the compose file itself
+    lets the image tag be set via a `STACK_VERSION` env var rather than
+    hardcoding it. Only one variant is offered (a 3-node cluster with
+    Kibana); there is no separate single-node or GPU/CPU split.
+
+version_health:
+  latest_version: "9.5.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    9.5.0 tagged 2026-08-04, i.e. yesterday relative to today (2026-08-05).
+    Cadence over the preceding ~7 months: 9.3.0 (2026-01-28), 9.4.0
+    (~April 2026), 9.4.1 (2026-05-13), 9.4.2 (2026-05-28), 9.4.3, 9.4.4
+    (2026-07-21), 9.5.0 (2026-08-04) — a steady stream of monthly minor/
+    patch releases plus continuous 8.x backport releases (8.19.x still
+    shipping in parallel, e.g. 8.19.17/8.19.18). This is Elastic's flagship
+    product with a large, well-funded team; unambiguously active, not
+    maintenance-only.
+
+catalogue_fit:
+  categories: [search, analytics, database, infrastructure]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe provides a standalone search/analytics/indexing
+    engine — the 24 current recipes are end-user applications (photo
+    management, password manager, VPN, forms, document management, etc.)
+    that at most embed Postgres/Redis internally. Elasticsearch would be
+    the first "infrastructure-as-a-product" recipe exposing a raw search
+    backend for customers to build on top of (via its REST API/SDKs),
+    conceptually similar in shape to the EdgeDB gap-analysis case
+    (apps-gaps/edgedb.yaml) rather than to any shipped recipe.
+  usefulness: low
+  usefulness_rationale: >
+    Elasticsearch itself ships no web UI at all — it is a pure JSON REST
+    API on port 9200 (the ELK Stack's UI, Kibana, is a separate product/
+    potential separate recipe, not asked about here). Its natural consumer
+    is a developer wiring up their own application or a companion tool
+    (Kibana, Logstash, an app's own search feature) against the API, not
+    an end user clicking through a dashboard the way every other recipe in
+    this catalogue works. It also has real production footprint concerns
+    (JVM heap, recommended 2GB+ RAM minimum, ideally 8GB+) disproportionate
+    to the self-hosted, single-tenant use case this catalogue otherwise
+    targets. Useful as infrastructure, but a poor match for the
+    catalogue's current end-user-facing audience on its own.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "elastic superuser password"
+  secrets_expressible_today:
+    - secret: "elastic superuser password"
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      The credential channel is not a simple env-var pass-through like
+      Vaultwarden's ADMIN_TOKEN. Elasticsearch's Change Password API
+      (`POST /_security/user/elastic/_password`) accepts a `password_hash`
+      field carrying a pre-computed hash instead of plaintext, and its
+      default `xpack.security.authc.password_hashing.algorithm` is
+      `bcrypt` — one of the two algorithms `generated_from` already
+      supports, so a `generated_from: "bcrypt:ROOT_PASSWORD"` value is
+      structurally deliverable. But there's a bootstrap chicken-and-egg:
+      the container needs *some* initial credential to authenticate the
+      first API call before the real hash can be set (e.g. start with a
+      throwaway `ELASTIC_PASSWORD` env var, then call the Change Password
+      API to overwrite it with the customer's projected hash). This is a
+      workable install.sh pattern, not a plain metadata.yaml parameter
+      mapping — more bootstrap logic than most existing recipes need.
+    - >
+      Elasticsearch auto-configures TLS on the HTTP layer (self-signed
+      cert) by default from 8.x onward when security is enabled with no
+      other config. To sit cleanly behind Traefik (which terminates public
+      TLS itself), the recipe needs to explicitly set
+      `xpack.security.http.ssl.enabled=false` and rely on Traefik for the
+      public HTTPS leg — a standard, supported ES setting, not a blocker,
+      but a config detail that must be gotten right or the container ships
+      double/mismatched TLS.
+    - >
+      Even if the mechanism above is wired up correctly, there is no web
+      UI for a customer to log into and use — the "login" being protected
+      is a REST API credential a customer would use from their own code/
+      client, which is a different usage pattern than every other recipe's
+      browser-based admin login.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Elasticsearch is an actively-maintained, monthly-cadence release from
+  Elastic. Its admin credential (the `elastic` superuser) is mechanically
+  expressible via `generated_from: "bcrypt:ROOT_PASSWORD"` because
+  Elasticsearch's own Change Password API accepts a pre-hashed bcrypt
+  value, but wiring that up needs a two-step bootstrap (temporary password
+  to authenticate, then overwrite via the hash) rather than a plain
+  metadata.yaml parameter mapping, plus explicitly disabling ES's
+  auto-configured internal TLS so it sits cleanly behind Traefik. It's also
+  a pure REST API with no web UI of its own — the credential it protects is
+  used from a customer's own code/client rather than a browser login, a
+  different usage pattern than the rest of the catalogue's admin logins.
+  Installable today, but with real bootstrap and config caveats around the
+  credential-provisioning path.

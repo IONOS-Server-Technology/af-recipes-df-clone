@@ -1,0 +1,85 @@
+slug: commafeed
+name: CommaFeed
+source_description: "Self-hosted Google-Reader-inspired RSS reader with keyboard shortcuts and mobile apps"
+
+upstream:
+  url: https://www.commafeed.com/
+  repo_url: https://github.com/Athou/commafeed
+  license: Apache-2.0
+  docker_image: athou/commafeed
+  compose_file_url: https://hub.docker.com/r/athou/commafeed
+  compose_file_notes: >
+    No docker-compose file exists in the GitHub repo (checked repo root and
+    full tree; README's Docker section only points to the Docker Hub image
+    page, with no compose file linked or embedded). The Docker Hub overview
+    page for athou/commafeed (the official image referenced from the
+    project's own README) embeds two docker-compose.yml examples directly
+    as inline text rather than linking a standalone file: a "Quickstart"
+    variant using the embedded H2 database (image tag `latest-h2`) and an
+    "Advanced" variant using PostgreSQL (image tag `latest-postgresql`,
+    with a separate postgres service). Both are rolling references (the
+    `latest-*` tags, not a pinned version), and there is no version-pinned
+    compose file offered. Recorded the Docker Hub page itself as the URL
+    since there is no discrete compose file to link to; the H2 variant
+    matches the embedded-database approach this recipe's summary already
+    assumes, but the page shows both.
+
+version_health:
+  latest_version: "7.2.1"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Released two days before today (2026-08-05). Dense recent history:
+    7.2.0 (2026-07-10), 7.1.0 (2026-04-15), 7.0.0 (2026-02-21), 6.2.0
+    (2026-02-09), 6.1.1 (2026-01-26), 6.1.0 (2026-01-25), 6.0.0
+    (2026-01-10) — multiple releases most months, no gap over ~10 weeks.
+    Repo is not archived; actively maintained by the original author
+    (Athou), including recent security hardening (SSRF/XSS fixes in
+    7.2.x). Clearly active, no EOL signal.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue is an RSS/feed reader.
+    CommaFeed gives customers a Google-Reader-style feed aggregator with
+    keyboard shortcuts, OPML import/export, a Fever-compatible API for
+    mobile apps (Reeder, ReadKit, etc.), and unread/starred-entry
+    tracking — a genuinely different, broad-appeal productivity use case
+    unrelated to any existing recipe.
+  usefulness: medium
+  usefulness_rationale: >
+    RSS readers are a smaller niche than they were a decade ago, but
+    CommaFeed is well-known in the self-hosting community, single-container,
+    lightweight, and has an active, mobile-app-compatible API — a solid,
+    low-effort addition rather than a must-have.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  CommaFeed is a single-container app (athou/commafeed, e.g. tag
+  7.2.1-h2 using the bundled embedded H2 database — no external DB
+  service needed) serving its web UI and REST/Fever API on one HTTP port
+  (8082), fully Traefik-compatible. It does have its own login, but on
+  first boot it seeds a fixed "admin"/"admin" account with no documented
+  environment variable or boot-time config to set a different password —
+  the only way to change it is logging in through the UI afterward. That
+  matches the SCHEMA.md case of "a fixed/default admin credential the app
+  itself gives no way to change at boot": the fix is gating the whole app
+  behind a mandatory Traefik basic_auth, with that gate's password
+  projected from the customer's root password via generated_from, so the
+  unauthenticated-by-default admin/admin login is never exposed directly
+  to the internet. No external API keys or OAuth needed. Active,
+  healthy release cadence (latest release 2 days ago). Recommend
+  build_now.

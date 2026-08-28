@@ -1,0 +1,110 @@
+slug: opensign
+name: OpenSign
+source_description: "Free and open-source DocuSign alternative for legally binding document signing"
+
+upstream:
+  url: https://www.opensignlabs.com
+  repo_url: https://github.com/OpenSignLabs/OpenSign
+  license: "AGPL-3.0 (with a carve-out for apps/OpenSignServer/cloud/customRoute, per repo LICENSE)"
+  docker_image: null
+  # No single official image. Upstream docker-compose.yml wires two
+  # first-party images plus two unrelated floating-tag dependencies:
+  #   opensign/opensignserver:main   (API/server)
+  #   opensign/opensign:main         (client)
+  #   mongo:latest, caddy:latest     (infra, not OpenSign's own)
+  # A long-open feature request (OpenSignLabs/OpenSign#1052) asks upstream
+  # to publish versioned image tags; as of this analysis only "main" and
+  # "latest" floating tags exist for the two OpenSign images themselves —
+  # there is nothing to pin to a stable, current tag the way RFC-002
+  # requires.
+  compose_file_url: https://raw.githubusercontent.com/OpenSignLabs/OpenSign/main/docker-compose.yml
+  compose_file_notes: >
+    Official — this exact raw URL is what the project's own README
+    installation instructions tell self-hosters to curl (`export
+    HOST_URL=... && curl --remote-name-all
+    https://raw.githubusercontent.com/OpenSignLabs/OpenSign/main/docker-compose.yml`),
+    and it's also referenced by the docs page
+    docs.opensignlabs.com/docs/self-host/docker/run-locally/. It is a
+    rolling reference to the main branch (not version-pinned) — there is
+    no tagged-release variant of this file. Only one variant is shipped
+    (server + mongo + client + caddy); there is no separate GPU/CPU or
+    sqlite/postgres split to choose between.
+
+version_health:
+  latest_version: "v2.41.0"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.41.0 shipped 2026-06-30, about 5 weeks before this analysis
+    (2026-08-05); git tags show a roughly monthly cadence through 2026
+    (v2.35.0 in January through v2.41.0 in June). Feature/release activity
+    is genuinely active — this is not a stale or abandoned project. The
+    concern here is a specific, long-unfixed onboarding bug (see
+    installability), not release cadence.
+
+catalogue_fit:
+  categories: [productivity, document-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers e-signature / legally-binding document
+    signing workflows. paperless-ngx and paperless-ai handle document
+    archiving and AI-assisted tagging, not signature collection — adjacent
+    but functionally distinct. OpenSign would fill a genuinely new
+    category (DocuSign-class e-signing) for the 24-recipe catalogue.
+  usefulness: high
+  usefulness_rationale: >
+    E-signature is a common, recognizable SaaS category with a large
+    "must self-host for compliance/cost" audience; a working OpenSign
+    recipe would likely draw its own customer segment distinct from any
+    current recipe. The value is real if the app can be reliably
+    installed (see below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - admin_login_gate
+  secrets_expressible_today:
+    - secret: admin_login_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      OpenSign's admin account is not created via an env var — it's
+      created interactively through an in-browser "create the first admin
+      user" wizard on first visit. That flow is broken on fresh Docker
+      installs: multiple duplicate, still-open upstream issues
+      (OpenSignLabs/OpenSign#973, #1115, #1158) report that a brand-new
+      Docker deployment shows a "Welcome back!" login screen instead of
+      the signup/admin-creation wizard, with no registered users and no
+      way to create one. #1158 was filed 2024-09-04 and was still open and
+      updated as recently as 2026-07-14 (a month before this analysis) —
+      roughly two years unresolved despite regular monthly feature
+      releases, with no documented workaround from maintainers. This is
+      an upstream functional defect, not a gap in our platform's secret-
+      projection mechanism: even a customer who reaches a Traefik
+      basic_auth gate successfully may be unable to get past this screen
+      to create any account at all.
+    - >
+      No pinned, versioned Docker tag exists for either first-party image
+      (opensign/opensignserver, opensign/opensign) — only floating "main"/
+      "latest" — conflicting with the catalogue's pinned-tag requirement.
+      Secondary to the admin-creation bug above, but compounds the risk
+      that a customer's fresh deploy silently picks up a different,
+      untested commit over time.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  OpenSign is an actively released, functionally interesting gap-filler
+  (no e-signature recipe exists in the catalogue today) built as a
+  Mongo-backed multi-container stack that would otherwise sit comfortably
+  behind Traefik. It is blocked not by our platform's secret-projection
+  constraint but by a genuine, long-standing upstream bug: fresh Docker
+  installs frequently cannot reach or complete the first-admin-user
+  wizard at all (OpenSignLabs/OpenSign#973/#1115/#1158, open since
+  2024-09, still active 2026-07), with no known workaround. Combined with
+  the lack of any pinned image tag upstream, this is not recommended for
+  a recipe today; revisit if upstream fixes the onboarding flow and
+  starts publishing versioned tags.

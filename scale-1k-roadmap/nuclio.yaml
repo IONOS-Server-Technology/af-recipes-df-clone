@@ -1,0 +1,97 @@
+slug: nuclio
+name: Nuclio
+source_description: "High-performance open-source serverless platform for real-time data processing"
+
+upstream:
+  url: https://nuclio.io/
+  repo_url: https://github.com/nuclio/nuclio
+  license: Apache-2.0
+  docker_image: quay.io/nuclio/dashboard:stable-amd64
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. Nuclio's own README and docs
+    (docs.nuclio.io getting-started-docker page) document standalone Docker
+    mode as a single bare `docker run` command (mounting
+    /var/run/docker.sock and publishing port 8070) — not a compose file.
+    Real Nuclio deployments are otherwise Kubernetes/Helm-based (Minikube,
+    AKS, GKE guides), which don't use docker-compose either. No
+    community-maintained compose file was found in the repo (no
+    docker-compose.yaml/.yml at root or under hack/, docker/, deploy/, or
+    contrib/) to note as an alternative.
+
+version_health:
+  latest_version: "1.17.3"
+  latest_release_date: "2026-07-22"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Very active release cadence — multiple point releases per month across two
+    parallel branch lines (1.16.x and 1.17.x), most recently 1.16.8 on
+    2026-07-30 and 1.17.3 on 2026-07-22, both within the last two weeks of
+    today's date (2026-08-05). No signs of maintenance-only mode or archival.
+
+catalogue_fit:
+  categories: [developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nuclio is a FaaS/serverless function platform (deploy and invoke
+    event-driven functions in various languages), which nothing in the
+    current 24-recipe catalogue covers — Portainer and WUD manage existing
+    Docker workloads but don't let a customer write and deploy new
+    serverless functions. However, Nuclio's core mechanism is fundamentally
+    at odds with our single-container-behind-Traefik model: the dashboard
+    (port 8070) mounts the host's /var/run/docker.sock and uses it to spin
+    up a new container per deployed function, each bound to its own
+    dynamically-allocated host port. Those function containers are not
+    known at recipe-build time, so Traefik can only front the dashboard
+    UI itself — invoked functions would need ad hoc port exposure our
+    platform doesn't provision. Docker-socket-only ("local") mode is also
+    positioned upstream as the getting-started/dev path; real Nuclio
+    deployments run on Kubernetes for scaling and multi-node function
+    placement, which a single AF VM doesn't provide either.
+  usefulness: low
+  usefulness_rationale: >
+    Interesting category (serverless/FaaS) with no catalogue overlap, but the
+    standalone-Docker mode is a stripped-down dev/demo path, not what
+    upstream considers production Nuclio, and giving a customer's function
+    deployments direct docker.sock access on their own VM is a meaningfully
+    larger blast radius than any current recipe (arbitrary container
+    creation, not just management of existing ones).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [dashboard_basic_auth_gate]
+  secrets_expressible_today:
+    - secret: dashboard_basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Nuclio's dashboard auth is controlled by NUCLIO_AUTH_KIND, with only
+      two supported values: "nop" (no auth at all) and "iguazio" (delegates
+      to an external Iguazio identity/session service — a third-party
+      enterprise product, not something we can wire up as a customer
+      credential). There is no built-in username/password login we can
+      project a root-password hash into via generated_from; a Traefik
+      basic_auth gate in front of the whole UI is the only way to avoid
+      shipping this open to the internet.
+    - >
+      Even with the dashboard gated, deployed functions run as separate,
+      unproxied containers with their own dynamically-assigned host ports —
+      outside Traefik's static routing and outside what our recipe mechanism
+      can express or expose safely today.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Nuclio is an actively maintained (weekly-ish releases, Apache-2.0), genuinely
+  novel category for the catalogue — nothing else here does serverless
+  function deployment. But it's not installable as a normal single-container
+  web app: it has no native login (only "nop"/open or an Iguazio-only auth
+  backend), it needs raw docker.sock access to spawn function containers, and
+  those function containers get their own ports Traefik can't front. A basic_auth
+  gate covers the dashboard itself but not the underlying architecture mismatch
+  with our fixed single-VM, single-port-per-recipe model. Not recommended for
+  the current mechanism; would need a materially different exposure model
+  (e.g., a proxy that discovers and fronts per-function ports) to reconsider.

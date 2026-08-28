@@ -1,0 +1,77 @@
+slug: locust
+name: Locust
+source_description: "Python-based distributed load testing tool with a real-time web UI"
+
+upstream:
+  url: https://locust.io/
+  repo_url: https://github.com/locustio/locust
+  license: MIT
+  docker_image: locustio/locust
+  compose_file_url: https://raw.githubusercontent.com/locustio/locust/master/examples/docker-compose/docker-compose.yml
+  compose_file_notes: >
+    Official — maintained by the Locust project itself and embedded via
+    `.. literalinclude::` into docs/running-in-docker.rst's "Docker Compose"
+    section (docs.locust.io/en/stable/running-in-docker.html), so the docs
+    page and this file stay in sync by construction. This is a rolling
+    reference to the default (master) branch, not version-pinned — no
+    per-release tagged copy is published. Only one variant is offered
+    (master + worker services, both using the same locustio/locust image);
+    there is no separate GPU/CPU or sqlite/postgres split since Locust is
+    stateless and has no database dependency.
+
+version_health:
+  latest_version: "2.46.3"
+  latest_release_date: "2026-08-01"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release (2.46.3) was published 2026-08-01, 4 days before this
+    analysis (2026-08-05). Release history shows a new tag roughly every
+    1-3 weeks throughout 2026 (2.44.0 on 2026-05-11 through 2.46.3), so
+    cadence is genuinely active, not just a stale "latest" tag.
+
+catalogue_fit:
+  categories: [developer-tools]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No existing recipe covers load/performance testing. Uptime Kuma
+    (monitoring) watches uptime of already-running services; Locust instead
+    generates synthetic load against a target system and reports live
+    throughput/latency/failure metrics. Distinct use case, no overlap.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful to developer/devops customers validating their own apps before
+    launch, but it's a niche, session-based tool (spin up, run a test
+    campaign, tear down) rather than an always-on service most customers
+    would keep running long-term, which caps how broadly it'd be used.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Locust is mechanically installable today: single container, one HTTP port
+  (8089), MIT-licensed, actively released (last tag 4 days before this
+  analysis), and its web UI ships with no built-in login of its own so a
+  Traefik basic_auth gate (root-password projection) fully covers the
+  first-boot secret requirement — no external API keys or OAuth needed.
+  The one caveat worth flagging to a reviewer, not a hard blocker: Locust
+  requires a "locustfile" (a Python script defining what to load-test) to
+  start at all, and there is no in-browser way to author or upload one in
+  the OSS web UI. A recipe would ship a placeholder example locustfile so
+  the container boots out of the box; customers would then need direct
+  filesystem access (SSH to their own server, which they already have) to
+  swap in their real test script, since that authoring step is outside our
+  recipe mechanism's parameter/secret channel entirely — similar to how
+  n8n workflows or Gitea repos are configured after install, not via
+  /compose. This doesn't block installability. Recommend build_now:
+  document the "ships with a sample test script, edit it via SSH" workflow
+  clearly in the recipe/install output.

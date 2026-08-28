@@ -1,0 +1,106 @@
+slug: khoj
+name: Khoj
+source_description: "Open-source AI assistant for chatting with your documents and the web"
+
+upstream:
+  url: https://khoj.dev/
+  repo_url: https://github.com/khoj-ai/khoj
+  license: AGPL-3.0
+  docker_image: ghcr.io/khoj-ai/khoj
+  compose_file_url: https://github.com/khoj-ai/khoj/blob/master/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root (github.com/khoj-ai/khoj), not
+    linked from a separate docs page. This is a rolling reference to the
+    default branch (master), not version-pinned to a release tag; the
+    project ships only this single compose file (no separate GPU/CPU or
+    sqlite/postgres variants) covering database (pgvector/postgres),
+    sandbox (terrarium code execution), search (SearxNG), the optional
+    "computer" service (VNC-based computer-use agent, matches the
+    blocking_issue noted below), and the server itself.
+
+version_health:
+  latest_version: "2.0.0-beta.28"
+  latest_release_date: "2026-03-26"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    Master branch is genuinely active (commits as recent as 2026-08-02,
+    e.g. "Make chat export robust and fix export truncation #1314"), and
+    the repo is not archived (36k+ stars, 101 open issues, 30 open PRs). But
+    the published container image has not been re-tagged in over 4 months:
+    the last cut is 2.0.0-beta.28 on 2026-03-26, ~4 months and 11 days
+    before today (2026-08-06), after a cadence of roughly monthly betas
+    from late 2025 through March 2026 (beta.19 on 2025-11-18 through
+    beta.28 on 2026-03-26). The project has also been in a "2.0.0-beta.*"
+    versioning state for a long stretch with no GA cut in sight. Net: code
+    is alive, but the artifact a recipe would actually pin to is stale
+    relative to upstream dev — worth re-checking image cadence before
+    building.
+
+catalogue_fit:
+  categories: [ai, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [open-webui, paperless-ai]
+  differentiation: >
+    Khoj combines document RAG chat, built-in web search (via a bundled
+    SearxNG instance), custom agents, and scheduled automations in one
+    app, versus Open WebUI (chat UI over local/cloud models, no built-in
+    web search or document RAG by default) and Paperless-AI (narrowly
+    scoped to auto-tagging Paperless-ngx documents, not general chat).
+    Genuinely broader "second brain" positioning than either existing
+    recipe, but the value proposition overlaps meaningfully with
+    Open WebUI once a customer adds RAG/websearch plugins there.
+
+  usefulness: medium
+  usefulness_rationale: >
+    Real, popular (36k star) project with a distinct feature set, but the
+    upstream reference stack is heavy (Postgres+pgvector, a code-execution
+    sandbox, SearxNG, an experimental VNC-based "computer use" service,
+    plus the main server — five containers) and recommends 8GB+ RAM and
+    16GB VRAM for good model performance. That is a much bigger resource
+    and complexity footprint than most of the current catalogue for a
+    feature set that meaningfully overlaps Open WebUI.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [KHOJ_DJANGO_SECRET_KEY, KHOJ_ADMIN_PASSWORD, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: KHOJ_DJANGO_SECRET_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: KHOJ_ADMIN_PASSWORD
+      mechanism: server_generated_no_customer_input
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The upstream reference docker-compose's "computer" service (an
+      experimental computer-use agent) publishes a raw VNC port (5900),
+      which is not reverse-proxy compatible. This service looks optional
+      (it is not needed for core chat/RAG functionality) and can likely be
+      dropped from a recipe's compose file, but that is a real
+      recipe-authoring decision, not something this analysis resolves —
+      flagging it as the reason reverse_proxy_compatible is marked false
+      for the stack as shipped upstream.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  Khoj is mechanically installable under the current /compose constraint:
+  KHOJ_DJANGO_SECRET_KEY and KHOJ_ADMIN_PASSWORD are opaque values the app
+  itself consumes and never needs to surface to the customer, so both are
+  plain server-generated secrets. The upstream reference deployment runs
+  the main chat UI with `--anonymous-mode` (no login at all) by default,
+  which is exactly the no-built-in-auth case the schema calls out — a
+  Traefik basic_auth gate keyed off the customer's root password
+  (generated_from) is the correct customer-facing security boundary here,
+  same pattern as n8n/Open WebUI/Immich. The real caveat is mechanical: the
+  full upstream reference stack ships a "computer" service (an experimental
+  computer-use agent) that publishes a raw VNC port, which is not
+  reverse-proxy compatible as shipped. That service looks droppable from a
+  recipe's compose file since it isn't needed for core chat/RAG
+  functionality, but confirming it can be cleanly excluded is a real
+  recipe-authoring step this analysis doesn't resolve. Recommend
+  build_with_caveats: mechanically installable, pending confirmation that
+  the VNC/"computer" service can be dropped from the compose file without
+  breaking core functionality.

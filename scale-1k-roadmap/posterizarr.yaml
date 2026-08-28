@@ -1,0 +1,104 @@
+slug: posterizarr
+name: Posterizarr
+source_description: "Automated poster generator for Plex, Jellyfin, and Emby media libraries"
+
+upstream:
+  url: https://fscorrupt.github.io/posterizarr/
+  repo_url: https://github.com/fscorrupt/Posterizarr
+  license: GPL-3.0
+  docker_image: ghcr.io/fscorrupt/posterizarr:3.2.0
+  compose_file_url: https://github.com/fscorrupt/Posterizarr/blob/main/docker-compose.yml
+  compose_file_notes: >
+    Official compose file, at the repo root (docker-compose.yml), linked
+    from the project's own docs (fscorrupt.github.io/posterizarr/installation
+    Quick Start: "docker-compose up -d (using provided docker-compose.yml)").
+    This is a rolling reference to the default (main) branch, not a
+    version-pinned release tag, and it in turn pulls
+    ghcr.io/fscorrupt/posterizarr:latest (also rolling, not pinned to a
+    version). The repo ships a second file, docker-compose.yml_windows, for
+    Windows Docker Desktop; the plain docker-compose.yml was picked as it is
+    the Linux/general-purpose variant matching our target deployment
+    environment.
+
+version_health:
+  latest_version: "3.2.0"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed via GitHub releases API: 15 releases between 2026-06-13 (2.2.49)
+    and 2026-08-04 (3.2.0), i.e. one day before today (2026-08-05) — averaging
+    roughly one release every 3-4 days over the last 8 weeks, including a
+    2.x -> 3.x major bump on 2026-07-13. This is a clearly active,
+    fast-iterating single-maintainer project with no dormancy or EOL signal.
+
+catalogue_fit:
+  categories: [media, automation, utility]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers media-library artwork/poster
+    generation. Posterizarr is not a media server itself — it is a
+    companion utility that connects to an *already-running* Plex, Jellyfin,
+    or Emby instance and fetches/generates textless poster art, background
+    art, season posters, and title cards from Fanart.tv, TMDB, TVDB, and
+    the media server's own metadata. It has zero standalone value: it needs
+    a working Plex/Jellyfin/Emby deployment to point at, none of which are
+    installable in our catalogue today (apps-gaps/plex.yaml,
+    apps-gaps/jellyfin.yaml, and apps-gaps/emby.yaml are all
+    blocked_on_platform for unrelated reasons — no admin-seed channel or,
+    for Plex, no local account at all).
+  usefulness: low
+  usefulness_rationale: >
+    Even setting aside installability, a poster-generator add-on only makes
+    sense to a customer who already has a self-hosted Plex/Jellyfin/Emby
+    library — none of which our catalogue can currently provision. Shipping
+    Posterizarr on its own, disconnected from any media server the customer
+    could get from us, is a niche, low-demand offering on its own merits.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [tmdb_api_key, fanart_tv_api_key, tvdb_api_key, media_server_url_and_token, basic_auth_gate]
+  secrets_expressible_today:
+    - secret: basic_auth_gate
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      Posterizarr's config.json requires three mandatory third-party API
+      credentials before it can do anything useful: a TMDB API token
+      (themoviedb.org), a Fanart.tv API key, and a TVDB Project API key
+      (thetvdb.com). All three are external accounts the customer must
+      register for themselves and paste in manually — exactly the
+      "external API key/token the app can't function without" case
+      SCHEMA.md already marks as having no input channel today.
+    - >
+      It also requires the URL and auth token/API key of an existing Plex,
+      Jellyfin, or Emby server to scan and enrich. We have no installable
+      recipe for any of those three media servers today (see
+      apps-gaps/plex.yaml, apps-gaps/jellyfin.yaml, apps-gaps/emby.yaml),
+      so even a customer willing to hand-enter Posterizarr's own API keys
+      would have nowhere to point it — this is a second, independent
+      external-credential blocker on top of the first.
+    - >
+      The web UI (port 8000) ships with no built-in login of its own
+      ("Default credentials: none required" per upstream docs), so it would
+      need a Traefik basic_auth gate to avoid sitting open — that piece
+      alone is expressible via generated_from:ROOT_PASSWORD projection, but
+      it does not unblock the two API-key/media-server issues above.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Posterizarr is a healthy, fast-moving project (15 releases in the last
+  8 weeks, latest 3.2.0 shipped one day before today) that fills no gap in
+  our catalogue on its own: it is a pure companion utility for an
+  already-running Plex/Jellyfin/Emby library, none of which we can
+  currently provision as recipes. Beyond that dependency problem, it also
+  requires three mandatory external API keys (TMDB, Fanart.tv, TVDB) that
+  have no customer-input channel under the current /compose mechanism.
+  Even with a Traefik basic_auth gate covering its own login-less web UI,
+  two independent, unrelated blockers remain. Recommend not_recommended —
+  revisit only if the platform gains a general external-API-key input
+  channel *and* at least one of Plex/Jellyfin/Emby becomes installable,
+  since Posterizarr provides no value without the latter regardless.

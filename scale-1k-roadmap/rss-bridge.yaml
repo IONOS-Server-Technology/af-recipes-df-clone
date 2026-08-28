@@ -1,0 +1,96 @@
+slug: rss-bridge
+name: RSS Bridge
+source_description: "Self-hosted bridge that creates RSS feeds for sites without them"
+
+upstream:
+  url: https://rss-bridge.github.io/rss-bridge/
+  repo_url: https://github.com/RSS-Bridge/rss-bridge
+  license: Unlicense
+  docker_image: rssbridge/rss-bridge
+  compose_file_url: https://raw.githubusercontent.com/RSS-Bridge/rss-bridge/master/docker-compose.yml
+  compose_file_notes: >
+    Official — a docker-compose.yml at the repo root, linked from the
+    README's "Install with docker-compose (using Docker Hub)" section. This
+    is a rolling reference to the default branch (master), not
+    version-pinned: it points at rssbridge/rss-bridge:latest, so the
+    content tracks whatever is currently on master rather than a tagged
+    release. Only one variant is shipped — no GPU/CPU or dev/prod split, no
+    database service (matches the no-database shape already noted in
+    installability/summary). The file's own port mapping (3000:80) matches
+    what this recipe's summary already describes as "upstream's own
+    compose."
+
+version_health:
+  latest_version: "2025-08-05"
+  latest_release_date: "2025-08-05"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >
+    Upstream development is unambiguously alive — the repo was last pushed on
+    2026-08-06 (today) and the GitHub API returns a full page (100+) of
+    commits since 2026-02-01, mostly bridge fixes tracking third-party site
+    changes. What is sporadic is *tagging*: releases are date-named and
+    irregular (2022-06-14, 2023-03-22, 2023-07-11, 2023-07-13, 2023-09-24,
+    2024-02-02, 2025-01-02, 2025-01-26, 2025-06-03, 2025-08-05), and the
+    newest tag, 2025-08-05, is exactly 12 months (366 days) old as of today
+    (2026-08-06). The project's own delivery model is effectively rolling:
+    Docker Hub (rssbridge/rss-bridge) and GHCR publish per-commit `sha-*`
+    tags plus `latest` on every push, and the date tags are occasional
+    snapshots of that stream. Not archived, not maintenance-only, no EOL
+    announcement; 9.1k stars, 267 open issues actively triaged.
+
+catalogue_fit:
+  categories: [productivity, utilities, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24 recipes touches web feeds. The nearest adjacent
+    recipe is n8n, which can technically poll a page and emit items, but that
+    is a general workflow builder requiring the customer to hand-build
+    scraping logic per site; RSS-Bridge ships ~400 maintained
+    site-specific bridges (YouTube, Reddit, Mastodon, Telegram, Bluesky,
+    Substack, plus generic CssSelector/XPath bridges) behind a point-and-click
+    form. It is also a feed *producer*, not a reader — it complements rather
+    than replaces any aggregator a customer already runs.
+  usefulness: medium
+  usefulness_rationale: >
+    A genuinely useful, well-known utility (9.1k stars) for a real recurring
+    need: following sites that dropped or never had a feed. But it is a
+    single-purpose helper for a fairly technical, RSS-literate audience
+    rather than a headline app most VPS customers would buy hosting for, and
+    its value depends on the customer already having a feed reader
+    somewhere. Cheap to host (one small PHP/nginx container, no database)
+    which keeps the cost/benefit reasonable even at medium demand.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_gate_credential]
+  secrets_expressible_today:
+    - secret: basic_auth_gate_credential
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  RSS-Bridge is structurally one of the easiest candidates seen so far: a
+  single Debian/nginx/php-fpm container (rssbridge/rss-bridge, pinnable date
+  tag 2025-08-05), one HTTP port (80 internally, upstream's own compose maps
+  3000:80), no database, one bind mount for /config, and no external API key
+  or account linking needed for the default bridge set — so it fits the
+  single-container-web-app shape of recipes/uptime-kuma and recipes/opengist
+  and sits cleanly behind Traefik on rss-bridge.<base_domain>. It ships with
+  authentication disabled and all bridges enabled by default, so it must not
+  be left open on the internet (it would otherwise be a free
+  fetch-any-URL scraper for strangers); the gate is Traefik `basic_auth:
+  true` with the root-password hash, per IF-1312, since RSS-Bridge's own
+  basic auth wants a plaintext password in config.ini.php (or
+  RSSBRIDGE_authentication_password) and therefore cannot consume a
+  `generated_from` hash. Nothing here blocks installability: a basic-auth
+  gate means feed URLs must carry credentials (https://user:pass@host/... —
+  widely but not universally supported by readers), and pinning to the
+  newest date tag ships a build that is already 12 months old even though
+  upstream commits daily, so a recipe here should expect either regular
+  version bumps or a decision to pin a `sha-*` tag instead — but with
+  installable_today true and no blocking issues, this is build_now.

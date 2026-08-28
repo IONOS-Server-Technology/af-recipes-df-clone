@@ -1,0 +1,88 @@
+slug: ohdsi-atlas
+name: OHDSI Atlas
+source_description: Observational health research platform for the OMOP common data model
+
+upstream:
+  url: https://www.ohdsi.org/software/
+  repo_url: https://github.com/OHDSI/Atlas
+  license: Apache-2.0
+  docker_image: ohdsi/atlas
+  compose_file_url: https://raw.githubusercontent.com/OHDSI/Broadsea/v3.5.1/docker-compose.yml
+  compose_file_notes: >
+    The OHDSI/Atlas repo itself ships no docker-compose file — only a
+    Dockerfile and an nginx/env-substitution docker/ dir for building the
+    Atlas image standalone. The official multi-container stack (Atlas +
+    WebAPI + Postgres + Traefik, with optional HADES/RStudio, Ares, Solr,
+    etc. via Compose profiles) is OHDSI/Broadsea, an OHDSI-org repo built
+    and documented specifically to deploy Atlas. This URL pins the
+    docker-compose.yml to the v3.5.1 tag (released 2026-01-05), the latest
+    of four tagged releases, rather than the rolling master branch — chosen
+    over master so the recorded link doesn't silently change out from under
+    this recipe. Only one docker-compose.yml is published (no separate
+    GPU/CPU or sqlite/postgres variants); per-component inclusion is
+    controlled at runtime via Compose profiles/env vars in that same file.
+
+version_health:
+  latest_version: "2.15.0"
+  latest_release_date: "2024-07-25"
+  release_cadence: dormant
+  eol_status: active
+  notes: >
+    Last tagged release of the current Atlas/WebAPI 2.x line is 2.15.0
+    (2024-07-25), with a follow-up WebAPI patch (2.15.1/2.15.2) around
+    mid-to-late 2024 — no tagged release in either repo in the roughly two
+    years since, as of 2026-08-05. The `ohdsi/atlas:master` image on Docker
+    Hub was last pushed ~9 months ago, so upstream development itself is not
+    dead, but it is not being cut into versioned releases. The project's
+    energy has visibly shifted to a ground-up "ATLAS 3.0" rewrite
+    (OHDSI/Atlas3), still in preview/demo stage as of the July 2026 OHDSI
+    community call and not yet a stable, documented, installable release. So
+    the community/org is active (weekly digests, community calls continuing
+    through August 2026) but the specific artifact a recipe would pin today
+    (Atlas 2.15.0 + WebAPI 2.15.x) is stagnant and likely to be superseded by
+    an architecturally different 3.0 stack.
+
+catalogue_fit:
+  categories: [healthcare, analytics, research]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue touches clinical/health-data
+    research or the OMOP common data model — this would be a genuinely new
+    category, not a competing option in an existing one.
+  usefulness: low
+  usefulness_rationale: >
+    Atlas is a query/cohort-definition front end for an OMOP CDM database;
+    it does nothing useful until that database is loaded with standardized
+    health data and vocabularies (a substantial separate ETL effort,
+    typically requiring vocabulary downloads from OHDSI Athena and often a
+    UMLS license). That data-loading step is entirely outside what a
+    docker-compose recipe can automate, so a customer who spins this up gets
+    an empty, non-functional research tool. The realistic audience — health
+    services researchers who already maintain an OMOP CDM warehouse — is a
+    narrow, specialist slice of the general self-hosted-app customer base
+    this catalogue targets.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [BASIC_AUTH_GATE, WEBAPI_DB_PASSWORD]
+  secrets_expressible_today:
+    - secret: BASIC_AUTH_GATE
+      mechanism: traefik_basic_auth
+    - secret: WEBAPI_DB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  OHDSI Atlas is mechanically installable today — Atlas (static web UI) +
+  WebAPI (Tomcat backend) + Postgres is a straightforward multi-container
+  stack that fits behind Traefik, its Postgres password can be
+  server-generated, and its default no-login setup can be gated with
+  Traefik basic_auth like our other login-less apps. It is inert without an
+  externally-loaded OMOP CDM database, and the current 2.x release line has
+  had no tagged release in two years while upstream energy has moved to an
+  unfinished 3.0 rewrite — real factors to weigh when scheduling the build,
+  but not blockers to the recipe mechanics itself.

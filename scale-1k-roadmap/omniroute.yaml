@@ -1,0 +1,158 @@
+slug: omniroute
+name: OmniRoute
+source_description: "Self-hosted AI gateway routing 231+ LLM providers through one unified endpoint"
+
+upstream:
+  url: https://omniroute.im/
+  repo_url: https://github.com/diegosouzapw/OmniRoute
+  license: MIT
+  docker_image: diegosouzapw/omniroute
+  compose_file_url: https://raw.githubusercontent.com/diegosouzapw/OmniRoute/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the repo root. `docs/guides/DOCKER_GUIDE.md`
+    documents this file (its "Available Profiles" table lists
+    base/cli/host/cliproxyapi) as the normal path for running the app,
+    while covering the sibling
+    `docker-compose.prod.yml` separately under its own "Production
+    Compose" section, describing that file as "an isolated production
+    snapshot running alongside dev" for running prod and dev in parallel
+    on one machine — a dev-convenience variant, not the self-hosting
+    recommendation. Picked the root file over
+    `docker-compose.prod.yml` for that reason. This link is a rolling
+    reference to the `main` branch, not version-pinned: GitHub Releases
+    for this repo (v3.8.49 down through v3.8.40 checked) attach only
+    desktop installers (AppImage/DMG/DEB) and update-metadata YAML as
+    release assets — no docker-compose file is published as a
+    release asset for any tag, so no `/releases/latest/download/...`-style
+    pinned link exists to use instead. The file defines profiles (base,
+    web, cli, host) selecting different image variants (e.g. `web` adds
+    Playwright/Chromium for browser-based providers) plus optional
+    sidecar profiles (`memory` for Qdrant, `bifrost` for a Go LLM-router
+    sidecar, `cliproxyapi`) — no single profile was singled out as "the"
+    default by the docs, so the file as a whole is recorded here rather
+    than one profile's worth of config.
+
+version_health:
+  latest_version: "3.8.49"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Confirmed directly against the Docker Hub tags API for
+    `diegosouzapw/omniroute`: numbered tags run from 3.6.4 (2026-04-12)
+    through 3.8.49 (2026-07-30), often multiple pushes per day (e.g.
+    3.8.16 through 3.8.19 all pushed within 24h on 2026-06-08/09) — an
+    unusually fast, near-continuous-deploy cadence. Latest push was six
+    days before today (2026-08-05). By raw release-cadence numbers this
+    reads as actively developed, not dormant. However, corroborating
+    web research for this repo returned wildly inconsistent and mutually
+    contradictory "reputation" signals across sources queried in the same
+    session: GitHub star counts of 9.8k, 17k, 33.9k, and 41.1k were each
+    reported by different sources for what claims to be the same project,
+    and multiple distinct GitHub accounts (diegosouzapw/OmniRoute,
+    marcpadz/omniroute, BunsDev/omniroute, ChrisCompton/omniroute) publish
+    near-identical READMEs describing the same tool. This pattern —
+    many mirror/fork repos with copy-pasted descriptions plus
+    self-contradictory inflated star counts — matches known GitHub
+    fake-star / reputation-farming campaigns, which the security research
+    community associates disproportionately with malware distribution
+    rather than organic popularity. Independently, web research also
+    surfaced a report that Socket.dev blocked the `omniroute` npm package
+    at v3.8.5 (May 2026) for suspected malware, obfuscated code, and
+    install scripts, with the maintainer reportedly patching two real
+    vulnerabilities in the following v3.8.6 release. None of this could
+    be fully independently re-verified from this sandbox (GitHub's REST
+    API was unreachable during this research session), so treat the
+    star-count and Socket.dev claims as corroborated-by-multiple-sources
+    but not directly re-verified — a human reviewer should re-check
+    Socket.dev's advisory database and the repo's actual star history
+    directly before any further action.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >
+    OmniRoute is a multi-provider LLM *gateway/router* (OpenAI-compatible
+    `/v1` endpoint, provider failover, token-compression, free-tier
+    aggregation across 90+ providers) rather than a chat UI or a local
+    model runner — functionally closer to LiteLLM than to Open WebUI.
+    Neither open-webui nor ollama covers "unify many third-party LLM
+    provider accounts behind one endpoint for other tools to call," so on
+    pure feature grounds it would fill a real, currently-empty slot
+    (API-gateway/proxy for LLM traffic) rather than duplicate an existing
+    recipe outright.
+  usefulness: low
+  usefulness_rationale: >
+    The gateway/router niche is real, but this specific project's
+    value proposition is aimed at individual developers wiring up coding
+    assistants (Claude Code, Cursor, Copilot) to free/cheap LLM tiers on
+    their own laptop — not a typical "install this on my server for my
+    business" self-hosted app. Combined with the credibility red flags in
+    `version_health.notes` (inconsistent/inflated popularity signals,
+    reported malware flag on the npm package), usefulness is capped low
+    regardless of the mechanical fit questions below: this is not a
+    project IONOS should be comfortable running unreviewed on customer
+    infrastructure.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues:
+    - >
+      Provenance/trust concern (see `version_health.notes`): this
+      research surfaced credible-looking but unverified reports of a
+      Socket.dev malware/obfuscated-code/install-script flag on the
+      `omniroute` npm package, plus a fake-star-campaign-shaped pattern
+      of multiple near-identical mirror repos with mutually
+      contradictory star counts. Neither claim could be independently
+      re-verified from this sandbox. This is a supply-chain trust
+      question that sits above the mechanical `/compose` constraint —
+      even if every secret below were expressible today, shipping a
+      recipe for a project with credible malware-distribution signals
+      would need a clean bill of health from a human security review
+      first, not just a working docker-compose file.
+    - >
+      The dashboard's `ADMIN_PASSWORD` env var appears (per upstream
+      docs) to gate login to the web UI, and could plausibly be projected
+      via `generated_from` the same way Vaultwarden's admin token is —
+      but whether the app accepts a pre-hashed value (argon2/bcrypt) or
+      requires the plaintext password itself was not confirmed from
+      available documentation in this session. If it turns out to
+      require plaintext, this becomes a genuine structural blocker per
+      `SCHEMA.md`, not just an unconfirmed detail.
+    - >
+      Full value (routing across paid/premium providers) requires the
+      customer to supply their own per-provider API keys after first
+      boot — this is a legitimate post-install, in-app configuration step
+      (not a `/compose`-time secret) since OmniRoute ships with 90+
+      keyless free-tier providers pre-configured and is usable without
+      any provider key at all, so it is not counted as a blocking issue
+      here.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  OmniRoute is a real, very actively-released (near-daily Docker Hub
+  pushes) multi-provider LLM gateway that would technically fill a gap
+  our catalogue doesn't cover today (a routing proxy in front of many LLM
+  providers, distinct from the chat-UI/model-runner niche open-webui and
+  ollama already fill). Mechanically it looks close to installable — a
+  single Docker image, a web dashboard with its own `ADMIN_PASSWORD`
+  login that may be projectable via `generated_from`, and no hard
+  requirement for a customer-supplied provider API key to boot. The
+  recommendation is `not_recommended` anyway because this research
+  surfaced serious, unresolved provenance red flags: multiple
+  near-identical mirror GitHub repos reporting mutually contradictory,
+  implausibly large star counts, and a separately-reported claim that the
+  npm package was flagged by Socket.dev for suspected malware and
+  obfuscated code. Neither claim was independently re-verifiable from
+  this sandbox, but together they describe exactly the shape of a
+  fake-popularity/malware-distribution campaign, and that risk should be
+  cleared by a human security review before this project is considered
+  further — regardless of how the mechanical secret-projection question
+  above resolves.

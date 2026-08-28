@@ -1,0 +1,103 @@
+slug: fossbilling
+name: FOSSBilling
+source_description: "Open-source billing and client management platform for web businesses"
+
+upstream:
+  url: https://fossbilling.org/
+  repo_url: https://github.com/FOSSBilling/FOSSBilling
+  license: "Apache-2.0"
+  docker_image: fossbilling/fossbilling
+  compose_file_url: https://docs.fossbilling.org/getting-started/docker/
+  compose_file_notes: >
+    Official, but only as a docs-embedded snippet, not a standalone file:
+    docs.fossbilling.org/getting-started/docker/ (source at
+    github.com/FOSSBilling/docs, docker.mdoc) shows a two-service
+    docker-compose.yml (fossbilling/fossbilling + mariadb) directly in a
+    "Docker Compose" tab, with no separate compose file in the FOSSBilling
+    app repo (github.com/FOSSBilling/FOSSBilling has only a Dockerfile, no
+    docker-compose.yaml/yml at root, docker/, deploy/, or contrib/) and no
+    linked/downloadable asset. It is a rolling reference, not version-
+    pinned: the embedded snippet uses fossbilling/fossbilling:latest and
+    mariadb:lts, with the docs page itself noting "Use the latest tag for
+    the current stable release." Only one variant is offered (no GPU/CPU
+    or sqlite/postgres split); the alternative shown is a single-container
+    `docker run` with an external DB, not a second compose variant.
+
+version_health:
+  latest_version: "0.8.5"
+  latest_release_date: "2026-07-20"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    0.8.5 was pushed to Docker Hub ~17 days before today (2026-08-05), i.e.
+    around 2026-07-20, and follows a run of monthly-or-faster 0.8.x patch
+    releases (0.8.0 2026-05-28, 0.8.1 2026-05-30, 0.8.2 2026-06-04, 0.8.3
+    2026-06-20, 0.8.4 2026-07-11, 0.8.5 2026-07-20) — a clearly active,
+    frequently-patched project, not slowing or dormant. Repo is not
+    archived and 0.8.0 itself was a larger release (dropped PHP <8.3
+    support, moved the asset build to esbuild), indicating real ongoing
+    engineering investment, not just security backports.
+
+catalogue_fit:
+  categories: [business, billing, hosting-management]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue covers hosting/web-business
+    billing (client management, invoicing, support tickets, domain/hosting
+    product provisioning, payment gateway integration) — this is a
+    different niche from the general small-business accounting ground
+    covered by the still-open apps-gaps/akaunting.yaml and
+    apps-gaps/dolibarr.yaml gap analyses. FOSSBilling is purpose-built as
+    an open-source alternative to WHMCS/Blesta for hosting resellers and
+    web agencies, which is a natural fit for an IONOS-run catalogue given
+    the audience overlap with hosting/reseller customers.
+  usefulness: medium
+  usefulness_rationale: >
+    Genuinely useful, narrow niche (hosting/web-agency billing and client
+    management) with clear audience overlap with IONOS's own customer base.
+    Rated medium rather than high because the installability blocker below
+    means it cannot ship as-is; usefulness is capped until that's resolved.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [FOSSBILLING_ADMIN_PASSWORD, MARIADB_PASSWORD]
+  secrets_expressible_today:
+    - secret: MARIADB_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      FOSSBilling has no non-interactive installation path. The official
+      Docker image ships an empty app with a web-based installer
+      (/install/install.php) that requires the operator to interactively
+      choose the admin username, email, and PASSWORD in a browser form
+      after first boot — there is no env var, config file, or CLI flag to
+      preseed the admin account. Even if install.sh scripted the installer's
+      HTTP POST steps, the admin field the installer consumes is a
+      plaintext password that the app hashes itself on submit — our only
+      supported per-customer secret channel (generated_from) produces a
+      pre-computed hash of the root password, not its plaintext, so it
+      cannot be projected into a plaintext form field. This is a structural
+      mismatch, not a missing-algorithm gap: there is no first-boot
+      variable at all for the admin password, so generated_from has nothing
+      to attach to.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  FOSSBilling is a two-container PHP/Apache + MariaDB app (official
+  fossbilling/fossbilling image, single HTTP port 80), structurally similar
+  to the paperless-ngx/Akaunting/Dolibarr pattern and reverse-proxy-
+  compatible behind Traefik with no extra ports. The project is actively
+  maintained (latest tag 0.8.5, ~2 weeks old, on a run of monthly 0.8.x
+  releases) and plain Apache-2.0 with no license-tier caps. It would fill a
+  genuinely new hosting/billing niche distinct from the general accounting/
+  ERP ground covered by the open akaunting and dolibarr gap analyses. It is
+  blocked today, however: FOSSBilling's admin account is created through an
+  interactive web installer that takes a plaintext admin password with no
+  env var or config equivalent, and our only per-customer secret channel
+  (generated_from) only ever carries a hash of the root password — there is
+  no first-boot input the hash can be projected into. Recommend
+  blocked_on_platform pending either an upstream env-var-driven install
+  path for FOSSBilling or a platform mechanism beyond hash projection.

@@ -1,0 +1,90 @@
+slug: librespeed
+name: LibreSpeed
+source_description: Self-hosted HTML5 internet speed test server with built-in results database
+
+upstream:
+  url: https://librespeed.org/
+  repo_url: https://github.com/librespeed/speedtest
+  license: LGPL-3.0-or-later
+  docker_image: linuxserver/librespeed
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    upstream librespeed/speedtest repo (root, docker/, contrib/, or as a
+    release asset) — checked all of those paths, all 404. The project's
+    own docs (doc_docker.md, on the `master` branch, rolling reference)
+    embed a docker-compose.yml snippet inline as documentation rather than
+    publishing a fetchable file, using the official `ghcr.io/librespeed/
+    speedtest:latest` image in standalone mode (the single-container mode;
+    the doc also covers a multi-container backend+frontend split for
+    multi-point-of-test setups, which is not what this recipe targets).
+    Note this recipe's `docker_image` above is `linuxserver/librespeed`
+    (LinuxServer.io's community-maintained image), not the upstream
+    project's own `ghcr.io/librespeed/speedtest` image — LSIO also ships no
+    fetchable compose file of its own, only an equivalent inline example on
+    its docs.linuxserver.io page. Either way, nothing here counts as an
+    official, project-published compose file to link.
+
+version_health:
+  latest_version: "6.2.0"
+  latest_release_date: "2026-07-23"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest tag v6.2.0 published 2026-07-23, ~13 days before today
+    (2026-08-05). Release history shows a dormant stretch between 5.4.1
+    (2024-08-10) and 5.5.0 (2025-12-30) — roughly 16 months with no tags —
+    followed by a reactivation: 5.5.0, v6.0.0-pre1, v6.0.0, v6.0.1, v6.0.2,
+    6.1.0, and 6.2.0 all shipped between 2025-12-30 and 2026-07-23. Current
+    cadence (monthly-ish over the last ~7 months) reads as active, not
+    maintenance-only, but the multi-year prior gap is worth flagging: this
+    project has gone quiet before.
+
+catalogue_fit:
+  categories: [networking, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue tests network throughput.
+    Uptime Kuma (our only monitoring recipe) checks availability/latency of
+    customer-configured endpoints, not raw bandwidth. LibreSpeed gives a
+    customer a self-hosted "speedtest.net"-style tool they can point their
+    own users/clients at (e.g. an ISP, MSP, or office wanting an internal
+    speed-test endpoint independent of third-party services), with a
+    results history stored server-side.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, if narrow, demand: self-hosted bandwidth testing is a common ask
+    for small ISPs, MSPs, and privacy-conscious teams who don't want to rely
+    on speedtest.net. It's also extremely lightweight to run (single
+    container, SQLite by default, ~single HTTP port), which lowers the bar
+    versus a niche multi-service tool. Ceiling is modest — it's a
+    single-purpose utility, not a platform customers build on.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - basic-auth gate credential for the main speed-test page
+    - PASSWORD (results-history page)
+  secrets_expressible_today:
+    - secret: basic-auth gate credential for the main speed-test page
+      mechanism: traefik_basic_auth
+    - secret: PASSWORD (results-history page)
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  LibreSpeed is a lightweight, single-container, reverse-proxy-friendly web
+  app with no overlap in our current catalogue and a real (if niche) use
+  case around self-hosted bandwidth testing. It just came off a ~7-month
+  active streak of releases after a multi-year quiet period, so watch for
+  another stall, but as of today it reads active. It's installable under
+  the current mechanism: gate the whole app behind Traefik basic_auth
+  (projecting the customer's root-password hash, IF-1312) since the test UI
+  itself has no login, and server-generate the internal linuxserver
+  `PASSWORD` env var (which only protects an optional results-history page)
+  with no customer input needed. Good build_now candidate once IF-1312
+  lands.

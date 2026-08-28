@@ -1,0 +1,119 @@
+slug: emoncms
+name: EmonCMS
+source_description: "Open-source energy, temperature, and sensor data logging and visualization app"
+
+upstream:
+  url: https://emoncms.org/
+  repo_url: https://github.com/emoncms/emoncms
+  license: AGPL-3.0
+  docker_image: openenergymonitor/emoncms
+  compose_file_url: https://raw.githubusercontent.com/emoncms/emoncms-docker/master/docker-compose.yml
+  compose_file_notes: >
+    Official — from the separate emoncms/emoncms-docker packaging repo
+    (the same repo that produces the Docker image recorded above; see
+    version_health for how stale its releases are relative to the core
+    app). That repo ships three compose files layered via `-f`: a base
+    docker-compose.yml (web, MariaDB, Redis, Mosquitto MQTT — matches the
+    stack described in installability.blocking_issues), a
+    docker-compose.override.yml applied by default for local/dev use, and
+    a docker-compose.prod.yml meant to be combined with the base file for
+    production (`docker-compose -f docker-compose.yml -f
+    docker-compose.prod.yml up -d`, per the repo's README). Recorded the
+    base docker-compose.yml here since it defines the actual services;
+    the prod file only overrides settings on top of it. This link points
+    at the `master` branch (rolling reference to the default branch, not
+    a version-pinned tag/release asset) — the repo does cut numbered
+    releases (see version_health) but does not publish a
+    releases/latest/download-style asset for this file, only source tags.
+
+version_health:
+  latest_version: "11.6.10 (Docker image tag) / 11.15.15 (core app repo tag)"
+  latest_release_date: "2024-12-18 (emoncms-docker packaging release) / 2026-06-15 (emoncms core app release)"
+  release_cadence: sporadic
+  eol_status: maintenance-only
+  notes: >
+    Two different repos matter here and they are badly out of sync. The
+    core app repo (github.com/emoncms/emoncms) is genuinely active — latest
+    tagged release 11.15.15 on 2026-06-15 (~7 weeks before today,
+    2026-08-05), preceded by a burst of a dozen+ point releases in the
+    first half of June 2026, and commit activity (PR merges) visible on
+    master as recently as today. But the separate packaging repo that
+    produces the official Docker image, github.com/emoncms/emoncms-docker,
+    last cut a release (11.6.10) on 2024-12-18 — over 19 months ago — and
+    that is also the newest numbered tag actually published to Docker Hub
+    (`openenergymonitor/emoncms`); `:latest` on Docker Hub points at that
+    same 11.6.10 build. So the only consumable Docker image is frozen
+    roughly 9 minor-version lines behind the current app release
+    (11.6.x vs 11.15.x), with no indication the packaging repo will catch
+    up — its own release cadence (11.3.17 in Apr 2023, 11.3.24 in Jul 2023,
+    11.6.10 in Dec 2024) is sporadic even on its own terms. Treating
+    "the project" as the thing we'd actually ship (the Docker image), this
+    is maintenance-only/dormant packaging riding on top of an active core
+    repo — flagging per SCHEMA.md's guidance to catch stale packaging
+    rather than soften it for the sake of the upstream app looking active.
+
+catalogue_fit:
+  categories: [iot, monitoring, home-automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [home-assistant]
+  differentiation: >
+    EmonCMS is a narrow, purpose-built time-series logger/visualizer for
+    energy, temperature, and other sensor feeds, built around the
+    OpenEnergyMonitor hardware ecosystem (emonTx, emonPi, emonBase). It is
+    not a general home-automation hub — no device control, no
+    integrations marketplace — so it doesn't strictly duplicate
+    recipes/home-assistant, but the two target an overlapping audience
+    (self-hosters instrumenting their home/energy setup) and a customer
+    already running Home Assistant can cover basic energy dashboards via
+    its own energy dashboard/MQTT integrations without a second app.
+  usefulness: low
+  usefulness_rationale: >
+    Real value is narrowly scoped to OpenEnergyMonitor hardware owners
+    (a specific enthusiast niche) rather than general self-hosting
+    customers; most prospective users already running smart-home gear are
+    more likely to already have or want Home Assistant instead. Combined
+    with the stale, far-behind Docker packaging (see version_health), this
+    is a small addressable audience for the risk of shipping a frozen,
+    9-versions-behind image.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      EmonCMS has no fixed/pre-provisioned admin credential to project a
+      password hash into — the first visitor to the web UI self-registers
+      an account via a signup form, and that first-registered account
+      becomes the admin. This is not a structural blocker under the
+      current mechanism (there is no customer-supplied value needed at
+      all — same pattern already shipped in recipes/n8n and
+      recipes/uptime-kuma, neither of which gates or pre-seeds the first
+      account either), but it does mean the app sits open to "whoever
+      visits first registers as admin" for the window between deploy and
+      the customer's own first login, identical to those two existing
+      recipes' accepted behavior today.
+    - >
+      The upstream default docker-compose stack bundles an Eclipse
+      Mosquitto MQTT broker exposed on raw TCP port 1883 (used for posting
+      sensor data into EmonCMS outside the HTTP API) alongside the web UI
+      on port 80. The web UI alone is single-HTTP-port and Traefik-
+      compatible; MQTT ingestion is not (Traefik in this catalogue fronts
+      HTTP(S) only). A recipe could omit the MQTT service for MVP and
+      accept only the HTTP-based input API, but that drops a feature many
+      EmonCMS/OpenEnergyMonitor users specifically rely on.
+  installable_today: true
+  recommendation: build_with_caveats
+
+summary: >
+  EmonCMS is mechanically installable today — no admin credential needs a
+  projection channel we lack (same self-registration pattern already
+  shipped for n8n/uptime-kuma), and its web UI is a single reverse-proxy-
+  friendly HTTP port once the optional MQTT broker is left out. Two real
+  caveats remain: the app self-registers whoever visits the web UI first
+  as admin, leaving a window between deploy and the customer's own first
+  login (same accepted behavior as the n8n/uptime-kuma recipes); and
+  shipping only the HTTP input API (dropping the bundled MQTT broker for
+  Traefik-compatibility reasons) drops a feature some OpenEnergyMonitor
+  users rely on for posting sensor data. Build with those caveats noted.

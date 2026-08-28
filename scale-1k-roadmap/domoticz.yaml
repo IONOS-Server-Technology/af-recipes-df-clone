@@ -1,0 +1,103 @@
+slug: domoticz
+name: Domoticz
+source_description: "Lightweight home automation system for monitoring and controlling smart devices"
+
+upstream:
+  url: https://www.domoticz.com/
+  repo_url: https://github.com/domoticz/domoticz
+  license: GPL-3.0
+  docker_image: domoticz/domoticz
+  compose_file_url: null
+  compose_file_notes: >
+    No downloadable docker-compose.yaml/.yml file exists anywhere in the
+    official project — not in the domoticz/domoticz GitHub repo (no
+    docker/, deploy/, or contrib/ directory, no compose file at root),
+    not on the wiki (wiki.domoticz.com/Docker just links onward to Docker
+    Hub for the "detailed instructions"), and not as a hosted file on
+    Docker Hub. The closest thing to an official compose file is a
+    compose snippet embedded as text in the domoticz/domoticz Docker Hub
+    repository's own README
+    (https://hub.docker.com/r/domoticz/domoticz), published and
+    maintained by the project itself, using `image: domoticz/domoticz:stable`
+    — a rolling reference to whatever the project currently tags
+    `stable`, not a pinned version. Only one variant is shown (no
+    GPU/CPU or db-backend split); the snippet also documents an optional
+    commented-out custom-templates volume mount and a commented-out
+    serial device passthrough, both left inactive in the example. Since
+    this is a doc-embedded snippet rather than a fetchable file, there is
+    no single URL to point a version-tracking watcher at beyond the Docker
+    Hub page text itself.
+
+version_health:
+  latest_version: "2026.3"
+  latest_release_date: "2026-08-02"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release 2026.3 landed 2026-08-02, just 3 days before today
+    (2026-08-05) — about as fresh as a release-cadence check can find.
+    2026 has already seen three numbered releases (2026.1 on 2026-03-25,
+    2026.2 on 2026-05-31, 2026.3 on 2026-08-02), roughly 2-3 months
+    apart, faster than 2025's pace (2025.1 on 2025-05-05, 2025.2 on
+    2025-10-13, ~5 months apart). Official Docker image
+    (domoticz/domoticz) publishes matching version-tagged and `stable`
+    tags in step with each release. Repo is not archived, commits and
+    issue triage are ongoing.
+
+catalogue_fit:
+  categories: [automation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [home-assistant]
+  differentiation: >
+    Domoticz and Home Assistant occupy the same "self-hosted home
+    automation hub" slot: both are single-stack web UIs for monitoring
+    and controlling smart-home devices (Z-Wave, Zigbee, MQTT, and a long
+    list of third-party integrations). Domoticz is the lighter-weight,
+    older of the two — smaller resource footprint, a plainer/dated UI,
+    and a much smaller plugin ecosystem and community than Home
+    Assistant's roughly 1,000+ integrations. It would mainly appeal to
+    customers who specifically want Domoticz's minimal footprint or are
+    already invested in a Domoticz setup, rather than adding a
+    capability the catalogue doesn't have.
+  usefulness: low
+  usefulness_rationale: >
+    Home Assistant is already an existing recipe covering this exact
+    category (home automation hub with a web UI), and it is the more
+    actively developed, far more widely adopted project in that space.
+    Domoticz would be a second, weaker entrant for the same customer
+    need rather than filling a real gap — usefulness is low unless
+    there's a specific reason (e.g. lower resource floor for
+    small/legacy hardware setups) to want it alongside Home Assistant.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Domoticz is a single-container app (official image domoticz/domoticz,
+  pinned e.g. 2026.3) serving its web UI on one HTTP port (WWW_PORT,
+  default 8080; the documented SSL_PORT and the optional 6144
+  device-sharing port aren't needed behind Traefik), with all state
+  under one /opt/domoticz/userdata volume — straightforward to run
+  behind Traefik. It ships with a fixed, well-known default login
+  (admin / domoticz) that the app's own docs tell the operator to
+  change through the web UI after first boot; there is no documented
+  env var to set or override the admin credential (or its MD5 hash,
+  which `generated_from` doesn't support anyway) at container startup.
+  Per the gap-analysis schema's guidance on fixed default credentials,
+  gating the app behind a Traefik basic_auth:true wall (password
+  projected from the customer's root password via generated_from) turns
+  that default-credential exposure into a non-issue, so there's no hard
+  blocking issue and this is installable_today. The release is active
+  and current, and with no blocking issues this is build_now. It
+  overlaps with Home Assistant, which already covers the same "home
+  automation hub" niche in the catalogue, but that overlap is a
+  catalogue-fit fact, not a reason to hold back a mechanically clean
+  build.

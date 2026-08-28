@@ -1,0 +1,93 @@
+slug: deepwiki-open
+name: DeepWiki Open
+source_description: "AI-powered wiki generator for GitHub, GitLab, and Bitbucket repositories"
+
+upstream:
+  url: https://github.com/AsyncFuncAI/deepwiki-open
+  repo_url: https://github.com/AsyncFuncAI/deepwiki-open
+  license: MIT
+  docker_image: ghcr.io/asyncfuncai/deepwiki-open (sha-tagged only, e.g. sha-cbd1ebd — no semver-tagged image published)
+  compose_file_url: https://raw.githubusercontent.com/AsyncFuncAI/deepwiki-open/main/docker-compose.yml
+  compose_file_notes: >
+    Official — lives at the root of the project's own repo, not a
+    third-party template. Rolling reference to the default branch (`main`),
+    not version-pinned: there are no GitHub Releases or tags to pin to (see
+    version_health above), and the file itself is not linked from any
+    README (main or api/) — it was found by browsing the repo tree, the
+    same way the self-host instructions in version_health notes were
+    recovered from api/README.md rather than the front-page docs. It
+    builds the image locally (`build: context: . / dockerfile: Dockerfile`)
+    rather than pulling the published ghcr.io sha-tagged image. This is the
+    default/base variant; the repo also ships docker-compose-litellm.yml
+    (adds a LiteLLM proxy sidecar for custom model routing) which was not
+    chosen since it's an optional add-on, not the base deployment.
+
+
+version_health:
+  latest_version: "no tagged release; rolling main branch, most recent commit 2026-08-04 (PR #568)"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    No GitHub Releases have ever been published for this repo (releases page
+    is empty) and the container registry only ships commit-sha tags
+    (sha-cbd1ebd, sha-b5e7666, ...), never :latest-as-a-version or a semver
+    tag — there is no stable version to pin the way RFC-002 expects.
+    Commit activity is genuinely active: 10 commits in the 10 days before
+    2026-08-05 (today), most recent 1 day prior. However, the top-level
+    README has been gutted to a single paragraph pointing at a hosted
+    commercial product, "Grok Wiki" (grok-wiki.com), branded "Deepwiki-Open
+    2.0" — the maintainer's setup docs, feature list, and self-host
+    instructions have been removed from the OSS README in favor of the SaaS.
+    Self-host instructions used here were recovered from `api/README.md`,
+    `docker-compose.yml`, and `api/config.py` in the source tree, not the
+    front-page README. Treat this as a signal the OSS edition may be
+    de-prioritized even though commits continue.
+
+catalogue_fit:
+  categories: [ai, developer-tools, documentation]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the 24 current recipes generate documentation/wikis from a code
+    repository. Closest neighbors are open-webui and ollama (self-hosted AI
+    compute) and paperless-ai (AI companion to an existing app), but none
+    touch code-to-docs generation. This would be a genuinely new category
+    for the catalogue.
+  usefulness: medium
+  usefulness_rationale: >
+    Useful niche for a dev-focused customer, but the app's real value
+    (LLM-quality code understanding) depends on a frontier model (Gemini/
+    OpenAI/OpenRouter/Bedrock), and see installability below for why that
+    can't be wired up as a customer-supplied credential today. Restricted
+    to a bundled local Ollama model, output quality is materially weaker,
+    which caps how compelling this recipe is versus the upstream's own
+    positioning.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "Traefik basic-auth gate credential"
+  secrets_expressible_today:
+    - secret: "Traefik basic-auth gate credential"
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - "App has no built-in login by default; DEEPWIKI_AUTH_MODE/DEEPWIKI_AUTH_CODE exist but require a plaintext shared code compared server-side, not a hash — generated_from cannot supply this because it only ever emits argon2/bcrypt hashes, so a Traefik basic-auth gate is used instead."
+    - "Default config requires GOOGLE_API_KEY (default chat provider) and OPENAI_API_KEY (default embedder, text-embedding-3-small) — both external API keys with no customer-supplied-value channel today."
+    - "A no-external-key deployment is possible (DEEPWIKI_EMBEDDER_TYPE=ollama + PROVIDER=ollama, bundling an Ollama service the way recipes/open-webui does) but this is a recipe-authoring workaround, not something the app supports out of the box, and it meaningfully degrades the AI-generated wiki quality that is the app's whole value proposition."
+    - "Frontend (Next.js, port 3000) and backend (FastAPI, port 8001) are two separate containers; most HTTP calls are proxied by Next.js rewrites, but the chat WebSocket connects from the browser directly to the backend port (see src/utils/websocketClient.ts), so Traefik needs two routers on one host (path- or port-based) rather than a single pass-through port like most existing recipes."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  DeepWiki Open would fill a genuinely new "AI docs from a repo" niche in
+  the catalogue, has an MIT license, a real web UI, and active upstream
+  commits (most recent one day before this analysis). But it structurally
+  needs an external LLM API key (Google/OpenAI by default) to do anything
+  useful, and our only workaround — forcing it onto a bundled local Ollama
+  model — is a downgrade the app's own README doesn't even document,
+  produces materially worse wikis, and would need its own resource-floor
+  and Traefik dual-router work on top. Recommend holding until a real
+  customer-supplied-API-key channel exists (or Ollama-only is explicitly
+  accepted as the shipped mode), rather than building now with caveats.

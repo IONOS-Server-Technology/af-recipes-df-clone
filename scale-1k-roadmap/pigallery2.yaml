@@ -1,0 +1,108 @@
+slug: pigallery2
+name: PiGallery2
+source_description: "Self-hosted directory-first photo gallery for archives and shared albums"
+
+upstream:
+  url: https://bpatrik.github.io/pigallery2/
+  repo_url: https://github.com/bpatrik/pigallery2
+  license: MIT
+  docker_image: bpatrik/pigallery2:3.5.2
+  compose_file_url: https://github.com/bpatrik/pigallery2/blob/master/docker/docker-compose/pigallery2-only/docker-compose.yml
+  compose_file_notes: >
+    Official, hosted in the project's own repo under docker/docker-compose/,
+    and linked from the project's own docs (bpatrik.github.io/pigallery2/setup/docker).
+    The repo ships two variants: docker/docker-compose/default (pigallery2
+    + nginx reverse proxy + Certbot TLS) and docker/docker-compose/pigallery2-only
+    (just the pigallery2 container, no bundled reverse proxy). Picked
+    pigallery2-only since we front recipes with our own Traefik reverse
+    proxy, making the bundled nginx/Certbot layer redundant. The link is a
+    rolling reference to the `master` branch (not a release-tag or
+    /releases/latest/download/ pinned URL), so it will track upstream
+    changes to the compose file over time rather than staying fixed to a
+    version.
+
+version_health:
+  latest_version: "3.5.2"
+  latest_release_date: "2026-01-24"
+  release_cadence: slowing
+  eol_status: active
+  notes: >
+    v3.5.2 (2026-01-24) is the latest tagged release, ~6.4 months before
+    today (2026-08-05) — a real slowdown versus the preceding cadence
+    (3.0.0 on 2025-10-28 -> 3.0.1 five days later -> 3.1.0 on 2025-12-07,
+    roughly five-week gaps). However, `master` is not stale: commits
+    continue steadily past the 3.5.2 tag (e.g. 2026-05-30, six commits on
+    2026-06-06/07 implementing glob search support for issue #1133, and
+    most recently 2026-07-05, about a month before today). This is a
+    single-maintainer (bpatrik) project that has simply gone longer than
+    usual between cut releases while development itself continues — not
+    dormant, not archived, no EOL signal.
+
+catalogue_fit:
+  categories: [media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [immich, photoprism, photoview, librephotos, home-gallery]
+  differentiation: >
+    PiGallery2 is explicitly "directory-first": its core model indexes an
+    existing photo folder tree as-is, with no managed library and no mobile
+    app — architecturally the closest match in the catalogue is
+    recipes-gaps/photoview.yaml (also a directory browser with a single
+    lightweight backend), not Immich's full backup-and-sync suite. v3.5.2
+    (the latest release) did add basic in-app file upload (drag-and-drop,
+    per-directory whitelist), narrowing that specific gap versus Photoview,
+    but it is still a manual browser-triggered upload into the existing
+    tree, not a phone auto-backup/sync pipeline like Immich's. Its own edges
+    over Photoview are "photo frame" slideshow/kiosk mode and ORCID-linked
+    sharing; it lacks Photoview's face recognition and RAW-specific
+    handling. Against Immich, PhotoPrism, and LibrePhotos it is strictly
+    lighter-weight (single container, file-based/optional SQLite state, no
+    ML service, no Postgres/Redis) but offers none of their AI search, face
+    grouping, or phone auto-backup.
+  usefulness: low
+  usefulness_rationale: >
+    This is now the fifth self-hosted photo-gallery candidate analyzed
+    against the same Immich slot, and the second (after Photoview) whose
+    core pitch is "point it at an already-organized folder tree and
+    browse/share it" rather than backup-and-organize. That niche was
+    already judged low-value and not_recommended for Photoview on the same
+    reasoning: Immich's AI search/face recognition/mobile backup covers the
+    broader audience, and a customer who specifically wants directory-first
+    browsing is a narrow wedge. PiGallery2 adds a photo-frame/kiosk mode and
+    ORCID sharing that Photoview lacks, but neither is enough to justify a
+    third or fourth photo-app slot in the catalogue. v3.5.2 added basic
+    manual file upload, but it is still a browser drag-and-drop into an
+    existing directory tree, not the automatic phone backup/sync flow
+    Immich provides — a customer wanting hands-off mobile backup would
+    still need Immich, not this.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  PiGallery2 is mechanically simple to package: the official
+  `docker/docker-compose/pigallery2-only` example is a single container
+  (bpatrik/pigallery2) on one HTTP port (80), needing no external database
+  (state lives in an internal SQLite-backed `db-data` volume) and no
+  external API keys or OAuth — reverse-proxy-compatible with our Traefik
+  setup out of the box. Its only credential concern is a fixed admin/admin
+  default login; a config channel exists to change it (`enforcedUsers` in
+  `config.json`), but that field only accepts a plaintext password — the
+  app hashes and discards it internally — not a pre-computed hash, so
+  `generated_from`, which only ever carries a hash, can't target it. Per
+  SCHEMA.md that's not a hard blocker on its own: gating the whole app
+  behind a mandatory Traefik `basic_auth: true` (keyed off the customer's
+  root-password hash) moves the real internet-facing auth boundary in
+  front of the weak internal default, making it installable_today with no
+  blocking issues, so the recommendation is build_now. It overlaps with the
+  existing Immich, PhotoPrism, Photoview, LibrePhotos, and Home Gallery
+  recipes (see catalogue_fit) and upstream tagged-release cadence has
+  slowed (6.4 months since 3.5.2, single maintainer, though `master` stays
+  active) — neither of those bears on installability.

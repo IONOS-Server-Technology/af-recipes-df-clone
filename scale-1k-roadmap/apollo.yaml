@@ -1,0 +1,79 @@
+slug: apollo
+name: Apollo
+source_description: "Real-time collaborative genome annotation editor for distributed research teams"
+
+upstream:
+  url: https://genomearchitect.readthedocs.io/
+  repo_url: https://github.com/GMOD/Apollo
+  license: BSD-2-Clause
+  docker_image: gmod/apollo
+  compose_file_url: null
+  compose_file_notes: >-
+    No official docker-compose.yaml/.yml exists anywhere in the GMOD/Apollo
+    repo (checked root, docker-files/, and docs/) or on the
+    genomearchitect.readthedocs.io docs site. The project's Docker guide
+    (docs/Docker.md, rendered at
+    genomearchitect.readthedocs.io/en/latest/Docker.html) documents only
+    plain `docker run` commands for both the quick-start single-container
+    case and the production case with persistent Postgres/JBrowse volume
+    mounts and APOLLO_ADMIN_EMAIL/APOLLO_ADMIN_PASSWORD env vars — it never
+    mentions docker-compose. No community-maintained compose file was
+    found either.
+
+version_health:
+  latest_version: "2.9.0"
+  latest_release_date: "2026-07-15"
+  release_cadence: sporadic
+  eol_status: active
+  notes: >-
+    2.9.0 shipped 2026-07-15, about 3 weeks before today (2026-08-05), so the
+    project is not dormant. But the release history is very irregular: 2.6.6
+    (2022-05) to 2.7.0 (2023-01) was ~8 months, 2.7.0 to 2.8.0 (2025-03) was
+    over 2 years, 2.8.0 to 2.8.1 (2025-04-30) was under 2 months, and 2.8.1
+    to 2.9.0 (2026-07-15) was ~14.5 months. No archival notice, no EOL
+    announcement, and the Docker Hub `gmod/apollo` image was rebuilt for
+    2.9.0 21 days ago — treat as active but with a history of multi-year
+    gaps between releases, not a steady cadence.
+
+catalogue_fit:
+  categories: [science, productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24-recipe catalogue touches bioinformatics or
+    genome curation; this is a genuinely novel category, not a variant of
+    an existing recipe.
+  usefulness: low
+  usefulness_rationale: >-
+    The capability is real (multi-user, real-time GFF3/genome-feature
+    annotation over a JBrowse-based UI, used by genome centers and
+    consortia), but the addressable customer segment among IONOS's general
+    self-hosting audience is tiny and highly specialized — this is a niche
+    academic/research tool, not a broadly useful self-hosted app like the
+    productivity, dev-tooling, or automation apps that make up the rest of
+    the catalogue.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [APOLLO_ADMIN_PASSWORD]
+  secrets_expressible_today:
+    - secret: APOLLO_ADMIN_PASSWORD
+      mechanism: generated_from_root_password
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  Apollo (GMOD/Apollo, genomearchitect.org) is a Java/Grails web app with a
+  bundled PostgreSQL backend, shipped as a single official Docker image
+  (`gmod/apollo`), exposing one HTTP port behind a JBrowse-based UI — it fits
+  the reverse-proxy/Traefik pattern fine and its one credential
+  (APOLLO_ADMIN_EMAIL/APOLLO_ADMIN_PASSWORD, default admin@local.host /
+  password) projects cleanly via `generated_from: "<algo>:ROOT_PASSWORD"`
+  onto its own admin login, so it is mechanically installable today with no
+  platform changes needed and no blocking issues. It is a specialized
+  bioinformatics tool for collaborative genome curation with no overlap in
+  our catalogue; that niche and its bursty release history (multi-year gaps
+  between 2.7.0/2.8.0/2.9.0) are worth noting but do not affect
+  installability. Recommend building this now.

@@ -1,0 +1,94 @@
+slug: handbrake
+name: HandBrake
+source_description: "Browser-accessible open-source video transcoder with watch folder automation"
+
+upstream:
+  url: https://handbrake.fr/
+  repo_url: https://github.com/jlesage/docker-handbrake
+  license: "GPL-2.0 (HandBrake core); the jlesage/docker-handbrake wrapper adding the web GUI/watch-folder is separately MIT-licensed"
+  docker_image: jlesage/handbrake
+  compose_file_url: https://github.com/jlesage/docker-handbrake/blob/master/README.md#docker-compose-file
+  compose_file_notes: >-
+    No standalone docker-compose.yaml/.yml file exists anywhere in the
+    jlesage/docker-handbrake repo (root, docker/, deploy/, contrib/ — none
+    present); the project's only official compose example is embedded
+    inline in the repo's own README.md under the "Docker Compose File"
+    heading. Linked here is that README section on the `master` branch,
+    which is a rolling reference to the default branch (not
+    version-pinned) — it tracks whatever the maintainer currently
+    documents as the minimal/mandatory config. Only one variant is shown
+    (single service, image: jlesage/handbrake, no GPU/dev/db variants to
+    choose between). This is still the official source (jlesage's own
+    repo, not a third-party template), just not a separate downloadable
+    file the way Immich publishes one.
+
+version_health:
+  latest_version: "v26.07.2 (wrapper image, bundling HandBrake CLI 1.9.x); upstream HandBrake desktop app is at 1.11.2"
+  latest_release_date: "2026-07-13 (v26.07.2 image); 2026-06-07 (HandBrake 1.11.2 desktop release)"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    jlesage/docker-handbrake uses calendar versioning (YY.MM.SEQUENCE).
+    GitHub releases show v26.07.2 (2026-07-13), v26.07.1 (2026-07-08),
+    v26.03.3/2/1 (March 2026), v26.02.2/1 (Feb 2026), v26.01.1 (Jan 2026),
+    and a run of v25.12.x releases (Dec 2025) — roughly monthly with
+    occasional multi-release months, and a `nightly` tag rebuilt within the
+    last week as of today (2026-08-05). v26.07.2 is about 23 days before
+    today, well within the project's normal cadence — this is active, not
+    slowing or dormant. The underlying HandBrake core project itself is
+    also actively maintained upstream (1.11.2 released 2026-06-07, ~2
+    months before today, with AMD/Threadripper scaling improvements noted
+    in that release).
+
+catalogue_fit:
+  categories: [media, utilities]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Immich (existing recipe) is a photo/video backup-and-organize product
+    with AI search; it does not do format/codec conversion. No existing
+    recipe covers video transcoding. HandBrake via jlesage's wrapper adds a
+    distinct, genuinely useful capability: a browser-accessible GUI (served
+    over noVNC, no client install) for converting video files between
+    formats/codecs, plus an unattended "watch folder" pipeline (drop a file
+    in, get a transcoded output automatically) — useful to customers
+    re-encoding media libraries for space savings or device compatibility.
+  usefulness: medium
+  usefulness_rationale: >-
+    Video transcoding is a common but narrower self-hosting use case than
+    the catalogue's monitoring/productivity/media-library apps — it appeals
+    to customers actively managing a media collection (often alongside a
+    yet-to-exist Plex/Jellyfin/Emby-style server) rather than a general
+    audience. The browser-GUI + watch-folder combination is a real
+    convenience over running HandBrake locally, and CPU/storage
+    requirements are modest for on-demand jobs (though large batch
+    transcodes are compute-intensive, that's a customer workload choice,
+    not a hosting blocker).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  jlesage/handbrake is a single-container app exposing a browser-based GUI
+  (noVNC) on port 5800, with /config, /storage, /watch, and /output volumes
+  for the watch-folder automation Hostinger's description calls out — no
+  extra raw ports needed, straightforward behind Traefik on
+  handbrake.<base_domain>. The image does ship an optional
+  WEB_AUTHENTICATION_USERNAME/WEB_AUTHENTICATION_PASSWORD pair, but that
+  mechanism only accepts a plaintext password via env var (no hash-based
+  option `generated_from` could target), so the recipe should leave it
+  disabled and instead gate the whole app behind a mandatory Traefik
+  `basic_auth` credential projected from the customer's root password —
+  the same pattern already used for n8n/WUD/Immich-style "no usable
+  built-in login" apps. That makes it mechanically installable today with
+  no blocking issues. Upstream is actively maintained on both layers
+  (wrapper image and HandBrake core). Recommend build_now as a genuinely
+  new, if moderately niche, capability for the catalogue.

@@ -1,0 +1,124 @@
+slug: transmission
+name: Transmission
+source_description: "Transmission is a lightweight BitTorrent client with a clean web interface for remote downloads."
+
+upstream:
+  url: https://transmissionbt.com
+  repo_url: https://github.com/transmission/transmission
+  license: "GPL-2.0-or-later AND MIT (mixed per-file, see COPYING/licenses/)"
+  docker_image: lscr.io/linuxserver/transmission (pin to a version tag, e.g. 4.1.3-r0-ls357 — do not follow upstream compose examples that use :latest)
+  compose_file_url: null
+  compose_file_notes: >
+    No compose file exists anywhere in the transmission/transmission repo
+    (checked github.com/transmission/transmission — no docker-compose.yaml
+    at root or under docker/deploy/contrib; the upstream project doesn't
+    package Docker itself). This recipe instead uses the linuxserver.io
+    community image (lscr.io/linuxserver/transmission), and linuxserver.io
+    — as that image's own maintainer — publishes a docker-compose example
+    for it at docs.linuxserver.io/images/docker-transmission/, but only
+    embedded inline in the docs page prose, not as a separate downloadable
+    file (no docker-compose.yaml/.yml found at the root or under any
+    docker/deploy directory of github.com/linuxserver/docker-transmission
+    either). Since there's no standalone file to link, and this doc-embed
+    is a rolling reference (edited in place, not tagged to an image
+    version), compose_file_url is left null rather than pointing at a page
+    that isn't itself a compose file.
+
+version_health:
+  latest_version: "4.1.3"
+  latest_release_date: "2026-06-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    As of today (2026-08-05), the latest stable release (4.1.3,
+    2026-06-30) shipped about 5 weeks ago. 2026 has seen a steady stream
+    of releases on the 4.1.x line: 4.1.0-beta.5 (2026-01-06) → 4.1.0
+    (2026-01-27, the "sequential downloading, better performance, modern
+    RPC support" release) → 4.1.1 (2026-02-20, bugfix) → 4.1.2
+    (2026-06-02, ~20 bugfixes) → 4.1.3 (2026-06-30, security fix for a
+    CORS bug leaking the anti-CSRF nonce). The ~3.5-month gap between
+    4.1.1 and 4.1.2 is the only soft spot in an otherwise active cadence.
+    The upstream repo is not archived (16.9k+ commits, ongoing PR/issue
+    activity), and linuxserver.io mirrors releases within days (4.1.3
+    tags published 3 days after the upstream release at research time).
+    No EOL, archival, or maintenance-only signals found. Note: "Transmit"
+    (a macOS FTP/SFTP client) is an unrelated, similarly-named project —
+    not considered here.
+
+catalogue_fit:
+  categories: [downloads, media]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No BitTorrent/download-client recipe exists in the current 24-recipe
+    catalogue today. Transmission's web UI (port 9091 by default) is a
+    single HTTP endpoint and works behind Traefik the same way Syncthing's
+    web UI does, alongside a raw torrent-protocol port (51413/tcp+udp)
+    that must stay open regardless of Traefik — the same precedent already
+    accepted for Syncthing and the qBittorrent/Deluge gap-analysis
+    candidates (`apps-gaps/qbittorrent.yaml`, `apps-gaps/deluge.yaml`),
+    which cover the same "BitTorrent client with web UI" niche. Per repo
+    convention, that overlap between candidates is not itself a reason to
+    reject any of them — Transmission is evaluated here on its own merits.
+  usefulness: medium
+  usefulness_rationale: >
+    Transmission is one of the three most recognized open-source
+    BitTorrent clients (alongside qBittorrent and Deluge) and is
+    especially known for being lighter-weight and simpler than either —
+    a reasonable pick for customers who want a minimal downloader rather
+    than qBittorrent's fuller feature set. Usefulness is capped at medium
+    rather than high because qBittorrent already covers the same niche
+    with a larger install base and more actively-developed feature set,
+    and — like the other torrent-client candidates — Transmission would
+    deliver more value as part of a future media-automation grouping
+    (Sonarr/Radarr/*arr-style recipes, which we don't carry) than as a
+    fully standalone recipe today.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [RPC_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      The linuxserver/transmission image's own RPC/web-UI login is set via
+      the USER/PASS environment variables, which the container's init
+      script writes verbatim into settings.json's rpc-username/rpc-password
+      fields (confirmed against linuxserver/docker-transmission's
+      init-transmission-config script) — this is the app's own login, not
+      a "no login of its own" case, so Traefik basic_auth is not the
+      natural fit here the way it was for qBittorrent/Deluge.
+    - >
+      Transmission accepts rpc-password either as plaintext (which it
+      re-hashes and rewrites into settings.json on daemon startup) or,
+      if the value already starts with "{", as a pre-hashed credential in
+      its own proprietary salted-SHA1 format ("{" + 40-hex-char SHA1 +
+      8-char salt). Because PASS is written verbatim (no transformation
+      by the container script), a hash in that exact format could in
+      principle be projected the same way `generated_from` projects
+      argon2/bcrypt hashes elsewhere in the catalogue — but that
+      algorithm isn't one of the algorithms `generated_from` supports
+      today (only argon2, bcrypt). Per the SCHEMA.md guidance this is
+      "not a hard no": it's a genuine hash format, just an unsupported
+      one, so this is `blocked_on_platform` naming the needed algo
+      (transmission's proprietary salted-SHA1), not `not_recommended`.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Transmission (via the linuxserver/transmission image) is a single-
+  container app with a web UI on one HTTP port (9091) plus a raw
+  torrent-protocol port (51413/tcp+udp) that must stay open regardless of
+  Traefik — the same pattern already accepted for Syncthing. Unlike
+  qBittorrent (no configurable login) and Deluge (fixed default login),
+  Transmission actually has a real, overridable login of its own via the
+  USER/PASS env vars, and its rpc-password field supports a pre-hashed
+  format alongside plaintext. That makes it a `generated_from` candidate
+  in principle, but the hash format it needs (Transmission's own
+  proprietary salted-SHA1) is not one of the algorithms `generated_from`
+  supports today (argon2, bcrypt) — so it is `blocked_on_platform` rather
+  than a hard `not_recommended`, pending either that algorithm being added
+  to `generated_from` or a decision to gate it behind Traefik
+  `basic_auth` instead like its siblings. Version health is solid (active
+  cadence, no EOL signals), but usefulness is medium since qBittorrent
+  already covers this niche more fully.

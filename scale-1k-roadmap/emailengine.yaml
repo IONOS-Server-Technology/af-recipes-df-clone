@@ -1,0 +1,112 @@
+slug: emailengine
+name: EmailEngine
+source_description: "Self-hosted email API proxy connecting IMAP and SMTP to REST endpoints"
+
+upstream:
+  url: https://emailengine.app/
+  repo_url: https://github.com/postalsys/emailengine
+  license: "Source-available (proprietary EmailEngine License) — 14-day free trial, then requires a paid subscription License Key"
+  docker_image: postalsys/emailengine
+  compose_file_url: https://go.emailengine.app/docker-compose.yml
+  compose_file_notes: >
+    Official install docs (learn.emailengine.app/docs/installation/docker)
+    tell users to run `curl -LO
+    https://go.emailengine.app/docker-compose.yml`. That short link is a
+    redirect (confirmed via `curl -sIL`) to
+    https://raw.githubusercontent.com/postalsys/emailengine/refs/heads/master/docker-compose.yml
+    — a rolling reference to the default branch, not a version-pinned
+    release asset, so its contents can change between installs without a
+    version bump. The file bundles EmailEngine together with a Redis
+    container (Redis is a required external datastore per the app's own
+    docs, not optional). No alternate variant (GPU/CPU, dev/prod,
+    sqlite/postgres) is offered — this is the only compose file the
+    project ships.
+
+version_health:
+  latest_version: "v2.77.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2.77.0 published 2026-08-03, two days before this analysis
+    (2026-08-05). Ten versions shipped between v2.72.3 (2026-07-06) and
+    v2.77.0 (2026-08-03), roughly one month — a weekly-plus release
+    cadence with both minor and patch releases. Actively developed by
+    Postal Systems, not archived or in maintenance mode.
+
+catalogue_fit:
+  categories: [productivity, developer-tools, email]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Nothing in the current 24-recipe catalogue offers this: a REST/webhook
+    façade over arbitrary IMAP/SMTP/Gmail-API/Microsoft-365 mailboxes for
+    developers building on top of email. n8n and Gitea only consume SMTP
+    outbound for their own notifications; hermes-agent is unrelated. A
+    customer building an app that needs "sync this mailbox, expose it as a
+    REST API and webhooks" has no existing recipe covering that need.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case (headless email client / API proxy for
+    developers) with no catalogue overlap, but it targets a narrower
+    audience (developers integrating email into their own apps) than most
+    of our current recipes, and its own license terms cap how useful it
+    can be for more than a 14-day trial (see blocking_issues).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - EENGINE_SECRET
+    - EENGINE_PREPARED_PASSWORD (admin login)
+    - EENGINE_PREPARED_LICENSE (paid subscription license key)
+  secrets_expressible_today:
+    - secret: EENGINE_SECRET
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      EmailEngine requires its own paid subscription License Key
+      (EENGINE_PREPARED_LICENSE) once the 14-day trial expires — a
+      third-party credential purchased from postalsys.com per
+      installation, checked against Postal Systems' own licensing
+      service. There is no channel for a customer (or af-api) to supply
+      this today, and unlike a free API key this one costs money per
+      instance — every install would silently stop functioning after 14
+      days without it. This is a business/licensing blocker independent
+      of the technical secret-projection mechanism.
+    - >
+      The admin login password (EENGINE_PREPARED_PASSWORD) must be
+      supplied as a base64url-encoded pbkdf2-sha512 password hash, not
+      plaintext and not argon2/bcrypt. `generated_from` today only
+      supports `argon2` and `bcrypt`. Per SCHEMA.md this is "not a hard
+      no" — flagging as blocked_on_platform (needs pbkdf2 support added to
+      `generated_from`) rather than a structural blocker, since the app
+      never needs the plaintext password itself.
+    - >
+      The service exposes three ports for its actual purpose beyond the
+      admin Web UI: SMTP message submission (2525) and an IMAP proxy
+      (9993), neither of which are HTTP and so cannot sit behind Traefik
+      the way every other recipe in the catalogue does — only the
+      REST-API/UI port (3000) is reverse-proxy compatible.
+    - >
+      Minimum recommended footprint is 8GB RAM / 4 CPU cores (16GB+/8+
+      cores recommended for production), heavier than nearly every
+      existing recipe, plus a required external Redis instance used as a
+      primary datastore (not a cache) that would need to ship as a second
+      container.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  EmailEngine fills a real gap (no existing recipe offers a REST/webhook
+  proxy over IMAP/SMTP/Gmail/Microsoft-365 mailboxes), is actively
+  developed, and its admin-password hashing scheme is only a
+  platform-extension blocker (pbkdf2 support), not a structural one. But
+  it is not viable today: it requires a paid, per-installation Postal
+  Systems License Key with no customer-facing input channel and no
+  free tier beyond a 14-day trial, plus two non-HTTP ports (SMTP, IMAP
+  proxy) that don't fit our Traefik-only exposure model. Recommend
+  blocked_on_platform — revisit if/when a licensed-third-party-API-key
+  input channel exists and pbkdf2 is added to `generated_from`; the
+  license-key cost model may still make this a poor catalogue fit even
+  then.

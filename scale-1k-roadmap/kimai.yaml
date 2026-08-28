@@ -1,0 +1,108 @@
+slug: kimai
+name: Kimai
+source_description: "Self-hosted time tracking for freelancers, agencies, and teams"
+
+upstream:
+  url: https://www.kimai.org/
+  repo_url: https://github.com/kimai/kimai
+  license: AGPL-3.0-or-later
+  docker_image: kimai/kimai2
+  compose_file_url: https://www.kimai.org/documentation/docker-compose.html
+  compose_file_notes: >
+    Kimai does not ship a downloadable docker-compose.yaml (no such file
+    exists at the repo root, under docker/deploy/contrib, or as a release
+    asset — the repo's .docker/ directory only holds a Dockerfile helper
+    entrypoint/config, no compose file). The project's own docs site
+    (kimai.org/documentation/docker-compose.html) is the closest thing to
+    "official": it embeds two full docker-compose.yaml examples directly
+    in the page (a basic hardcoded-credentials variant on kimai/kimai2:stable,
+    and an env-var-driven variant on kimai/kimai2:apache, both with MySQL
+    8.3). Since there is no separate file URL to link to, compose_file_url
+    points at this docs page rather than a raw file. This is a rolling
+    reference to whatever the docs page currently shows, not a
+    version-pinned artifact — the page itself pins the app image to the
+    `stable`/`apache` tags (not a numbered release) and MySQL to `8.3`.
+    Picked the env-var/apache variant as the more relevant one to note
+    (production-recommended per the docs; the FPM variant is documented as
+    no longer supported), though both are embedded on the same page.
+
+version_health:
+  latest_version: "2.63.0"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Actively maintained; kimai/kimai2 Docker Hub repo shows a steady
+    monthly release cadence through 2026 (2.46.0 on 2026-01-07 through
+    2.63.0 on 2026-08-03, i.e. 2 days before today, 2026-08-05). No EOL
+    or archival announcement found. Note on naming: the GitHub repo was
+    renamed from "kimai2" to "kimai" but the Docker Hub image name
+    (kimai/kimai2) was kept for backward compatibility — this is the
+    correct/current upstream, not to be confused with the legacy Kimai v1
+    (github.com/kimai/kimai1, GPL-3.0, EOL/superseded by v2) or with
+    "Kemai" (AlexandrePTJ/kemai), an unrelated third-party desktop tray
+    client for the Kimai API.
+
+catalogue_fit:
+  categories: [productivity, business]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes cover time tracking / timesheet /
+    invoicing for freelancers or agencies. Kimai adds a genuinely new
+    category: project/customer/activity-based time tracking with
+    reporting and invoice export.
+  usefulness: medium
+  usefulness_rationale: >
+    Real, distinct use case with no catalogue overlap and a sizeable
+    target audience (freelancers, agencies). Standard single-web-app +
+    MySQL/MariaDB shape, structurally similar to recipes/n8n and
+    recipes/paperless-ngx (app container + DB container behind Traefik).
+    Value is capped by the same admin-credential blocker seen in Keila
+    (see blocking_issues).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - ADMINPASS
+    - APP_SECRET
+    - DATABASE_URL
+  secrets_expressible_today:
+    - secret: APP_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: DATABASE_URL
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - >
+      ADMINPASS (the initial ROLE_SUPER_ADMIN login) is accepted by the
+      image only as a plaintext value — the entrypoint runs
+      `kimai:user:create` with this password, and Kimai hashes it
+      internally at creation time but gives no way to seed the account
+      from a pre-computed hash. `generated_from` only ever projects a hash
+      (argon2/bcrypt) of ROOT_PASSWORD into an app parameter, and the
+      customer would then need to know and type that hash string to log
+      in, which they don't. This is the same class of structural blocker
+      documented for Keila's KEILA_PASSWORD — not an unsupported-algo gap,
+      since no algorithm choice fixes a plaintext-only field.
+    - >
+      Gating the app behind Traefik basic_auth instead does not resolve
+      this: the customer still needs a working Kimai login (to track their
+      own time, manage projects/customers, run reports) beyond the outer
+      gate, and ADMINPASS would have to be some value the customer never
+      learns, leaving them locked out of the actual application.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Kimai is an active, well-maintained (monthly release cadence through
+  2026), AGPL-3.0 self-hosted time-tracking app that would fill a real gap
+  in the current 24-recipe catalogue — no existing recipe covers
+  freelancer/agency time tracking. It is structurally simple (single web
+  app + MySQL/MariaDB, single HTTP port, Traefik-compatible), similar in
+  shape to recipes/n8n and recipes/paperless-ngx. It cannot ship today
+  because the only supported first-boot admin credential (ADMINPASS) is
+  plaintext-only with no hash-seeding path, the same blocker already
+  documented for Keila. Revisit once the platform adds a genuine
+  customer-supplied plaintext-credential input channel (beyond hash
+  projection via `generated_from`).

@@ -1,0 +1,132 @@
+slug: redaxo
+name: REDAXO
+source_description: "Flexible open-source PHP CMS with full control over website output code"
+
+upstream:
+  url: https://redaxo.org
+  repo_url: https://github.com/redaxo/redaxo
+  license: MIT
+  docker_image: friendsofredaxo/redaxo
+  compose_file_url: null
+  compose_file_notes: >
+    The only docker-compose.yml in the official redaxo/redaxo repo
+    (https://github.com/redaxo/redaxo/blob/main/docker-compose.yml, a
+    rolling main-branch reference) is explicitly for core-development use,
+    not for deploying a site: its README section introducing it ("To
+    develop on core and core addons...") says to run `docker-compose up
+    -d` after `composer install`, and the file itself bind-mounts the repo
+    checkout (`.:/var/www/html:cached`) as the webroot rather than a named
+    volume, and pairs it with a throwaway MySQL container using a hardcoded
+    weak password with a `# do not use for production!` comment. It is not
+    usable as an install/deployment template. redaxo.org's own site has no
+    Docker install docs, and there is no compose file published under the
+    FriendsOfREDAXO/docker-redaxo repo (the community image's home) either
+    — that repo only shows a docker-compose snippet embedded in its
+    README's usage section, not a standalone file. Per the existing
+    version_health note, friendsofredaxo/redaxo itself is already
+    community-maintained, not first-party, so its README snippet would not
+    qualify as official even if it were a real file. No official
+    production compose file exists.
+
+version_health:
+  latest_version: "5.21.4"
+  latest_release_date: "2026-08-03"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    5.21.4 shipped 2026-08-03, two days before today (2026-08-05) —
+    security fixes across mediapool, metainfo, and structure addons.
+    Preceding releases show a tight cadence: 5.21.3 (2026-07-31), 5.21.2
+    (2026-06-29), 5.21.1 (2026-06-01), 5.21.0 (2026-04-09, PHP 8.3 minimum
+    + Symfony bumps), 5.20.2 (2026-01-05), 5.20.1 (2025-11-25), 5.20.0
+    (2025-09-05). That's a patch release roughly every 3-5 weeks with
+    minor/major lines every 2-4 months over the last year — genuinely
+    active, not just security-only maintenance. The main repo was last
+    pushed today (2026-08-05) and is not archived. The community-maintained
+    Docker image (friendsofredaxo/redaxo, under the FriendsOfREDAXO GitHub
+    org, the same ecosystem umbrella as other official-adjacent REDAXO
+    tooling) has 50K+ pulls and was rebuilt about 1 month ago, tracking the
+    "5" / "5-stable" / "5-edge" floating tags. There is no REDAXO-published
+    image directly from the redaxo/redaxo org itself — the upstream repo
+    only ships a docker-compose.yml for local core development, not a
+    production image — so friendsofredaxo/redaxo is the de facto standard
+    distribution channel, not an official first-party one.
+
+catalogue_fit:
+  categories: [cms, website-builder]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes is a general-purpose CMS or website
+    builder. Several other PHP/Node CMS candidates already have their own
+    gap analyses in this directory (classicpress.yaml, joomla.yaml,
+    drupal.yaml, grav.yaml, halo.yaml, bludit.yaml, ghost.yaml) and REDAXO
+    would be competing for the same broad "run a website" catalogue slot as
+    all of them — worth reading together before picking which (if any) to
+    build first. REDAXO's own angle within that group: unlike
+    WordPress/ClassicPress/Bludit (blog-post-first, fixed content model)
+    or Drupal/Joomla (heavier, more opinionated enterprise CMS), REDAXO is
+    explicitly a thin content-management framework — it ships no default
+    theme or forced markup and expects the site builder to write their own
+    PHP/HTML templates via its module/template addon system (AddOns
+    "YForm", "YRewrite", etc.), closer in spirit to a headless-ish
+    build-your-own-frontend tool than a turnkey blog. It has a strong
+    install base in the DACH (German-speaking) market specifically, which
+    may or may not matter to IONOS's customer mix.
+  usefulness: high
+  usefulness_rationale: >
+    General-purpose website/CMS hosting is one of the most commonly
+    requested self-hosted use cases and the catalogue has zero entries for
+    it today. REDAXO's "no fixed theme, full output control" positioning is
+    a genuine differentiator from the blog-first WordPress-family
+    candidates already drafted, appealing specifically to agencies/
+    developers building custom sites rather than end users wanting a blog
+    out of the box. It also happens to be the cleanest of the PHP-CMS
+    candidates from an automation standpoint (see installability) — several
+    of the other CMS gap files needed extra engineering (wp-cli, scripted
+    installer POSTs) to avoid a browser-driven setup wizard; REDAXO's
+    community image supports that natively.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - db_password
+    - admin_password
+  secrets_expressible_today:
+    - secret: db_password
+      mechanism: server_generated_no_customer_input
+    - secret: admin_password
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  REDAXO is a two-container recipe — friendsofredaxo/redaxo (PHP/Apache,
+  port 80, pinned e.g. to the "5" tag; no per-patch-version tag is
+  currently published, only floating 5/5-stable/5-edge, so pinning would
+  need to be by image digest rather than an immutable version tag, a minor
+  authoring caveat, not a platform blocker) plus a MariaDB sidecar,
+  structurally close to Gitea/Paperless-ngx in this catalogue. Its install
+  flow is the cleanest of the PHP-CMS gap candidates seen so far: the
+  image documents that "REDAXO is auto-installed within the container if
+  the web root is empty and all required environment variables are
+  provided" — REDAXO_DB_HOST/NAME/LOGIN/PASSWORD plus
+  REDAXO_ADMIN_USER/REDAXO_ADMIN_PASSWORD (min 8 chars) — fully
+  non-interactive, no browser wizard and no wp-cli-style workaround
+  needed. REDAXO's own setup code (rex_login::passwordHash) always hashes
+  whatever plaintext is handed to it, so `generated_from`'s root-password
+  hash projection cannot feed REDAXO_ADMIN_PASSWORD directly (it would be
+  double-hashed and the customer's real root password would never match).
+  That is not a blocker, though: the same pattern already accepted for
+  Gitea's GITEA_ADMIN_PASSWORD and ClassicPress's admin account in this
+  repo applies just as well here — auto-generate a random admin password
+  entirely server-side and surface it to the customer post-provision, the
+  same "server_generated_no_customer_input" mechanism, no plaintext
+  round-trip through the customer's root password required. With an
+  actively released upstream (patch roughly every 3-5 weeks, latest two
+  days before today) and zero structural blockers, this is a build_now
+  candidate — though the decision of which general-purpose CMS(s) to
+  actually ship should weigh REDAXO against the other CMS candidates
+  already analyzed in this directory rather than in isolation.

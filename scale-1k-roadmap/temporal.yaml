@@ -1,0 +1,120 @@
+slug: temporal
+name: Temporal
+source_description: "Durable workflow execution platform with web-based monitoring and search"
+
+upstream:
+  url: https://temporal.io
+  repo_url: https://github.com/temporalio/temporal
+  license: MIT
+  docker_image: temporalio/server
+  compose_file_url: https://raw.githubusercontent.com/temporalio/samples-server/main/compose/docker-compose.yml
+  compose_file_notes: >
+    Official location as of this analysis: temporalio/samples-server repo,
+    compose/ directory. The historical temporalio/docker-compose repo is
+    now archived, with its README stating all docker-compose examples were
+    moved to temporalio/samples-server/compose — that mirrored history
+    confirms this is still the project's own maintained file, not a
+    third-party fork. This is a rolling reference to the samples-server
+    default branch (main), not pinned to a specific Temporal server
+    release; the repo README notes "every major or minor release of the
+    Temporal Server has a corresponding docker-compose release" but does
+    not publish a per-tag download URL pattern the way some projects do.
+    Picked docker-compose.yml (PostgreSQL + Elasticsearch) — the project's
+    own stated default — over the sibling variants in the same directory
+    (docker-compose-postgres.yml without search, docker-compose-mysql*.yml,
+    docker-compose-cass-es.yml, docker-compose-postgres-opensearch.yml,
+    docker-compose-tls.yml, docker-compose-dev.yml for local dev only, and
+    docker-compose-multirole.yaml which splits each service into its own
+    container plus Prometheus/Grafana/Loki). This matches the Postgres +
+    Elasticsearch dependency footprint already described in this file's
+    installability.blocking_issues.
+
+version_health:
+  latest_version: "v1.31.2"
+  latest_release_date: "2026-07-08"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest server release v1.31.2 shipped 2026-07-08, less than a month
+    before this analysis (2026-08-05). Release history shows multiple
+    tagged releases per month across the 1.29/1.30/1.31 lines (patch and
+    minor releases both), consistent with an actively maintained project.
+    The temporalio/auto-setup all-in-one image (historically the easiest
+    single-container option) is deprecated by upstream for production use
+    in favor of the split server/admin-tools/ui compose stack referenced
+    below.
+
+catalogue_fit:
+  categories: [developer-tools, automation]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: []
+  differentiation: >
+    Not a duplicate of n8n or any existing recipe. n8n is a no-code
+    workflow-automation tool consumed entirely through its own web UI;
+    Temporal is a durable-execution *backend platform* — customers write
+    their own workflow/worker code in an SDK (Go/Java/Python/TypeScript/etc)
+    that connects to the server's gRPC frontend to actually do anything.
+    The bundled Web UI is read-only observability (monitoring + workflow
+    search), not a place where end-user work happens.
+  usefulness: low
+  usefulness_rationale: >
+    Valuable for engineering teams already building on Temporal, but it is
+    a developer-infrastructure component rather than an end-user
+    application, which is a mismatch for this catalogue's audience (compare
+    to n8n, Immich, Vaultwarden — all fully usable through nothing but a
+    browser). Its core function is unreachable without also standing up
+    external SDK-based worker code, which is out of scope for what an AF
+    customer clicks "install" to get.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - TEMPORAL_UI_BASIC_AUTH  # Traefik basic-auth gate in front of the Web UI (no native login)
+    - TEMPORAL_FRONTEND_AUTH  # protects the gRPC frontend (port 7233) that external SDK workers connect to
+  secrets_expressible_today:
+    - secret: TEMPORAL_UI_BASIC_AUTH
+      mechanism: traefik_basic_auth
+  blocking_issues:
+    - >
+      The gRPC frontend (port 7233) is not an HTTP endpoint and cannot be
+      gated by Traefik basic_auth; it needs its own network-level exposure
+      (raw TCP passthrough, not a simple `<slug>.<base_domain>` HTTP route)
+      to be reachable by external worker code, which is the entire point
+      of running Temporal.
+    - >
+      Temporal Server ships with no built-in authentication for that
+      frontend: the default is the `noopAuthorizer`, which permits every
+      request unauthenticated. The supported hardening path is mTLS client
+      certificates or a custom Authorizer/ClaimMapper plugin — neither is a
+      hash of the customer's root password, and there is no channel today
+      for a customer to supply or generate a client certificate. Exposing
+      7233 publicly without one of these means an open, unauthenticated
+      workflow-execution control plane.
+    - >
+      The bundled Web UI has no native username/password login either
+      (SSO/OAuth env vars are the only built-in option, which itself has no
+      input channel today). A Traefik basic_auth gate can protect the UI,
+      but that does nothing for the gRPC frontend risk above.
+    - >
+      Full stack requires Postgres + (for the search feature Hostinger's
+      description calls out) Elasticsearch in addition to the server,
+      admin-tools, and UI containers — heavier than any current recipe, but
+      this is a secondary concern next to the auth/exposure blockers.
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Temporal is an actively maintained, MIT-licensed durable-execution
+  platform (v1.31.2, released 2026-07-08) with no overlap with anything
+  currently in the catalogue. It does not fit the AF recipe model, though:
+  its actual functionality is reached over an unauthenticated-by-default
+  gRPC frontend meant for external SDK worker code, not through the bundled
+  read-only Web UI, and neither our root-password-hash mechanism nor
+  Traefik basic_auth can secure that surface. Temporal Server has no
+  built-in username/password auth for that frontend at all — the supported
+  hardening paths are mTLS client certificates or a custom
+  Authorizer/ClaimMapper plugin, and there is no channel today for a
+  customer to supply or generate either — so exposing port 7233 publicly
+  would leave an open, unauthenticated workflow-execution control plane:
+  recommend not_recommended.

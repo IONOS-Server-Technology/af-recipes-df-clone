@@ -1,0 +1,112 @@
+slug: jellyfin
+name: Jellyfin
+source_description: "Free and open-source media server for organizing and streaming your media library"
+
+upstream:
+  url: https://jellyfin.org
+  repo_url: https://github.com/jellyfin/jellyfin
+  license: GPL-2.0
+  docker_image: jellyfin/jellyfin
+  compose_file_url: null
+  compose_file_notes: >
+    No standalone official docker-compose.yaml/.yml file exists in the
+    jellyfin/jellyfin repo (checked root and common docker/deployment
+    paths, all 404) or as a downloadable release asset. The official
+    Docker install docs
+    (jellyfin.org/docs/general/installation/container/) embed a
+    docker-compose template directly in the page text (services.jellyfin,
+    image jellyfin/jellyfin, ports 8096/tcp + 7359/udp, volumes for
+    config/cache/media) that the user is instructed to copy into their own
+    docker-compose.yml, rather than linking to a file the project
+    publishes and updates. Since there's no rolling or version-pinned URL
+    to point at, recording as null; the docs page is the closest thing to
+    an official source and reflects the current stable image tag scheme
+    (no GPU/CPU or sqlite/postgres variant split — it's a single image).
+
+version_health:
+  latest_version: "10.11.11"
+  latest_release_date: "2026-06-06"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    10.11.11 shipped 2026-06-06, about 2 months before today (2026-08-05).
+    Stable point releases have landed roughly every 2-6 weeks through 2025-2026
+    (10.11.7 2026-03-31, 10.11.8 2026-04-05, 10.11.9 2026-05-21, 10.11.10
+    2026-05-24, 10.11.11 2026-06-06). In parallel, a 12.0 major rewrite is in
+    active release-candidate cycling (rc1 2026-06-21 through rc4 2026-08-02,
+    4 RCs in 6 weeks). Repo is not archived; this is a clearly active,
+    well-maintained project.
+
+catalogue_fit:
+  categories: [media, video, streaming]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    No recipe in the current 24 covers general-purpose personal video/TV
+    library streaming (Plex/Emby-style). Immich is the closest neighbor by
+    "self-hosted personal media" flavor but is strictly photo/video backup
+    and AI-organized gallery, not a transcoding library server for movies
+    and TV shows with wide smart-TV/mobile client support. This is a
+    distinct, high-demand self-hosting category.
+  usefulness: high
+  usefulness_rationale: >
+    Self-hosted media/TV streaming is one of the most commonly requested
+    self-hosting use cases, has broad recognizable-brand appeal (Plex-alternative,
+    fully open-source, no phone-home account requirement), and would
+    meaningfully diversify the catalogue. Upstream is active with no
+    abandonment signal.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JELLYFIN_ADMIN_PASSWORD]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      Jellyfin has no environment variable, CLI flag, or config-seeding
+      mechanism to set the initial admin username/password non-interactively.
+      First boot always lands on an interactive web setup wizard where
+      whoever visits the domain first chooses the admin credentials
+      themselves — confirmed by upstream feature request
+      github.com/jellyfin/jellyfin/issues/1940 ("Docker: add environment
+      variables to skip setup wizard"), open since 2019, closed stale in
+      2020 with no fix shipped, and still being asked about as recently as
+      2026-02-19 with no resolution. A maintainer response on that issue
+      states this "is definitely not doable now" short of hand-crafting a
+      template system.xml, which is not an officially supported mechanism.
+    - >
+      Even if the wizard could be pre-seeded, Jellyfin hashes its own
+      passwords with PBKDF2-SHA512 (via its ICryptoProvider/
+      DefaultAuthenticationProvider), which is not in the currently
+      supported generated_from algorithm list (argon2, bcrypt). Per
+      SCHEMA.md this is not a hard structural blocker on its own — the
+      algo list is extensible — but it means a genuine platform change
+      (add pbkdf2 support to generated_from) would still be required even
+      after an env-var/config-seed hook exists.
+    - >
+      A Traefik basic_auth gate does not fully solve this: it would stop
+      an anonymous internet visitor from reaching the wizard, but the
+      customer would still hit the interactive Jellyfin setup wizard
+      themselves on first login and have to choose their own admin
+      password by hand in the app UI — there is no way to project a
+      root-password-derived hash directly into Jellyfin's own admin
+      account today. basic_auth could still be used defensively to close
+      the open-wizard race, but it doesn't remove the manual step.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Jellyfin is a single-container media server (official jellyfin/jellyfin
+  image, HTTP port 8096, optional UDP 7359 for DLNA autodiscovery that would
+  simply go unused behind a single-domain reverse proxy) structurally
+  similar to Uptime Kuma/Vaultwarden-style single-container recipes, and it
+  is an actively maintained, high-value catalogue gap with no current
+  overlap. It is blocked today purely on the installability mechanism:
+  Jellyfin's first-boot admin setup is an interactive web wizard with no
+  env-var or config-seed hook (a 2019 upstream feature request for exactly
+  this went nowhere), and even a future seeding mechanism would need
+  generated_from extended to PBKDF2-SHA512 to match Jellyfin's own hashing.
+  Traefik basic_auth can reduce the open-wizard race but doesn't eliminate
+  the manual admin-password step. Recommend revisiting once either
+  upstream ships non-interactive first-run provisioning or generated_from
+  gains a pbkdf2 option and a config-seeding approach is validated.

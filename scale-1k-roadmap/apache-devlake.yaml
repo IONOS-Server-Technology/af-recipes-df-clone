@@ -1,0 +1,88 @@
+slug: apache-devlake
+name: Apache DevLake
+source_description: "Open-source DORA metrics and engineering team analytics platform"
+
+upstream:
+  url: https://devlake.apache.org
+  repo_url: https://github.com/apache/devlake
+  license: Apache-2.0
+  docker_image: apache/devlake
+  compose_file_url: https://github.com/apache/devlake/releases/latest/download/docker-compose.yml
+  compose_file_notes: >-
+    Official file, linked from the docs' Docker Compose install guide
+    (devlake.apache.org/docs/GettingStarted/DockerComposeSetup/), which
+    tells users to "download docker-compose.yml and env.example from the
+    latest release" on GitHub. This is the `/releases/latest/download/...`
+    rolling-reference form (like Immich's example) — it always resolves
+    to whatever the current latest release tag is (currently
+    v1.0.3-beta15, confirmed via redirect), not a link pinned to today's
+    version. Only one variant is shipped (mysql + devlake + config-ui +
+    grafana); there is no separate GPU/CPU or sqlite/postgres split to
+    choose between.
+
+version_health:
+  latest_version: "v1.0.3-beta15"
+  latest_release_date: "2026-07-19"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    v1.0.3-beta15 (2026-07-19) is the latest tagged release, about 2.5
+    weeks before today (2026-08-05); the prior tag (beta14) landed 9 days
+    before that, and betas have shipped every 1-2 months back through
+    mid-2025 with continuous `main_*` snapshot builds pushed to Docker Hub
+    almost daily (latest 2 days before today). The project graduated from
+    Apache Incubator to a full Apache Software Foundation top-level project
+    in October 2025 — a strong independence/activity signal, not a
+    dormancy one. The "beta" suffix has stuck around since v1.0.3-beta1
+    (2025-06) for well over a year; that looks like a versioning quirk
+    (pre-1.0-stable naming inertia) rather than an indicator of
+    instability, given the steady cadence and TLP graduation.
+
+catalogue_fit:
+  categories: [developer-tools, analytics, monitoring]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >-
+    Nothing in the current 24 recipes covers engineering/DevOps analytics
+    or DORA metrics (deployment frequency, lead time, change failure rate,
+    MTTR) computed from GitHub/GitLab/Jira/CircleCI/etc. activity. This is
+    a genuinely new category — closest existing recipes (n8n, gitea) are
+    automation/hosting tools, not analytics over them.
+  usefulness: medium
+  usefulness_rationale: >-
+    Useful to engineering teams that already self-host their DevOps stack
+    and want DORA/flow metrics without a SaaS subscription, but it is a
+    narrower, more technical audience than most of the current catalogue
+    (media, VPN, notes, automation). Its value is also back-loaded: on
+    first boot it's an empty dashboard until the customer manually adds
+    connections (GitHub token, Jira, etc.) through the UI after
+    deployment — nothing blocking, but slower time-to-value than a
+    single-purpose app.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [basic_auth_password, encryption_secret]
+  secrets_expressible_today:
+    - secret: basic_auth_password
+      mechanism: traefik_basic_auth
+    - secret: encryption_secret
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  The official docker-compose stack is MySQL + the devlake backend +
+  config-ui (port 4000) + Grafana (port 3002), plus an optional
+  authproxy service for OIDC. Neither config-ui nor Grafana requires a
+  customer-chosen credential at first boot: config-ui ships with no login
+  by default (its ADMIN_USER/ADMIN_PASS basic-auth env vars are optional
+  and off by default) and Grafana ships a fixed admin/admin default. Both
+  are addressed the same way as Adminer/Amoro — gate the whole app behind
+  a mandatory Traefik `basic_auth` credential projected from the
+  customer's root password, rather than trying to feed a value into either
+  app's own login. ENCRYPTION_SECRET (used to encrypt stored data-source
+  tokens at rest) is a random value nothing customer-facing reads, so it
+  generates server-side with no input channel needed. Mechanically
+  installable today with no blockers. Recommend build_now.

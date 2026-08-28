@@ -1,0 +1,88 @@
+slug: anythingllm
+name: AnythingLLM
+source_description: "All-in-one AI application for RAG, agents, and chatbots with any LLM provider"
+
+upstream:
+  url: https://anythingllm.com
+  repo_url: https://github.com/Mintplex-Labs/anything-llm
+  license: MIT
+  docker_image: mintplexlabs/anythingllm
+  compose_file_url: https://raw.githubusercontent.com/Mintplex-Labs/anything-llm/master/docker/docker-compose.yml
+  compose_file_notes: >-
+    Official file, at docker/docker-compose.yml in the project's own repo.
+    It is a rolling reference to the default branch (master), not
+    version-pinned to a release tag. Note it builds the image locally from
+    the repo's own Dockerfile (`build:` context) rather than pulling the
+    published mintplexlabs/anythingllm tag used elsewhere in this recipe -
+    there is no separate GPU/CPU or sqlite/postgres variant, this is the
+    only compose file the project ships. The project's docker/
+    HOW_TO_USE_DOCKER.md also embeds a second compose snippet that does use
+    the published `image: mintplexlabs/anythingllm` (untagged, so also
+    rolling/latest) instead of building from source, but that snippet only
+    exists inline in the markdown doc, not as a standalone file in the
+    repo, so it was not chosen as the recorded URL.
+
+version_health:
+  latest_version: "1.15.0"
+  latest_release_date: "2026-06-25"
+  release_cadence: active
+  eol_status: active
+  notes: >-
+    ~1.5 months between v1.15.0 (2026-06-25) and today (2026-08-05).
+    Preceding tags (1.13.0, 1.14.0, 1.14.1) shipped roughly monthly through
+    spring 2026, and the floating `latest`/`master` image tag is rebuilt
+    several times a week between versioned releases. No archival or EOL
+    signal; repo is under active, frequent development.
+
+catalogue_fit:
+  categories: [ai]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: [open-webui, ollama]
+  differentiation: >-
+    Same "chat with any LLM provider" core as Open WebUI, but adds
+    document-centric RAG workspaces (per-workspace vector DB, configurable
+    embedder), multi-user/team permissions, and built-in agent/tool
+    orchestration (web browsing, SQL, custom skills) rather than just a chat
+    frontend over Ollama. Ollama itself remains just the inference engine,
+    with no UI at all.
+  usefulness: medium
+  usefulness_rationale: >-
+    Genuinely different feature set (RAG workspaces, agents, multi-user
+    teams) from what's in the catalogue today, but it lands squarely in the
+    same "local/any-provider AI chat" niche already served by open-webui +
+    ollama, so the incremental value to a customer who already has that
+    combination is moderate rather than clearly novel.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [JWT_SECRET, SIG_KEY, SIG_SALT]
+  secrets_expressible_today:
+    - secret: JWT_SECRET
+      mechanism: server_generated_no_customer_input
+    - secret: SIG_KEY
+      mechanism: server_generated_no_customer_input
+    - secret: SIG_SALT
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >-
+  AnythingLLM boots with no customer-supplied value at all: the three
+  auth-signing secrets (JWT_SECRET, SIG_KEY, SIG_SALT) are patternless
+  strings the platform can generate server-side, and the admin account
+  itself is created interactively through AnythingLLM's own first-visit
+  setup wizard (LLM provider, embedder, vector DB, then admin
+  username/password) — the same self-serve pattern already used by
+  uptime-kuma and immich, so no root-password projection or basic_auth gate
+  is needed. It is installable today with no blocking issues, so it is
+  build_now. It overlaps with the existing open-webui + ollama pairing
+  (same "chat with local/any-provider LLM" use case) but adds RAG
+  workspaces, agents, and multi-user teams on top of that. One operational
+  note: the upstream container requests the SYS_ADMIN capability for its
+  Puppeteer-based web-scraping feature; no recipe in the catalogue
+  currently grants SYS_ADMIN (home-assistant runs with default capabilities
+  and privileged: false, wg-easy's cap_add is limited to NET_ADMIN), so this
+  would be a new capability requirement, though not one that blocks
+  installation.

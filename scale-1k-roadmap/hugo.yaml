@@ -1,0 +1,74 @@
+slug: hugo
+name: Hugo
+source_description: "Lightning-fast static site generator built with Go"
+
+upstream:
+  url: https://gohugo.io/
+  repo_url: https://github.com/gohugoio/hugo
+  license: Apache-2.0
+  docker_image: gohugoio/hugo
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose file exists. The gohugoio/hugo repo ships a
+    Dockerfile at its root (used to build the gohugoio/hugo image) but no
+    docker-compose.yaml/.yml anywhere in the repo, and neither the repo
+    README nor the gohugo.io docs site link one. Only third-party
+    community images (e.g. jojomi/hugo, klakegg/hugo) ship compose
+    examples; those are not official and are not adopted here. This is
+    also consistent with recipe_type_guess: native — Hugo is a CLI build
+    tool with `hugo server` documented as a dev-only preview, not a
+    persistent service meant to be composed/deployed.
+
+version_health:
+  latest_version: v0.164.0
+  latest_release_date: 2026-07-06
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~1 month since the last tagged release as of 2026-08-05. Hugo ships
+    frequent releases (roughly monthly, sometimes more often) and the
+    project is actively maintained by gohugoio with ongoing commits and
+    issue triage. No sign of slowdown or archival.
+
+catalogue_fit:
+  categories: [developer-tools, static-site-generator]
+  has_web_ui: false
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    None of the current 24 recipes are static site generators or build
+    tools — this would be a genuinely new category. However, Hugo is a
+    CLI/build tool, not a hosted application with its own persistent
+    admin surface: it compiles a customer-supplied source tree (markdown +
+    theme) into static HTML. `hugo server` exists but is documented
+    upstream as a local live-reload preview server for development, not a
+    production-facing service.
+  usefulness: low
+  usefulness_rationale: >
+    A "Hugo recipe" that ships with no site content is an empty shell —
+    there is nothing for the customer to see or use until they supply
+    their own markdown/theme source, and the value of self-hosting Hugo
+    specifically (vs. any static file server) is the build step over that
+    source, not a runtime service.
+
+installability:
+  recipe_type_guess: native
+  secrets_required_at_first_boot: []
+  secrets_expressible_today: []
+  blocking_issues:
+    - "No channel for customer content: Hugo has no value without the customer's own site source (markdown content + theme). /compose carries no mechanism for arbitrary file/content upload at install time, so a deployed instance would have nothing to build or serve."
+    - "Not a persistent service by design: Hugo is a build tool. `hugo server` is documented upstream as a dev-only live-reload preview, not intended to be exposed publicly in production — there is no equivalent to an admin UI or long-running app process that the recipe model assumes."
+  installable_today: false
+  recommendation: not_recommended
+
+summary: >
+  Hugo is an actively maintained, fast-moving open-source static site
+  generator (latest v0.164.0, 2026-07-06) with no EOL or dormancy concerns.
+  It doesn't overlap with anything in the current 24-recipe catalogue, but
+  it is structurally a CLI build tool rather than a self-hosted application:
+  it has no admin UI, no login, and — critically — no value at all without
+  customer-supplied site source content, for which the recipe mechanism has
+  no delivery channel today. Recommend not pursuing this as a recipe; it is
+  a poor fit for the catalogue's "install and use" model regardless of the
+  root-password/basic-auth secret mechanism, since the blocker is missing
+  content, not missing auth.

@@ -1,0 +1,106 @@
+slug: defguard
+name: Defguard
+source_description: "Zero-trust access management with WireGuard MFA and built-in OpenID Connect"
+
+upstream:
+  url: https://defguard.net
+  repo_url: https://github.com/DefGuard/defguard
+  license: "AGPL-3.0 (core); enterprise features under a separate proprietary Enterprise License — the enterprise directory is explicitly carved out of the AGPL grant"
+  docker_image: "ghcr.io/defguard/defguard (core), ghcr.io/defguard/defguard-proxy (Edge/proxy), ghcr.io/defguard/gateway (Gateway) — three separate official images, no single all-in-one image; pin each to a current 2.0.x tag, e.g. 2.0.3"
+  compose_file_url: "https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose2.0/docker-compose.yaml"
+  compose_file_notes: >
+    Official — this is the file docs.defguard.net's "Docker Compose"
+    deployment-strategy page points to, in the dedicated DefGuard/deployment
+    repo (separate from the main DefGuard/defguard app repo, whose own root
+    docker-compose.yaml is explicitly a dev/e2e-testing fixture with
+    hardcoded dev credentials, not a deployment artifact). Picked the
+    docker-compose2.0/ directory's base docker-compose.yaml over its
+    sibling variants in the same directory (docker-compose.ha.yaml for
+    high-availability, docker-compose.firewall.yaml, docker-compose.ldap.yaml)
+    since it's the plain multi-service Core+Edge+Gateway+Postgres stack the
+    docs present as the default starting point. This is a rolling reference
+    to the deployment repo's main branch, not pinned to a release tag —
+    there is no per-release compose asset; the file itself floats image
+    tags at major-version only (e.g. ghcr.io/defguard/defguard:2), and docs
+    separately recommend operators fix those to exact vX.Y.Z tags for
+    production. Docs also link a one-line installer
+    (bash <(curl -sSL https://raw.githubusercontent.com/defguard/deployment/main/docker-compose2.0/setup.sh))
+    that wraps this same compose file interactively but is explicitly
+    documented as for testing/evaluation only, not production.
+
+version_health:
+  latest_version: "v2.0.3"
+  latest_release_date: "2026-08-04"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    Latest release v2.0.3 shipped 2026-08-04, one day before this analysis
+    (2026-08-05) — a patch fixing an SMTP settings regression from 2.0.2.
+    Recent history is dense: v2.0.2 (2026-07-11), v1.6.7 (2026-07-10,
+    a parallel maintenance release for the older 1.x line), v2.0.1
+    (2026-05-22), v2.0.0 stable (2026-04-30) after a beta/RC cycle
+    (2026-04-10 through 2026-04-27). A v2.1.0-alpha1 pre-release is already
+    out (2026-07-15). This reads as a healthy, actively developed project
+    with both a current stable line (2.0.x) and continued backport support
+    for the previous major (1.6.x) — no archived flag, no deprecation
+    notice.
+
+catalogue_fit:
+  categories: [security, networking]
+  has_web_ui: true
+  reverse_proxy_compatible: false
+  overlaps_with: [wg-easy]
+  differentiation: >
+    Defguard and wg-easy both provide a web UI for managing a WireGuard
+    VPN, but Defguard is a much larger zero-trust access platform built
+    around that VPN core: per-connection MFA (TOTP/WebAuthn/email), an
+    internal OpenID Connect provider plus external OIDC/LDAP/AD sync,
+    firewall allow/deny policy, activity/audit logging, and webhooks — a
+    genuinely different tier of product from wg-easy's single job of
+    "add/remove WireGuard peers from a web page." For a customer who wants
+    just VPN peer management, wg-easy already covers it; Defguard would
+    appeal to a customer wanting VPN + identity/MFA/SSO consolidated in one
+    place.
+  usefulness: medium
+  usefulness_rationale: >
+    Real differentiated capability (zero-trust access + MFA + OIDC, not
+    just VPN peer management) and an actively maintained upstream. Held to
+    medium rather than high because the vendor's own recommended topology
+    — three independently-deployed components (Core, Edge/proxy, Gateway),
+    ideally on separate hosts, with Core needing gRPC/internal-only
+    exposure while Edge needs a public domain and Gateway needs a public
+    UDP port — is a materially heavier and more networking-specific
+    footprint than anything else in the catalogue, narrowing the
+    realistic audience to customers specifically wanting a self-hosted
+    zero-trust/VPN gateway rather than a general productivity or
+    self-hosting audience.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [POSTGRES_PASSWORD, ADMIN_ACCOUNT_SETUP]
+  secrets_expressible_today:
+    - secret: POSTGRES_PASSWORD
+      mechanism: server_generated_no_customer_input
+  blocking_issues:
+    - "Defguard's own one-line installer and docs recommend three independently-addressable components: Core (identity/policy, internal-only), Edge/proxy (public HTTPS entrypoint), and Gateway (public WireGuard UDP endpoint). Docs explicitly warn the Core/Edge gRPC ports (50052, 50055) must never be exposed publicly, while Edge needs a public domain/DNS record distinct from Core's internal one, and Gateway needs its own public UDP port. This is a multi-surface, multi-domain topology beyond a single <slug>.<base_domain> HTTP app behind Traefik — closer to needing a small dedicated network topology than a docker-compose stack, even though the one-line installer can co-locate all three containers on one host."
+    - "The admin account is created through an interactive first-run browser setup wizard rather than a fixed environment variable, and the wizard's Certificate Authority step requires an administrator email address for cert generation. That address is a customer-chosen value, not a hash of the root password and not something the platform can auto-generate meaningfully (an email needs to be real/reachable) — it has no expressible mechanism today (not generated_from, not basic_auth, not a server-side-generatable secret)."
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Defguard is an actively maintained (latest v2.0.3, 2026-08-04), genuinely
+  differentiated app relative to our existing wg-easy recipe — it wraps
+  WireGuard VPN in a full zero-trust access platform with MFA, an internal
+  OIDC provider, LDAP/AD sync, and firewall policy, not just a peer-management
+  UI. The blocker is architectural rather than mechanistic: upstream's
+  supported deployment is three separately-addressable components (an
+  internal-only Core, a public-HTTPS Edge/proxy, and a public-UDP Gateway),
+  which doesn't map onto our single-domain-behind-Traefik recipe model the
+  way wg-easy's single web-UI-plus-VPN-port container does. On top of that,
+  first-run admin setup goes through an interactive wizard whose CA step
+  needs a customer-supplied administrator email address — a value type
+  /compose has no channel for today. Recommend `blocked_on_platform`:
+  revisit once the platform supports multi-domain/multi-surface recipes
+  (or a documented single-host-with-one-domain topology is confirmed) and
+  an arbitrary customer-supplied value (beyond password-hash projection)
+  has an input channel.

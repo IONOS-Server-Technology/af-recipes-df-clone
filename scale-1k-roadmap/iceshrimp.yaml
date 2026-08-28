@@ -1,0 +1,146 @@
+slug: iceshrimp
+name: Iceshrimp
+source_description: "Decentralized ActivityPub social network powered by a fast .NET backend"
+
+upstream:
+  url: https://iceshrimp.dev/iceshrimp/iceshrimp.net
+  repo_url: https://iceshrimp.dev/iceshrimp/iceshrimp.net
+  license: AGPL-3.0
+  docker_image: null
+  compose_file_url: null
+  compose_file_notes: >
+    No official docker-compose.yaml/.yml exists for Iceshrimp.NET. Checked
+    the repo root (iceshrimp.dev/iceshrimp/iceshrimp.net) — only a
+    Dockerfile and a .docker/ directory of CI build Dockerfiles
+    (ci-env-*/dotnet-runner-*/dotnet-sdk-* images), no docs/ or examples/
+    directory and no compose file anywhere in the tree. The README points
+    to the external docs site (iceshrimp.net/docs, which redirects to
+    kb.iceshrimp.dev) rather than embedding one. The KB's install/
+    post-install guide describes running the backend via systemd or
+    docker-compose and configuring a reverse proxy (Caddy/Nginx/Traefik),
+    but does not link or embed an actual compose file — it documents the
+    concept, not a ready-made manifest. Note: a `docs/examples/docker-
+    compose.yml` DOES exist, but only in the separate, older Iceshrimp-JS
+    repo (iceshrimp.dev/iceshrimp/iceshrimp) — a different codebase/release
+    train per the naming note below; that file is not applicable to
+    Iceshrimp.NET and was not adopted here. No community-maintained
+    Iceshrimp.NET compose file was found either (third-party hits were
+    either the JS-repo file above or a dead blog domain) — this is a true
+    "nothing usable exists" case, not an official-vs-community choice.
+
+version_health:
+  latest_version: "v2026.1.2-beta"
+  latest_release_date: "2026-07-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    v2026.1.2-beta shipped 2026-07-30, only 6 days before today (2026-08-05)
+    — a security hotfix disabling unfuzzed libvips load/save paths. Prior
+    releases show a steady, sub-monthly cadence: v2026.1.1-beta
+    (2026-05-20), v2026.1-beta (2026-04-24), v2025.1-beta5.patch3.security4
+    (2025-12-19), .security3 (2025-11-03), .security2 (2025-07-29), plus
+    several 2025 patch/security releases before that. Both feature releases
+    (report system, feed support, .NET 9→10 migration in v2026.1-beta) and
+    fast security hotfixes are present, indicating genuinely active
+    development rather than maintenance-only drift. Still explicitly
+    labeled beta software by the maintainers themselves.
+
+  # Naming note: "Iceshrimp" alone refers to the original JS/Node fork of
+  # Firefish (github.com/iceshrimp/iceshrimp, iceshrimp.dev/iceshrimp/iceshrimp).
+  # Hostinger's description ("fast .NET backend") identifies this candidate
+  # as Iceshrimp.NET (iceshrimp.dev/iceshrimp/iceshrimp.net), a from-scratch
+  # rewrite by largely the same team, NOT the JS original. The two are
+  # separate codebases with separate release trains; this analysis covers
+  # Iceshrimp.NET only. Ruled out: github.com/oufmilo/iceshrimp (unrelated
+  # low-activity fork/mirror surfaced in search).
+
+catalogue_fit:
+  categories: [social, communication, homelab]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Iceshrimp.NET is a Mastodon-API-compatible ActivityPub microblogging
+    server (Misskey/Firefish lineage) — federated social networking, not
+    covered by anything in the current 24-recipe catalogue. Closest
+    conceptual neighbor is Hermes-agent (also chat/agent-adjacent) but
+    that's an AI agent, not a fediverse server; there's no real overlap.
+    This would open a genuinely new "social/fediverse" category.
+  usefulness: medium
+  usefulness_rationale: >
+    Real and growing demand for self-hosted fediverse presence (post-Twitter
+    exodus audience, tech-savvy self-hosters who already run Mastodon/Misskey
+    forks), and Mastodon-client compatibility broadens the addressable app
+    ecosystem. Still a beta-labeled, single small-team project competing
+    with much better-established alternatives (Mastodon, Pleroma/Akkoma) for
+    the same audience, so demand ceiling is lower than infra-category tools.
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot: [admin_signup_credential]
+  secrets_expressible_today: []
+  blocking_issues:
+    - >
+      No admin/root credential is set via environment variable or config at
+      container boot. Like Mastodon/Misskey-family servers generally, and
+      matching the same shape documented in apps-gaps/2fauth.yaml,
+      apps-gaps/activepieces.yaml, and apps-gaps/airtrail.yaml,
+      Iceshrimp.NET's admin account is created through its own web-based
+      registration flow after the instance comes up — the first account to
+      register (or the first account an operator manually promotes) becomes
+      admin. There is no `type: password` parameter on the app's own login
+      to target with `generated_from: "<algo>:ROOT_PASSWORD"`, because the
+      credential is created client-side via self-registration, not injected
+      via env var. With the server publicly reachable behind the customer's
+      domain the moment the compose stack boots, an unrelated visitor (or a
+      fediverse-scanning bot) could register first and claim the initial
+      account before the customer does, on an instance that — per default
+      fediverse-server posture — may allow open registration out of the box.
+    - >
+      A Traefik `basic_auth: true` gate in front of the whole app would
+      close the "random internet stranger races to register first" version
+      of this problem, but per the 2FAuth/Activepieces/AirTrail precedent,
+      today's basic_auth mechanism has no channel to also hand the customer
+      a *second*, distinct credential for the in-app signup form beyond the
+      single root-password projection already used for the gate itself —
+      so it does not fully resolve the underlying provisioning gap. Even if
+      it did, the gate would need to come off after the customer claims the
+      admin account for the instance to actually federate/serve the public
+      web, and our current one-shot bootstrap-token mechanism has no
+      lifecycle hook for that ("remove gate after customer completes setup"
+      is not a step `/compose` or `/bootstrap` support today).
+    - >
+      Full service topology needs confirming against a canonical
+      docker-compose.yml before drafting a recipe: PostgreSQL 15+ is a hard
+      requirement (confirmed via CHANGELOG), Redis appears required for
+      caching/job queues, and Meilisearch is used for full-text search —
+      unclear from available docs whether Meilisearch is optional or
+      mandatory for a functional instance. Official upstream docs
+      (iceshrimp.net/docs) were unreachable/404 during this research pass
+      (domain now redirects to the dev/source browser, which doesn't serve
+      rendered docs pages); a `af-create-recipe` pass would need to pull
+      the actual `docs/install*.md` from the dev-branch source tree or a
+      third-party deployment guide to nail down the compose file, image
+      tag/registry, and ports before drafting.
+  installable_today: false
+  recommendation: blocked_on_platform
+
+summary: >
+  Iceshrimp.NET is an actively developed (latest release 6 days old),
+  Mastodon-API-compatible ActivityPub server with no current catalogue
+  overlap and a real niche audience. It fails the installability test for
+  the same structural reason as 2FAuth, Activepieces, and AirTrail: there
+  is no env var to preset the sole admin account, so the app relies on an
+  open, first-visitor self-registration screen that neither
+  `generated_from:ROOT_PASSWORD` nor a `basic_auth` gate alone can safely
+  hand to the customer exclusively — and even a temporary gate would need
+  to be lifted post-setup for the instance to federate, which our current
+  one-shot `/compose`+`/bootstrap` mechanism has no lifecycle hook for.
+  Also still beta-labeled software from a small team, competing with more
+  established fediverse servers for the same audience. Recommend
+  `blocked_on_platform`: revisit once upstream adds an env-var-driven
+  initial-admin flow, or the platform gains a second customer-facing
+  credential channel beyond root-password projection (plus a
+  gate-then-release lifecycle hook), and confirm the full service topology
+  (Postgres/Redis/Meilisearch) against upstream's canonical compose file
+  at that point.

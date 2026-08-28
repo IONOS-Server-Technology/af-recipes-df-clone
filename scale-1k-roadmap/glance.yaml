@@ -1,0 +1,87 @@
+slug: glance
+name: Glance
+source_description: "Self-hosted dashboard that puts all your feeds in one place"
+
+upstream:
+  url: https://github.com/glanceapp/glance
+  repo_url: https://github.com/glanceapp/glance
+  license: AGPL-3.0
+  docker_image: glanceapp/glance
+  compose_file_url: https://raw.githubusercontent.com/glanceapp/docker-compose-template/main/root/docker-compose.yml
+  compose_file_notes: >
+    No compose file lives in the main glanceapp/glance repo itself; its
+    README's docker-compose installation instructions point to a separate
+    but still official, same-org template repo,
+    github.com/glanceapp/docker-compose-template (referenced directly from
+    the main repo's install docs, not a third-party fork or aggregator).
+    This is a rolling reference to that template repo's default branch
+    (main) — not version-pinned to a release tag — since the template repo
+    has no releases/tags of its own. Only one variant is offered (single
+    service, bind-mounted config/assets, optional Docker socket mount for
+    the docker widget); no GPU/CPU or sqlite/postgres split exists since
+    Glance is stateless besides its YAML config.
+
+version_health:
+  latest_version: "v0.8.5"
+  latest_release_date: "2026-05-30"
+  release_cadence: active
+  eol_status: active
+  notes: >
+    ~9 weeks between v0.8.5 (2026-05-30) and today (2026-08-05); prior
+    releases (v0.8.0-v0.8.4) shipped roughly every 2-4 weeks through
+    May-June 2026, and v0.7.x releases through April 2026. Consistent
+    cadence, no archive/EOL signal, active issue triage. One oddity worth
+    flagging for a human reviewer: GitHub's releases list shows v0.8.4
+    published (10 Jun) after v0.8.5 (30 May) even though 0.8.4 < 0.8.5 —
+    likely a backport/out-of-order tag rather than a versioning problem,
+    but not independently confirmed here.
+
+catalogue_fit:
+  categories: [productivity]
+  has_web_ui: true
+  reverse_proxy_compatible: true
+  overlaps_with: []
+  differentiation: >
+    Personal aggregation dashboard (RSS/Reddit/Hacker News/weather/YouTube/
+    Twitch/market-prices/Docker+server-status widgets) — a distinct use case
+    from anything in the current catalogue. Closest existing recipes are
+    single-container web-UI tools (uptime-kuma, vaultwarden, wud) but none
+    overlap in purpose; home-assistant is a smart-home hub, not a feed
+    aggregator.
+  usefulness: medium
+  usefulness_rationale: >
+    Popular, lightweight, genuinely useful as a self-hosted homepage — but
+    it's a "nice to have" personal tool rather than infrastructure most
+    customers depend on, and most of its widgets (weather, market prices,
+    some RSS) need customer-supplied third-party API keys to be fully
+    useful, which this platform can't project today (see below).
+
+installability:
+  recipe_type_guess: docker-compose
+  secrets_required_at_first_boot:
+    - "admin auth password-hash"
+    - "auth.secret-key"
+  secrets_expressible_today:
+    - secret: "admin auth password-hash"
+      mechanism: generated_from_root_password
+    - secret: "auth.secret-key"
+      mechanism: server_generated_no_customer_input
+  blocking_issues: []
+  installable_today: true
+  recommendation: build_now
+
+summary: >
+  Glance is an actively maintained, popular, lightweight self-hosted
+  dashboard with no overlap in the current 24-recipe catalogue. As of
+  v0.8.0 it ships built-in auth supporting bcrypt password hashes
+  (`password-hash`) and supports `${ENV_VAR}` substitution anywhere in its
+  YAML config, so a static `glance.yml` template with
+  `password-hash: ${GLANCE_ADMIN_PASSWORD_HASH}` can be shipped in the
+  recipe and have the customer's root-password hash projected into it via
+  `generated_from: "bcrypt:ROOT_PASSWORD"` — exactly the supported MVP
+  mechanism, no IF-1420/1312 dependency needed. The `secret-key` is a
+  patternless value the server can generate itself. Its value to customers
+  is moderate rather than high, since several of its most compelling
+  widgets (weather, market data) need external API keys with no input
+  channel today, but the app boots and is usable (RSS/HN/Reddit/Docker/
+  server-stat widgets, custom pages) without them. Recommend build_now.
