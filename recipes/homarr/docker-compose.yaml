@@ -1,0 +1,22 @@
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:1.73.0
+    restart: unless-stopped
+    environment:
+      - SECRET_ENCRYPTION_KEY=${SECRET_ENCRYPTION_KEY}
+    ports:
+      - "7575:7575"
+    volumes:
+      - /opt/homarr/data:/appdata
+    networks:
+      - homarr-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7575/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  homarr-network:
+    driver: bridge
