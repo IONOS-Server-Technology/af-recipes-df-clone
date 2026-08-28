@@ -1,0 +1,20 @@
+services:
+  apprise-api:
+    image: caronc/apprise:v1.5.2
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/apprise-api/data:/config
+    networks:
+      - apprise-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  apprise-api-network:
+    driver: bridge
