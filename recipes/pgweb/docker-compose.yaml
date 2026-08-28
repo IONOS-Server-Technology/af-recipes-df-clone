@@ -1,0 +1,21 @@
+services:
+  pgweb:
+    image: sosedoff/pgweb:0.17.0
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    networks:
+      - pgweb-network
+    healthcheck:
+      # Pgweb serves its UI on / — a 200 means the Go HTTP server is up.
+      # Using 127.0.0.1 (not localhost) because Docker's default resolver may
+      # return ::1 while the process binds only to 0.0.0.0.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  pgweb-network:
+    driver: bridge

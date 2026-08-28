@@ -1,0 +1,36 @@
+id: pgweb
+enabled: false
+display_name: Pgweb
+description: Web-based PostgreSQL database browser for browsing, querying, and exporting data.
+short_description:
+  en: "Browse your PostgreSQL database, run queries, and export data from any browser — no client software needed."
+  de: "PostgreSQL-Datenbank im Browser durchsuchen, Abfragen ausführen und Daten exportieren — keine Client-Software erforderlich."
+  es: "Explora tu base de datos PostgreSQL, ejecuta consultas y exporta datos desde cualquier navegador — sin software cliente."
+  fr: "Parcourez votre base de données PostgreSQL, exécutez des requêtes et exportez des données depuis n'importe quel navigateur — sans logiciel client."
+  it: "Sfoglia il tuo database PostgreSQL, esegui query ed esporta dati da qualsiasi browser — senza software client."
+  nl: "Doorzoek je PostgreSQL-database, voer queries uit en exporteer data vanuit elke browser — zonder clientsoftware."
+  pl: "Przeglądaj bazę danych PostgreSQL, wykonuj zapytania i eksportuj dane z dowolnej przeglądarki — bez oprogramowania klienckiego."
+categories:
+  - developer-tools
+# app_version: no official docker-compose file exists (compose_file_url: null in
+# apps-gaps/pgweb.yaml) — per IF-1501 rule 3, the current latest stable release tag
+# is used: 0.17.0 released 2025-11-22 (source: apps-gaps/pgweb.yaml version_health).
+app_version: "0.17.0"
+recipe_version: "0.1.0"
+recipe_type: docker-compose
+upstream_url: https://sosedoff.github.io/pgweb/
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+ports:
+  # Pgweb serves its web UI on port 8081 with no built-in authentication.
+  # basic_auth: true puts a Traefik basic-auth gate in front — the customer's
+  # server password protects the UI (username: admin). This is the same pattern
+  # used by Adminer and WireMock. Traefik basic_auth here closes the
+  # unauthenticated-access window since pgweb ships no login of its own.
+  - port: 8081
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Pgweb web UI
