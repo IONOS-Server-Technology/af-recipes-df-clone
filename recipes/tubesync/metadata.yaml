@@ -1,0 +1,38 @@
+id: tubesync
+enabled: false
+display_name: TubeSync
+description: Self-hosted PVR for YouTube — automatically sync channels and playlists to disk via yt-dlp.
+short_description:
+  en: "Automatically sync and archive YouTube channels and playlists to your own server using yt-dlp."
+  de: "YouTube-Kanäle und Playlists automatisch mit yt-dlp auf den eigenen Server synchronisieren und archivieren."
+  es: "Sincroniza y archiva automáticamente canales y listas de reproducción de YouTube en tu servidor con yt-dlp."
+  fr: "Synchronisez et archivez automatiquement des chaînes et playlists YouTube sur votre serveur avec yt-dlp."
+  it: "Sincronizza e archivia automaticamente canali e playlist YouTube sul tuo server usando yt-dlp."
+  nl: "Synchroniseer en archiveer automatisch YouTube-kanalen en afspeellijsten op je eigen server met yt-dlp."
+  pl: "Automatycznie synchronizuj i archiwizuj kanały YouTube i playlisty na własnym serwerze za pomocą yt-dlp."
+categories:
+  - media
+app_version: "0.18.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/meeb/tubesync
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/tubesync/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/tubesync.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: dc035d0a6050e34d58371700f25ef17bea183a4fc3630860697e4f17ed59920c
+
+app_min_ram_mb: 512
+app_min_disk_mb: 10240
+
+# basic_auth (IF-1312): TubeSync has no login screen of its own when HTTP_USER/HTTP_PASS
+# are left unset (the documented deployment pattern). A Traefik basic-auth gate is the
+# only mechanism preventing unauthenticated access to the web UI.
+#
+# Trade-off: the app has no inbound webhook surface, so the usual webhook-vs-auth
+# friction (as with n8n) does not apply here. basic_auth is strictly a win.
+ports:
+  - port: 4848
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: TubeSync Web UI

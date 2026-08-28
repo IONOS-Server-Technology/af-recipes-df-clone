@@ -1,0 +1,21 @@
+services:
+  tubesync:
+    image: ghcr.io/meeb/tubesync:0.18.3
+    restart: unless-stopped
+    ports:
+      - "4848:4848"
+    volumes:
+      - /opt/tubesync/config:/config
+      - /opt/tubesync/downloads:/downloads
+    networks:
+      - tubesync-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4848/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  tubesync-network:
+    driver: bridge
