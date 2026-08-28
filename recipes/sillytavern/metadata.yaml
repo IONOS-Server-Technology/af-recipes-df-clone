@@ -1,0 +1,42 @@
+id: sillytavern
+enabled: false
+display_name: SillyTavern
+description: Power-user LLM frontend for AI characters, personas and roleplay across many text-generation backends.
+short_description:
+  en: "Connect your own LLM backend and chat with persistent AI characters — a powerful, roleplay-focused frontend for power users."
+  de: "Eigenes LLM-Backend verbinden und mit persistenten KI-Charakteren chatten — ein leistungsstarkes Frontend für erfahrene Nutzer."
+  es: "Conecta tu propio backend LLM y chatea con personajes de IA persistentes — un frontend potente orientado al juego de rol."
+  fr: "Connectez votre propre backend LLM et discutez avec des personnages IA persistants — un frontend puissant axé sur le jeu de rôle."
+  it: "Collega il tuo backend LLM e chatta con personaggi IA persistenti — un frontend potente orientato al roleplay."
+  nl: "Verbind je eigen LLM-backend en chat met persistente AI-karakters — een krachtige frontend voor gevorderde gebruikers."
+  pl: "Podłącz własny backend LLM i rozmawiaj z trwałymi postaciami AI — potężny frontend skoncentrowany na odgrywaniu ról."
+categories:
+  - ai
+app_version: "release"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/SillyTavern/SillyTavern
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/sillytavern/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/SillyTavern/SillyTavern/release/public/img/logo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 222f706899aaff731951210fdc94b0306eccdb367a905d3f6dc5c407f926209d
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+
+# basic_auth: SillyTavern ships an optional built-in auth (basicAuthMode /
+# enableUserAccounts in config.yaml), but it stores and compares credentials
+# as plaintext — not compatible with generated_from, which only carries a
+# hash. We deploy with built-in auth disabled and gate the whole frontend
+# behind Traefik basic auth instead (the same pattern as n8n and open-webui).
+# Trade-off: any inbound API calls from connected backends also hit the 401
+# until the customer runs `/root/auth.sh off sillytavern`. For a pure
+# frontend with no inbound webhooks (SillyTavern only makes outbound calls
+# to LLM APIs), this cost is lower than for n8n — acceptable.
+ports:
+  - port: 8000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: SillyTavern Web UI
