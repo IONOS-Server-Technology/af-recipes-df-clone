@@ -1,0 +1,67 @@
+services:
+  tracearr:
+    image: ghcr.io/connorgallopo/tracearr:v2.1.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/tracearr/docker-compose.yaml"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - DATABASE_URL=postgresql://tracearr:${DB_PASSWORD}@timescaledb:5432/tracearr
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/tracearr/data:/app/data
+    networks:
+      - tracearr-network
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  timescaledb:
+    image: timescale/timescaledb:2.19.3-pg18
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_USER=tracearr
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=tracearr
+    volumes:
+      - /opt/tracearr/db:/var/lib/postgresql/data
+    networks:
+      - tracearr-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracearr -d tracearr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    networks:
+      - tracearr-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  tracearr-network:
+    driver: bridge
