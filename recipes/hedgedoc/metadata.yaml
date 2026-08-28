@@ -1,0 +1,51 @@
+id: hedgedoc
+enabled: false
+display_name: HedgeDoc
+description: Real-time collaborative markdown editor for team notes and documentation.
+short_description:
+  en: "Co-edit meeting notes, runbooks, and docs in real time — a self-hosted HackMD alternative."
+  de: "Besprechungsnotizen, Runbooks und Dokumente in Echtzeit gemeinsam bearbeiten — eine selbst gehostete HackMD-Alternative."
+  es: "Edita notas de reuniones, runbooks y documentos en tiempo real — una alternativa autoalojada a HackMD."
+  fr: "Éditez en temps réel des notes de réunion, runbooks et documents — une alternative auto-hébergée à HackMD."
+  it: "Modifica in tempo reale note di riunione, runbook e documenti — un'alternativa self-hosted a HackMD."
+  nl: "Bewerk vergadernotities, runbooks en documenten realtime samen — een zelf gehoste HackMD-alternatief."
+  pl: "Edytuj notatki ze spotkań, runbooki i dokumenty w czasie rzeczywistym — samodzielnie hostowana alternatywa dla HackMD."
+categories:
+  - productivity
+  - communication
+app_version: "1.11.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/hedgedoc/hedgedoc
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/hedgedoc/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/hedgedoc/hedgedoc/develop/.idea/icon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 87df57b88c65df3bc9313fda73c12c6d1b39f7e974c4c9d785053a1e6d46036b
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth: HedgeDoc enables open email self-registration by default — any visitor
+# who reaches the URL can create an account and access notes. The Traefik basic_auth
+# gate closes the registration window during setup (same pattern as n8n, RFC-001 §4.3.1).
+# Trade-off: shared-note links for external collaborators also get a 401 until the
+# customer runs '/root/auth.sh off hedgedoc'. For a team tool the setup-takeover risk
+# (open registration before the admin claims the instance) outweighs the share-link friction.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: HedgeDoc Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL password for the HedgeDoc database user, server-generated at first boot.
+
+  - name: SESSION_SECRET
+    display_name: Session Secret
+    type: password
+    description: Secret used to sign HedgeDoc session cookies (CMD_SESSION_SECRET), server-generated at first boot.
