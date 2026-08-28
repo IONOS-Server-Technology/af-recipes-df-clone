@@ -1,0 +1,23 @@
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:2.36.0
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/audiobookshelf/audiobooks:/audiobooks
+      - /opt/audiobookshelf/podcasts:/podcasts
+      - /opt/audiobookshelf/metadata:/metadata
+      - /opt/audiobookshelf/config:/config
+    networks:
+      - audiobookshelf-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  audiobookshelf-network:
+    driver: bridge
