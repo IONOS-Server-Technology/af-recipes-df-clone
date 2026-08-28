@@ -1,0 +1,45 @@
+id: fuxa
+enabled: false
+display_name: FUXA
+description: Web-based SCADA/HMI for industrial process visualization and control.
+short_description:
+  en: "Visualize and monitor industrial processes in real time — FUXA connects to Modbus, OPC-UA, MQTT, and other industrial protocols."
+  de: "Industrieprozesse in Echtzeit visualisieren und überwachen — FUXA verbindet sich mit Modbus, OPC-UA, MQTT und anderen Industrieprotokollen."
+  es: "Visualiza y monitoriza procesos industriales en tiempo real — FUXA se conecta a Modbus, OPC-UA, MQTT y otros protocolos industriales."
+  fr: "Visualisez et surveillez les processus industriels en temps réel — FUXA se connecte à Modbus, OPC-UA, MQTT et d'autres protocoles industriels."
+  it: "Visualizza e monitora i processi industriali in tempo reale — FUXA si connette a Modbus, OPC-UA, MQTT e altri protocolli industriali."
+  nl: "Visualiseer en monitor industriële processen in realtime — FUXA verbindt met Modbus, OPC-UA, MQTT en andere industriële protocollen."
+  pl: "Wizualizuj i monitoruj procesy przemysłowe w czasie rzeczywistym — FUXA łączy się z Modbus, OPC-UA, MQTT i innymi protokołami przemysłowymi."
+categories:
+  - automation
+  - monitoring
+app_version: "1.3.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/frangoteam/FUXA
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/fuxa/0.2.0/logo.svg
+logo_source: https://frangoteam.github.io/FUXA/assets/logo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: ceb34b0d95cb197709536d85c1b99a14768ae736947e665b44211f935b1b1a32
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (traefik_basic_auth mechanism, per apps-gaps/fuxa.yaml):
+# FUXA ships a fixed hardcoded default login (admin/123456) with no environment
+# variable to override it at boot — the password can only be changed after the
+# customer logs in with the default credential. The Traefik basic_auth gate closes
+# the exposure window before the customer reaches the in-app login and changes the
+# default. This same gate also incidentally mitigates the five unauthenticated-RCE
+# advisories the project shipped before v1.3.1 (all patched in 1.3.3, but the
+# defence-in-depth is worth keeping for an ICS-adjacent app).
+# Trade-off: basic_auth gates the entire router, including HTTP calls from field
+# devices that POST data to the FUXA REST/WebSocket API. If customers have devices
+# pushing data directly to the FUXA endpoint, they will need to disable the gate
+# once the in-app password is changed: /root/auth.sh off fuxa
+ports:
+  - port: 1881
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: FUXA Web UI and REST/WebSocket API
