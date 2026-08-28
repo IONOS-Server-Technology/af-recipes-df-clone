@@ -1,0 +1,53 @@
+id: penpot
+enabled: false
+display_name: Penpot
+description: Open-source design and prototyping platform for UI/UX teams.
+short_description:
+  en: "Design, prototype, and collaborate on UI/UX projects on your own server — the open-source Figma alternative."
+  de: "UI/UX-Projekte auf dem eigenen Server gestalten, prototypisieren und kollaborativ bearbeiten — die Open-Source-Alternative zu Figma."
+  es: "Diseña, crea prototipos y colabora en proyectos UI/UX en tu propio servidor — la alternativa de código abierto a Figma."
+  fr: "Concevez, prototypez et collaborez sur des projets UI/UX sur votre serveur — l'alternative open source à Figma."
+  it: "Progetta, crea prototipi e collabora su progetti UI/UX sul tuo server — l'alternativa open source a Figma."
+  nl: "Ontwerp, maak prototypes en werk samen aan UI/UX-projecten op je eigen server — het open-source alternatief voor Figma."
+  pl: "Projektuj, twórz prototypy i współpracuj przy projektach UI/UX na własnym serwerze — open-source'owa alternatywa dla Figma."
+categories:
+  - developer-tools
+  - productivity
+app_version: "${PENPOT_VERSION:-2.17}"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/penpot/penpot
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/penpot/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/penpot.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 7741516814d533da67adae29dc661d089deec374a83df112f620c9f75a920e0c
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 51200
+
+# basic_auth (IF-1312): Penpot has no built-in admin credential — the first account to
+# sign up via the UI becomes the instance owner. Without a gate, any internet visitor
+# reaching the URL before the customer could claim ownership. The gate protects the full
+# router until the customer creates their account, then they remove it with
+# `/root/auth.sh off penpot`.
+#
+# Trade-off: the gate covers the full router, so the MCP endpoint and any API clients are
+# also behind the basic-auth prompt until turned off. Penpot's primary use is browser-based
+# design work, so this is the same trade-off as n8n/immich.
+ports:
+  - port: 9001
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Penpot Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password for the Penpot backend.
+
+  - name: PENPOT_SECRET_KEY
+    display_name: Secret Key
+    type: password
+    description: Master secret key used to derive HTTP session and subsystem secrets.

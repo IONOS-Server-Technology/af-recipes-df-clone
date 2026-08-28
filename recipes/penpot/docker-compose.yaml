@@ -1,0 +1,118 @@
+services:
+  penpot-frontend:
+    image: penpotapp/frontend:2.17
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/penpot/docker-compose.yaml"
+    environment:
+      - PENPOT_FLAGS=enable-login-with-password
+      - PENPOT_BACKEND_URI=http://penpot-backend:6060
+      - PENPOT_EXPORTER_URI=http://penpot-exporter:6061
+    ports:
+      - "9001:80"
+    volumes:
+      - /opt/penpot/assets:/opt/data/assets
+    networks:
+      - penpot-network
+    depends_on:
+      penpot-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  penpot-backend:
+    image: penpotapp/backend:2.17
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/penpot/docker-compose.yaml"
+    environment:
+      - PENPOT_FLAGS=enable-login-with-password
+      - PENPOT_SECRET_KEY=${PENPOT_SECRET_KEY}
+      - PENPOT_DATABASE_URI=postgresql://penpot:${POSTGRES_PASSWORD}@postgres/penpot
+      - PENPOT_REDIS_URI=redis://valkey/0
+      - PENPOT_ASSETS_STORAGE_BACKEND=assets-fs
+      - PENPOT_STORAGE_ASSETS_FS_DIRECTORY=/opt/data/assets
+      - PENPOT_TELEMETRY_ENABLED=false
+      - PENPOT_PUBLIC_URI=https://${AF_APP_DOMAIN}
+    volumes:
+      - /opt/penpot/assets:/opt/data/assets
+    networks:
+      - penpot-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6060 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  penpot-exporter:
+    image: penpotapp/exporter:2.17
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/penpot/docker-compose.yaml"
+    environment:
+      - PENPOT_REDIS_URI=redis://valkey/0
+      - PENPOT_PUBLIC_URI=http://penpot-frontend
+    networks:
+      - penpot-network
+    depends_on:
+      valkey:
+        condition: service_healthy
+      penpot-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6061 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=penpot
+      - POSTGRES_USER=penpot
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/penpot/postgres:/var/lib/postgresql/data
+    networks:
+      - penpot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U penpot -d penpot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  valkey:
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    networks:
+      - penpot-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  penpot-network:
+    driver: bridge
