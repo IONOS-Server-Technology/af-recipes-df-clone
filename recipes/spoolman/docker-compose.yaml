@@ -1,0 +1,20 @@
+services:
+  spoolman:
+    image: ghcr.io/donkie/spoolman:0.26.0
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/spoolman/data:/home/user/.local/share/spoolman
+    networks:
+      - spoolman-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  spoolman-network:
+    driver: bridge
