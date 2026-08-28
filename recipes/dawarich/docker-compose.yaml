@@ -1,0 +1,123 @@
+services:
+  dawarich_redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --appendonly no
+    volumes:
+      - /opt/dawarich/redis:/data
+    networks:
+      - dawarich-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  dawarich_db:
+    image: postgis/postgis:17-3.5-alpine
+    restart: unless-stopped
+    shm_size: 256m
+    environment:
+      - POSTGRES_DB=dawarich
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/dawarich/postgres:/var/lib/postgresql/data
+    networks:
+      - dawarich-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dawarich"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dawarich_app:
+    image: freikin/dawarich:1.11.0
+    restart: unless-stopped
+    entrypoint: web-entrypoint.sh
+    command: ["bin/rails", "server", "-p", "3000", "-b", "::"]
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=production
+      - REDIS_URL=redis://dawarich_redis:6379
+      - DATABASE_HOST=dawarich_db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=dawarich
+      - APPLICATION_HOSTS=localhost,::1,127.0.0.1,${AF_APP_DOMAIN}
+      - APPLICATION_PROTOCOL=https
+      - TIME_ZONE=UTC
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_LOG_TO_STDOUT=true
+      - SELF_HOSTED=true
+      - STORE_GEODATA=true
+      - WEB_CONCURRENCY=1
+    volumes:
+      - /opt/dawarich/public:/var/app/public
+      - /opt/dawarich/watched:/var/app/tmp/imports/watched
+      - /opt/dawarich/storage:/var/app/storage
+    networks:
+      - dawarich-network
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  dawarich_sidekiq:
+    image: freikin/dawarich:1.11.0
+    restart: unless-stopped
+    entrypoint: sidekiq-entrypoint.sh
+    command: ["sidekiq"]
+    environment:
+      - RAILS_ENV=production
+      - REDIS_URL=redis://dawarich_redis:6379
+      - DATABASE_HOST=dawarich_db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=dawarich
+      - APPLICATION_HOSTS=localhost,::1,127.0.0.1,${AF_APP_DOMAIN}
+      - APPLICATION_PROTOCOL=https
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_LOG_TO_STDOUT=true
+      - SELF_HOSTED=true
+      - STORE_GEODATA=true
+      - BACKGROUND_PROCESSING_CONCURRENCY=3
+    volumes:
+      - /opt/dawarich/public:/var/app/public
+      - /opt/dawarich/watched:/var/app/tmp/imports/watched
+      - /opt/dawarich/storage:/var/app/storage
+    networks:
+      - dawarich-network
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+      dawarich_app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  dawarich-network:
+    driver: bridge
