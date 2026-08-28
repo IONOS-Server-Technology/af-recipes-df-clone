@@ -1,0 +1,20 @@
+services:
+  password-pusher:
+    image: pglombardo/pwpush:stable
+    restart: unless-stopped
+    ports:
+      - "5100:5100"
+    volumes:
+      - /opt/password-pusher/storage:/opt/PasswordPusher/storage
+    networks:
+      - password-pusher-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5100/up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  password-pusher-network:
+    driver: bridge

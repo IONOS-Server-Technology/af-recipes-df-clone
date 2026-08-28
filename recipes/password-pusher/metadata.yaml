@@ -1,0 +1,44 @@
+id: password-pusher
+enabled: false
+display_name: Password Pusher
+description: Share passwords and files securely via expiring, one-time links.
+short_description:
+  en: "Share passwords and files via one-time, expiring links — send credentials securely to external recipients without needing them to have an account."
+  de: "Passwörter und Dateien als ablaufende Einmal-Links teilen — sichere Übergabe an externe Empfänger ganz ohne Konto."
+  es: "Comparte contraseñas y archivos como enlaces de un solo uso — entrega credenciales de forma segura a terceros sin que necesiten cuenta."
+  fr: "Partagez mots de passe et fichiers via des liens éphémères à usage unique — remettez des identifiants en toute sécurité à des destinataires externes."
+  it: "Condividi password e file tramite link monouso a scadenza — consegna credenziali in modo sicuro a destinatari esterni senza account."
+  nl: "Deel wachtwoorden en bestanden als eenmalige, verlopende links — stuur inloggegevens veilig door aan externe ontvangers zonder account."
+  pl: "Udostępniaj hasła i pliki jako jednorazowe, wygasające linki — bezpiecznie przekazuj dane logowania zewnętrznym odbiorcom bez konta."
+categories:
+  - security
+  - productivity
+app_version: "stable"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/pglombardo/PasswordPusher
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/password-pusher/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/password-pusher.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 4681a9b9ac26fcaa5777def80a204ad93beb1c268c6d31a56e6d43af35b4fef9
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# basic_auth (RFC-001 §4.3.1): Password Pusher has no built-in login — anonymous
+# push creation and one-time viewing is the default behavior — so basic_auth gates
+# the whole router with the server password.
+#
+# Trade-off: Traefik basic_auth is router-wide, so external recipients of shared
+# one-time links also receive a 401 until the gate is lifted. The customer disables
+# it once the instance is ready for external sharing:
+#
+#     /root/auth.sh off password-pusher
+#
+# Matches the same pattern as n8n (IF-1312) and plik.
+ports:
+  - port: 5100
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Password Pusher Web UI (HTTP behind Traefik)
