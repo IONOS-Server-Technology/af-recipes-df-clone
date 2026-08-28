@@ -1,0 +1,43 @@
+services:
+  spliit:
+    image: ghcr.io/spliit-app/spliit:1.19.0
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://spliit:${POSTGRES_PASSWORD}@postgres:5432/spliit
+    ports:
+      - "3000:3000"
+    networks:
+      - spliit-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=spliit
+      - POSTGRES_USER=spliit
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/spliit/postgres:/var/lib/postgresql/data
+    networks:
+      - spliit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spliit -d spliit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  spliit-network:
+    driver: bridge
