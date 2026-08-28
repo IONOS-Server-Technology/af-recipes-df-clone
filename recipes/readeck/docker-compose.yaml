@@ -1,0 +1,23 @@
+services:
+  readeck:
+    image: codeberg.org/readeck/readeck:0.22.3
+    restart: unless-stopped
+    environment:
+      - READECK_ALLOWED_HOSTS=${AF_APP_DOMAIN}
+      - READECK_USE_X_FORWARDED=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/readeck/data:/readeck
+    networks:
+      - readeck-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  readeck-network:
+    driver: bridge
