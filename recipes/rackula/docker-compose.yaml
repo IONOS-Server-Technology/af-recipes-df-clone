@@ -1,0 +1,48 @@
+services:
+  rackula:
+    image: ghcr.io/rackulalives/rackula:persist
+    restart: unless-stopped
+    depends_on:
+      rackula-api:
+        condition: service_healthy
+    environment:
+      - API_HOST=rackula-api
+      - API_PORT=3001
+      - RACKULA_LISTEN_PORT=8080
+      - RACKULA_STORAGE_MODE=server
+      - RACKULA_TRUST_PROXY=1
+      - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN}
+    ports:
+      - "8080:8080"
+    networks:
+      - rackula-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  rackula-api:
+    image: ghcr.io/rackulalives/rackula-api:26.7.0
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - CORS_ORIGIN=https://${AF_APP_DOMAIN}
+      - RACKULA_AUTH_MODE=none
+      - RACKULA_TRUST_PROXY=true
+      - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN}
+    volumes:
+      - /opt/rackula/data:/data
+    networks:
+      - rackula-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  rackula-network:
+    driver: bridge
