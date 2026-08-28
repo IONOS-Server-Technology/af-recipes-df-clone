@@ -1,0 +1,54 @@
+id: 9router
+enabled: false
+display_name: 9Router
+description: AI API routing proxy with token optimization for 40+ LLM providers.
+short_description:
+  en: "Route requests across 40+ LLM providers from one self-hosted OpenAI-compatible endpoint — with provider fallback and token compression."
+  de: "Anfragen über 40+ LLM-Anbieter von einem selbst-gehosteten OpenAI-kompatiblen Endpunkt routen — mit Provider-Fallback und Token-Kompression."
+  es: "Enruta solicitudes a más de 40 proveedores de LLM desde un endpoint compatible con OpenAI autoalojado — con conmutación de proveedor y compresión de tokens."
+  fr: "Routez vos requêtes vers plus de 40 fournisseurs LLM depuis un endpoint OpenAI-compatible auto-hébergé — avec basculement fournisseur et compression de tokens."
+  it: "Instradata le richieste verso più di 40 provider LLM da un endpoint compatibile con OpenAI self-hosted — con failover e compressione dei token."
+  nl: "Stuur verzoeken via 40+ LLM-providers via één zelf-gehoste OpenAI-compatibele endpoint — met provider-failover en tokencompressie."
+  pl: "Kieruj żądania do ponad 40 dostawców LLM przez jeden samodzielnie hostowany endpoint zgodny z OpenAI — z przełączaniem dostawców i kompresją tokenów."
+categories:
+  - ai
+  - developer-tools
+# app_version: upstream docker-compose.yml pins to decolua/9router:latest — a rolling
+# alias that RFC-002 app-version-pinned forbids. Per IF-1501, since the upstream file
+# provides no usable non-latest version expression, the current latest stable release
+# tag is used from apps-gaps/9router.yaml version_health.latest_version.
+app_version: "0.5.50"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/decolua/9router
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/9router/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/decolua/9router/master/public/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 76571667b97fd23fb7f0739a14996170968d2b1e0eb60154f8cff65354284b53
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+ports:
+  - port: 20128
+    protocol: tcp
+    public: true
+    http: true
+    description: 9Router Web UI and API gateway
+
+parameters:
+  # generated_from (IF-1420): INITIAL_PASSWORD is derived from the customer's server
+  # (root) password at compose time — they log in to the dashboard with the password
+  # they already know. The apps-gaps summary notes this follows the same pattern as
+  # Vaultwarden's ADMIN_TOKEN. The app replaces this on first login; subsequent logins
+  # use the stored hash in its SQLite database under DATA_DIR.
+  - name: INITIAL_PASSWORD
+    display_name: Initial Admin Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Dashboard admin password. Derived from your server password — log in with that password on first boot.
+
+  - name: JWT_SECRET
+    display_name: JWT Secret
+    type: password
+    description: Secret key for signing JWT session tokens. Server-generated at first boot; the customer never needs to see or set this value.
