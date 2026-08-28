@@ -1,0 +1,27 @@
+services:
+  opencloud:
+    image: opencloudeu/opencloud-rolling:7.4.0
+    restart: unless-stopped
+    user: "1000:1000"
+    entrypoint:
+      - /bin/sh
+    command: ["-c", "opencloud init || true; opencloud server"]
+    environment:
+      - OC_URL=https://${AF_APP_DOMAIN}
+      - PROXY_TLS=false
+      - IDM_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+    volumes:
+      - /opt/opencloud/config:/etc/opencloud
+      - /opt/opencloud/data:/var/lib/opencloud
+    networks:
+      - opencloud-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  opencloud-network:
+    driver: bridge

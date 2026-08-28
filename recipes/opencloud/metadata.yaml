@@ -1,0 +1,52 @@
+id: opencloud
+enabled: false
+display_name: OpenCloud
+description: Self-hosted file sync and collaboration platform with built-in identity management.
+short_description:
+  en: "Store, sync, and share files on your own server — with office collaboration and built-in identity management."
+  de: "Dateien auf dem eigenen Server speichern, synchronisieren und teilen — mit Office-Zusammenarbeit und integriertem Identitätsmanagement."
+  es: "Almacena, sincroniza y comparte archivos en tu propio servidor — con colaboración ofimática y gestión de identidad integrada."
+  fr: "Stockez, synchronisez et partagez vos fichiers sur votre propre serveur — avec collaboration bureautique et gestion d'identité intégrée."
+  it: "Archivia, sincronizza e condividi file sul tuo server — con collaborazione office e gestione delle identità integrata."
+  nl: "Sla bestanden op, synchroniseer en deel ze op je eigen server — met Office-samenwerking en ingebouwd identiteitsbeheer."
+  pl: "Przechowuj, synchronizuj i udostępniaj pliki na własnym serwerze — z narzędziami biurowymi i wbudowanym zarządzaniem tożsamościami."
+categories:
+  - productivity
+  - storage
+# app_version: upstream's official compose file (opencloud-eu/opencloud-compose base file)
+# pins the image tag as ${OC_DOCKER_TAG:-7.4.0} — a version-pinned default per IF-1501 rule 2.
+# Adopted the pinned value 7.4.0 directly (not the env-var expression, which is not a
+# valid app_version string).
+app_version: "7.4.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://opencloud.eu
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/opencloud/0.2.0/logo.svg
+logo_source: https://opencloud.eu/themes/cloudy/src/assets/favicon/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 0f11a79dc14a788f264a9111cbc294a8f3d3461f255f8378781d8ff3f646bbad
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+ports:
+  - port: 9200
+    protocol: tcp
+    public: true
+    http: true
+    description: OpenCloud Web UI
+    # Note: port 9200 is also the Elasticsearch default port (listed in RFC-002
+    # no-public-db-port). With http: true this port is Traefik-routed and never
+    # bound on the host, so it does not conflict with that rule. Take care in
+    # docker-compose.yaml (Task 2) not to publish 9200 as a host port.
+
+parameters:
+  # generated_from (IF-1420): INITIAL_ADMIN_PASSWORD is set via IDM_ADMIN_PASSWORD
+  # in the compose environment. OpenCloud's built-in LibreGraph IDM accepts this
+  # value at first-boot initialisation. Using argon2:ROOT_PASSWORD so the customer
+  # logs in with their server password — no separate generated secret to look up.
+  - name: INITIAL_ADMIN_PASSWORD
+    display_name: Admin Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Initial OpenCloud administrator password. Derived from your server password — log in with the admin account using that password.
