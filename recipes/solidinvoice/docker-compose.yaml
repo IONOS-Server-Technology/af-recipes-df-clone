@@ -1,0 +1,45 @@
+services:
+  solidinvoice:
+    image: solidinvoice/solidinvoice:3.0.1
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql://solidinvoice:${MYSQL_PASSWORD}@mysql:3306/solidinvoice
+      - APP_SECRET=${SOLIDINVOICE_APP_SECRET}
+    ports:
+      - "8765:80"
+    volumes:
+      - /opt/solidinvoice/data:/var/www/html/var
+    networks:
+      - solidinvoice-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=solidinvoice
+      - MYSQL_USER=solidinvoice
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - /opt/solidinvoice/mysql:/var/lib/mysql
+    networks:
+      - solidinvoice-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  solidinvoice-network:
+    driver: bridge

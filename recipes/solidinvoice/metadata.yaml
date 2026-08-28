@@ -1,0 +1,54 @@
+id: solidinvoice
+enabled: false
+display_name: SolidInvoice
+description: Open-source invoicing application for freelancers and small businesses to manage clients, quotes, and recurring billing.
+short_description:
+  en: "Create and send invoices, manage quotes, and automate recurring billing — self-hosted with no SaaS subscription fees."
+  de: "Rechnungen erstellen und versenden, Angebote verwalten und wiederkehrende Abrechnungen automatisieren — selbst gehostet ohne SaaS-Abokosten."
+  es: "Crea y envía facturas, gestiona presupuestos y automatiza la facturación recurrente — autoalojado sin cuotas SaaS."
+  fr: "Créez et envoyez des factures, gérez vos devis et automatisez la facturation récurrente — auto-hébergé sans abonnement SaaS."
+  it: "Crea e invia fatture, gestisci preventivi e automatizza la fatturazione ricorrente — self-hosted senza abbonamenti SaaS."
+  nl: "Maak en verstuur facturen, beheer offertes en automatiseer terugkerende facturatie — zelf gehost zonder SaaS-abonnementskosten."
+  pl: "Twórz i wysyłaj faktury, zarządzaj ofertami i automatyzuj cykliczne rozliczenia — self-hosted bez opłat SaaS."
+categories:
+  - finance
+  - productivity
+app_version: "3.0.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/SolidInvoice/SolidInvoice
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/solidinvoice/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/SolidInvoice/SolidInvoice/3.1.x/assets/img/logo.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: fc14a40cca4531aa3ceb408706a6dedae781ea3e7bb22a804966f079ad15a574
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth: SolidInvoice has no pre-seeded admin credential — whoever reaches the
+# /install setup wizard first becomes the owner. Fronting with Traefik basic auth closes
+# the takeover window before the customer's first visit, consistent with n8n (IF-1312).
+# The customer completes the setup wizard on first login, then may turn basic auth off:
+#   /root/auth.sh off solidinvoice
+ports:
+  - port: 8765
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: SolidInvoice Web UI
+
+parameters:
+  - name: MYSQL_ROOT_PASSWORD
+    display_name: MySQL Root Password
+    type: password
+    description: MySQL root password, server-generated at first boot.
+
+  - name: MYSQL_PASSWORD
+    display_name: MySQL User Password
+    type: password
+    description: MySQL application user password, server-generated at first boot.
+
+  - name: SOLIDINVOICE_APP_SECRET
+    display_name: Application Secret
+    type: password
+    description: Symfony application secret key, server-generated at first boot.
