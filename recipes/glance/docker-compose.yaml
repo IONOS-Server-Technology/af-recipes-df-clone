@@ -1,0 +1,32 @@
+services:
+  glance:
+    image: glanceapp/glance:v0.8.5
+    restart: unless-stopped
+    environment:
+      - GLANCE_ADMIN_PASSWORD_HASH=${GLANCE_ADMIN_PASSWORD_HASH}
+      - GLANCE_SECRET_KEY=${GLANCE_SECRET_KEY}
+    ports:
+      - "8080:8080"
+    volumes:
+      # The image's entrypoint is hardcoded to --config /app/config/glance.yml,
+      # not /app/glance.yml - confirmed real bug, the old path here was never
+      # actually read. Not :ro either: a real CI run hit "no such file or
+      # directory" for glance.yml through a :ro mount despite install.sh
+      # writing it correctly beforehand (not reproducible locally - a
+      # SELinux/rootless-podman artifact masks the signal either way);
+      # dropping :ro matches every other install.sh-populated, boot-required
+      # config mount already working elsewhere in af-recipes.
+      - /opt/glance/config:/app/config
+      - /opt/glance/assets:/app/assets
+    networks:
+      - glance-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  glance-network:
+    driver: bridge
