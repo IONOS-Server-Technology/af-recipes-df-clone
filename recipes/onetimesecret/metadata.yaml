@@ -1,0 +1,45 @@
+id: onetimesecret
+enabled: false
+display_name: One-Time Secret
+description: Share sensitive information via secure, self-destructing links that can only be viewed once.
+short_description:
+  en: "Share passwords and confidential data via self-destructing links — once viewed, the secret is gone forever."
+  de: "Passwörter und vertrauliche Daten über selbstzerstörende Links teilen — nach dem Öffnen ist das Geheimnis für immer weg."
+  es: "Comparte contraseñas y datos confidenciales mediante enlaces autodestructivos — una vez vistos, el secreto desaparece para siempre."
+  fr: "Partagez mots de passe et données confidentielles via des liens auto-destructeurs — une fois consultés, le secret disparaît à jamais."
+  it: "Condividi password e dati riservati tramite link autodistruttivi — dopo la visualizzazione, il segreto scompare per sempre."
+  nl: "Deel wachtwoorden en vertrouwelijke gegevens via zelfvernietigende links — eenmaal bekeken, is het geheim voor altijd verdwenen."
+  pl: "Udostępniaj hasła i poufne dane przez linki samozniszczające — po obejrzeniu sekret znika na zawsze."
+categories:
+  - security
+app_version: "v0.26.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/onetimesecret/onetimesecret
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/onetimesecret/0.2.0/logo.svg
+logo_source: https://onetimesecret.com/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: a03279b478eb533a0f354f6a8c2f5fb5f2fb0a16e0c2711db67f25eef6b481ef
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# basic_auth: not set — OTS's core feature (viewing a shared secret) requires
+# unauthenticated access by the recipient. Putting Traefik basic auth in front
+# would break every shared link sent to external parties.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    description: One-Time Secret Web UI
+
+parameters:
+  - name: SECRET
+    display_name: Secret Key
+    type: password
+    description: Site-wide encryption key — generated at install time; must not change after first use or existing secrets become unreadable.
+
+  - name: VALKEY_PASSWORD
+    display_name: Valkey Password
+    type: password
+    description: Password for the Valkey (Redis-compatible) backend — generated at install time.
