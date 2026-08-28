@@ -1,0 +1,44 @@
+id: backrest
+enabled: false
+display_name: Backrest
+description: Web UI for restic backups with scheduling, encryption, and file-level restore.
+short_description:
+  en: "Schedule encrypted backups and browse file-level restores with a self-hosted web UI powered by restic."
+  de: "Verschlüsselte Backups planen und dateibasierte Wiederherstellungen mit einer selbst gehosteten Web-UI auf Basis von restic verwalten."
+  es: "Programa copias de seguridad cifradas y explora restauraciones de archivos con una interfaz web autoalojada basada en restic."
+  fr: "Planifiez des sauvegardes chiffrées et parcourez les restaurations de fichiers avec une interface web auto-hébergée basée sur restic."
+  it: "Pianifica backup crittografati e sfoglia i ripristini file per file con un'interfaccia web self-hosted basata su restic."
+  nl: "Plan versleutelde back-ups en herstel bestanden via een zelfgehoste webinterface op basis van restic."
+  pl: "Planuj zaszyfrowane kopie zapasowe i przeglądaj przywracanie plików przez własną, opartą na restic aplikację webową."
+categories:
+  - storage
+  - utilities
+app_version: "v1.14.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/garethgeorge/backrest
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/backrest/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/backrest.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: fcc8ac1106d9440bf4d2995e185243bc15291699490040d7ec5252ee6848506b
+
+app_min_ram_mb: 256
+app_min_disk_mb: 1024
+
+ports:
+  - port: 9898
+    protocol: tcp
+    public: true
+    http: true
+    description: Backrest Web UI
+
+parameters:
+  # generated_from (IF-1420): BACKREST_PASSWORD is derived from the customer's server
+  # (root) password. install.sh seeds config.json with a bcrypt hash of it under
+  # Auth.users[].password_bcrypt before the first container start, bypassing the
+  # interactive signup wizard. The plaintext never leaves af-api.
+  - name: BACKREST_PASSWORD
+    display_name: Admin Password
+    type: password
+    generated_from: "bcrypt:ROOT_PASSWORD"
+    description: Password for the Backrest admin account. Derived from your server password — log in with that password.

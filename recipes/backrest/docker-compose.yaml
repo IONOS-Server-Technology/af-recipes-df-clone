@@ -1,0 +1,25 @@
+services:
+  backrest:
+    image: ghcr.io/garethgeorge/backrest:v1.14.1
+    restart: unless-stopped
+    environment:
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+    ports:
+      - "9898:9898"
+    volumes:
+      - /opt/backrest/config:/config
+      - /opt/backrest/data:/data
+      - /opt/backrest/cache:/cache
+    networks:
+      - backrest-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9898/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  backrest-network:
+    driver: bridge
