@@ -1,0 +1,27 @@
+services:
+  homehub:
+    image: ghcr.io/surajverma/homehub:0.2.3.4
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/homehub/config.yml:/app/config.yml:ro
+      - /opt/homehub/uploads:/app/uploads
+      - /opt/homehub/media:/app/media
+      - /opt/homehub/pdfs:/app/pdfs
+      - /opt/homehub/data:/app/data
+    networks:
+      - homehub-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  homehub-network:
+    driver: bridge
