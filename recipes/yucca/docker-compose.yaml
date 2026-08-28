@@ -1,0 +1,20 @@
+services:
+  yucca:
+    image: yuccastream/yucca:0.13.4
+    restart: unless-stopped
+    ports:
+      - "9910:9910"
+    volumes:
+      - /opt/yucca/data:/data
+    networks:
+      - yucca-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9910/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  yucca-network:
+    driver: bridge
