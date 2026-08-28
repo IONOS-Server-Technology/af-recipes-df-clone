@@ -1,0 +1,20 @@
+services:
+  changedetectionio:
+    image: dgtlmoon/changedetection.io:0.55.8
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/changedetectionio/data:/datastore
+    networks:
+      - changedetectionio-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  changedetectionio-network:
+    driver: bridge
