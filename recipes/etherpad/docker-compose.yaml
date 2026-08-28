@@ -1,0 +1,51 @@
+services:
+  etherpad:
+    image: etherpad/etherpad:3.3.3
+    restart: unless-stopped
+    environment:
+      - DB_TYPE=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=etherpad
+      - DB_USER=etherpad
+      - DB_PASS=${DB_PASS}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    ports:
+      - "9001:9001"
+    volumes:
+      - /opt/etherpad/data:/opt/etherpad-lite/var
+    networks:
+      - etherpad-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9001/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=etherpad
+      - POSTGRES_USER=etherpad
+      - POSTGRES_PASSWORD=${DB_PASS}
+    volumes:
+      - /opt/etherpad/postgres:/var/lib/postgresql/data
+    networks:
+      - etherpad-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etherpad -d etherpad"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  etherpad-network:
+    driver: bridge
