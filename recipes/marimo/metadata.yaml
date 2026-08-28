@@ -1,0 +1,44 @@
+id: marimo
+enabled: false
+display_name: Marimo
+description: Reactive Python notebook with SQL support and git-friendly .py file storage.
+short_description:
+  en: "Write reactive Python notebooks that auto-execute and store as plain .py files — no hidden state, no stale outputs."
+  de: "Reaktive Python-Notebooks — automatisch ausgeführt, als .py-Dateien gespeichert, kein versteckter Zustand, keine veralteten Ausgaben."
+  es: "Escribe notebooks Python reactivos que se ejecutan automáticamente y se guardan como archivos .py — sin estado oculto, sin resultados obsoletos."
+  fr: "Rédigez des notebooks Python réactifs qui s'exécutent automatiquement et se stockent en fichiers .py — sans état caché, sans sorties obsolètes."
+  it: "Scrivi notebook Python reattivi che si eseguono automaticamente e vengono salvati come file .py — nessuno stato nascosto, nessun output obsoleto."
+  nl: "Schrijf reactieve Python-notebooks die automatisch uitvoeren en worden opgeslagen als .py-bestanden — geen verborgen staat, geen verouderde uitvoer."
+  pl: "Twórz reaktywne notebooki Python wykonujące się automatycznie, przechowywane jako pliki .py — bez ukrytego stanu, bez przestarzałych wyników."
+categories:
+  - developer-tools
+app_version: "0.24.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/marimo-team/marimo
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/marimo/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: ddcd46b44e9a57278560029306e9032299db325be255654af2b84d3870c526ff
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# basic_auth covers the only secret Marimo needs at first boot.
+# Marimo's built-in --token-password flag accepts only plaintext (not a hash),
+# so generated_from cannot feed it. Upstream docs explicitly call it unsuitable
+# for production/shared deployments. The recipe disables it (--no-token) and
+# gates the UI behind Traefik basic auth instead — the customer logs in with
+# their server password, same pattern as n8n.
+#
+# Trade-off: basic_auth blocks every HTTP request including future webhook/API
+# calls until the customer runs `/root/auth.sh off marimo`. The interactive
+# editor has no inbound webhook surface (unlike n8n), so this is a smaller
+# practical concern, but worth calling out in documentation.
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: Marimo Web UI
