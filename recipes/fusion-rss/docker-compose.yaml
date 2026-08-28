@@ -1,0 +1,24 @@
+services:
+  fusion-rss:
+    image: ghcr.io/0x2e/fusion:v1.2.1
+    restart: unless-stopped
+    environment:
+      # Disable Fusion's own password gate; authentication is handled by the
+      # Traefik basic-auth middleware declared in metadata.yaml (basic_auth: true).
+      - FUSION_ALLOW_EMPTY_PASSWORD=true
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/fusion-rss/data:/data
+    networks:
+      - fusion-rss-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  fusion-rss-network:
+    driver: bridge

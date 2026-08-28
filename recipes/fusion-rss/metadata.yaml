@@ -1,0 +1,40 @@
+id: fusion-rss
+enabled: false
+display_name: Fusion
+description: Lightweight self-hosted RSS reader with Fever API support and keyboard-driven reading.
+short_description:
+  en: "Subscribe to RSS and Atom feeds and read them in a fast, keyboard-driven interface — with built-in Fever API for Reeder, Unread, and FeedMe."
+  de: "RSS- und Atom-Feeds abonnieren und in einer schnellen, tastaturgesteuerten Oberfläche lesen – mit integrierter Fever-API für Reeder, Unread und FeedMe."
+  es: "Suscríbete a feeds RSS y Atom y léelos en una interfaz rápida orientada al teclado, con API Fever integrada para Reeder, Unread y FeedMe."
+  fr: "Abonnez-vous aux flux RSS et Atom et lisez-les dans une interface rapide pilotable au clavier — avec API Fever intégrée pour Reeder, Unread et FeedMe."
+  it: "Iscriviti ai feed RSS e Atom e leggili in un'interfaccia veloce con scorciatoie da tastiera — con API Fever integrata per Reeder, Unread e FeedMe."
+  nl: "Abonneer op RSS- en Atom-feeds en lees ze in een snelle, toetsenbordgestuurde interface — met ingebouwde Fever-API voor Reeder, Unread en FeedMe."
+  pl: "Subskrybuj kanały RSS i Atom i czytaj je w szybkim interfejsie sterowanym klawiaturą — z wbudowanym API Fever dla Reeder, Unread i FeedMe."
+categories:
+  - productivity
+  - media
+app_version: "v1.2.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/0x2E/fusion
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/fusion-rss/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/png/fusion-rss.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: afcad27281faaef0968ff5f688bc1d4ddeb6315e1866d46ccd8e4bec9d695b05
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+ports:
+  # basic_auth: true disables Fusion's own FUSION_PASSWORD login (FUSION_ALLOW_EMPTY_PASSWORD=true)
+  # and puts the Traefik basic-auth gate in front instead — the single mechanism the
+  # apps-gaps analysis identified as expressible today. Trade-off: the Fever API endpoint
+  # (used by mobile clients such as Reeder, Unread, FeedMe) sits behind the same gate and
+  # will fail with clients that do not send HTTP basic-auth credentials. Customers needing
+  # unblocked Fever API access can run /root/auth.sh off fusion-rss to remove the gate
+  # and set their own FUSION_PASSWORD in .env.
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Fusion Web UI
