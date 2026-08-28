@@ -1,0 +1,22 @@
+services:
+  actual-budget:
+    image: actualbudget/actual-server:26.8.0
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    volumes:
+      - /opt/actual-budget/data:/data
+    networks:
+      - actual-budget-network
+    healthcheck:
+      # curl doesn't exist in this image; node and scripts/health-check.js do,
+      # matching upstream's own reference (packages/sync-server/docker-compose.yml).
+      test: ["CMD-SHELL", "node scripts/health-check.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  actual-budget-network:
+    driver: bridge
