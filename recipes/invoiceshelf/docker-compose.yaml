@@ -1,0 +1,37 @@
+services:
+  invoiceshelf:
+    image: invoiceshelf/invoiceshelf:2.4.2
+    restart: unless-stopped
+    environment:
+      - APP_NAME=InvoiceShelf
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=https://${AF_APP_DOMAIN}
+      - SESSION_DOMAIN=${AF_APP_DOMAIN}
+      - SANCTUM_STATEFUL_DOMAINS=${AF_APP_DOMAIN}
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/storage/app/database.sqlite
+      - CACHE_STORE=file
+      - SESSION_DRIVER=file
+      - SESSION_LIFETIME=240
+      - AUTORUN_ENABLED=true
+      - AUTORUN_LARAVEL_MIGRATION=false
+      - AUTORUN_LARAVEL_OPTIMIZE=false
+      - PHP_OPCACHE_ENABLE=1
+    ports:
+      - "8090:8080"
+    volumes:
+      - /opt/invoiceshelf/storage:/var/www/html/storage/
+      - /opt/invoiceshelf/modules:/var/www/html/Modules/
+    networks:
+      - invoiceshelf-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  invoiceshelf-network:
+    driver: bridge
