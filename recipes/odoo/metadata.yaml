@@ -1,0 +1,49 @@
+id: odoo
+enabled: false
+display_name: Odoo
+description: Open-source ERP and CRM platform for business management, invoicing, inventory, and e-commerce.
+short_description:
+  en: "Self-host a full ERP and CRM suite — manage invoicing, inventory, sales, HR, and e-commerce on your own server with Odoo Community Edition."
+  de: "Vollständiges ERP- und CRM-System selbst hosten — Rechnungen, Lager, Vertrieb, HR und E-Commerce auf eigenem Server mit Odoo Community Edition."
+  es: "Aloja tu propio ERP y CRM completo — gestiona facturas, inventario, ventas, RRHH y comercio electrónico en tu servidor con Odoo Community Edition."
+  fr: "Hébergez une suite ERP et CRM complète — gérez facturation, stocks, ventes, RH et e-commerce sur votre serveur avec Odoo Community Edition."
+  it: "Ospita una suite ERP e CRM completa — gestisci fatturazione, magazzino, vendite, HR ed e-commerce sul tuo server con Odoo Community Edition."
+  nl: "Host een volledig ERP- en CRM-pakket zelf — beheer facturatie, voorraad, verkoop, HR en e-commerce op je eigen server met Odoo Community Edition."
+  pl: "Samodzielnie hostuj pełny pakiet ERP i CRM — zarządzaj fakturami, magazynem, sprzedażą, HR i e-commerce na własnym serwerze z Odoo Community Edition."
+categories:
+  - productivity
+app_version: "19.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.odoo.com/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/odoo/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/odoo/odoo/19.0/addons/web/static/img/odoo-icon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 07b0dbd5b176efd379520c26dc5dfb24cdc9714cc6a89ddb6a60eae32b442d6a
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth: Odoo has no pre-provisioned admin account — the database creation wizard at
+# /web/database/manager is unauthenticated (protected only by a master password templated
+# into odoo.conf by install.sh, which never reaches the customer). The platform's
+# basic-auth gate (server root password) closes the claim-race window until the customer
+# completes setup via the wizard and runs /root/auth.sh off odoo. Same accepted trade-off
+# as n8n and ghost: inbound requests see 401 until the gate comes down.
+ports:
+  - port: 8069
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Odoo Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, server-generated at first boot.
+  - name: ODOO_MASTER_PASSWORD
+    display_name: Master Password
+    type: password
+    description: Odoo master password for the database manager, server-generated and templated into odoo.conf at first boot.
