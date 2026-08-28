@@ -1,0 +1,24 @@
+services:
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/wiremock/docker-compose.yaml"
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/wiremock/mappings:/home/wiremock/mappings
+      - /opt/wiremock/files:/home/wiremock/__files
+    networks:
+      - wiremock-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/__admin/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  wiremock-network:
+    driver: bridge
