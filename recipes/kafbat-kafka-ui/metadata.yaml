@@ -1,0 +1,47 @@
+id: kafbat-kafka-ui
+enabled: false
+display_name: Kafbat Kafka UI
+description: Web-based management and monitoring UI for Apache Kafka clusters.
+short_description:
+  en: "Browse topics, consumer groups, and cluster metrics, and manage your Kafka cluster through an intuitive web interface."
+  de: "Topics, Consumer-Gruppen und Cluster-Metriken einsehen und Ihr Kafka-Cluster über eine intuitive Web-Oberfläche verwalten."
+  es: "Explora topics, grupos de consumidores y métricas del clúster, y gestiona tu Kafka a través de una interfaz web intuitiva."
+  fr: "Parcourez les topics, groupes de consommateurs et métriques du cluster, et gérez Kafka via une interface web intuitive."
+  it: "Esplora topic, gruppi di consumatori e metriche del cluster, e gestisci Kafka tramite un'interfaccia web intuitiva."
+  nl: "Bekijk topics, consumentengroepen en clusterstatistieken en beheer uw Kafka-cluster via een intuïtieve webinterface."
+  pl: "Przeglądaj tematy, grupy konsumentów i metryki klastra i zarządzaj Kafką przez intuicyjny interfejs webowy."
+categories:
+  - infrastructure
+  - developer-tools
+  - monitoring
+# compose_file_url is null in apps-gaps — no official standalone compose file exists.
+# Falling back to the current latest stable release tag (v1.5.0, 2026-04-20) per IF-1501 rule 3.
+app_version: "v1.5.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/kafbat/kafka-ui
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/kafbat-kafka-ui/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/kafbat/kafka-ui/main/.idea/icon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: f95212cc0d2d10af5bced122dae08475b7eda344f8b04f5c61d8118093222efd
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+
+# basic_auth: Kafbat UI's own LOGIN_FORM auth is unconfirmed to accept a pre-hashed
+# password (the parameter would need to be stored in plaintext in .env), so the recipe
+# leaves built-in auth off (DYNAMIC_CONFIG_ENABLED=true only) and gates port 8080 with
+# Traefik basic_auth — the same pattern as n8n and Open WebUI.
+#
+# Trade-off: Kafbat UI is a pure management console with no inbound webhooks or
+# OAuth callbacks, so the router-wide prompt has no meaningful side-effect. The
+# customer turns it off once they have configured their Kafka cluster:
+#
+#     /root/auth.sh off kafbat-kafka-ui
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Kafbat Kafka UI Web UI
