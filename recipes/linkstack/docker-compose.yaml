@@ -1,0 +1,23 @@
+services:
+  linkstack:
+    image: linkstackorg/linkstack@sha256:1c8b05399ee459ac601bac3eede7fbe765d1b6b7be725663b57f3220610958bf
+    restart: unless-stopped
+    environment:
+      - HTTP_SERVER_NAME=${AF_APP_DOMAIN}
+      - HTTPS_SERVER_NAME=${AF_APP_DOMAIN}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/linkstack/htdocs:/htdocs
+    networks:
+      - linkstack-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 10 http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+networks:
+  linkstack-network:
+    driver: bridge
