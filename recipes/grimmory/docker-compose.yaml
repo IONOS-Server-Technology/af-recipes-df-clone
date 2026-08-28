@@ -1,0 +1,53 @@
+services:
+  grimmory:
+    image: ghcr.io/grimmory-tools/grimmory:v3.2.4
+    restart: unless-stopped
+    # Grimmory boots straight into a public setup wizard with no admin-credential env var.
+    # The Traefik basic-auth gate (basic_auth: true in metadata.yaml) ensures only the
+    # customer can reach that wizard to claim the owner account.
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=grimmory
+      - DB_USER=grimmory
+      - DB_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "6060:6060"
+    volumes:
+      - /opt/grimmory/books:/books
+      - /opt/grimmory/bookdrop:/bookdrop
+      - /opt/grimmory/data:/data
+    networks:
+      - grimmory-network
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:6060/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=grimmory
+      - MARIADB_USER=grimmory
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/grimmory/mariadb:/var/lib/mysql
+    networks:
+      - grimmory-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  grimmory-network:
+    driver: bridge
