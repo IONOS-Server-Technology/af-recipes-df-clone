@@ -1,0 +1,26 @@
+services:
+  silex:
+    image: silexlabs/silex-platform:3.9.0
+    restart: unless-stopped
+    environment:
+      - STORAGE_CONNECTORS=fs
+      - HOSTING_CONNECTORS=fs
+      - SILEX_FS_ROOT=/silex-storage
+      - SILEX_FS_HOSTING_ROOT=/silex-hosting
+    ports:
+      - "6805:6805"
+    volumes:
+      - /opt/silex/storage:/silex-storage
+      - /opt/silex/hosting:/silex-hosting
+    networks:
+      - silex-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:6805/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  silex-network:
+    driver: bridge
