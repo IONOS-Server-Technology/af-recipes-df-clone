@@ -1,0 +1,48 @@
+services:
+  open-notebook:
+    image: lfnovo/open_notebook:v1-latest
+    restart: unless-stopped
+    environment:
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=${DB_PASSWORD}
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=open_notebook
+      - OPEN_NOTEBOOK_ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    ports:
+      - "8502:8502"
+    volumes:
+      - /opt/open-notebook/data:/data
+    networks:
+      - open-notebook-network
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8502/_stcore/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2.6.5
+    restart: unless-stopped
+    command: start --auth file:/data/database.db
+    environment:
+      - SURREAL_USER=root
+      - SURREAL_PASS=${DB_PASSWORD}
+    volumes:
+      - /opt/open-notebook/surrealdb:/data
+    networks:
+      - open-notebook-network
+    healthcheck:
+      test: ["CMD", "surreal", "is-ready", "--endpoint", "http://127.0.0.1:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  open-notebook-network:
+    driver: bridge

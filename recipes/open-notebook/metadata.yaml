@@ -1,0 +1,51 @@
+id: open-notebook
+enabled: false
+display_name: Open Notebook
+description: AI-powered research notebook for ingesting and chatting across documents, audio, video, and web pages.
+short_description:
+  en: "Build research notebooks from your own documents, podcasts, and web pages and chat across all of them — a self-hosted NotebookLM alternative."
+  de: "Forschungs-Notebooks aus eigenen Dokumenten, Podcasts und Webseiten erstellen und darüber chatten — eine selbst gehostete NotebookLM-Alternative."
+  es: "Crea cuadernos de investigación con tus propios documentos, podcasts y páginas web y chatea con ellos — una alternativa autoalojada a NotebookLM."
+  fr: "Créez des carnets de recherche à partir de vos documents, podcasts et pages web et chattez avec eux — une alternative auto-hébergée à NotebookLM."
+  it: "Crea notebook di ricerca dai tuoi documenti, podcast e pagine web e chatta con essi — un'alternativa self-hosted a NotebookLM."
+  nl: "Bouw onderzoeksnotebooks van je eigen documenten, podcasts en webpagina's en chat daarmee — een zelf-gehost NotebookLM-alternatief."
+  pl: "Twórz notebooki badawcze z własnych dokumentów, podcastów i stron internetowych i rozmawiaj z nimi — samodzielnie hostowana alternatywa NotebookLM."
+categories:
+  - productivity
+  - ai
+app_version: "v1-latest"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/lfnovo/open-notebook
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/open-notebook/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/open-notebook.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 972319d98711cbbb4fe88d5710e608de28538ee4792be1f68e532801699de131
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth (RFC-001 §4.3.1): Open Notebook's built-in optional password gate is not
+# hash-comparison based and cannot be driven by generated_from. The fix is to leave it
+# disabled and put a Traefik basic_auth gate in front — same pattern as n8n and hedgedoc.
+# Trade-off: the setup-takeover window (anyone reaching the URL claims the instance) is
+# closed; the gate stays up until the customer runs '/root/auth.sh off open-notebook'.
+# Port 5055 (REST API) is internal-only and intentionally not listed here.
+ports:
+  - port: 8502
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Open Notebook Web UI (Streamlit)
+
+parameters:
+  - name: DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: SurrealDB password, server-generated at first boot.
+
+  - name: ENCRYPTION_KEY
+    display_name: Encryption Key
+    type: password
+    description: Key used to encrypt stored secrets, server-generated at first boot.
