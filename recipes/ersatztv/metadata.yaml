@@ -1,0 +1,39 @@
+id: ersatztv
+enabled: false
+display_name: ErsatzTV
+description: Self-hosted IPTV server that builds live channels from your media library.
+short_description:
+  en: "Schedule your media library into always-on live TV channels and stream them to any IPTV-compatible player."
+  de: "Eigene Mediathek als permanente Live-TV-Kanäle einplanen und an jeden IPTV-kompatiblen Player streamen."
+  es: "Programa tu biblioteca multimedia en canales de TV en directo y transmítelos a cualquier reproductor IPTV."
+  fr: "Planifiez votre médiathèque en chaînes TV permanentes et diffusez-les vers tout lecteur compatible IPTV."
+  it: "Organizza la tua libreria multimediale in canali TV live e trasmettila a qualsiasi player compatibile con IPTV."
+  nl: "Plan je mediabibliotheek als altijd-aan live tv-kanalen en stream ze naar elke IPTV-compatibele speler."
+  pl: "Zaplanuj swoją bibliotekę multimediów jako zawsze dostępne kanały TV i streamuj je do dowolnego odtwarzacza IPTV."
+categories:
+  - media
+app_version: "26.7.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/ErsatzTV/legacy
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/ersatztv/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/ErsatzTV/legacy/main/ErsatzTV/wwwroot/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 59d27f3d236ca1574f00451c9b4d7196b35f24dae62e7397f22a464d5bd84469
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (IF-1312): ErsatzTV ships with no built-in login — the web UI and
+# its scheduling/config surface are fully open on first boot. The platform's
+# Traefik basic-auth gate (server root password, username "admin") closes the
+# setup-takeover window until the customer's first visit. The trade-off is the
+# same as n8n and immich: the whole router, including M3U/EPG/HDHomeRun endpoints,
+# sits behind the prompt; IPTV clients that cannot send a basic-auth header must
+# wait until the customer runs `/root/auth.sh off ersatztv`.
+ports:
+  - port: 8409
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: ErsatzTV Web UI
