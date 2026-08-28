@@ -1,0 +1,20 @@
+services:
+  grav:
+    image: getgrav/grav:2.0.15
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/grav/user:/var/www/grav/user
+    networks:
+      - grav-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  grav-network:
+    driver: bridge
