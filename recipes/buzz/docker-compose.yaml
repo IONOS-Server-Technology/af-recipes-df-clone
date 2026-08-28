@@ -101,6 +101,19 @@ services:
       # when this is true. BUZZ_WEB_DIR itself is already baked into the image
       # as a default env var, so nothing else needs to be set for this to work.
       BUZZ_SERVE_GIT_WEB_GUI: "true"
+      # Defaults (32 writers x 3 rounds = 96 total CAS races against MinIO on
+      # every boot) hit a confirmed, still-open upstream bug on this specific
+      # probe: block/buzz#2723 - the S3 client sets no request timeout, and a
+      # single stalled MinIO connection under many concurrent writers hangs
+      # the probe (and therefore the whole boot) forever, with no error and
+      # no health-port ever binding. The fix PR (block/buzz#2724, a bounded
+      # per-op timeout + overall deadline) is still open, unmerged. Lowering
+      # width/rounds reduces how many concurrent connections can stall at
+      # once - it does not eliminate the bug, just narrows the window - while
+      # still genuinely exercising the CAS mechanism this probe exists to
+      # verify, rather than disabling it via BUZZ_GIT_CONFORMANCE_PROBE=false.
+      BUZZ_GIT_PROBE_WRITERS: "4"
+      BUZZ_GIT_PROBE_ROUNDS: "1"
     ports:
       - "3000:3000"
     volumes:
