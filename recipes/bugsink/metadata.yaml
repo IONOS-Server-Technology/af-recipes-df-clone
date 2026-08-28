@@ -1,0 +1,58 @@
+id: bugsink
+enabled: false
+display_name: BugSink
+description: Self-hosted error tracking platform compatible with the Sentry SDK protocol.
+short_description:
+  en: "Track application errors and exceptions on your own server — drop-in Sentry replacement, one container plus Postgres."
+  de: "Anwendungsfehler und Ausnahmen auf dem eigenen Server verfolgen — Sentry-kompatibler Ersatz, ein Container plus Postgres."
+  es: "Rastrea errores y excepciones de aplicaciones en tu servidor — reemplazo compatible con Sentry, un contenedor más Postgres."
+  fr: "Suivez les erreurs et exceptions d'application sur votre serveur — remplacement Sentry, un conteneur et Postgres."
+  it: "Monitora errori ed eccezioni delle applicazioni sul proprio server — sostituto Sentry compatibile, un container più Postgres."
+  nl: "Volg applicatiefouten en uitzonderingen op je eigen server — Sentry-compatibel alternatief, één container plus Postgres."
+  pl: "Śledź błędy i wyjątki aplikacji na własnym serwerze — zamiennik Sentry, jeden kontener plus Postgres."
+categories:
+  - monitoring
+  - developer-tools
+app_version: "2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/bugsink/bugsink
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/bugsink/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/png/bugsink.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: aa6fed26f8ef6b6a9cc0aebfd4b5447482aca20a89ad846285b96bec7f954965
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth: BugSink's CREATE_SUPERUSER is a fixed admin credential baked in by
+# install.sh (the env var accepts only plaintext email:password at container start,
+# with no hash/generated_from-compatible path). The Traefik basic_auth gate is
+# therefore the customer-facing auth boundary — same pattern as n8n. While the
+# prompt is active, inbound SDK ingestion endpoints also receive a 401; customers
+# running their own apps should turn it off once they have logged in:
+#   /root/auth.sh off bugsink
+ports:
+  - port: 8000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: BugSink Web UI
+
+parameters:
+  - name: SECRET_KEY
+    display_name: Secret Key
+    type: password
+    description: Django secret key used for cryptographic signing.
+
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password.
+
+  - name: CREATE_SUPERUSER
+    display_name: Initial Superuser Credential
+    type: string
+    description: >
+      Fixed admin credential in email:password format, baked in by install.sh.
+      Not customer-facing — the Traefik basic_auth gate is the actual access boundary.

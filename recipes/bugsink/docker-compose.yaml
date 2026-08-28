@@ -1,0 +1,52 @@
+services:
+  bugsink:
+    image: bugsink/bugsink:2
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/bugsink/docker-compose.yml"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://bugsink:${POSTGRES_PASSWORD}@postgres:5432/bugsink
+      - BEHIND_HTTPS_PROXY=true
+      - USE_X_FORWARDED_HOST=true
+      - BASE_URL=https://${AF_APP_DOMAIN}
+      - CREATE_SUPERUSER=${CREATE_SUPERUSER}
+    ports:
+      - "8000:8000"
+    networks:
+      - bugsink-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=bugsink
+      - POSTGRES_USER=bugsink
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/bugsink/postgres:/var/lib/postgresql/data
+    networks:
+      - bugsink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bugsink -d bugsink"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  bugsink-network:
+    driver: bridge
