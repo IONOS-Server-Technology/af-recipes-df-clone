@@ -1,0 +1,23 @@
+services:
+  lnbits:
+    image: lnbits/lnbits:v1.5.6
+    restart: unless-stopped
+    environment:
+      - LNBITS_DATA_FOLDER=/data
+      - FORWARDED_ALLOW_IPS=*
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/lnbits/data:/data
+    networks:
+      - lnbits-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  lnbits-network:
+    driver: bridge
