@@ -1,0 +1,37 @@
+id: lms
+enabled: false
+display_name: LMS
+description: Lightweight self-hosted music streaming server with Subsonic/OpenSubsonic API.
+short_description:
+  en: "Stream your personal music library to any Subsonic-compatible client with this lightweight, self-hosted music server."
+  de: "Streame deine persönliche Musikbibliothek zu jedem Subsonic-kompatiblen Client mit diesem leichtgewichtigen, selbst gehosteten Musikserver."
+  es: "Transmite tu biblioteca musical personal a cualquier cliente compatible con Subsonic con este servidor de música autoalojado y ligero."
+  fr: "Diffusez votre bibliothèque musicale personnelle vers n'importe quel client compatible Subsonic avec ce serveur de musique auto-hébergé et léger."
+  it: "Trasmetti la tua libreria musicale personale a qualsiasi client compatibile con Subsonic con questo server musicale leggero e self-hosted."
+  nl: "Stream je persoonlijke muziekbibliotheek naar elke Subsonic-compatibele client met deze lichtgewichte, zelf-gehoste muziekserver."
+  pl: "Strumieniuj swoją osobistą bibliotekę muzyczną do dowolnego klienta zgodnego z Subsonic za pomocą tego lekkiego, samodzielnie hostowanego serwera muzycznego."
+categories:
+  - media
+app_version: "3.79.0"
+recipe_version: "0.1.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/epoupon/lms
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth protects the entire app behind a Traefik prompt using the customer's
+# server password. LMS ships with no fixed default admin credential — on first HTTP
+# request an interactive setup wizard hands ownership to whoever visits first.
+# Without this gate, a race window exists between deployment and the customer's
+# first visit in which any internet user could claim the admin account.
+# Trade-off: while the gate is on, all HTTP traffic (including any API clients)
+# sees a 401. The customer turns it off with `/root/auth.sh off lms` once their
+# admin account is created through the wizard.
+ports:
+  - port: 5082
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: LMS Web UI

@@ -1,0 +1,23 @@
+services:
+  lms:
+    image: epoupon/lms:3.79.0
+    restart: unless-stopped
+    ports:
+      - "5082:5082"
+    volumes:
+      - /opt/lms/data:/lms
+      - /opt/lms/music:/music:ro
+    networks:
+      - lms-network
+    healthcheck:
+      # LMS serves its web UI on / — a 2xx/3xx reply confirms the server is up.
+      # -L follows any setup-wizard redirect on first boot.
+      test: ["CMD-SHELL", "curl -fsSL http://127.0.0.1:5082/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  lms-network:
+    driver: bridge
