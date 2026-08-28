@@ -1,0 +1,22 @@
+services:
+  papra:
+    image: ghcr.io/papra-hq/papra:26.6.1-rootless
+    restart: unless-stopped
+    environment:
+      - AUTH_SECRET=${AUTH_SECRET}
+    ports:
+      - "1221:1221"
+    volumes:
+      - /opt/papra/data:/app/server/storage
+    networks:
+      - papra-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:1221/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  papra-network:
+    driver: bridge
