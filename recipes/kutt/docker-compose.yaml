@@ -1,0 +1,26 @@
+services:
+  kutt:
+    image: kutt/kutt:v3.2.6
+    restart: unless-stopped
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_CLIENT=sqlite3
+      - DB_FILENAME=/data/db.sqlite
+      - DISALLOW_REGISTRATION=true
+      - DISALLOW_ANONYMOUS_LINKS=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/kutt/data:/data
+    networks:
+      - kutt-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  kutt-network:
+    driver: bridge
