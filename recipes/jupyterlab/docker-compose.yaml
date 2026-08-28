@@ -1,0 +1,23 @@
+services:
+  jupyterlab:
+    image: quay.io/jupyter/base-notebook:2026-07-28
+    restart: unless-stopped
+    command:
+      - start-notebook.py
+      - "--PasswordIdentityProvider.hashed_password=${JUPYTERLAB_LOGIN_PASSWORD}"
+    ports:
+      - "8888:8888"
+    volumes:
+      - /opt/jupyterlab/work:/home/jovyan/work
+    networks:
+      - jupyterlab-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8888/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  jupyterlab-network:
+    driver: bridge

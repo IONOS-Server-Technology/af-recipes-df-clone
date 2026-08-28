@@ -1,0 +1,46 @@
+id: jupyterlab
+enabled: false
+display_name: JupyterLab
+description: Browser-based interactive development environment for notebooks, code, and data science.
+short_description:
+  en: "Run a Jupyter notebook environment on your own server — write Python, analyse data, and build visualisations without cloud lock-in."
+  de: "Jupyter-Notebook-Umgebung auf dem eigenen Server — Python-Code schreiben und ausführen, Daten analysieren und Visualisierungen erstellen."
+  es: "Ejecuta un entorno Jupyter Notebook en tu propio servidor — escribe Python, analiza datos y crea visualizaciones sin depender de la nube."
+  fr: "Environnement Jupyter Notebook sur votre propre serveur — écrivez du Python, analysez des données et créez des visualisations sans le cloud."
+  it: "Esegui un ambiente Jupyter Notebook sul tuo server — scrivi Python, analizza dati e crea visualizzazioni senza dipendere dal cloud."
+  nl: "Draai een Jupyter Notebook-omgeving op je eigen server — schrijf Python, analyseer data en maak visualisaties zonder afhankelijkheid van de cloud."
+  pl: "Uruchom środowisko Jupyter Notebook na własnym serwerze — pisz kod Python, analizuj dane i twórz wizualizacje bez uzależnienia od chmury."
+categories:
+  - developer-tools
+app_version: "4.6.2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://jupyter.org/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/jupyterlab/0.2.0/logo.svg
+logo_source: https://jupyter.org/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: e29f9097a84ed773b4654af19964df8ded4d0e59a31e9dbe03aa5c7043a4a147
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+ports:
+  - port: 8888
+    protocol: tcp
+    public: true
+    description: JupyterLab Web UI
+
+parameters:
+  # generated_from (IF-1420): JUPYTERLAB_LOGIN_PASSWORD is derived from the
+  # customer's server (root) password at compose time. Jupyter Server accepts a
+  # pre-computed argon2id PHC string via --PasswordIdentityProvider.hashed_password
+  # (documented upstream, compatible with argon2 scheme). The plaintext never
+  # leaves af-api; the hash lands in docker-compose command: replacing the
+  # image's default random-token-in-logs behaviour with a real login gate.
+  - name: JUPYTERLAB_LOGIN_PASSWORD
+    display_name: Login Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: >-
+      Password hash for the JupyterLab login page. Derived from your server
+      password at install time — log in to JupyterLab with that same password.
