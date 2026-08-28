@@ -1,0 +1,56 @@
+id: coral-talk
+enabled: false
+display_name: Coral Talk
+description: Open-source commenting and community platform by Vox Media with deep moderation tools.
+short_description:
+  en: "Host your own comment section with powerful moderation — Coral Talk replaces ad-driven embeds with a self-hosted, open-source alternative."
+  de: "Kommentarfunktion selbst hosten mit starker Moderation — Coral Talk ersetzt werbegetriebene Embeds durch eine selbst gehostete, quelloffene Alternative."
+  es: "Aloja tu sección de comentarios con moderación potente — Coral Talk reemplaza los embeds publicitarios con una alternativa autoalojada y de código abierto."
+  fr: "Hébergez votre section de commentaires avec modération puissante — Coral Talk remplace les embeds tiers par une alternative auto-hébergée et open source."
+  it: "Ospita la tua sezione commenti con moderazione avanzata — Coral Talk sostituisce gli embed basati sulla pubblicità con un'alternativa self-hosted e open source."
+  nl: "Host je eigen reactiesectie met krachtige moderatie — Coral Talk vervangt reclame-gedreven embeds door een zelf-gehost, open-source alternatief."
+  pl: "Hostuj własną sekcję komentarzy z zaawansowaną moderacją — Coral Talk zastępuje reklamy embedy samodzielnie hostowaną alternatywą open source."
+categories:
+  - communication
+app_version: "9.11.8"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/coralproject/talk
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/coral-talk/0.2.0/logo.svg
+logo_source: https://coralproject.net/wp-content/uploads/2019/09/Mark_color.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: ad6ccb4f1e458599df1829b66c7a3bac98739f511acc2f35e711f5036388e61f
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth guards the /install wizard that runs on first visit.
+# Coral has no env-var or CLI path to pre-seed an admin account — whoever
+# reaches the domain first claims admin. basic_auth closes that race window.
+# The customer turns it off once their account is created:
+#
+#     /root/auth.sh off coral-talk
+#
+# Trade-off: while the prompt is on, inbound webhook callbacks also receive
+# a 401. Coral's embeddable widget communicates via its own API endpoints,
+# not inbound webhooks, so this is less of a concern than for n8n — but
+# third-party integrations (Slack alerts, IFTTT) will be blocked until the
+# customer disables the gate.
+ports:
+  - port: 5000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Coral Talk Web UI
+
+parameters:
+  - name: SIGNING_SECRET
+    display_name: Signing Secret
+    type: password
+    description: Secret key used by Coral to sign JWTs and session tokens. Generated at install time.
+
+  - name: MONGO_PASSWORD
+    display_name: MongoDB Password
+    type: password
+    description: MongoDB admin password used internally to construct MONGODB_URI. Generated at install time.
