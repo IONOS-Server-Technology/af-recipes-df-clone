@@ -1,0 +1,78 @@
+services:
+  reitti:
+    image: dedicatedcode/reitti:5
+    restart: unless-stopped
+    environment:
+      - POSTGIS_USER=reitti
+      - POSTGIS_PASSWORD=${POSTGIS_PASSWORD}
+      - POSTGIS_DB=reittidb
+      - POSTGIS_HOST=postgis
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/reitti/data:/data
+    networks:
+      - reitti-network
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tile-cache:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  postgis:
+    image: postgis/postgis:17-3.5-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=reitti
+      - POSTGRES_PASSWORD=${POSTGIS_PASSWORD}
+      - POSTGRES_DB=reittidb
+    volumes:
+      - /opt/reitti/postgis:/var/lib/postgresql/data
+    networks:
+      - reitti-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reitti -d reittidb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/reitti/redis:/data
+    networks:
+      - reitti-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  tile-cache:
+    image: dedicatedcode/reitti-tile-cache:5
+    restart: unless-stopped
+    volumes:
+      - /opt/reitti/tile-cache:/var/cache/nginx
+    networks:
+      - reitti-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  reitti-network:
+    driver: bridge
