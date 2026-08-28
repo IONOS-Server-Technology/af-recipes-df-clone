@@ -1,0 +1,41 @@
+id: ntfy
+enabled: false
+display_name: ntfy
+description: Self-hosted pub/sub push notification server — send alerts from scripts, CI pipelines, and monitoring tools to any ntfy client.
+short_description:
+  en: "Send instant push notifications from scripts, CI pipelines, and monitoring tools to your phone or desktop — simple HTTP, no external accounts needed."
+  de: "Sofort-Benachrichtigungen von Skripten, CI-Pipelines und Monitoring per einfachem HTTP ans Handy oder den Desktop senden — ohne externe Konten."
+  es: "Envía notificaciones push instantáneas desde scripts, pipelines CI y herramientas de monitoreo a tu teléfono o escritorio con HTTP simple."
+  fr: "Envoyez des notifications push instantanées depuis vos scripts, pipelines CI et outils de surveillance vers votre téléphone ou bureau via HTTP."
+  it: "Invia notifiche push istantanee da script, pipeline CI e strumenti di monitoraggio al telefono o desktop — semplice HTTP, nessun account esterno."
+  nl: "Stuur directe push-meldingen vanuit scripts, CI-pipelines en monitoringtools naar je telefoon of desktop — eenvoudige HTTP, geen externe accounts."
+  pl: "Wysyłaj natychmiastowe powiadomienia push ze skryptów, potoków CI i narzędzi monitorowania na telefon lub komputer — prosty HTTP, bez zewnętrznych kont."
+categories:
+  - communication
+  - infrastructure
+app_version: "2.27.0"
+recipe_version: "0.2.1"
+recipe_type: docker-compose
+upstream_url: https://github.com/binwiederhier/ntfy
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/ntfy/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/ntfy.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 050209dafdb44643b447f6830811576825797183629cbbbf16491240e422b10f
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (IF-1312): ntfy has no login of its own out of the box — the server
+# accepts reads and writes on any topic from anyone who reaches the URL. Traefik's
+# basic-auth gate is the natural fit: ntfy clients (curl, scripts, the ntfy apps)
+# already send HTTP Basic Auth credentials when the server requires auth, so gating
+# the entire public port this way is not a workaround but the intended mechanism.
+# The customer turns the gate off with '/root/auth.sh off ntfy' once they have
+# configured ntfy's own access controls (ACLs / user management).
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: ntfy Web UI
