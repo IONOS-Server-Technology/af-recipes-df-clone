@@ -1,0 +1,50 @@
+services:
+  wiki:
+    image: requarks/wiki:2.5.314
+    restart: unless-stopped
+    environment:
+      - DB_TYPE=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=wikijs
+      - DB_PASS=${DB_PASSWORD}
+      - DB_NAME=wiki
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/wikijs/data:/wiki/data/content
+    networks:
+      - wikijs-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=wiki
+      - POSTGRES_USER=wikijs
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/wikijs/postgres:/var/lib/postgresql/data
+    networks:
+      - wikijs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikijs -d wiki"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  wikijs-network:
+    driver: bridge
