@@ -1,0 +1,23 @@
+services:
+  aureuserp:
+    image: webkul/aureuserp:1.5.0
+    restart: unless-stopped
+    environment:
+      - APP_URL=https://${AF_APP_DOMAIN}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/aureuserp/mysql:/var/lib/mysql
+      - /opt/aureuserp/storage:/var/www/html/storage
+    networks:
+      - aureuserp-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  aureuserp-network:
+    driver: bridge
