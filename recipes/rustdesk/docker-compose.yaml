@@ -1,0 +1,43 @@
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:1.1.16
+    command: hbbs
+    restart: unless-stopped
+    ports:
+      - "21115:21115/tcp"
+      - "21116:21116/tcp"
+      - "21116:21116/udp"
+    volumes:
+      - /opt/rustdesk/data:/root
+    networks:
+      - rustdesk-network
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q '00000000:527C' /proc/net/tcp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  hbbr:
+    image: rustdesk/rustdesk-server:1.1.16
+    command: hbbr
+    restart: unless-stopped
+    ports:
+      - "21117:21117/tcp"
+    volumes:
+      - /opt/rustdesk/data:/root
+    networks:
+      - rustdesk-network
+    depends_on:
+      hbbs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q '00000000:527D' /proc/net/tcp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  rustdesk-network:
+    driver: bridge
