@@ -1,0 +1,23 @@
+services:
+  microbin:
+    image: danielszabo99/microbin:2.1.4
+    restart: unless-stopped
+    environment:
+      - MICROBIN_PORT=8080
+      - MICROBIN_EXTERNAL_DOMAIN=https://${AF_APP_DOMAIN}
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/microbin/data:/app/pasta_data
+    networks:
+      - microbin-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  microbin-network:
+    driver: bridge
