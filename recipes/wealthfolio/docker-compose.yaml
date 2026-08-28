@@ -1,0 +1,23 @@
+services:
+  wealthfolio:
+    image: wealthfolio/wealthfolio:3.6.2
+    restart: unless-stopped
+    environment:
+      - WF_AUTH_PASSWORD_HASH=${WF_AUTH_PASSWORD_HASH}
+      - WF_SECRET_KEY=${WF_SECRET_KEY}
+    ports:
+      - "8088:8088"
+    volumes:
+      - /opt/wealthfolio/data:/data
+    networks:
+      - wealthfolio-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8088/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  wealthfolio-network:
+    driver: bridge
