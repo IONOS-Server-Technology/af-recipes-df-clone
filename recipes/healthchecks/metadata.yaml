@@ -1,0 +1,51 @@
+id: healthchecks
+enabled: false
+display_name: Healthchecks
+description: Cron job and background task monitor that alerts you when an expected ping fails to arrive.
+short_description:
+  en: "Monitor cron jobs and scheduled tasks — get alerted the moment a job stops running on schedule."
+  de: "Cron-Jobs und geplante Aufgaben überwachen — sofort benachrichtigt werden, wenn ein Job nicht mehr planmäßig läuft."
+  es: "Monitoriza trabajos cron y tareas programadas — recibe alertas cuando un job deja de ejecutarse a tiempo."
+  fr: "Surveillez vos tâches cron et jobs planifiés — recevez une alerte dès qu'un job cesse de s'exécuter dans les délais."
+  it: "Monitora i job cron e le attività pianificate — ricevi un avviso non appena un job smette di girare nei tempi previsti."
+  nl: "Bewaak cron-jobs en geplande taken op je eigen server — ontvang een melding zodra een job niet meer op tijd wordt uitgevoerd."
+  pl: "Monitoruj zadania cron i zaplanowane procesy — otrzymuj alerty, gdy job przestaje uruchamiać się zgodnie z harmonogramem."
+categories:
+  - monitoring
+app_version: "v4.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/healthchecks/healthchecks
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/healthchecks/0.2.0/logo.svg
+logo_source: https://healthchecks.io/static/img/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 90f27fe6e2d30ffd8eb8b1df11f4cc5331f997542b5a68fb3421998eb8d901b6
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth gates the web UI because Healthchecks enables open self-registration by default
+# (REGISTRATION_OPEN=True). Without this gate, anyone reaching the URL can register an
+# account before the customer has set up their own. The trade-off matches n8n and Vikunja:
+# inbound webhook pings will receive 401 until the customer runs:
+#
+#     /root/auth.sh off healthchecks
+#
+ports:
+  - port: 8000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Healthchecks Web UI
+
+parameters:
+  - name: DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password.
+
+  - name: SECRET_KEY
+    display_name: Secret Key
+    type: password
+    description: Django secret key for cryptographic signing.

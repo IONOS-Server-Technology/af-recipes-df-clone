@@ -1,0 +1,57 @@
+services:
+  healthchecks:
+    image: healthchecks/healthchecks:v4.3
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/healthchecks/docker-compose.yml"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${AF_APP_DOMAIN},localhost,127.0.0.1
+      - SITE_ROOT=https://${AF_APP_DOMAIN}
+      - DB=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=healthchecks
+      - DB_USER=healthchecks
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DEBUG=False
+      - REGISTRATION_OPEN=True
+    ports:
+      - "8000:8000"
+    networks:
+      - healthchecks-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=healthchecks
+      - POSTGRES_USER=healthchecks
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/healthchecks/postgres:/var/lib/postgresql/data
+    networks:
+      - healthchecks-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthchecks -d healthchecks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  healthchecks-network:
+    driver: bridge
