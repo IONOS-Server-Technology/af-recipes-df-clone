@@ -1,0 +1,20 @@
+services:
+  ombi:
+    image: linuxserver/ombi:4.53.10
+    restart: unless-stopped
+    ports:
+      - "3579:3579"
+    volumes:
+      - /opt/ombi/config:/config
+    networks:
+      - ombi-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3579/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  ombi-network:
+    driver: bridge
