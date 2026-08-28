@@ -1,0 +1,51 @@
+id: openbudgeteer
+enabled: false
+display_name: OpenBudgeteer
+description: Self-hosted bucket budgeting app for personal finance management with envelope-style planning and reporting.
+short_description:
+  en: "Track your personal finances with bucket budgeting — categorise spending, import transactions, and review reports on your own server."
+  de: "Persönliche Finanzen mit Bucket-Budgetierung verwalten — Ausgaben kategorisieren, Transaktionen importieren und Berichte auf Ihrem Server einsehen."
+  es: "Gestiona tus finanzas personales con presupuesto por categorías — clasifica gastos, importa transacciones y revisa informes en tu servidor."
+  fr: "Gérez vos finances personnelles par enveloppes — catégorisez les dépenses, importez des transactions et consultez les rapports sur votre serveur."
+  it: "Gestisci le tue finanze con il budget a secchi — categorizza le spese, importa transazioni e consulta i report sul tuo server."
+  nl: "Beheer je financiën met bucketbudgettering — categoriseer uitgaven, importeer transacties en bekijk rapporten op je eigen server."
+  pl: "Zarządzaj finansami osobistymi z budżetowaniem w kubełkach — kategoryzuj wydatki, importuj transakcje i przeglądaj raporty na swoim serwerze."
+categories:
+  - finance
+app_version: "1.11"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/TheAxelander/OpenBudgeteer
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/openbudgeteer/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/TheAxelander/OpenBudgeteer/pre-release/assets/icon.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: e832c1198f454c681c33a40177c6cd9454ea22cc46c750c442a0d359bc189e27
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# OpenBudgeteer v1.11 ships an optional built-in login (APPSETTINGS_AUTH_ENABLED),
+# but it takes username/password as plaintext env vars with no hash-based option,
+# so generated_from cannot drive it. The recipe leaves it disabled and instead
+# gates access with Traefik basic_auth (same pattern as Adminer/n8n), which is the
+# sole expressible secret in installability.secrets_expressible_today.
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: OpenBudgeteer Web UI
+
+# DB_PASSWORD and REDIS_PASSWORD are generated randomly at install time by install.sh
+# and are never exposed to the customer — they are internal service credentials only.
+# The sole customer-facing credential is the basic_auth password (covered by the port above).
+parameters:
+  - name: DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: MariaDB database password, generated at install time.
+
+  - name: REDIS_PASSWORD
+    display_name: Redis Password
+    type: password
+    description: Redis password, generated at install time.
