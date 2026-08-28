@@ -1,0 +1,37 @@
+id: kanboard
+enabled: false
+display_name: Kanboard
+description: Lightweight self-hosted Kanban board for task and project management.
+short_description:
+  en: "Organise your team's work with a simple, self-hosted Kanban board — create tasks, set deadlines, and track progress visually."
+  de: "Organisiere die Teamarbeit mit einem einfachen, selbst gehosteten Kanban-Board — Aufgaben erstellen, Fristen setzen und Fortschritt visuell verfolgen."
+  es: "Organiza el trabajo de tu equipo con un tablero Kanban sencillo y autoalojado — crea tareas, establece plazos y sigue el progreso visualmente."
+  fr: "Organisez le travail de votre équipe avec un tableau Kanban simple et auto-hébergé — créez des tâches, fixez des délais et suivez la progression visuellement."
+  it: "Organizza il lavoro del tuo team con una semplice bacheca Kanban auto-ospitata — crea attività, imposta scadenze e monitora i progressi visivamente."
+  nl: "Organiseer het teamwerk met een eenvoudig, zelfgehost Kanban-bord — maak taken aan, stel deadlines in en volg de voortgang visueel."
+  pl: "Organizuj pracę zespołu za pomocą prostej, samodzielnie hostowanej tablicy Kanban — twórz zadania, ustalaj terminy i śledź postęp wizualnie."
+categories:
+  - productivity
+app_version: "1.2.53"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://kanboard.org/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/kanboard/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/kanboard/kanboard/main/assets/img/inkscape-path-icon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: dfe6ff8fda0e7fb7e9bf093beda3f5651effaad691d6f97722b82049a74591d4
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# Kanboard has no env var or config.php option to set the admin password at first boot —
+# the built-in admin/admin default cannot be changed at container start. Gating the entire
+# frontend behind basic_auth makes the internet-facing credential customer-specific, so
+# the internal admin/admin default is non-reachable without first passing Traefik's auth
+# prompt. Same pattern as n8n/Adminer/WUD.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Kanboard Web UI
