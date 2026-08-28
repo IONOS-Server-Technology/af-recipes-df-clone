@@ -1,0 +1,49 @@
+id: bookstack
+enabled: false
+display_name: BookStack
+description: Self-hosted wiki with a structured books/chapters/pages hierarchy, WYSIWYG editing, and full-text search.
+short_description:
+  en: "Organise team knowledge as books, chapters, and pages — a structured, searchable wiki you host yourself."
+  de: "Teamwissen als Bücher, Kapitel und Seiten strukturieren — ein durchsuchbares Wiki auf dem eigenen Server."
+  es: "Organiza el conocimiento del equipo en libros, capítulos y páginas — una wiki estructurada y buscable alojada por ti."
+  fr: "Organisez les connaissances de votre équipe en livres, chapitres et pages — un wiki structuré et consultable, hébergé chez vous."
+  it: "Organizza la conoscenza del team in libri, capitoli e pagine — una wiki strutturata e ricercabile in self-hosting."
+  nl: "Organiseer teamkennis als boeken, hoofdstukken en pagina's — een gestructureerde, doorzoekbare wiki op je eigen server."
+  pl: "Porządkuj wiedzę zespołu jako książki, rozdziały i strony — ustrukturyzowana, przeszukiwalna wiki we własnym hostingu."
+categories:
+  - productivity
+app_version: "v26.05.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.bookstackapp.com/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/bookstack/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/bookstack.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: ebf7f032346a1a43f031883244136a4e42a0783912a2a2bb52271ce40f0b9aa7
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# BookStack ships with a fixed default login (admin@admin.com / password) that the
+# app provides no mechanism to override at boot time. basic_auth: true gates the
+# entire frontend behind Traefik HTTP basic auth (customer's server root password),
+# making that the real access boundary so the weak default credential is never
+# customer-facing. The customer disables it once they have changed the default
+# credentials: /root/auth.sh off bookstack
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: BookStack Web UI
+
+parameters:
+  - name: DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: MariaDB database password for BookStack.
+
+  - name: APP_KEY
+    display_name: Application Key
+    type: password
+    description: Laravel application key used for session encryption.
