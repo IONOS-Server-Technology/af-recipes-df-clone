@@ -1,0 +1,51 @@
+id: kan
+enabled: false
+display_name: Kan
+description: Open-source Kanban board and project management tool, a self-hosted Trello alternative.
+short_description:
+  en: "Organise work on Kanban boards with team collaboration and self-service sign-up — a modern, self-hosted Trello alternative."
+  de: "Arbeit auf Kanban-Boards organisieren mit Team-Zusammenarbeit und Self-Service-Registrierung — eine moderne, selbstgehostete Trello-Alternative."
+  es: "Organiza el trabajo en tableros Kanban con colaboración en equipo y registro de autoservicio — una alternativa moderna a Trello en tu servidor."
+  fr: "Organisez votre travail sur des tableaux Kanban avec collaboration d'équipe et inscription libre — une alternative moderne à Trello sur votre serveur."
+  it: "Organizza il lavoro su bacheche Kanban con collaborazione e registrazione self-service — un'alternativa moderna a Trello, self-hosted."
+  nl: "Organiseer werk op Kanban-borden met teamsamenwerking en zelfregistratie — een moderne, zelf-gehost alternatief voor Trello."
+  pl: "Organizuj pracę na tablicach Kanban ze współpracą zespołową i samodzielną rejestracją — nowoczesna, self-hosted alternatywa dla Trello."
+categories:
+  - productivity
+app_version: "0.6.0"
+recipe_version: "0.3.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/kanbn/kan
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/kan/0.3.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kan.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 391822cd569c7435bac1384601cec622f3484eb410d792fd6c7663f1e1a61fd4
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth gates the frontend because Kan ships open self-service email/password
+# sign-up via Better Auth with no deploy-time flag to disable registration. Without
+# this gate anyone reaching the URL can register an account before the customer
+# completes their own first login. The trade-off is the same as n8n and vikunja:
+# any inbound API/webhook calls receive 401 until the customer turns the gate off:
+#
+#     /root/auth.sh off kan
+#
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Kan Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, randomly generated at install time.
+
+  - name: BETTER_AUTH_SECRET
+    display_name: Auth Secret
+    type: password
+    description: Secret key used by Better Auth for signing session tokens, randomly generated at install time.

@@ -1,0 +1,46 @@
+services:
+  kan:
+    image: ghcr.io/kanbn/kan:0.6.0
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://kan:${POSTGRES_PASSWORD}@postgres:5432/kan
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://${AF_APP_DOMAIN}
+      - NEXT_PUBLIC_APP_URL=https://${AF_APP_DOMAIN}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/kan/data:/app/data
+    networks:
+      - kan-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=kan
+      - POSTGRES_USER=kan
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/kan/postgres:/var/lib/postgresql/data
+    networks:
+      - kan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kan -d kan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  kan-network:
+    driver: bridge
