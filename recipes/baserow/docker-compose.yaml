@@ -1,0 +1,25 @@
+services:
+  baserow:
+    image: baserow/baserow:2.3.3
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - BASEROW_PUBLIC_URL=https://${AF_APP_DOMAIN}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/baserow/data:/baserow/data
+    networks:
+      - baserow-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/api/_health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  baserow-network:
+    driver: bridge
