@@ -1,0 +1,40 @@
+id: vikunja
+enabled: false
+display_name: Vikunja
+description: Self-hosted to-do and project management app with Kanban, Gantt, and CalDAV sync.
+short_description:
+  en: "Manage tasks and projects with Kanban boards, Gantt charts, and CalDAV sync — all on your own server."
+  de: "Aufgaben und Projekte mit Kanban-Boards, Gantt-Charts und CalDAV-Synchronisierung verwalten — auf dem eigenen Server."
+  es: "Gestiona tareas y proyectos con tableros Kanban, diagramas de Gantt y sincronización CalDAV en tu propio servidor."
+  fr: "Gérez tâches et projets avec tableaux Kanban, diagrammes de Gantt et synchronisation CalDAV sur votre propre serveur."
+  it: "Gestisci attività e progetti con bacheche Kanban, diagrammi di Gantt e sincronizzazione CalDAV sul tuo server."
+  nl: "Beheer taken en projecten met Kanban-borden, Gantt-grafieken en CalDAV-synchronisatie op je eigen server."
+  pl: "Zarządzaj zadaniami i projektami z tablicami Kanban, wykresami Gantta i synchronizacją CalDAV na własnym serwerze."
+categories:
+  - productivity
+app_version: "2.5.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/go-vikunja/vikunja
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/vikunja/0.2.0/logo.svg
+logo_source: https://vikunja.io/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 507be1c742db4b001b3ceb08c28f6d9015ce8a93cdb825d393cd5d48e06daca1
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth gates the registration/login screen because Vikunja enables
+# open self-registration by default (VIKUNJA_SERVICE_ENABLEREGISTRATION=true).
+# Without this gate, anyone reaching the URL can register an account before
+# the customer has set up their own. The trade-off matches n8n's: inbound
+# CalDAV/API calls will receive 401 until the customer runs:
+#
+#     /root/auth.sh off vikunja
+#
+ports:
+  - port: 3456
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Vikunja Web UI

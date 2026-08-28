@@ -1,0 +1,22 @@
+services:
+  vikunja:
+    image: vikunja/vikunja:2.5.0
+    restart: unless-stopped
+    environment:
+      - VIKUNJA_SERVICE_PUBLICURL=https://${AF_APP_DOMAIN}/
+    ports:
+      - "3456:3456"
+    volumes:
+      - /opt/vikunja/data:/app/vikunja/files
+    networks:
+      - vikunja-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3456/api/v1/info || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  vikunja-network:
+    driver: bridge
