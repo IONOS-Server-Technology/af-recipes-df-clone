@@ -1,0 +1,20 @@
+services:
+  the-lounge:
+    image: thelounge/thelounge:4.5.2
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - /opt/the-lounge/data:/var/opt/thelounge
+    networks:
+      - the-lounge-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  the-lounge-network:
+    driver: bridge
