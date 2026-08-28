@@ -1,0 +1,51 @@
+services:
+  elabftw:
+    image: elabftw/elabimg:stable
+    restart: unless-stopped
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=elabftw
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=elabftw
+      - SECRET_KEY=${SECRET_KEY}
+      - DISABLE_HTTPS=true
+      - SERVER_NAME=${AF_APP_DOMAIN}
+      - TZ=UTC
+    ports:
+      - "443:443"
+    volumes:
+      - /opt/elabftw/uploads:/elabftw/uploads
+    networks:
+      - elabftw-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:443/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=elabftw
+      - MYSQL_USER=elabftw
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/elabftw/mysql:/var/lib/mysql
+    networks:
+      - elabftw-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  elabftw-network:
+    driver: bridge
