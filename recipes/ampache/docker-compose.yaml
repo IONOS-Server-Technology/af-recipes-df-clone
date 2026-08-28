@@ -1,0 +1,29 @@
+services:
+  ampache:
+    image: ampache/ampache:7.10.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USER=ampache
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=ampache
+      - AMPACHE_ADMIN_USER=admin
+      - AMPACHE_ADMIN_EMAIL=admin@localhost
+      - AMPACHE_ADMIN_PASSWORD=${AMPACHE_ADMIN_PASSWORD}
+    ports:
+      - "80"
+    volumes:
+      - /opt/ampache/data:/var/www/html/ampache/data
+      - /opt/ampache/music:/mnt/music
+    networks:
+      - ampache-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+networks:
+  ampache-network:
+    driver: bridge
