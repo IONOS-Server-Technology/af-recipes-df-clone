@@ -1,0 +1,79 @@
+services:
+  cms-web:
+    image: ghcr.io/xibosignage/xibo-cms:release-4.5.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_HOST=cms-db
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - XMR_HOST=cms-xmr
+      - CMS_SERVER_NAME=${AF_APP_DOMAIN}
+      - CMS_USE_MEMCACHED=true
+      - MEMCACHED_HOST=cms-memcached
+      - MEMCACHED_PORT=11211
+      - CMS_QUICK_CHART_URL=http://cms-quickchart:3400
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/xibo-cms/custom:/var/www/cms/custom
+      - /opt/xibo-cms/backup:/var/www/cms/backup
+      - /opt/xibo-cms/library:/var/www/cms/library
+      - /opt/xibo-cms/certs:/var/www/cms/certs
+    networks:
+      - xibo-cms-network
+    depends_on:
+      cms-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  cms-db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=cms
+      - MYSQL_USER=cms
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - /opt/xibo-cms/db:/var/lib/mysql
+    networks:
+      - xibo-cms-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  cms-xmr:
+    image: ghcr.io/xibosignage/xibo-xmr:1.3
+    restart: unless-stopped
+    ports:
+      - "9505:9505"
+    networks:
+      - xibo-cms-network
+
+  cms-memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    networks:
+      - xibo-cms-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo stats | nc 127.0.0.1 11211 | grep -q version || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  cms-quickchart:
+    image: ianw/quickchart:v1.8.1
+    restart: unless-stopped
+    networks:
+      - xibo-cms-network
+
+networks:
+  xibo-cms-network:
+    driver: bridge
