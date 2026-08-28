@@ -1,0 +1,41 @@
+id: notediscovery
+enabled: false
+display_name: NoteDiscovery
+description: Self-hosted markdown knowledge base with graph view and AI/MCP integration.
+short_description:
+  en: "Build a personal knowledge base with Markdown notes, a visual graph view, and built-in MCP server for AI-assistant integration."
+  de: "Persönliche Wissensdatenbank mit Markdown-Notizen, visuellem Graphen und MCP-Server für KI-Integration."
+  es: "Construye una base de conocimiento personal con notas Markdown, vista de grafo visual e integración con asistentes de IA."
+  fr: "Créez une base de connaissances avec des notes Markdown, une vue graphique et un serveur MCP pour l'intégration IA."
+  it: "Crea una knowledge base personale con note Markdown, grafo visivo e server MCP per l'integrazione con assistenti AI."
+  nl: "Bouw een persoonlijke kennisbank met Markdown-notities, grafische weergave en MCP-server voor AI-integratie."
+  pl: "Zbuduj osobistą bazę wiedzy z notatkami Markdown, widokiem grafu i serwerem MCP do integracji z asystentami AI."
+categories:
+  - productivity
+app_version: "v0.30.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/gamosoft/NoteDiscovery
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/notediscovery/0.2.0/logo.svg
+logo_source: https://www.notediscovery.com/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 46c38ed292517cfc2199d6b266ae60e1ed65eb8e41002dfcac9b030598f7ae4e
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+
+# basic_auth: NoteDiscovery's built-in auth (AUTHENTICATION_ENABLED / _PASSWORD) only
+# accepts a plaintext password via env var with no way to inject a pre-computed hash,
+# so generated_from projection is not available for it. The recipe leaves the app's own
+# auth disabled and gates access with Traefik basic_auth instead — the same pattern
+# used by n8n, Open WebUI, and openclaw. Trade-off: the router covers the MCP server
+# endpoint too, so external MCP clients will hit a 401 until the customer runs
+# '/root/auth.sh off notediscovery'. For a personal KB the setup-takeover window
+# (an unclaimed instance reachable before first visit) outweighs the MCP friction.
+ports:
+  - port: 8000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: NoteDiscovery Web UI (routed via Traefik on 80/443)
