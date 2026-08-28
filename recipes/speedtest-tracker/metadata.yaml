@@ -1,0 +1,50 @@
+id: speedtest-tracker
+enabled: false
+display_name: Speedtest Tracker
+description: Self-hosted internet speed tracker with scheduled Ookla/LibreSpeed tests and historical graphs.
+short_description:
+  en: "Track your internet connection speed over time — automated download, upload, ping, and jitter tests with historical graphs."
+  de: "Verfolge deine Internetgeschwindigkeit über Zeit — automatisierte Tests mit Download, Upload, Ping und Jitter-Verlauf."
+  es: "Registra la velocidad de tu conexión a internet a lo largo del tiempo con pruebas automatizadas y gráficos históricos."
+  fr: "Suivez votre vitesse de connexion dans le temps avec des tests automatisés et des graphiques historiques."
+  it: "Monitora la velocità della tua connessione internet nel tempo con test automatici e grafici storici."
+  nl: "Houd je internetsnelheid bij over tijd met automatische tests en historische grafieken."
+  pl: "Śledź prędkość swojego łącza internetowego w czasie — automatyczne testy z historycznymi wykresami."
+categories:
+  - monitoring
+  - networking
+app_version: "1.14.7"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/alexjustesen/speedtest-tracker
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/speedtest-tracker/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/speedtest-tracker.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: fccedd6b88560efe4eccef1ba9dffbed65430f6b721ca7506046ae1b1d71cbb6
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# basic_auth: the app's own admin account (ADMIN_PASSWORD) is server-generated and
+# never surfaced to the customer. The Traefik basic_auth prompt is the sole
+# customer-facing gate, using the server password chosen at order time.
+# Trade-off: the entire router is protected, so any external integrations (e.g.
+# public API access) will receive a 401 until the customer disables it via
+# `/root/auth.sh off speedtest-tracker`.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Speedtest Tracker Web UI
+
+parameters:
+  - name: APP_KEY
+    display_name: Application Key
+    type: password
+    description: Laravel application encryption key, generated randomly at install time.
+
+  - name: ADMIN_PASSWORD
+    display_name: Admin Password
+    type: password
+    description: Admin account password, generated randomly at install time (customer never needs it — access is via the Traefik basic_auth gate).
