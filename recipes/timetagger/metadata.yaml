@@ -1,0 +1,46 @@
+id: timetagger
+enabled: false
+display_name: TimeTagger
+description: Privacy-first personal time tracker with interactive timeline, tags, and reports.
+short_description:
+  en: "Track your work hours with a visual timeline and tag-based reports — a private, self-hosted alternative to cloud time-tracking SaaS."
+  de: "Arbeitsstunden mit einer visuellen Zeitleiste und tag-basierten Berichten erfassen — eine private, selbstgehostete Alternative zu Cloud-Zeiterfassung."
+  es: "Registra horas de trabajo con una línea de tiempo visual e informes por etiquetas — alternativa autoalojada y privada a los SaaS de seguimiento de tiempo."
+  fr: "Suivez vos heures de travail avec une chronologie visuelle et des rapports par tags — une alternative auto-hébergée et privée aux SaaS de suivi du temps."
+  it: "Tieni traccia delle ore di lavoro con una timeline visiva e report per tag — un'alternativa self-hosted e privata ai SaaS di time tracking."
+  nl: "Houd werkuren bij met een visuele tijdlijn en tag-gebaseerde rapporten — een privé, zelfgehoste vervanging voor cloud-tijdregistratie."
+  pl: "Śledź godziny pracy z wizualną osią czasu i raportami tagów — prywatna, samodzielnie hostowana alternatywa dla chmurowych narzędzi do ewidencji czasu."
+categories:
+  - productivity
+app_version: "v26.1.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/almarklein/timetagger
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/timetagger/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/almarklein/timetagger/main/timetagger/images/timetagger_sd.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 2131c3e87088594ff87c5b7af125c7a30b3b703bba59e6c28be7f988fa757a26
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    http: true
+    description: TimeTagger Web UI
+
+parameters:
+  # TIMETAGGER_CREDENTIALS takes "username:bcrypt_hash" pairs. The bcrypt hash
+  # is generated from ROOT_PASSWORD at compose time (IF-1420); install.sh prepends
+  # the fixed admin username to form the full "admin:<hash>" credential string.
+  # Dollar signs in bcrypt hashes must be doubled ($$) when written to .env —
+  # see RFC-001 §7.1.
+  - name: TIMETAGGER_CREDENTIALS
+    display_name: Admin Credentials
+    type: password
+    generated_from: "bcrypt:ROOT_PASSWORD"
+    description: >
+      bcrypt hash of your server password. TimeTagger uses this as the admin login —
+      username is "admin", password is your server password.

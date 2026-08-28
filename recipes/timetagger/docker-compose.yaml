@@ -1,0 +1,22 @@
+services:
+  timetagger:
+    image: ghcr.io/almarklein/timetagger:v26.1.3
+    restart: unless-stopped
+    environment:
+      - TIMETAGGER_CREDENTIALS=${TIMETAGGER_CREDENTIALS}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/timetagger/data:/root/_timetagger
+    networks:
+      - timetagger-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  timetagger-network:
+    driver: bridge
