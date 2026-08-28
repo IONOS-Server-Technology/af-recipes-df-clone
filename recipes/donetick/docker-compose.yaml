@@ -1,0 +1,26 @@
+services:
+  donetick:
+    image: donetick/donetick:v0.1.76
+    restart: unless-stopped
+    environment:
+      - DT_ENV=selfhosted
+      - DT_SQLITE_PATH=/donetick/data/donetick.db
+      - DT_JWT_SECRET=${JWT_SECRET}
+      - TZ=UTC
+    ports:
+      - "2021:2021"
+    volumes:
+      - /opt/donetick/data:/donetick/data
+      - /opt/donetick/config:/donetick/config
+    networks:
+      - donetick-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2021/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  donetick-network:
+    driver: bridge
