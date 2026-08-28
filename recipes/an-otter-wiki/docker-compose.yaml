@@ -1,0 +1,20 @@
+services:
+  an-otter-wiki:
+    image: redimp/otterwiki:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/an-otter-wiki/data:/app-data
+    networks:
+      - an-otter-wiki-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  an-otter-wiki-network:
+    driver: bridge
