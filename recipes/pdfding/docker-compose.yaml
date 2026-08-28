@@ -1,0 +1,24 @@
+services:
+  pdfding:
+    image: mrmn/pdfding:v1.12.0
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${AF_APP_DOMAIN}
+      - CSRF_TRUSTED_ORIGINS=https://${AF_APP_DOMAIN}
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/pdfding/data:/home/user/app/data
+    networks:
+      - pdfding-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  pdfding-network:
+    driver: bridge

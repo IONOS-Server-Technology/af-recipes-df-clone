@@ -1,0 +1,39 @@
+id: pdfding
+enabled: false
+display_name: PdfDing
+description: Self-hosted PDF manager with browser-based annotation and cross-device reading progress sync.
+short_description:
+  en: "Manage, annotate, and share your PDF files with reading progress synced across all your devices."
+  de: "PDF-Dateien verwalten, kommentieren und teilen – mit geräteübergreifender Lesesynchronisierung."
+  es: "Gestiona, anota y comparte tus archivos PDF con sincronización del progreso de lectura en todos tus dispositivos."
+  fr: "Gérez, annotez et partagez vos fichiers PDF avec la synchronisation de la progression de lecture sur tous vos appareils."
+  it: "Gestisci, annota e condividi i tuoi file PDF con sincronizzazione della lettura su tutti i dispositivi."
+  nl: "Beheer, annoteer en deel je PDF-bestanden met leesvoortgangsynchronisatie op al je apparaten."
+  pl: "Zarządzaj, dodawaj adnotacje i udostępniaj pliki PDF z synchronizacją postępu czytania na wszystkich urządzeniach."
+categories:
+  - productivity
+app_version: "v1.12.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/mrmn2/PdfDing
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/pdfding/0.2.0/logo.svg
+logo_source: https://www.pdfding.com/assets/images/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: dce6aa3da845405e1b4d20620297b16f888cfb7503bec68d6cef48735e2c7de9
+
+app_min_ram_mb: 256
+app_min_disk_mb: 5120
+
+ports:
+  - port: 8000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: PdfDing Web UI
+    # basic_auth: PdfDing allows open self-service registration by default (django-allauth) with
+    # no env var to disable it at first boot. Without the Traefik gate anyone reaching the URL
+    # can create an account and upload documents — same window-of-exposure rationale as n8n
+    # (IF-1312). Trade-off: customers face a double prompt until they disable signup themselves
+    # or run auth.sh off pdfding. Promoting a registered user to admin requires a one-off
+    # `python manage.py make_admin -e <email>` inside the container, but admin rights are
+    # non-essential for a single-tenant install.
