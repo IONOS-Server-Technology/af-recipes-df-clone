@@ -1,0 +1,39 @@
+services:
+  searxng:
+    image: searxng/searxng:2026.8.5-1689cb1b5
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=https://${AF_APP_DOMAIN}
+      - SEARXNG_SECRET=${SEARXNG_SECRET}
+      - SEARXNG_REDIS_URL=redis://valkey:6379/0
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/searxng/config:/etc/searxng
+    networks:
+      - searxng-network
+    depends_on:
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  searxng-network:
+    driver: bridge

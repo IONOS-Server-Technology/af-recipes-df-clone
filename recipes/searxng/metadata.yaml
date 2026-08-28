@@ -1,0 +1,52 @@
+id: searxng
+enabled: false
+display_name: SearXNG
+description: Privacy-respecting metasearch engine that aggregates results from multiple search engines without tracking users.
+short_description:
+  en: "Your own privacy-first search engine — aggregate results from the web without being tracked by search providers."
+  de: "Ihre eigene datenschutzfreundliche Suchmaschine — Suchergebnisse aus dem Web bündeln, ohne von Suchanbietern verfolgt zu werden."
+  es: "Tu propio motor de búsqueda privado — agrega resultados de la web sin ser rastreado por los proveedores de búsqueda."
+  fr: "Votre propre moteur de recherche respectueux de la vie privée — agrégez les résultats sans être suivi par les moteurs de recherche."
+  it: "Il tuo motore di ricerca orientato alla privacy — aggrega risultati dal web senza essere tracciato dai fornitori di ricerca."
+  nl: "Je eigen privacyvriendelijke zoekmachine — aggregeer zoekresultaten zonder gevolgd te worden door zoekaanbieders."
+  pl: "Twoja własna wyszukiwarka dbająca o prywatność — agreguj wyniki z sieci bez śledzenia przez dostawców wyszukiwania."
+categories:
+  - productivity
+  - ai
+app_version: "2026.8.5-1689cb1b5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/searxng/searxng
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/searxng/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/searxng/searxng/master/searx/static/themes/simple/img/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 69d787a649b925348a9c8a904cef62e8cf994c5569158cb09d51a92098f3c851
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# basic_auth (IF-1312 pattern): SearXNG has no login of its own; an open
+# instance on a public domain gets its IP rate-limited or banned by upstream
+# engines within hours, so the Traefik basic-auth gate is required rather than
+# optional (same decision as n8n). The customer's server password protects the
+# UI. Note: if Open WebUI is configured to use this instance as its web-search
+# backend, its requests must include the basic-auth credentials and SearXNG's
+# JSON output format must be enabled in settings.yml.
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: SearXNG Web UI
+
+parameters:
+  # SEARXNG_SECRET: a patternless random value (openssl rand -hex 32) that
+  # secures session cookies and HMAC signatures. The customer never sees or
+  # sets it — install.sh generates it at first boot. Declared here as
+  # documentation per RFC-001 §4.4; not consumed at runtime (IF-944).
+  - name: SEARXNG_SECRET
+    display_name: Secret Key
+    type: password
+    description: >
+      Random hex secret used to sign sessions and HMAC tokens. Generated
+      automatically by install.sh at first boot; never customer-supplied.
