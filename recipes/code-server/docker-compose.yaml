@@ -1,0 +1,22 @@
+services:
+  code-server:
+    image: codercom/code-server:4.131.0
+    restart: unless-stopped
+    environment:
+      - HASHED_PASSWORD=${HASHED_PASSWORD}
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/code-server/data:/home/coder/.local/share/code-server
+    networks:
+      - code-server-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  code-server-network:
+    driver: bridge
