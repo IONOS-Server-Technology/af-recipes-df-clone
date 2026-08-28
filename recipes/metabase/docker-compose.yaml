@@ -1,0 +1,53 @@
+services:
+  metabase:
+    image: metabase/metabase:v0.63.13
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/metabase/docker-compose.yaml"
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_HOST=postgres
+      - MB_DB_PORT=5432
+      - MB_DB_DBNAME=metabase
+      - MB_DB_USER=metabase
+      - MB_DB_PASS=${POSTGRES_PASSWORD}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/metabase/data:/metabase-data
+    networks:
+      - metabase-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=metabase
+      - POSTGRES_USER=metabase
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/metabase/postgres:/var/lib/postgresql/data
+    networks:
+      - metabase-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase -d metabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  metabase-network:
+    driver: bridge
