@@ -1,0 +1,55 @@
+services:
+  metamcp:
+    image: ghcr.io/metatool-ai/metamcp:v2.4.22
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: metamcp_user
+      POSTGRES_DB: metamcp_db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://metamcp_user:${POSTGRES_PASSWORD}@postgres:5432/metamcp_db
+      APP_URL: https://${AF_APP_DOMAIN}
+      NEXT_PUBLIC_APP_URL: https://${AF_APP_DOMAIN}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: "true"
+      BOOTSTRAP_USERS: '[{"email":"bootstrap@metamcp.local","password":"${BOOTSTRAP_USER_PASSWORD}","name":"Bootstrap"}]'
+    ports:
+      - "12008:12008"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:12008/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - metamcp-network
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      POSTGRES_DB: metamcp_db
+      POSTGRES_USER: metamcp_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/metamcp/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metamcp_user -d metamcp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - metamcp-network
+
+networks:
+  metamcp-network:
+    driver: bridge
