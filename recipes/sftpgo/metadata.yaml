@@ -1,0 +1,58 @@
+id: sftpgo
+enabled: false
+display_name: SFTPGo
+description: Full-featured SFTP, FTP, and WebDAV server with web-based administration.
+short_description:
+  en: "Run a secure, per-user SFTP and WebDAV file server on your own server — with quota controls, virtual folders, public shares, and a web admin UI."
+  de: "Betreibe einen sicheren, nutzerspezifischen SFTP- und WebDAV-Dateiserver auf deinem eigenen Server — mit Quoten, virtuellen Ordnern und Web-UI."
+  es: "Ejecuta un servidor de archivos SFTP y WebDAV seguro y por usuario en tu propio servidor — con cuotas, carpetas virtuales y panel web de administración."
+  fr: "Hébergez un serveur de fichiers SFTP et WebDAV sécurisé, par utilisateur — avec quotas, dossiers virtuels, partages publics et interface web d'administration."
+  it: "Gestisci un server SFTP e WebDAV sicuro per singolo utente sul tuo server — con quote, cartelle virtuali, condivisioni pubbliche e pannello web admin."
+  nl: "Draai een veilige, per-gebruiker SFTP- en WebDAV-bestandsserver op je eigen server — met quotumlimieten, virtuele mappen en een webgebaseerd beheerpaneel."
+  pl: "Uruchom bezpieczny serwer plików SFTP i WebDAV z kontami per-użytkownik — z limitami przestrzeni, wirtualnymi folderami i interfejsem administracyjnym."
+categories:
+  - storage
+  - infrastructure
+# app_version: no official docker-compose file exists (compose_file_url: null in
+# apps-gaps/sftpgo.yaml) — per IF-1501 rule 3, the current latest stable release tag
+# from the project's releases page is used: v2.7.5 released 2026-07-17.
+app_version: "v2.7.5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/drakkan/sftpgo
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/sftpgo/0.2.0/logo.svg
+logo_source: https://sftpgo.com/assets/img/logo.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: 1d93415f17dee0093c7ab5cba033e603cf9e2133c1b331ab9af44f502a457e98
+
+app_min_ram_mb: 256
+app_min_disk_mb: 10240
+
+ports:
+  # Web admin panel and WebClient served on port 8080; routed via Traefik.
+  # SFTPGo has its own login (SFTPGO_DEFAULT_ADMIN_USERNAME / SFTPGO_DEFAULT_ADMIN_PASSWORD),
+  # so basic_auth is not set — the app protects its own frontend.
+  - port: 8080
+    protocol: tcp
+    public: true
+    description: SFTPGo Web Admin / WebClient UI
+  # SFTP is a raw TCP protocol that cannot be Traefik-routed. Published directly on the
+  # host on port 2022 (SFTPGo's default, avoids conflict with the host sshd on 22).
+  - port: 2022
+    protocol: tcp
+    public: true
+    http: false
+    description: SFTP (raw TCP)
+
+parameters:
+  # SFTPGO_DEFAULT_ADMIN_PASSWORD is the only secret required at first boot
+  # (apps-gaps/sftpgo.yaml: secrets_expressible_today, mechanism: generated_from_root_password).
+  # SFTPGo accepts a pre-hashed password when it carries an internal hash prefix:
+  # $2a$-prefixed bcrypt (Go x/crypto default) or $argon2id$v=19$… (argon2id).
+  # bcrypt is used here; verify af-api emits a $2a$ prefix, NOT $2b$ or $2y$,
+  # or the value is treated as plaintext, re-hashed at startup, and locks the customer out.
+  - name: SFTPGO_DEFAULT_ADMIN_PASSWORD
+    display_name: Admin Password
+    type: password
+    generated_from: "bcrypt:ROOT_PASSWORD"
+    description: "Password for the default SFTPGo admin account (username: admin). Derived from your server password — log in with that password."

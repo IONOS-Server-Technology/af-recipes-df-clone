@@ -1,0 +1,25 @@
+services:
+  sftpgo:
+    image: drakkan/sftpgo:v2.7.5
+    restart: unless-stopped
+    environment:
+      - SFTPGO_DEFAULT_ADMIN_USERNAME=admin
+      - SFTPGO_DEFAULT_ADMIN_PASSWORD=${SFTPGO_DEFAULT_ADMIN_PASSWORD}
+      - SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1
+    ports:
+      - "8080:8080"
+      - "2022:2022"
+    volumes:
+      - /opt/sftpgo/data:/var/lib/sftpgo
+    networks:
+      - sftpgo-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  sftpgo-network:
+    driver: bridge
