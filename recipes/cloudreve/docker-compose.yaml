@@ -1,0 +1,21 @@
+services:
+  cloudreve:
+    image: cloudreve/cloudreve:v4
+    restart: unless-stopped
+    ports:
+      - "5212:5212"
+    volumes:
+      - /opt/cloudreve/conf:/cloudreve/conf
+      - /opt/cloudreve/uploads:/cloudreve/uploads
+    networks:
+      - cloudreve-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5212/api/v3/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  cloudreve-network:
+    driver: bridge
