@@ -1,0 +1,51 @@
+id: reactive-resume
+enabled: false
+display_name: Reactive Resume
+description: Privacy-first open-source resume builder with 14+ templates and PDF export.
+short_description:
+  en: "Build and host your resume with full privacy — Reactive Resume runs entirely on your server with no third-party data sharing."
+  de: "Erstellen und hosten Sie Ihren Lebenslauf mit voller Datenkontrolle — Reactive Resume läuft vollständig auf Ihrem Server."
+  es: "Crea y aloja tu currículum con total privacidad — Reactive Resume se ejecuta completamente en tu servidor."
+  fr: "Créez et hébergez votre CV en toute confidentialité — Reactive Resume fonctionne entièrement sur votre propre serveur."
+  it: "Crea e ospita il tuo curriculum in totale privacy — Reactive Resume gira completamente sul tuo server."
+  nl: "Maak en host je eigen cv met volledige privacy — Reactive Resume draait volledig op je eigen server."
+  pl: "Twórz i hostuj swoje CV z pełną prywatnością — Reactive Resume działa w całości na twoim serwerze."
+categories:
+  - productivity
+app_version: "v5.2.5"
+recipe_version: "0.2.1"
+recipe_type: docker-compose
+upstream_url: https://rxresu.me
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/reactive-resume/0.2.1/logo.svg
+logo_source: https://rxresu.me/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 56d88a709a5fb3ff1bf2d4f65657e13f458001663f98ad9d28b8e84d57941b2e
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth protects the app before the customer creates their account.
+# Reactive Resume has no admin/owner concept — signups are open by default,
+# and env flags to disable signup have a long history of unreliability upstream
+# (issues #1592/#1655/#2365). Without this gate, anyone who reaches the URL
+# first can claim an account on the customer's instance.
+# Trade-off: basic_auth covers the entire router. The customer removes it with
+#   /root/auth.sh off reactive-resume
+# once their account is created.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Reactive Resume Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, generated at install time.
+
+  - name: AUTH_SECRET
+    display_name: Authentication Secret
+    type: password
+    description: JWT signing secret for session tokens, generated at install time.

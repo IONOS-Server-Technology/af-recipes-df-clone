@@ -1,0 +1,70 @@
+services:
+  reactive-resume:
+    image: amruthpillai/reactive-resume:v5.2.5
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/reactive-resume/docker-compose.yaml"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PUBLIC_URL=https://${AF_APP_DOMAIN}
+      - STORAGE_URL=https://${AF_APP_DOMAIN}/api/storage
+      - DATABASE_URL=postgresql://reactive_resume:${POSTGRES_PASSWORD}@postgres:5432/reactive_resume
+      - REDIS_URL=redis://redis:6379
+      - ACCESS_TOKEN_SECRET=${AUTH_SECRET}
+      - REFRESH_TOKEN_SECRET=${AUTH_SECRET}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/reactive-resume/uploads:/app/data
+    networks:
+      - reactive-resume-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=reactive_resume
+      - POSTGRES_USER=reactive_resume
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/reactive-resume/postgres:/var/lib/postgresql/data
+    networks:
+      - reactive-resume-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reactive_resume -d reactive_resume"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - reactive-resume-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  reactive-resume-network:
+    driver: bridge
