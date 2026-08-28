@@ -1,0 +1,34 @@
+services:
+  yopass:
+    image: jhaals/yopass:14.8.0
+    command: ["--port", "80", "--memcached", "memcached:11211"]
+    restart: unless-stopped
+    depends_on:
+      memcached:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - yopass-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    networks:
+      - yopass-network
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 11211"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  yopass-network:
+    driver: bridge
