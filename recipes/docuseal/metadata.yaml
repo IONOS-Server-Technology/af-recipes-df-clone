@@ -1,0 +1,54 @@
+id: docuseal
+enabled: false
+display_name: DocuSeal
+description: Open-source document signing and e-signature platform — a self-hosted DocuSign alternative.
+short_description:
+  en: "Sign and send documents electronically — DocuSeal is a self-hosted e-signature platform for contracts, forms, and HR paperwork."
+  de: "Dokumente elektronisch signieren und versenden — DocuSeal ist eine selbst gehostete E-Signatur-Plattform für Verträge, Formulare und HR-Dokumente."
+  es: "Firma y envía documentos electrónicamente — DocuSeal es una plataforma de firma electrónica autoalojada para contratos, formularios y documentos de RRHH."
+  fr: "Signez et envoyez des documents électroniquement — DocuSeal est une plateforme de signature électronique auto-hébergée pour contrats, formulaires et RH."
+  it: "Firma e invia documenti elettronicamente — DocuSeal è una piattaforma di firma elettronica self-hosted per contratti, moduli e documentazione HR."
+  nl: "Onderteken en verzend documenten elektronisch — DocuSeal is een zelfgehoste e-handtekeningplatform voor contracten, formulieren en HR-documenten."
+  pl: "Podpisuj i wysyłaj dokumenty elektronicznie — DocuSeal to samodzielnie hostowana platforma podpisu elektronicznego dla umów, formularzy i dokumentów HR."
+categories:
+  - productivity
+app_version: "3.1.7"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/docusealco/docuseal
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/docuseal/0.2.0/logo.svg
+logo_source: https://www.docuseal.com/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: c878c9552cf480188505360b35c20b48444c4918cf140a3c065976449279f23e
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth (same setup-takeover-window pattern as docmost/n8n): a fresh DocuSeal instance
+# exposes a public /setup screen that creates the first admin account — any unauthenticated
+# visitor who reaches the URL before the customer does becomes the owner
+# (gated only by a redirect once any User exists, per app/controllers/setup_controller.rb).
+# Traefik basic auth closes that window until the customer completes their own setup.
+# Customers disable it with:
+#
+#     /root/auth.sh off docuseal
+#
+# While active, any API or inbound call to this domain receives a 401.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: DocuSeal Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, generated at install time.
+
+  - name: SECRET_KEY_BASE
+    display_name: Application Secret Key
+    type: password
+    description: Rails secret key base used for session and token signing, generated at install time.
