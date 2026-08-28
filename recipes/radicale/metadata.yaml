@@ -1,0 +1,37 @@
+id: radicale
+enabled: false
+display_name: Radicale
+description: Lightweight CalDAV and CardDAV server for syncing calendars and contacts.
+short_description:
+  en: "Sync your calendars and contacts across all devices with a self-hosted CalDAV and CardDAV server — works with Apple Calendar, Thunderbird, and DAVx5."
+  de: "Kalender und Kontakte auf allen Geräten synchronisieren — selbstgehosteter CalDAV/CardDAV-Server, kompatibel mit Apple Calendar, Thunderbird und DAVx5."
+  es: "Sincroniza calendarios y contactos en todos tus dispositivos con un servidor CalDAV/CardDAV autoalojado — compatible con Apple Calendar, Thunderbird y DAVx5."
+  fr: "Synchronisez vos calendriers et contacts sur tous vos appareils avec un serveur CalDAV/CardDAV auto-hébergé — compatible avec Apple Calendar et DAVx5."
+  it: "Sincronizza calendari e contatti su tutti i dispositivi con un server CalDAV/CardDAV self-hosted — compatibile con Apple Calendar, Thunderbird e DAVx5."
+  nl: "Synchroniseer agenda's en contacten op al je apparaten via een zelf-gehoste CalDAV/CardDAV-server — werkt met Apple Calendar, Thunderbird en DAVx5."
+  pl: "Synchronizuj kalendarze i kontakty na wszystkich urządzeniach z własnym serwerem CalDAV/CardDAV — obsługuje Apple Calendar, Thunderbird i DAVx5."
+categories:
+  - productivity
+app_version: "stable"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://radicale.org/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/radicale/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/radicale.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 31af27cba967f9dc5b1f50d27a2c52c18789ff63f27ea5d67e2c90f3a99f3475
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# Radicale's native auth (htpasswd file) cannot be seeded via an env var, so the
+# recipe sets Radicale's own auth to `none` and gates the endpoint with Traefik
+# basic_auth instead. CalDAV/CardDAV clients already use HTTP Basic Auth by
+# convention, so Apple Calendar/Contacts, Thunderbird, and DAVx5 prompt for the
+# Traefik-provided username/password pair without any protocol mismatch.
+ports:
+  - port: 5232
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Radicale CalDAV/CardDAV endpoint

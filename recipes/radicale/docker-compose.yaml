@@ -1,0 +1,26 @@
+services:
+  radicale:
+    image: ghcr.io/kozea/radicale:stable
+    restart: unless-stopped
+    environment:
+      # Disable Radicale's own auth — Traefik basic_auth gates the endpoint
+      # instead. CalDAV/CardDAV clients (Apple Calendar, Thunderbird, DAVx5)
+      # use HTTP Basic Auth natively, so they receive the Traefik-provided
+      # credentials without any protocol mismatch.
+      - RADICALE_CONFIG_AUTH_TYPE=none
+    ports:
+      - "5232:5232"
+    volumes:
+      - /opt/radicale/data:/data
+    networks:
+      - radicale-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5232/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  radicale-network:
+    driver: bridge
