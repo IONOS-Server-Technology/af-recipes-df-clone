@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# install.sh — Install qBittorrent via docker-compose
+set -euo pipefail
+
+set -a
+source .env
+set +a
+
+mkdir -p /opt/qbittorrent/config
+mkdir -p /opt/qbittorrent/downloads

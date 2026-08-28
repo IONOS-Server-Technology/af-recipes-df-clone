@@ -1,0 +1,48 @@
+id: qbittorrent
+enabled: false
+display_name: qBittorrent
+description: Open-source BitTorrent client with a full-featured web interface.
+short_description:
+  en: "Download and manage torrents from a clean web interface — qBittorrent runs on your server with no subscriptions or tracking."
+  de: "Torrents über eine übersichtliche Web-Oberfläche herunterladen und verwalten — qBittorrent läuft auf Ihrem Server ohne Abonnements oder Tracking."
+  es: "Descarga y gestiona torrents desde una interfaz web sencilla — qBittorrent se ejecuta en tu servidor sin suscripciones ni rastreos."
+  fr: "Téléchargez et gérez vos torrents via une interface web claire — qBittorrent tourne sur votre serveur sans abonnement ni pistage."
+  it: "Scarica e gestisci torrent da un'interfaccia web pulita — qBittorrent gira sul tuo server senza abbonamenti o tracciamento."
+  nl: "Download en beheer torrents via een overzichtelijke webinterface — qBittorrent draait op je server zonder abonnementen of tracking."
+  pl: "Pobieraj i zarządzaj torrentami przez przejrzysty interfejs webowy — qBittorrent działa na twoim serwerze bez subskrypcji i śledzenia."
+categories:
+  - media
+app_version: "5.2.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.qbittorrent.org
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/qbittorrent/0.2.0/logo.svg
+logo_source: https://www.qbittorrent.org/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 2af1e7368698b3fd068c0cd8c0113e01f7bf7e1f7dd2b9e16069e8b994575396
+
+app_min_ram_mb: 256
+app_min_disk_mb: 10240
+
+# basic_auth (IF-1312): the linuxserver/qbittorrent image generates a random temp
+# admin password on every startup (printed to logs) with no env-var override, so
+# there is no first-boot channel to project a customer password into the app's own
+# login. A Traefik basic_auth gate in front of the WebUI sidesteps the log-scraping
+# and closes the setup-takeover window. The customer can remove it once they have
+# set their own WebUI credentials: /root/auth.sh off qbittorrent
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: qBittorrent Web UI
+  - port: 6881
+    protocol: tcp
+    public: true
+    http: false
+    description: BitTorrent peer connections (TCP)
+  - port: 6881
+    protocol: udp
+    public: true
+    http: false
+    description: BitTorrent peer connections (UDP)
