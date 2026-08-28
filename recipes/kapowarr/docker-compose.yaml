@@ -1,0 +1,22 @@
+services:
+  kapowarr:
+    image: mrcas/kapowarr:V1.3.1
+    restart: unless-stopped
+    ports:
+      - "5656:5656"
+    volumes:
+      - /opt/kapowarr/db:/app/db
+      - /opt/kapowarr/temp_downloads:/app/temp_downloads
+      - /opt/kapowarr/comics:/comics
+    networks:
+      - kapowarr-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5656/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  kapowarr-network:
+    driver: bridge
