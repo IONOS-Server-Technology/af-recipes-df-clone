@@ -1,0 +1,22 @@
+services:
+  flatnotes:
+    image: dullage/flatnotes:v5.5.4
+    restart: unless-stopped
+    environment:
+      - FLATNOTES_AUTH_TYPE=none
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/flatnotes/data:/app/data
+    networks:
+      - flatnotes-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  flatnotes-network:
+    driver: bridge
