@@ -1,0 +1,21 @@
+services:
+  wallos:
+    image: bellamy/wallos:5.4.2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/wallos/db:/var/www/html/db
+      - /opt/wallos/uploads:/var/www/html/images/uploads
+    networks:
+      - wallos-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  wallos-network:
+    driver: bridge
