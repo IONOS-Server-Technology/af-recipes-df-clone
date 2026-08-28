@@ -1,0 +1,45 @@
+services:
+  formio:
+    image: formio/formio:rc
+    restart: unless-stopped
+    environment:
+      - ROOT_EMAIL=admin@example.com
+      - ROOT_PASSWORD=${ROOT_PASSWORD}
+      - MONGO=mongodb://formio:${MONGO_PASSWORD}@mongo:27017/formio?authSource=admin
+      - 'NODE_CONFIG={"jwt":{"secret":"${JWT_SECRET}"}}'
+    ports:
+      - "3001:3001"
+    volumes:
+      - /opt/formio/uploads:/app/uploads
+    networks:
+      - formio-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=formio
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+    volumes:
+      - /opt/formio/mongo:/data/db
+    networks:
+      - formio-network
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand({ping:1})' --quiet || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  formio-network:
+    driver: bridge
