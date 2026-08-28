@@ -1,0 +1,40 @@
+id: mealie
+enabled: false
+display_name: Mealie
+description: Self-hosted recipe manager with meal planning and shopping lists.
+short_description:
+  en: "Manage your recipe collection, plan meals for the week, and build shopping lists — all in a beautiful self-hosted app."
+  de: "Rezeptsammlung verwalten, Mahlzeiten für die Woche planen und Einkaufslisten erstellen – alles in einer selbstgehosteten App."
+  es: "Gestiona tu recetario, planifica comidas semanales y crea listas de la compra en una aplicación autoalojada elegante."
+  fr: "Gérez vos recettes, planifiez vos repas de la semaine et créez des listes de courses dans une application auto-hébergée."
+  it: "Gestisci le tue ricette, pianifica i pasti della settimana e crea liste della spesa in un'app self-hosted elegante."
+  nl: "Beheer je recepten, plan maaltijden voor de week en maak boodschappenlijsten in een mooie zelf-gehoste app."
+  pl: "Zarządzaj przepisami, planuj posiłki na tydzień i twórz listy zakupów w pięknej aplikacji self-hosted."
+categories:
+  - productivity
+  - home
+app_version: "v3.22.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/mealie-recipes/mealie
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/mealie/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/mealie.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 30d7283f0fc684ca265ae067d4a77873809e9e8148652348dee3baedce708699
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+ports:
+  # Mealie's own login uses DEFAULT_EMAIL/DEFAULT_PASSWORD env vars that are
+  # explicitly deprecated upstream with no supported hash-accepting replacement.
+  # The security boundary is therefore a Traefik basic-auth gate (same pattern
+  # as n8n / IF-1312) combined with ALLOW_SIGNUP=false to block open registration.
+  # The customer still completes Mealie's first-login password-change prompt as a
+  # secondary, non-blocking step.
+  - port: 9000
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: Mealie Web UI
