@@ -1,0 +1,44 @@
+id: listmonk
+enabled: false
+display_name: Listmonk
+description: Self-hosted newsletter and mailing list manager with campaign management, subscriber segmentation, and a built-in email editor.
+short_description:
+  en: "Send newsletters and manage mailing lists from your own server — campaigns, subscriber segments, and a drag-and-drop email editor included."
+  de: "Newsletter versenden und Mailinglisten vom eigenen Server verwalten — mit Kampagnen, Segmenten und Drag-and-Drop-E-Mail-Editor."
+  es: "Envía newsletters y gestiona listas de correo desde tu propio servidor — con campañas, segmentos y editor de correo incluidos."
+  fr: "Envoyez des newsletters et gérez vos listes depuis votre propre serveur — campagnes, segments et éditeur d'e-mails inclus."
+  it: "Invia newsletter e gestisci mailing list dal tuo server — con campagne, segmentazione e editor di e-mail drag-and-drop."
+  nl: "Verstuur nieuwsbrieven en beheer mailinglijsten vanaf je eigen server — inclusief campagnes, segmentatie en een drag-and-drop e-maileditor."
+  pl: "Wysyłaj newslettery i zarządzaj listami mailingowymi z własnego serwera — z kampaniami, segmentacją i edytorem e-maili."
+categories:
+  - communication
+  - productivity
+app_version: "v6.2.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/knadh/listmonk
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/listmonk/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/knadh/listmonk/master/static/public/static/logo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 28992092996c1f6f00bc6bb78efca49a6b4fb97102974a49b563ba67968a1fc5
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth protects the initial admin-setup screen that is open and unauthenticated
+# from first boot until the customer completes the Super Admin creation form (the same
+# pattern as n8n/IF-1312). Whoever reaches port 9000 first owns the instance, so the
+# Traefik gate is the real auth boundary — not a nice-to-have.
+ports:
+  - port: 9000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Listmonk Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL password for the Listmonk database user.

@@ -1,0 +1,56 @@
+services:
+  listmonk:
+    image: listmonk/listmonk:v6.2.0
+    restart: unless-stopped
+    command: ["sh", "-c", "./listmonk --install --idempotent && ./listmonk"]
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/listmonk/docker-compose.yml"
+    environment:
+      - LISTMONK_app__address=0.0.0.0:9000
+      - LISTMONK_db__host=postgres
+      - LISTMONK_db__port=5432
+      - LISTMONK_db__user=listmonk
+      - LISTMONK_db__password=${POSTGRES_PASSWORD}
+      - LISTMONK_db__database=listmonk
+      - TZ=${TZ:-UTC}
+    ports:
+      - "9000:9000"
+    volumes:
+      - /opt/listmonk/uploads:/listmonk/uploads
+    networks:
+      - listmonk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=listmonk
+      - POSTGRES_USER=listmonk
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/listmonk/postgres:/var/lib/postgresql/data
+    networks:
+      - listmonk-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listmonk -d listmonk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  listmonk-network:
+    driver: bridge
