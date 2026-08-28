@@ -1,0 +1,51 @@
+id: black-candy
+enabled: false
+display_name: Black Candy
+description: Self-hosted music streaming server with web player and official mobile apps.
+short_description:
+  en: "Stream your personal music library from any browser or the official mobile app — your own self-hosted alternative to Spotify."
+  de: "Eigene Musikbibliothek per Browser oder offizieller App streamen — die selbstgehostete Alternative zu Spotify."
+  es: "Transmite tu biblioteca musical personal desde cualquier navegador o la app oficial — tu alternativa autoalojada a Spotify."
+  fr: "Diffusez votre bibliothèque musicale depuis n'importe quel navigateur ou l'application officielle — votre alternative auto-hébergée à Spotify."
+  it: "Ascolta la tua libreria musicale da qualsiasi browser o app ufficiale — la tua alternativa self-hosted a Spotify."
+  nl: "Stream je persoonlijke muziekbibliotheek vanuit elke browser of de officiële app — jouw zelfgehoste alternatief voor Spotify."
+  pl: "Streamuj swoją bibliotekę muzyczną z dowolnej przeglądarki lub oficjalnej aplikacji — samodzielnie hostowana alternatywa dla Spotify."
+categories:
+  - media
+# app_version: compose_file_url is null — no official docker-compose file exists
+# (blackcandy-org/blackcandy only embeds a snippet in README prose, not a maintained
+# compose artifact). Per IF-1501 rule 3 (no upstream compose file), the current
+# latest stable release tag is chosen: 3.2.0, released 2026-05-07, confirmed via
+# apps-gaps/black-candy.yaml and upstream GHCR image ghcr.io/blackcandy-org/blackcandy:3.2.0.
+app_version: "3.2.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://blackcandy.org
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/black-candy/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/blackcandy-org/blackcandy/master/app/assets/images/logo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: c468e9abc51330636c6840bb5e62d7969ae8fee963bab7379ad1ec43b753b605
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+# Black Candy seeds a fixed admin account (admin@admin.com / foobar) at first boot
+# with no environment variable to override the password — it is a hardcoded database
+# seed. basic_auth: true gates the frontend behind the customer's server password
+# (same pattern as Redmine and n8n), so the hardcoded in-app account is no longer
+# the customer-facing auth boundary. The customer can turn it off once they have
+# logged in and changed the in-app admin password:
+#
+#   /root/auth.sh off black-candy
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Black Candy Web UI
+
+parameters:
+  - name: SECRET_KEY_BASE
+    display_name: Secret Key Base
+    type: password
+    description: Rails secret key base for signing and encrypting sessions and cookies. Generated automatically at install time.
