@@ -1,0 +1,49 @@
+id: zabbix
+enabled: false
+display_name: Zabbix
+description: Enterprise-grade open-source monitoring for networks, servers, and applications.
+short_description:
+  en: "Monitor servers, network devices, and applications with SNMP/agent-based polling, historical metrics, and alert escalation — all on your own server."
+  de: "Server, Netzwerkgeräte und Anwendungen per SNMP/Agent überwachen, mit historischen Metriken und Alarmierung — vollständig auf Ihrem Server."
+  es: "Monitoriza servidores, dispositivos de red y aplicaciones con polling SNMP/agente, métricas históricas y escalado de alertas — en tu propio servidor."
+  fr: "Surveillez serveurs, équipements réseau et applications via SNMP/agent, avec métriques historiques et escalade d'alertes — sur votre propre serveur."
+  it: "Monitora server, dispositivi di rete e applicazioni con polling SNMP/agente, metriche storiche ed escalation degli avvisi — sul tuo server."
+  nl: "Bewaak servers, netwerkapparaten en applicaties via SNMP/agent-polling, historische statistieken en alertescalatie — op je eigen server."
+  pl: "Monitoruj serwery, urządzenia sieciowe i aplikacje przez SNMP/agenta, z historycznymi metrykami i eskalacją alertów — na własnym serwerze."
+categories:
+  - monitoring
+app_version: "alpine-7.0-latest"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.zabbix.com
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/zabbix/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/zabbix.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 4a2b7776b8f1b9186e2afdfc2ddcb715df6b692e07e836a7b33e2aa84ab918f4
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth gates the Zabbix web frontend because the official zabbix/zabbix-web-nginx-mysql
+# image has no env var to set the built-in Admin account password at first boot (confirmed
+# unresolved in zabbix/zabbix-docker#820). Every fresh deployment starts with the well-known
+# Admin/zabbix credential. The Traefik basic-auth gate moves the effective auth boundary to
+# the gate credential, so the fixed internal password is only reachable by someone who already
+# holds that gate credential. Same pattern as the SonarQube recipe (admin/admin default).
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Zabbix Web UI
+
+parameters:
+  - name: MYSQL_ROOT_PASSWORD
+    display_name: MySQL Root Password
+    type: password
+    description: Root password for the MySQL database server.
+
+  - name: MYSQL_PASSWORD
+    display_name: MySQL User Password
+    type: password
+    description: Password for the Zabbix MySQL database user.
