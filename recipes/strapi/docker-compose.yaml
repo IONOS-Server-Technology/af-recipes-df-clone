@@ -1,0 +1,30 @@
+services:
+  strapi:
+    image: strapi/strapi:5.51.2
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_CLIENT=sqlite
+      - DATABASE_FILENAME=.tmp/data.db
+      - APP_KEYS=${APP_KEYS}
+      - API_TOKEN_SALT=${API_TOKEN_SALT}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - TRANSFER_TOKEN_SALT=${TRANSFER_TOKEN_SALT}
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "1337:1337"
+    volumes:
+      - /opt/strapi/data:/opt/app/.tmp
+      - /opt/strapi/uploads:/opt/app/public/uploads
+    networks:
+      - strapi-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:1337/_health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  strapi-network:
+    driver: bridge
