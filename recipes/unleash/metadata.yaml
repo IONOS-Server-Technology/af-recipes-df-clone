@@ -1,0 +1,46 @@
+id: unleash
+enabled: false
+display_name: Unleash
+description: Open-source feature flag management with gradual rollout strategies, kill switches, and 15+ SDK integrations.
+short_description:
+  en: "Manage feature flags and control rollouts with Unleash — gradual releases, A/B experiments, and kill switches on your own server."
+  de: "Feature-Flags verwalten und Rollouts steuern — schrittweise Releases, A/B-Experimente und Kill-Switches auf Ihrem eigenen Server."
+  es: "Gestiona feature flags y controla despliegues con Unleash — lanzamientos graduales, experimentos A/B y kill switches en tu servidor."
+  fr: "Gérez les feature flags et contrôlez les déploiements avec Unleash — lancements progressifs, expériences A/B et kill switches sur votre serveur."
+  it: "Gestisci feature flag e controlla i rilasci con Unleash — rilasci graduali, esperimenti A/B e kill switch sul tuo server."
+  nl: "Beheer feature flags en controleer uitrolplannen met Unleash — stapsgewijze releases, A/B-experimenten en kill switches op je server."
+  pl: "Zarządzaj flagami funkcji z Unleash — stopniowe wdrożenia, eksperymenty A/B i kill switche na własnym serwerze."
+categories:
+  - developer-tools
+  - infrastructure
+app_version: "8.1.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/Unleash/unleash
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/unleash/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/Unleash/unleash/main/.github/Logo_DarkBlue_Transparent_Portrait.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 93a48f5277cd52b4c39a7c788fce90e5948f1873d4c5aad587895daf51d1cc48
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth (IF-1312 precedent): Unleash ships a static default login (admin / unleash4all)
+# that is well-known and cannot be changed through any customer-input channel available today
+# (UNLEASH_DEFAULT_ADMIN_USERNAME/_PASSWORD accept only plaintext, which generated_from cannot
+# produce). Gating the app behind Traefik basic auth closes the exposure. The customer turns it
+# off once they have rotated the Unleash admin password:
+#
+#     /root/auth.sh off unleash
+ports:
+  - port: 4242
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Unleash Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password.
