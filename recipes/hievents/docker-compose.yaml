@@ -1,0 +1,78 @@
+services:
+  hievents:
+    image: daveearley/hi.events-all-in-one:v.1.11.0-beta
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/hievents/docker-compose.yml"
+    environment:
+      - APP_KEY=${APP_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - APP_FRONTEND_URL=https://${AF_APP_DOMAIN}
+      - VITE_FRONTEND_URL=https://${AF_APP_DOMAIN}
+      - VITE_API_URL_CLIENT=https://${AF_APP_DOMAIN}/api
+      - VITE_API_URL_SERVER=http://127.0.0.1/api
+      - DATABASE_URL=postgresql://hievents:${POSTGRES_PASSWORD}@postgres:5432/hievents
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_CONNECTION=redis
+      - LOG_CHANNEL=stderr
+      - APP_DISABLE_REGISTRATION=false
+      - APP_SAAS_MODE_ENABLED=false
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/hievents/storage:/var/www/html/backend/storage
+    networks:
+      - hievents-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      # Cache/queue backend — never auto-update (major bumps can break compatibility).
+      - "wud.watch=false"
+    networks:
+      - hievents-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=hievents
+      - POSTGRES_USER=hievents
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/hievents/postgres:/var/lib/postgresql/data
+    networks:
+      - hievents-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hievents -d hievents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  hievents-network:
+    driver: bridge
