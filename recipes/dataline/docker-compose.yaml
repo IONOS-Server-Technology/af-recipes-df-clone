@@ -1,0 +1,20 @@
+services:
+  dataline:
+    image: ramiawar/dataline:1.2.0
+    restart: unless-stopped
+    ports:
+      - "7377:7377"
+    volumes:
+      - /opt/dataline/data:/root/.dataline
+    networks:
+      - dataline-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7377/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  dataline-network:
+    driver: bridge
