@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:15.5-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=flagsmith
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/flagsmith/postgres:/var/lib/postgresql/data
+    networks:
+      - flagsmith-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d flagsmith -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  migrate:
+    image: flagsmith/flagsmith:2.261.0
+    command: migrate
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/flagsmith
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - flagsmith-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  flagsmith:
+    image: flagsmith/flagsmith:2.261.0
+    command: serve
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/flagsmith
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ENVIRONMENT=production
+      - DJANGO_ALLOWED_HOSTS=*
+      - FLAGSMITH_DOMAIN=${AF_APP_DOMAIN}
+      - USE_POSTGRES_FOR_ANALYTICS=true
+      - TASK_RUN_METHOD=SEPARATE_THREAD
+    ports:
+      - "8000:8000"
+    networks:
+      - flagsmith-network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/v1/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  flagsmith-network:
+    driver: bridge
