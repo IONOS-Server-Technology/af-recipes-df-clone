@@ -1,0 +1,41 @@
+services:
+  redis:
+    image: redis:7.4.2-alpine
+    restart: unless-stopped
+    networks:
+      - redis-commander-network
+    volumes:
+      - /opt/redis-commander/redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis-commander:
+    image: ghcr.io/joeferner/redis-commander:0.9.1
+    restart: unless-stopped
+    environment:
+      - HTTP_USER=admin
+      - HTTP_PASSWORD_HASH=${HTTP_PASSWORD_HASH}
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - redis-commander-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Returns 401 when auth is configured; accept 0 (200 OK) or 8 (HTTP error
+      # status) — a connection failure is the only signal meaning "not ready".
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8081/ 2>/dev/null; st=$?; [ $st -eq 0 ] || [ $st -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  redis-commander-network:
+    driver: bridge
