@@ -1,0 +1,22 @@
+services:
+  jupyter-notebook:
+    image: quay.io/jupyter/base-notebook:2026-07-22
+    restart: unless-stopped
+    environment:
+      - NOTEBOOK_ARGS=--PasswordIdentityProvider.hashed_password=${HASHED_PASSWORD}
+    ports:
+      - "8888:8888"
+    volumes:
+      - /opt/jupyter-notebook/data:/home/jovyan/work
+    networks:
+      - jupyter-notebook-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8888/api || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  jupyter-notebook-network:
+    driver: bridge
