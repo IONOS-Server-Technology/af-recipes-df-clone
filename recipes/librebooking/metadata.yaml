@@ -1,0 +1,54 @@
+id: librebooking
+enabled: false
+display_name: LibreBooking
+description: Open-source resource scheduling system for rooms, equipment, and shared assets.
+short_description:
+  en: "Schedule meeting rooms, equipment, and shared assets with a self-hosted booking system — no SaaS subscription needed."
+  de: "Meetingräume, Geräte und gemeinsame Ressourcen mit einem selbst gehosteten Buchungssystem verwalten — ohne SaaS-Abonnement."
+  es: "Reserva salas, equipos y recursos compartidos con un sistema de reservas propio — sin suscripción SaaS."
+  fr: "Planifiez salles, équipements et ressources partagées avec un système de réservation auto-hébergé — sans abonnement SaaS."
+  it: "Prenota sale, attrezzature e risorse condivise con un sistema di prenotazione self-hosted — nessun abbonamento SaaS."
+  nl: "Plan vergaderzalen, apparatuur en gedeelde middelen met een zelfgehoste boekingsoplossing — geen SaaS-abonnement nodig."
+  pl: "Rezerwuj sale, sprzęt i wspólne zasoby z własnym systemem rezerwacji — bez subskrypcji SaaS."
+categories:
+  - productivity
+app_version: "develop"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/LibreBooking/librebooking
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/librebooking/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/LibreBooking/librebooking/develop/favicon.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: 8e728ecaa85927ac9b2a8bb101b3ddcab81bae7bbccaadf19dd959f55b402d29
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth gates the LibreBooking frontend because admin.email has no
+# customer-input channel and is fixed at the upstream default (admin@example.com).
+# Self-registration is enabled by default, so anyone who reaches register.php
+# before the customer does can register that admin address and claim admin privileges.
+# The Traefik basic-auth gate is the effective auth boundary that closes this
+# window between install completion and the customer's first login.
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: LibreBooking Web UI
+
+parameters:
+  - name: LB_DATABASE_PASSWORD
+    display_name: Database Password
+    type: password
+    description: MariaDB password for the LibreBooking database user.
+
+  - name: LB_INSTALL_PASSWORD
+    display_name: Installation Password
+    type: password
+    description: Password for the LibreBooking installation wizard (set server-side; never shown to the customer).
+
+  - name: MYSQL_ROOT_PASSWORD
+    display_name: MySQL Root Password
+    type: password
+    description: Root password for the MariaDB database server.

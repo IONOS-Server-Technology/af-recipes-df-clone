@@ -1,0 +1,55 @@
+services:
+  librebooking:
+    image: librebooking/librebooking:develop
+    restart: unless-stopped
+    environment:
+      - LB_DATABASE_HOSTSPEC=mariadb
+      - LB_DATABASE_NAME=librebooking
+      - LB_DATABASE_USER=lb_user
+      - LB_DATABASE_PASSWORD=${LB_DATABASE_PASSWORD}
+      - LB_INSTALL_PASSWORD=${LB_INSTALL_PASSWORD}
+      - LB_LOGGING_FOLDER=/var/log/librebooking
+      - LB_LOGGING_LEVEL=none
+      - LB_LOGGING_SQL=false
+      - LB_DEFAULT_TIMEZONE=UTC
+      - LB_SCRIPT_URL=http://librebooking/Web
+    ports:
+      - "8080:80"
+    volumes:
+      - /opt/librebooking/config:/config
+      - /opt/librebooking/images:/var/www/html/Web/uploads/images
+      - /opt/librebooking/reservations:/var/www/html/Web/uploads/reservations
+    networks:
+      - librebooking-network
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=librebooking
+      - MYSQL_USER=lb_user
+      - MYSQL_PASSWORD=${LB_DATABASE_PASSWORD}
+    volumes:
+      - /opt/librebooking/mariadb:/var/lib/mysql
+    networks:
+      - librebooking-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  librebooking-network:
+    driver: bridge
