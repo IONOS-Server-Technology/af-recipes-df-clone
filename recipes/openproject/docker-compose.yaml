@@ -1,0 +1,114 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=openproject
+      - POSTGRES_USER=openproject
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/openproject/pgdata:/var/lib/postgresql/data
+    networks:
+      - openproject-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openproject -d openproject"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    networks:
+      - openproject-network
+
+  seeder:
+    image: openproject/openproject:17-slim
+    restart: on-failure
+    command: ["./docker/prod/seeder"]
+    environment:
+      - DATABASE_URL=postgresql://openproject:${POSTGRES_PASSWORD}@db/openproject
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - OPENPROJECT_HOST__NAME=${AF_APP_DOMAIN}
+      - OPENPROJECT_HTTPS=true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - openproject-network
+
+  web:
+    image: openproject/openproject:17-slim
+    restart: unless-stopped
+    command: ["./docker/prod/web"]
+    environment:
+      - DATABASE_URL=postgresql://openproject:${POSTGRES_PASSWORD}@db/openproject
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - OPENPROJECT_HOST__NAME=${AF_APP_DOMAIN}
+      - OPENPROJECT_HTTPS=true
+      - RAILS_CACHE_STORE=memcache
+      - OPENPROJECT_CACHE__MEMCACHE__SERVER=memcached:11211
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/openproject/assets:/var/openproject/assets
+    networks:
+      - openproject-network
+    depends_on:
+      db:
+        condition: service_healthy
+      seeder:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health_check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  worker:
+    image: openproject/openproject:17-slim
+    restart: unless-stopped
+    command: ["./docker/prod/worker"]
+    environment:
+      - DATABASE_URL=postgresql://openproject:${POSTGRES_PASSWORD}@db/openproject
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - OPENPROJECT_HOST__NAME=${AF_APP_DOMAIN}
+      - OPENPROJECT_HTTPS=true
+      - RAILS_CACHE_STORE=memcache
+      - OPENPROJECT_CACHE__MEMCACHE__SERVER=memcached:11211
+    volumes:
+      - /opt/openproject/assets:/var/openproject/assets
+    networks:
+      - openproject-network
+    depends_on:
+      db:
+        condition: service_healthy
+      seeder:
+        condition: service_completed_successfully
+
+  cron:
+    image: openproject/openproject:17-slim
+    restart: unless-stopped
+    command: ["./docker/prod/cron"]
+    environment:
+      - DATABASE_URL=postgresql://openproject:${POSTGRES_PASSWORD}@db/openproject
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - OPENPROJECT_HOST__NAME=${AF_APP_DOMAIN}
+      - OPENPROJECT_HTTPS=true
+    networks:
+      - openproject-network
+    depends_on:
+      db:
+        condition: service_healthy
+      seeder:
+        condition: service_completed_successfully
+
+networks:
+  openproject-network:
+    driver: bridge

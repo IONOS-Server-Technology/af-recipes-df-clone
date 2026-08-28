@@ -1,0 +1,48 @@
+id: openproject
+enabled: false
+display_name: OpenProject
+description: Open-source project management with Gantt charts, Agile boards, and time tracking.
+short_description:
+  en: "Plan projects with Gantt charts, Kanban boards, and time tracking — OpenProject runs entirely on your own server."
+  de: "Projekte mit Gantt-Charts, Kanban-Boards und Zeiterfassung planen — OpenProject läuft vollständig auf Ihrem Server."
+  es: "Planifica proyectos con diagramas de Gantt, tableros Kanban y seguimiento del tiempo — OpenProject se ejecuta completamente en tu servidor."
+  fr: "Planifiez des projets avec des diagrammes de Gantt, des tableaux Kanban et un suivi du temps — OpenProject fonctionne entièrement sur votre serveur."
+  it: "Pianifica progetti con diagrammi di Gantt, board Kanban e time tracking — OpenProject gira completamente sul tuo server."
+  nl: "Plan projecten met Gantt-grafieken, Kanban-borden en tijdregistratie — OpenProject draait volledig op je eigen server."
+  pl: "Planuj projekty z wykresami Gantta, tablicami Kanban i śledzeniem czasu — OpenProject działa w całości na twoim serwerze."
+categories:
+  - productivity
+app_version: "${TAG:-17-slim}"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.openproject.org/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/openproject/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/opf/openproject/dev/app/assets/images/icon_logo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 1bad6c0c325a0aaa91864d519d197a00e6df391d757b5f222a2a58a12db62e6f
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 20480
+
+# basic_auth (same pattern as n8n): OpenProject ships with a fixed default credential
+# (admin/admin) that must be changed on first login. Gating the entire UI behind Traefik
+# basic auth prevents first-visit account takeover before the customer sets their password.
+# Cost: any external service hitting the app URL receives a 401 while the gate is on.
+# Turn it off after the admin password is changed: /root/auth.sh off openproject
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: OpenProject Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password generated at install time.
+
+  - name: SECRET_KEY_BASE
+    display_name: Rails Secret Key
+    type: password
+    description: Rails secret key base for session signing and encryption, generated at install time.
