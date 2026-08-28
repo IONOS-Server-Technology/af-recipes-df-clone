@@ -1,0 +1,50 @@
+services:
+  app:
+    image: ghcr.io/seanmorley15/adventurelog:v0.12.1
+    restart: unless-stopped
+    environment:
+      - SITE_URL=https://${AF_APP_DOMAIN}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGHOST=db
+      - POSTGRES_DB=database
+      - POSTGRES_USER=adventure
+      - DJANGO_ADMIN_USERNAME=admin
+      - DJANGO_ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD}
+      - PORT=3000
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/adventurelog/media:/code/media/
+    networks:
+      - adventurelog-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  db:
+    image: postgis/postgis:16-3.5
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=database
+      - POSTGRES_USER=adventure
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/adventurelog/postgres:/var/lib/postgresql/data
+    networks:
+      - adventurelog-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adventure -d database"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  adventurelog-network:
+    driver: bridge
