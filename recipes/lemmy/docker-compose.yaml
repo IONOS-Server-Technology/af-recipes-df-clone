@@ -1,0 +1,103 @@
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/lemmy/nginx:/etc/nginx/conf.d:ro
+    networks:
+      - lemmy-network
+    depends_on:
+      lemmy:
+        condition: service_healthy
+      lemmy-ui:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  lemmy:
+    image: dessalines/lemmy:0.19.20
+    restart: unless-stopped
+    volumes:
+      - /opt/lemmy/config:/config
+    networks:
+      - lemmy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pictrs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8536/api/v3/site || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  lemmy-ui:
+    image: dessalines/lemmy-ui:0.19.20
+    restart: unless-stopped
+    environment:
+      - LEMMY_UI_LEMMY_INTERNAL_HOST=lemmy:8536
+      - LEMMY_UI_LEMMY_EXTERNAL_HOST=${AF_APP_DOMAIN}
+      - LEMMY_UI_HTTPS=true
+    networks:
+      - lemmy-network
+    depends_on:
+      lemmy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:1234/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  pictrs:
+    image: asonix/pictrs:0.5.19
+    restart: unless-stopped
+    user: "991:991"
+    environment:
+      - PICTRS__SERVER__API_KEY=${PICTRS_API_KEY}
+      - PICTRS__MEDIA__VIDEO_CODEC=vp9
+      - PICTRS__MEDIA__GIF__MAX_WIDTH=256
+      - PICTRS__MEDIA__GIF__MAX_HEIGHT=256
+      - PICTRS__MEDIA__GIF__MAX_AREA=65536
+      - PICTRS__MEDIA__GIF__MAX_FRAME_COUNT=400
+    volumes:
+      - /opt/lemmy/pictrs:/mnt
+    networks:
+      - lemmy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: pgautoupgrade/pgautoupgrade:16-alpine3.19
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=lemmy
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=lemmy
+    volumes:
+      - /opt/lemmy/postgres:/var/lib/postgresql/data
+    networks:
+      - lemmy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lemmy -d lemmy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  lemmy-network:
+    driver: bridge
