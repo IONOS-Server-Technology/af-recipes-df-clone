@@ -1,0 +1,26 @@
+services:
+  freshrss:
+    image: freshrss/freshrss:1.29.1
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - CRON_MIN=${CRON_MIN}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/freshrss/data:/var/www/FreshRSS/data
+      - /opt/freshrss/extensions:/var/www/FreshRSS/extensions
+    networks:
+      - freshrss-network
+    healthcheck:
+      # curl doesn't exist in this image; cli/health.php does - it's upstream's
+      # own commented-out healthcheck example (Docker/freshrss/docker-compose.yml).
+      test: ["CMD", "cli/health.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  freshrss-network:
+    driver: bridge
