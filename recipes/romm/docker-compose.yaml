@@ -1,0 +1,53 @@
+services:
+  romm:
+    image: rommapp/romm:5.1.0
+    restart: unless-stopped
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=romm
+      - DB_USER=romm
+      - DB_PASSWD=${DB_PASSWD}
+      - ROMM_AUTH_SECRET_KEY=${ROMM_AUTH_SECRET_KEY}
+      - HASHEOUS_API_ENABLED=true
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/romm/resources:/romm/resources
+      - /opt/romm/library:/romm/library
+      - /opt/romm/assets:/romm/assets
+      - /opt/romm/config:/romm/config
+    networks:
+      - romm-network
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/api/heartbeat || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=romm
+      - MYSQL_USER=romm
+      - MYSQL_PASSWORD=${DB_PASSWD}
+    volumes:
+      - /opt/romm/mariadb:/var/lib/mysql
+    networks:
+      - romm-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  romm-network:
+    driver: bridge
