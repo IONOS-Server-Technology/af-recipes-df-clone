@@ -1,0 +1,46 @@
+id: languagetool
+enabled: false
+display_name: LanguageTool
+description: Self-hosted grammar, style, and spell-checker API supporting 25+ languages.
+short_description:
+  en: "Run a private grammar-checking API for LibreOffice, browser extensions, and editor plugins — no text leaves your server."
+  de: "Datenschutzfreundliche Grammatik-API selbst hosten — für LibreOffice, Browser-Erweiterungen und Editor-Plugins ohne Cloud-Abhängigkeit."
+  es: "Aloja tu propia API de corrección gramatical para LibreOffice, extensiones de navegador y plugins de editores — sin enviar texto a terceros."
+  fr: "Hébergez votre propre API de vérification grammaticale pour LibreOffice, extensions de navigateur et plugins d'éditeurs — aucune donnée envoyée à des tiers."
+  it: "Ospita una API di controllo grammaticale privata per LibreOffice, estensioni browser e plugin di editor — nessun testo inviato a terzi."
+  nl: "Host je eigen grammaticacontrole-API voor LibreOffice, browserextensies en editor-plugins — geen tekst naar externe servers."
+  pl: "Hostuj własne API sprawdzania gramatyki dla LibreOffice, rozszerzeń przeglądarki i wtyczek edytorów — tekst nie trafia do zewnętrznych serwerów."
+categories:
+  - productivity
+  - utilities
+app_version: "6.8"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/languagetool-org/languagetool
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/languagetool/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/languagetool.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 29c9f586e7259b88570553dd155390a374b7da5f18a0c9d72b3422ff3cce4b07
+
+app_min_ram_mb: 1024
+app_min_disk_mb: 2048
+
+# LanguageTool has no built-in authentication — the server binds on 8010 with no login,
+# no admin account, and no credential env-var. Without a gate it becomes a wide-open,
+# unmetered text-checking API on the public internet (anyone with the URL can POST
+# arbitrary text to /v2/check). basic_auth: true closes that exposure using the same
+# Traefik-gate pattern as n8n and immich.
+#
+# Trade-off: this is an API endpoint, not a browser UI — clients (LibreOffice, browser
+# extensions, editor plugins) that support a custom server URL must also support HTTP
+# Basic Auth for this to be usable. Most do (e.g. the LanguageTool browser extension
+# and LibreOffice plugin both accept credentials alongside a custom server URL). Clients
+# that cannot present Basic Auth credentials will fail with 401. The customer can remove
+# the gate once they have assessed their exposure:
+#     /root/auth.sh off languagetool
+ports:
+  - port: 8010
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: LanguageTool API

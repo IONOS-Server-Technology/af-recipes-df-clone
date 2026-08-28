@@ -1,0 +1,18 @@
+services:
+  languagetool:
+    image: erikvl87/languagetool:6.8
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    networks:
+      - languagetool-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8010/v2/languages || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  languagetool-network:
+    driver: bridge
