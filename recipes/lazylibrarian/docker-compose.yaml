@@ -1,0 +1,25 @@
+services:
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:68d7be35-ls315
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    ports:
+      - "5299:5299"
+    volumes:
+      - /opt/lazylibrarian/config:/config
+      - /opt/lazylibrarian/books:/books
+    networks:
+      - lazylibrarian-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5299/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  lazylibrarian-network:
+    driver: bridge
