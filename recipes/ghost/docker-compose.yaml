@@ -1,0 +1,49 @@
+services:
+  ghost:
+    image: ghost:${GHOST_VERSION:-6-alpine}
+    restart: unless-stopped
+    environment:
+      - url=https://${AF_APP_DOMAIN}
+      - database__client=mysql
+      - database__connection__host=mysql
+      - database__connection__user=ghost
+      - database__connection__password=${DATABASE_PASSWORD}
+      - database__connection__database=ghost
+    ports:
+      - "2368:2368"
+    volumes:
+      - /opt/ghost/content:/var/lib/ghost/content
+    networks:
+      - ghost-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:2368/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=ghost
+      - MYSQL_USER=ghost
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - /opt/ghost/mysql:/var/lib/mysql
+    networks:
+      - ghost-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  ghost-network:
+    driver: bridge

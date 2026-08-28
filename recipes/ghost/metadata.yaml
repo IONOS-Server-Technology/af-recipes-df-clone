@@ -1,0 +1,44 @@
+id: ghost
+enabled: false
+display_name: Ghost
+description: Professional publishing platform for blogs, newsletters, and paid memberships.
+short_description:
+  en: "Run your own blog, newsletter, and paid membership site — Ghost is a professional publishing platform, fully self-hosted."
+  de: "Eigenes Blog, Newsletter und Mitglieder-Website betreiben — Ghost ist eine professionelle Publishing-Plattform, vollständig selbstgehostet."
+  es: "Gestiona tu propio blog, boletín y sitio de membresía — Ghost es una plataforma de publicación profesional, completamente autoalojada."
+  fr: "Hébergez votre propre blog, newsletter et site d'adhésion — Ghost est une plateforme de publication professionnelle, entièrement auto-hébergée."
+  it: "Gestisci il tuo blog, newsletter e sito con abbonamenti — Ghost è una piattaforma di pubblicazione professionale, completamente self-hosted."
+  nl: "Beheer je eigen blog, nieuwsbrief en ledensite — Ghost is een professioneel publicatieplatform, volledig zelf gehost."
+  pl: "Prowadź własnego bloga, newsletter i witrynę z członkostwem — Ghost to profesjonalna platforma wydawnicza, w pełni samodzielnie hostowana."
+categories:
+  - productivity
+app_version: "${GHOST_VERSION:-6-alpine}"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://ghost.org
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/ghost/0.2.0/logo.svg
+logo_source: https://ghost.org/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: c85766b4d940b688a05f66d0dbd4176dcf32eca88a57454e9dfd4e3d027b35ab
+
+app_min_ram_mb: 1024
+app_min_disk_mb: 20480
+
+
+# basic_auth: Ghost has no pre-provisioned admin account — the first-visit wizard at /ghost
+# is unauthenticated, so anyone reaching the URL first claims ownership. The platform's
+# basic-auth gate (server root password) closes that window until the customer completes
+# setup and runs /root/auth.sh off ghost. Same accepted trade-off as n8n: inbound requests
+# (e.g. from Ghost's newsletter-receive paths) see 401 until the gate comes down.
+ports:
+  - port: 2368
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Ghost Web UI
+
+parameters:
+  - name: DATABASE_PASSWORD
+    display_name: Database Password
+    type: password
+    description: MySQL database password, server-generated at first boot.
