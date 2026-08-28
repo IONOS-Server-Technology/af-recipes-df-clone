@@ -1,0 +1,42 @@
+name: regenerate-logo-overview
+
+# Keeps LOGO.md always current: regenerates it from recipes/*/logo.svg +
+# metadata.yaml on every push that could change it, and commits the result
+# straight back to main (dark-factory pushes straight to main too, no PR —
+# same shape). `[skip ci]` in the commit message is GitHub's own convention
+# for suppressing further workflow runs on that commit, so this can't loop.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "recipes/*/logo.svg"
+      - "recipes/*/metadata.yaml"
+      - "bin/generate-logo-overview"
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # generate-logo-overview needs full history for per-logo `git log` dates
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - run: pip install pyyaml
+
+      - run: python3 bin/generate-logo-overview
+
+      - name: Commit LOGO.md if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add LOGO.md
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: regenerate LOGO.md [skip ci]"
+          git push
