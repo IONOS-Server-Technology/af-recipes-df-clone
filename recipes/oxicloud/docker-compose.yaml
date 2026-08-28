@@ -1,0 +1,50 @@
+services:
+  oxicloud:
+    image: diocrafts/oxicloud:0.8.7
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/oxicloud/docker-compose.yaml"
+    environment:
+      - DATABASE_URL=postgresql://oxicloud:${DB_PASSWORD}@postgres:5432/oxicloud
+      - STORAGE_PATH=/data
+      - OXICLOUD_BASE_URL=https://${AF_APP_DOMAIN}
+    ports:
+      - "8086:8086"
+    volumes:
+      - /opt/oxicloud/data:/data
+    networks:
+      - oxicloud-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://127.0.0.1:8086/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:18.2-alpine3.23
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=oxicloud
+      - POSTGRES_USER=oxicloud
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/oxicloud/postgres:/var/lib/postgresql/data
+    networks:
+      - oxicloud-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oxicloud -d oxicloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  oxicloud-network:
+    driver: bridge
