@@ -1,0 +1,49 @@
+id: saltcorn
+enabled: false
+display_name: Saltcorn
+description: Open-source no-code application builder for database-driven web apps.
+short_description:
+  en: "Build and deploy database-driven web applications without writing code — Saltcorn runs entirely on your own server."
+  de: "Datenbankbasierte Webanwendungen ohne Programmierung erstellen und betreiben — Saltcorn läuft vollständig auf Ihrem Server."
+  es: "Crea e implementa aplicaciones web basadas en bases de datos sin escribir código — Saltcorn se ejecuta completamente en tu servidor."
+  fr: "Créez et déployez des applications web pilotées par base de données sans écrire de code — Saltcorn fonctionne entièrement sur votre serveur."
+  it: "Crea e distribuisci applicazioni web basate su database senza scrivere codice — Saltcorn gira completamente sul tuo server."
+  nl: "Bouw en implementeer databasegestuurde webapplicaties zonder code te schrijven — Saltcorn draait volledig op je eigen server."
+  pl: "Twórz i wdrażaj aplikacje webowe oparte na bazie danych bez pisania kodu — Saltcorn działa w całości na twoim serwerze."
+categories:
+  - developer-tools
+app_version: "1.6.2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/saltcorn/saltcorn
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/saltcorn/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/saltcorn.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: cf2e365157f8344dcd33eb1ff50694ea89f920918f019f1bb291a7979ce86684
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth closes the setup-wizard takeover window: the first visitor to a fresh
+# Saltcorn instance completes setup and becomes the admin. Behind the prompt the
+# wizard is unreachable. Once the customer has claimed ownership they remove the gate:
+#   /root/auth.sh off saltcorn
+# Note: while the prompt is active, inbound HTTP requests to port 3000 receive 401 —
+# there are no webhook paths on a fresh Saltcorn that would be broken by this.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Saltcorn Web UI
+
+parameters:
+  - name: PGPASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password for the Saltcorn backing store.
+
+  - name: SALTCORN_SESSION_SECRET
+    display_name: Session Secret
+    type: password
+    description: Secret used to sign Saltcorn session cookies.

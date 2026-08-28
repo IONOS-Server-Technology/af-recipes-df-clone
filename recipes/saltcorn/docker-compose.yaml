@@ -1,0 +1,50 @@
+services:
+  saltcorn:
+    image: saltcorn/saltcorn:1.6.2
+    restart: unless-stopped
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=saltcorn
+      - PGUSER=saltcorn
+      - PGPASSWORD=${PGPASSWORD}
+      - SALTCORN_SESSION_SECRET=${SALTCORN_SESSION_SECRET}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/saltcorn/data:/var/lib/saltcorn
+    networks:
+      - saltcorn-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=saltcorn
+      - POSTGRES_USER=saltcorn
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+    volumes:
+      - /opt/saltcorn/postgres:/var/lib/postgresql/data
+    networks:
+      - saltcorn-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saltcorn -d saltcorn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  saltcorn-network:
+    driver: bridge
