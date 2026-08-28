@@ -1,0 +1,57 @@
+id: redmine
+enabled: false
+display_name: Redmine
+description: Flexible project management and issue tracking platform with Gantt charts, wikis, and time tracking.
+short_description:
+  en: "Manage projects, track issues, and collaborate — self-hosted alternative to Jira with Gantt charts, wikis, and time tracking."
+  de: "Projekte verwalten, Fehler verfolgen, zusammenarbeiten — selbst gehostete Jira-Alternative mit Gantt-Diagrammen, Wikis und Zeiterfassung."
+  es: "Gestiona proyectos, rastrea incidencias y colabora — alternativa autoalojada a Jira con diagramas de Gantt, wikis y seguimiento de tiempo."
+  fr: "Gérez des projets, suivez les tickets et collaborez — alternative auto-hébergée à Jira avec diagrammes de Gantt, wikis et suivi du temps."
+  it: "Gestisci progetti, traccia problemi e collabora — alternativa self-hosted a Jira con diagrammi di Gantt, wiki e monitoraggio del tempo."
+  nl: "Beheer projecten, volg issues en werk samen — zelfgehoste Jira-alternatief met Gantt-diagrammen, wiki's en tijdregistratie."
+  pl: "Zarządzaj projektami, śledź zgłoszenia i współpracuj — samodzielnie hostowana alternatywa dla Jira z wykresami Gantta, wiki i śledzeniem czasu."
+categories:
+  - productivity
+  - developer-tools
+# app_version: compose_file_url is null — no official docker-compose file exists
+# (docker-library/redmine maintains only per-version Dockerfiles, not compose files).
+# Per IF-1501 rule 3 (no upstream compose file), the current latest stable release
+# tag is chosen: 7.0.0, released 2026-06-30, confirmed via apps-gaps/redmine.yaml.
+app_version: "7.0.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://www.redmine.org/
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/redmine/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/redmine.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 09624f5d0b675576e4ec258af6f8f7cf1cfbd8391a5aa31686f211335a33caaf
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth: Redmine's official Docker image (docker-library/redmine) ships a
+# hardcoded admin/admin credential with no environment variable to override it at
+# first boot — per docker-library/docs: "Currently, the default user and password
+# from upstream is admin/admin". Gating the entire app behind Traefik basic_auth
+# closes the window between container start and the customer's first login/password
+# change, same pattern as n8n (IF-1312) and WUD. The customer turns it off once
+# they have logged in and changed the Redmine admin password:
+#
+#   /root/auth.sh off redmine
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Redmine Web UI
+
+parameters:
+  - name: REDMINE_DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password for Redmine.
+
+  - name: SECRET_KEY_BASE
+    display_name: Secret Key Base
+    type: password
+    description: Rails secret key base used for session signing and encryption.
