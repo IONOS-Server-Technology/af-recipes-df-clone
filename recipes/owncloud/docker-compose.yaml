@@ -1,0 +1,42 @@
+services:
+  ocis:
+    image: owncloud/ocis:8.1.0
+    restart: unless-stopped
+    # Run ocis init on first start to create config and set the admin password,
+    # then hand off to the server. The file guard makes restarts idempotent.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        [ -f /etc/ocis/ocis.yaml ] || ocis init
+        exec ocis server
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/owncloud/docker-compose.yaml"
+    environment:
+      # Public URL used by the built-in IDP for OIDC redirect URIs and link generation.
+      - OCIS_URL=https://${AF_APP_DOMAIN}
+      # Allow internal service-to-service calls without TLS verification (Traefik handles TLS).
+      - OCIS_INSECURE=true
+      # Proxy listens on plain HTTP so Traefik can front it without certificate conflicts.
+      - PROXY_TLS=false
+      - OCIS_LOG_LEVEL=warn
+      # Admin account password set during ocis init — provided by the platform.
+      - OCIS_ADMIN_PASSWORD=${OCIS_ADMIN_PASSWORD}
+    ports:
+      - "9200"
+    volumes:
+      - /opt/owncloud/config:/etc/ocis
+      - /opt/owncloud/data:/var/lib/ocis
+    networks:
+      - owncloud-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://127.0.0.1:9200/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  owncloud-network:
+    driver: bridge

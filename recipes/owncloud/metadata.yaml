@@ -1,0 +1,62 @@
+id: owncloud
+enabled: false
+display_name: ownCloud
+description: Self-hosted file sync, sharing, and collaboration platform for teams.
+short_description:
+  en: "Store, sync, and share files with colleagues using a self-hosted cloud storage platform built on ownCloud Infinite Scale."
+  de: "Dateien mit Kollegen speichern, synchronisieren und teilen – mit einer selbstgehosteten Cloud-Speicherplattform auf Basis von ownCloud Infinite Scale."
+  es: "Almacena, sincroniza y comparte archivos con tus colegas usando una plataforma de almacenamiento en la nube autoalojada basada en ownCloud Infinite Scale."
+  fr: "Stockez, synchronisez et partagez des fichiers avec vos collègues grâce à une plateforme de stockage cloud auto-hébergée basée sur ownCloud Infinite Scale."
+  it: "Archivia, sincronizza e condividi file con i colleghi usando una piattaforma di archiviazione cloud self-hosted basata su ownCloud Infinite Scale."
+  nl: "Sla bestanden op, synchroniseer en deel ze met collega's via een zelf-gehoste cloudopslagplatform op basis van ownCloud Infinite Scale."
+  pl: "Przechowuj, synchronizuj i udostępniaj pliki współpracownikom za pomocą samodzielnie hostowanej platformy chmurowej opartej na ownCloud Infinite Scale."
+categories:
+  - productivity
+  - media
+# app_version: upstream ocis.yml overlay uses ${OCIS_DOCKER_TAG:-latest}; the
+# accompanying .env sets OCIS_DOCKER_TAG="" (empty), so the expression resolves to
+# :latest — a rolling alias that RFC-002 app-version-pinned forbids. apps-gaps
+# summary also explicitly says to pin to a stable tag, not :latest or the rolling
+# floating tag. Per IF-1501, since the upstream compose/env gives no usable non-latest
+# version expression, the current latest stable tag is picked from
+# version_health.latest_version.
+app_version: "8.1.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/owncloud/ocis
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/owncloud/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/owncloud.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 46479ce96e5282438072115982b72f0736c9fb56842d19ef88f8ae5ce9cec124
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# Port 9200 is ownCloud Infinite Scale's single HTTP port for the full web UI,
+# WebDAV/CS3 API, and all built-in microservices.
+#
+# basic_auth: not set — ownCloud Infinite Scale ships a built-in IDP (LibreGraph)
+# that requires user login on first visit. Enabling basic_auth would force the
+# customer through two prompts (RFC-001 §4.3.1); the app's own auth is the
+# correct access-control boundary.
+ports:
+  - port: 9200
+    protocol: tcp
+    public: true
+    description: ownCloud Infinite Scale Web UI and API
+
+parameters:
+  # OCIS_ADMIN_PASSWORD: ownCloud Infinite Scale reads this env var at first boot to
+  # set the built-in administrator account's password via the LibreGraph IDP.
+  # generated_from: argon2:ROOT_PASSWORD projects the customer's server password
+  # through argon2id so the plaintext never enters the bootstrap token; the customer
+  # logs in to ownCloud with username "admin" and their server password.
+  # Task 2 note: verify that LibreGraph accepts a pre-computed argon2id PHC string
+  # for OCIS_ADMIN_PASSWORD. If the IDP only accepts plaintext, install.sh should
+  # generate a random password and write it to .env, and this parameter should be
+  # replaced with an empty-key pattern.
+  - name: OCIS_ADMIN_PASSWORD
+    display_name: Admin Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Initial ownCloud administrator password. Derived from your server password — log in with username "admin" and that password.
