@@ -1,0 +1,59 @@
+id: librespeed
+enabled: false
+display_name: LibreSpeed
+description: Self-hosted HTML5 internet speed test server with built-in results database.
+short_description:
+  en: "Run your own speed test server — measure bandwidth, ping, and jitter without relying on third-party services."
+  de: "Eigenen Geschwindigkeitstest-Server betreiben — Bandbreite, Ping und Jitter messen, ohne auf Drittanbieter angewiesen zu sein."
+  es: "Ejecuta tu propio servidor de test de velocidad — mide ancho de banda, ping y jitter sin depender de servicios de terceros."
+  fr: "Hébergez votre propre serveur de test de vitesse — mesurez bande passante, ping et gigue sans dépendre de services tiers."
+  it: "Esegui il tuo server di test della velocità — misura larghezza di banda, ping e jitter senza affidarti a servizi di terze parti."
+  nl: "Draai je eigen snelheidstestserver — meet bandbreedte, ping en jitter zonder afhankelijk te zijn van externe diensten."
+  pl: "Uruchom własny serwer testu prędkości — mierz przepustowość, ping i jitter bez polegania na usługach stron trzecich."
+categories:
+  - networking
+  - monitoring
+# compose_file_url is null (no official compose file published by upstream or linuxserver/librespeed) —
+# picking the current latest stable release tag from version_health in apps-gaps/librespeed.yaml.
+app_version: "6.2.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/librespeed/speedtest
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/librespeed/0.2.0/logo.svg
+logo_source: https://librespeed.org/images/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 064f04c31e2194dce3675f2ec7aedbfd0d7087c869079b6dfb797cdce38354db
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# The LibreSpeed speed-test UI has no built-in login — anyone who can reach the URL
+# can run a test and see aggregate results. basic_auth: true gates the whole frontend
+# behind Traefik HTTP basic auth (username: admin, password: server root password)
+# so only authorised users reach the test page.
+#
+# Trade-off: the speed-test endpoint itself is public-facing by nature (clients
+# upload/download test data to it), so in deployments where the customer wants
+# public access they will need to run `/root/auth.sh off librespeed` after setup.
+# For the common ISP/MSP case (internal or invite-only use), basic_auth is the
+# right default — it closes the open-access window at first boot.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: LibreSpeed Web UI and speed test endpoint
+
+# PASSWORD protects the optional results-history page (/results/stats.php).
+# Mechanism from apps-gaps: server_generated_no_customer_input — install.sh generates
+# a random value (e.g. openssl rand -hex 16); the customer never supplies this.
+# This does not use generated_from:ROOT_PASSWORD because the linuxserver image
+# expects a plaintext password here, not an argon2/bcrypt hash.
+parameters:
+  - name: PASSWORD
+    display_name: Results History Password
+    type: password
+    description: >
+      Auto-generated password protecting the optional results-history statistics page.
+      Generated randomly at install time by install.sh; the customer does not set this.

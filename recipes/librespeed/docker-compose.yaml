@@ -1,0 +1,25 @@
+services:
+  librespeed:
+    image: lscr.io/linuxserver/librespeed:6.2.0
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - PASSWORD=${PASSWORD}
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/librespeed/config:/config
+    networks:
+      - librespeed-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  librespeed-network:
+    driver: bridge
