@@ -1,0 +1,46 @@
+services:
+  umami:
+    image: umamisoftware/umami:3.2.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+    environment:
+      - DATABASE_URL=postgresql://umami:${POSTGRES_PASSWORD}@postgres:5432/umami
+      - APP_SECRET=${APP_SECRET}
+    ports:
+      - "3000:3000"
+    networks:
+      - umami-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/heartbeat || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=umami
+      - POSTGRES_USER=umami
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/umami-analytics/postgres:/var/lib/postgresql/data
+    networks:
+      - umami-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  umami-network:
+    driver: bridge

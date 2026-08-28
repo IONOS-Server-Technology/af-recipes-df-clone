@@ -1,0 +1,43 @@
+id: umami-analytics
+enabled: false
+display_name: Umami Analytics
+description: Privacy-focused, open-source web analytics — a lightweight alternative to Google Analytics.
+short_description:
+  en: "Track your website traffic without compromising visitor privacy — no cookies, GDPR-friendly, runs on your own server."
+  de: "Website-Besucher verfolgen ohne Datenschutzkompromisse — ohne Cookies, DSGVO-konform, auf dem eigenen Server."
+  es: "Analiza el tráfico de tu sitio web sin comprometer la privacidad — sin cookies, compatible con RGPD, en tu servidor."
+  fr: "Suivez le trafic de votre site sans compromettre la vie privée — sans cookies, conforme au RGPD, sur votre serveur."
+  it: "Traccia il traffico del tuo sito senza compromettere la privacy — senza cookie, GDPR-friendly, sul tuo server."
+  nl: "Volg websiteverkeer zonder privacycompromissen — geen cookies, AVG-conform, draait op je eigen server."
+  pl: "Śledź ruch na stronie bez naruszania prywatności — bez ciasteczek, zgodnie z RODO, na własnym serwerze."
+categories:
+  - monitoring
+app_version: "v3.2.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/umami-software/umami
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/umami-analytics/0.2.0/logo.svg
+logo_source: https://umami.is/safari-pinned-tab.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 6056af37d12783102842043c6cb25ab6f70ec5e3765c4ea818d3b812fed58526
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth protects the frontend because Umami's default admin account ships with a
+# hardcoded credential (admin / umami) and exposes no env var or CLI flag to change it at
+# first boot. A Traefik basic-auth gate keyed to the customer's server password closes
+# the exposure before the customer reaches the UI to change the built-in password.
+#
+# Trade-off: the gate covers the entire router, so any inbound tracking script requests
+# from external sites also get a 401 until the customer removes the gate. Umami's
+# data-collection endpoint (/api/send) is called by the tracking script on visitors'
+# browsers, so basic_auth must be turned off once the admin password is set:
+#
+#     /root/auth.sh off umami-analytics
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Umami Analytics Web UI
