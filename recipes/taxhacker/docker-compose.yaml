@@ -1,0 +1,52 @@
+services:
+  taxhacker:
+    image: ghcr.io/vas3k/taxhacker:v0.8.5
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/taxhacker/docker-compose.yaml"
+    environment:
+      - DATABASE_URL=postgresql://taxhacker:${POSTGRES_PASSWORD}@postgres:5432/taxhacker
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://${AF_APP_DOMAIN}
+      - SELF_HOSTED_MODE=true
+      - DISABLE_SIGNUP=true
+    ports:
+      - "7331:7331"
+    volumes:
+      - /opt/taxhacker/uploads:/app/uploads
+    networks:
+      - taxhacker-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7331/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=taxhacker
+      - POSTGRES_USER=taxhacker
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/taxhacker/postgres:/var/lib/postgresql/data
+    networks:
+      - taxhacker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxhacker -d taxhacker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  taxhacker-network:
+    driver: bridge
