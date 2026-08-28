@@ -1,0 +1,112 @@
+services:
+  dashboard:
+    image: lindesvard/openpanel-dashboard:2.2.1
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_URL=https://${AF_APP_DOMAIN}
+      - API_URL=http://api:3001
+      - COOKIE_SECRET=${COOKIE_SECRET}
+    ports:
+      - "3000:3000"
+    networks:
+      - openpanel-network
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  api:
+    image: lindesvard/openpanel-api:2.2.1
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://openpanel:${POSTGRES_PASSWORD}@postgres:5432/openpanel
+      - REDIS_URL=redis://redis:6379
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - NEXT_PUBLIC_URL=https://${AF_APP_DOMAIN}
+    networks:
+      - openpanel-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  worker:
+    image: lindesvard/openpanel-worker:2.2.1
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://openpanel:${POSTGRES_PASSWORD}@postgres:5432/openpanel
+      - REDIS_URL=redis://redis:6379
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - COOKIE_SECRET=${COOKIE_SECRET}
+    networks:
+      - openpanel-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=openpanel
+      - POSTGRES_USER=openpanel
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/openpanel/postgres:/var/lib/postgresql/data
+    networks:
+      - openpanel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openpanel -d openpanel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - openpanel-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.12-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/openpanel/clickhouse:/var/lib/clickhouse
+    networks:
+      - openpanel-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  openpanel-network:
+    driver: bridge
