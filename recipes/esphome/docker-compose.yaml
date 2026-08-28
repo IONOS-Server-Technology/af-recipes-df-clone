@@ -1,0 +1,21 @@
+services:
+  esphome:
+    image: esphome/esphome:2026.7.4
+    restart: unless-stopped
+    ports:
+      - "6052:6052"
+    volumes:
+      - /opt/esphome/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - esphome-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:6052/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  esphome-network:
+    driver: bridge
