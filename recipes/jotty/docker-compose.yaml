@@ -1,0 +1,23 @@
+services:
+  jotty:
+    image: ghcr.io/fccview/jotty:1.25.1
+    restart: unless-stopped
+    # Jotty has no admin-credential env var: the first visitor to /auth/setup claims
+    # the owner account. The Traefik basic-auth gate (basic_auth: true in metadata.yaml)
+    # ensures only the customer can reach that setup page.
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/jotty/data:/data
+    networks:
+      - jotty-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  jotty-network:
+    driver: bridge
