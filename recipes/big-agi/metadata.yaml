@@ -1,0 +1,49 @@
+id: big-agi
+enabled: false
+display_name: Big-AGI
+description: Multi-model AI workspace with parallel model comparison across 500+ LLMs.
+short_description:
+  en: "Chat with 500+ AI models — OpenAI, Anthropic, Gemini and more — from one self-hosted workspace. Compare models side by side with Beam."
+  de: "Mit 500+ KI-Modellen chatten — OpenAI, Anthropic, Gemini und mehr — in einem selbstgehosteten Workspace. Modelle mit Beam parallel vergleichen."
+  es: "Chatea con más de 500 modelos de IA — OpenAI, Anthropic, Gemini y más — en un workspace autoalojado. Compara modelos en paralelo con Beam."
+  fr: "Discutez avec plus de 500 modèles d'IA — OpenAI, Anthropic, Gemini et plus — depuis un workspace auto-hébergé. Comparez-les en parallèle avec Beam."
+  it: "Chatta con oltre 500 modelli IA — OpenAI, Anthropic, Gemini e altri — da un workspace self-hosted. Confronta i modelli in parallelo con Beam."
+  nl: "Chat met 500+ AI-modellen — OpenAI, Anthropic, Gemini en meer — vanuit één zelfgehoste workspace. Vergelijk modellen parallel met Beam."
+  pl: "Rozmawiaj z ponad 500 modelami AI — OpenAI, Anthropic, Gemini i innymi — z samodzielnie hostowanego workspace. Porównuj modele równolegle z Beam."
+categories:
+  - ai
+  - productivity
+app_version: "2.0.5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/enricoros/big-AGI
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/big-agi/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/enricoros/big-AGI/main/public/icons/icon-1024x1024.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: d3d7c086b9340a8995536532d094b36c901e7dad3c1b016e22ca4355cb5821f7
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (IF-1312): Big-AGI ships no built-in authentication — upstream docs
+# explicitly say "big-AGI does not come with built-in authentication" and refer
+# operators to a reverse-proxy or platform-level gate. basic_auth: true puts the
+# Traefik-managed login page (server password) in front of the entire frontend.
+#
+# What this protects: without a gate the app is reachable by anyone who knows the
+# URL, and API keys entered by the user are visible to any co-visitor. The prompt
+# closes that exposure at first boot.
+#
+# What it costs: the whole router is behind the prompt, so any API integrations
+# (e.g. scripts calling big-AGI's OpenAI-compatible endpoint) get a 401 too until
+# the customer turns the prompt off:
+#
+#     /root/auth.sh off big-agi
+#
+# That command is named in the password prompt itself.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Big-AGI Web UI (routed via Traefik on 80/443)
