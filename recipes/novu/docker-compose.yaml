@@ -1,0 +1,166 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - /opt/novu/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - novu-network
+    depends_on:
+      api:
+        condition: service_healthy
+      ws:
+        condition: service_started
+      dashboard:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO/dev/null http://127.0.0.1:4000/ 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  api:
+    image: ghcr.io/novuhq/novu/api:3.19.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/novu/docker-compose.yaml"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/novu?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - STORE_ENCRYPTION_KEY=${STORE_ENCRYPTION_KEY}
+      - NOVU_SECRET_KEY=${NOVU_SECRET_KEY}
+      - API_ROOT_URL=https://${AF_APP_DOMAIN}/api
+      - FRONT_BASE_URL=https://${AF_APP_DOMAIN}
+    networks:
+      - novu-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/v1/health-check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  worker:
+    image: ghcr.io/novuhq/novu/worker:3.19.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/novu/docker-compose.yaml"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/novu?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - STORE_ENCRYPTION_KEY=${STORE_ENCRYPTION_KEY}
+      - NOVU_SECRET_KEY=${NOVU_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - novu-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/v1/health-check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  ws:
+    image: ghcr.io/novuhq/novu/ws:3.19.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/novu/docker-compose.yaml"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/novu?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - NOVU_SECRET_KEY=${NOVU_SECRET_KEY}
+    networks:
+      - novu-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/v1/health-check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  dashboard:
+    image: ghcr.io/novuhq/novu/dashboard:3.19.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/novu/docker-compose.yaml"
+    environment:
+      - VITE_API_HOSTNAME=https://${AF_APP_DOMAIN}/api
+      - VITE_WEBSOCKET_HOSTNAME=https://${AF_APP_DOMAIN}
+    networks:
+      - novu-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO/dev/null http://127.0.0.1:4200/ 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  mongodb:
+    image: mongo:6.0
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=novu
+    volumes:
+      - /opt/novu/mongodb:/data/db
+    networks:
+      - novu-network
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' -u root -p \"$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    volumes:
+      - /opt/novu/redis:/data
+    networks:
+      - novu-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  novu-network:
+    driver: bridge

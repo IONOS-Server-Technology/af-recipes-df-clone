@@ -1,0 +1,65 @@
+id: novu
+enabled: false
+display_name: Novu
+description: Open-source notification infrastructure for email, SMS, push, and in-app delivery.
+short_description:
+  en: "Self-host your product's notification layer — email, SMS, push, and in-app — with visual workflow templates and built-in delivery-provider integrations."
+  de: "Selbst gehostete Notification-Infrastruktur für E-Mail, SMS, Push und In-App — mit visuellen Workflow-Vorlagen und Provider-Integrationen."
+  es: "Aloja tu propia infraestructura de notificaciones — email, SMS, push e in-app — con plantillas de flujo de trabajo e integraciones de proveedores."
+  fr: "Hébergez votre couche de notifications — e-mail, SMS, push et in-app — avec des templates de flux de travail et des intégrations de fournisseurs."
+  it: "Ospita la tua infrastruttura di notifiche — email, SMS, push e in-app — con template di flusso di lavoro e integrazioni provider."
+  nl: "Host je eigen notificatie-infrastructuur — e-mail, SMS, push en in-app — met visuele workflow-sjablonen en ingebouwde providerintegraties."
+  pl: "Hostuj własną infrastrukturę powiadomień — e-mail, SMS, push i in-app — z wizualnymi szablonami przepływów i integracjami dostawców."
+categories:
+  - developer-tools
+  - automation
+app_version: "3.19.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/novuhq/novu
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/novu/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/novuhq/novu/next/docs/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 08a1eafbd5221415bbb13580cc74f62563a40d358747f50b306b9cef77963205
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 20480
+
+
+# basic_auth: closes the same setup-takeover window documented for n8n and immich
+# (IF-1312). A fresh Novu dashboard has an open self-signup flow — anyone who reaches
+# the URL before the customer's first visit can create the owner account. The prompt
+# blocks that window until the customer completes setup.
+#
+# Trade-off: basic_auth covers the whole router, including any API calls made from
+# the dashboard's browser JS (VITE_API_HOSTNAME). If path-based Traefik routing is
+# used in the compose file, the API path is protected too — external notification
+# triggers (webhooks) go to the API, not the dashboard port. The customer disables
+# the prompt once their account exists: /root/auth.sh off novu
+ports:
+  - port: 4000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Novu Dashboard Web UI
+
+parameters:
+  - name: JWT_SECRET
+    display_name: JWT Secret
+    type: password
+    description: Secret used to sign and verify JWT tokens for API and WebSocket authentication.
+
+  - name: STORE_ENCRYPTION_KEY
+    display_name: Store Encryption Key
+    type: password
+    description: 32-character key used to encrypt notification provider credentials at rest.
+
+  - name: NOVU_SECRET_KEY
+    display_name: Novu Secret Key
+    type: password
+    description: Internal secret key used for Novu service-to-service authentication.
+
+  - name: MONGO_INITDB_ROOT_PASSWORD
+    display_name: MongoDB Root Password
+    type: password
+    description: Root password for the MongoDB database that stores notifications and subscriber data.
