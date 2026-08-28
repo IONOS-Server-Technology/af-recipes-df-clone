@@ -1,0 +1,23 @@
+services:
+  owntracks-recorder:
+    image: owntracks/recorder:1.0.1
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      # OTR_PORT=0 disables the built-in MQTT listener; HTTP-only mode via Traefik
+      OTR_PORT: "0"
+    volumes:
+      - /opt/owntracks-recorder/store:/store
+    networks:
+      - owntracks-recorder-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  owntracks-recorder-network:
+    driver: bridge
