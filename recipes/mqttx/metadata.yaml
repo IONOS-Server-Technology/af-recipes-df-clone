@@ -1,0 +1,41 @@
+id: mqttx
+enabled: false
+display_name: MQTTX
+description: Browser-based MQTT 5.0 client for testing and debugging MQTT brokers over WebSocket.
+short_description:
+  en: "Test and debug MQTT brokers visually — connect over WebSocket, publish messages, and inspect subscriptions directly in your browser."
+  de: "MQTT-Broker visuell testen und debuggen — per WebSocket verbinden, Nachrichten senden und Subscriptions direkt im Browser einsehen."
+  es: "Prueba y depura brokers MQTT visualmente — conéctate por WebSocket, publica mensajes e inspecciona suscripciones desde tu navegador."
+  fr: "Testez et déboguez des brokers MQTT visuellement — connectez-vous via WebSocket, publiez des messages et inspectez les souscriptions dans le navigateur."
+  it: "Testa e debugga broker MQTT visualmente — connettiti via WebSocket, pubblica messaggi e ispeziona le sottoscrizioni direttamente nel browser."
+  nl: "Test en debug MQTT-brokers visueel — maak verbinding via WebSocket, publiceer berichten en inspecteer subscriptions in je browser."
+  pl: "Testuj i debuguj brokery MQTT wizualnie — połącz się przez WebSocket, publikuj wiadomości i sprawdzaj subskrypcje bezpośrednio w przeglądarce."
+categories:
+  - developer-tools
+  - networking
+app_version: "1.13.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/emqx/MQTTX
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/mqttx/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mqttx.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 6782335d9910b71f6e7e1476662d6ad6ebdf6dced8e7c1bbb25cb7e56ba5864d
+
+app_min_ram_mb: 128
+app_min_disk_mb: 512
+
+# MQTTX Web is a fully stateless nginx-served static app — it has no built-in login.
+# Broker host and credentials are entered by the user inside the browser at runtime,
+# not supplied as container config. basic_auth: true closes the setup-takeover
+# window (anyone reaching the URL gets the app immediately). Since the app itself
+# holds no server-side state and exposes no API or callbacks, the basic-auth prompt
+# covers only the UI; there are no inbound webhooks or OAuth redirects to break.
+# The customer can disable it once they've confirmed access: /root/auth.sh off mqttx
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: MQTTX Web UI
