@@ -1,0 +1,52 @@
+id: docmost
+enabled: false
+display_name: Docmost
+description: Real-time collaborative wiki and documentation platform — a self-hosted Notion/Confluence alternative.
+short_description:
+  en: "Collaborate on wikis and docs in real time — Docmost is a self-hosted Notion/Confluence alternative with live co-editing and nested pages."
+  de: "Gemeinsam an Wikis und Dokumenten arbeiten — Docmost ist eine selbst gehostete Notion/Confluence-Alternative mit Live-Co-Editing und verschachtelten Seiten."
+  es: "Colabora en wikis y documentación en tiempo real — Docmost es una alternativa autoalojada a Notion/Confluence con coedición simultánea y páginas anidadas."
+  fr: "Collaborez sur des wikis et de la documentation en temps réel — Docmost est une alternative auto-hébergée à Notion/Confluence avec coédition en direct."
+  it: "Collabora su wiki e documentazione in tempo reale — Docmost è un'alternativa self-hosted a Notion/Confluence con co-editing live."
+  nl: "Werk samen aan wiki's en documentatie in realtime — Docmost is een zelfgehoste Notion/Confluence-alternatief met live co-editing."
+  pl: "Współpracuj nad wiki i dokumentacją w czasie rzeczywistym — Docmost to samodzielnie hostowana alternatywa dla Notion/Confluence ze wspólną edycją na żywo."
+categories:
+  - productivity
+app_version: "v0.95.0"
+recipe_version: "0.3.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/docmost/docmost
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/docmost/0.3.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/docmost.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: c9aa12d1ca26f403fa5630c88ff96c520f2eb572022e3c60f6289d7a0625b5f7
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth (same setup-takeover-window pattern as n8n): a fresh Docmost instance walks
+# the first visitor through a public setup screen that creates the admin account — anyone
+# reaching the URL before the customer does becomes the owner. Traefik basic auth closes
+# that window until the customer completes their own setup. Customers disable it with:
+#
+#     /root/auth.sh off docmost
+#
+# While active, any API or inbound call to this domain receives a 401.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Docmost Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, generated at install time.
+
+  - name: APP_SECRET
+    display_name: Application Secret
+    type: password
+    description: 32+ character signing key used by Docmost for session and token security, generated at install time.
