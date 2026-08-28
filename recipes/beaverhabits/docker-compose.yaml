@@ -1,0 +1,23 @@
+services:
+  beaverhabits:
+    image: daya0576/beaverhabits:0.10.0
+    restart: unless-stopped
+    environment:
+      - HABITS_STORAGE=DATABASE
+      - MAX_USER_COUNT=1
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/beaverhabits/data:/app/.user
+    networks:
+      - beaverhabits-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  beaverhabits-network:
+    driver: bridge
