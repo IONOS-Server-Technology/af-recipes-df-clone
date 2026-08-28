@@ -1,0 +1,47 @@
+services:
+  corteza:
+    image: cortezaproject/corteza:2024.9.9
+    restart: unless-stopped
+    environment:
+      - DB_DSN=postgres://corteza:${POSTGRES_PASSWORD}@postgres:5432/corteza?sslmode=disable
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET}
+      - HTTP_ADDR=:80
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/corteza/data:/data
+    networks:
+      - corteza-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=corteza
+      - POSTGRES_USER=corteza
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/corteza/postgres:/var/lib/postgresql/data
+    networks:
+      - corteza-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U corteza -d corteza"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  corteza-network:
+    driver: bridge
