@@ -1,0 +1,47 @@
+id: commafeed
+enabled: false
+display_name: CommaFeed
+description: Self-hosted Google Reader-inspired RSS feed reader with keyboard shortcuts, Fever-compatible API, and mobile app support.
+short_description:
+  en: "Subscribe to and read your RSS feeds in one place — self-hosted, with keyboard shortcuts, Fever API, and mobile app support."
+  de: "RSS-Feeds zentral lesen — selbst gehostet, mit Tastaturkürzeln, Fever-API und Unterstützung für mobile Apps."
+  es: "Lee tus feeds RSS en un solo lugar — autoalojado, con atajos de teclado, API Fever y soporte para aplicaciones móviles."
+  fr: "Lisez vos flux RSS en un seul endroit — auto-hébergé, avec raccourcis clavier, API Fever et compatibilité applications mobiles."
+  it: "Leggi i tuoi feed RSS in un unico posto — self-hosted, con scorciatoie da tastiera, API Fever e supporto app mobile."
+  nl: "Lees al je RSS-feeds op één plek — zelf gehost, met sneltoetsen, Fever API en ondersteuning voor mobiele apps."
+  pl: "Czytaj kanały RSS w jednym miejscu — samodzielnie hostowany, z skrótami klawiszowymi, Fever API i obsługą aplikacji mobilnych."
+categories:
+  - productivity
+# app_version: upstream's Docker Hub compose examples use the rolling alias latest-h2 (no
+# pinned compose file exists in the repo). Rolling aliases are banned by the
+# app-version-pinned spirit and "never use latest" rule. Falling back to the current latest
+# stable version tag (7.2.1-h2, confirmed in apps-gaps/commafeed.yaml version_health), which
+# Docker Hub publishes alongside the rolling alias.
+app_version: "7.2.1-h2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/Athou/commafeed
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/commafeed/0.2.0/logo.svg
+logo_source: https://www.commafeed.com/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: f4f38029c56af103f3c97ddbe3debd99b67ba51ed0fedf605e0190757cd2ec5c
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth: CommaFeed seeds a fixed "admin"/"admin" account on first boot with no
+# environment variable to override the password — the customer must log in through the UI
+# to change it. Traefik basic_auth closes the setup-takeover window by requiring the
+# server root password before any request reaches the app's own login.
+#
+# Trade-off: the Fever API (used by mobile clients) is also served on port 8082 and will
+# be blocked by basic_auth until the customer runs `/root/auth.sh off commafeed`. This is
+# the same trade-off as n8n's inbound webhooks — the unauthenticated admin/admin exposure
+# was judged worse than temporarily blocking API clients.
+ports:
+  - port: 8082
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: CommaFeed Web UI and API
