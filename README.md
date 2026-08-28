@@ -499,7 +499,7 @@ is **no silent fallback** — an unknown value fails the run fast.
 
 ```mermaid
 %% Source of truth for this diagram. The Confluence page "AF Recipe Testing —
-%% Pipeline Modes" carries a draw.io copy generated from this text, because
+%% Test Targets" carries a draw.io copy generated from this text, because
 %% Confluence has no Mermaid macro. Re-import it there after changing anything here.
 flowchart TD
     T1["PR or push<br/>on recipes/**"]
@@ -522,12 +522,12 @@ flowchart TD
     Q -->|"prod"| R0
     Q -->|"dev+prod"| R0
 
-    subgraph EPH ["ephemeral — ONE leg, per-run af-api"]
+    subgraph EPH ["ephemeral — ONE job, per-run af-api"]
         direction TB
         E0["This run gets its own af-api<br/>(only if a recipe was selected)"]
         E1["Build af-api from the branch"]
         E2["Deploy af-api-BRANCH-RUNID<br/>NodePort, plain HTTP<br/>fresh Ed25519 signing key"]
-        E3["leg 'ephemeral'<br/>compose with --leg ephemeral<br/>dev mode on + sentinel<br/>bootstrap_url downgraded https to http<br/>public key injected into user-data"]
+        E3["job 'ephemeral'<br/>compose with --leg ephemeral<br/>dev mode on + marker file<br/>bootstrap_url downgraded https to http<br/>public key injected into user-data"]
         E4["Provision CoreVPS VM,<br/>run the recipe health check"]
         E5["cleanup-af-api DELETES<br/>the deployment"]
         E6(["BLOCKING"])
@@ -538,8 +538,8 @@ flowchart TD
         direction TB
         R0["NO af-api is built,<br/>deployed or cleaned up.<br/>The build/deploy/cleanup<br/>jobs are all skipped."]
         RCK["Catalogue pre-check against<br/>each selected cluster's<br/>live /api/v1/catalogue"]
-        RD["leg 'dev' (dev, dev+prod)<br/>api.dev.appfactory.ionos.com<br/>mTLS client cert<br/>--leg dev, dev mode on, https kept"]
-        RP["leg 'prod' (prod, dev+prod)<br/>api.appfactory.ionos.com<br/>mTLS client cert<br/>--leg prod, normal mode"]
+        RD["dev cluster job (dev, dev+prod)<br/>api.dev.appfactory.ionos.com<br/>mTLS client cert<br/>--leg dev, dev mode on, https kept"]
+        RP["prod cluster job (prod, dev+prod)<br/>api.appfactory.ionos.com<br/>mTLS client cert<br/>--leg prod, normal mode"]
         RDV["Provision VM,<br/>run health check"]
         RPV["Provision VM,<br/>run health check"]
         RDB(["BLOCKING"])
