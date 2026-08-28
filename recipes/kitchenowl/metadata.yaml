@@ -1,0 +1,43 @@
+id: kitchenowl
+enabled: false
+display_name: KitchenOwl
+description: Self-hosted shared grocery list, recipe manager, and meal planner.
+short_description:
+  en: "Plan meals, build shared grocery lists, and manage household recipes on your own server — with mobile apps for iOS and Android."
+  de: "Mahlzeiten planen, gemeinsame Einkaufslisten erstellen und Rezepte verwalten — auf dem eigenen Server, mit iOS- und Android-Apps."
+  es: "Planifica comidas, crea listas de la compra compartidas y gestiona recetas del hogar en tu propio servidor, con apps para iOS y Android."
+  fr: "Planifiez vos repas, partagez des listes de courses et gérez vos recettes maison sur votre propre serveur — avec des apps iOS et Android."
+  it: "Pianifica i pasti, crea liste della spesa condivise e gestisci le ricette di casa sul tuo server — con app per iOS e Android."
+  nl: "Plan maaltijden, deel boodschappenlijsten en beheer huishoudelijke recepten op je eigen server — met apps voor iOS en Android."
+  pl: "Planuj posiłki, twórz wspólne listy zakupów i zarządzaj przepisami domowymi na własnym serwerze — z aplikacjami na iOS i Android."
+categories:
+  - home
+  - productivity
+app_version: "v0.7.10"
+recipe_version: "0.3.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/TomBursch/kitchenowl
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/kitchenowl/0.3.0/logo.svg
+logo_source: https://raw.githubusercontent.com/TomBursch/kitchenowl/main/kitchenowl/assets/icon/icon.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: ff9e6ecae9c9fcfeac2ef301d2b6949f2d79616f2929931c60712284c0e2568f
+
+app_min_ram_mb: 256
+app_min_disk_mb: 5120
+
+# basic_auth protects the first-register window: KitchenOwl has no admin-account env var —
+# whoever opens the app first becomes the household owner. The gate prevents a third party
+# from claiming that slot before the customer's first visit. Trade-off mirrors n8n (IF-1312):
+# the customer turns it off once their account exists (/root/auth.sh off kitchenowl).
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: KitchenOwl Web UI
+
+parameters:
+  - name: JWT_SECRET_KEY
+    display_name: JWT Secret Key
+    type: password
+    description: Signing key for JSON Web Tokens. Generated at install time; never exposed to the customer.

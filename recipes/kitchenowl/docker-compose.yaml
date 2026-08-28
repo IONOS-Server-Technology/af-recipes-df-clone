@@ -1,0 +1,22 @@
+services:
+  kitchenowl:
+    image: tombursch/kitchenowl:v0.7.10
+    restart: unless-stopped
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/kitchenowl/data:/data
+    networks:
+      - kitchenowl-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  kitchenowl-network:
+    driver: bridge
