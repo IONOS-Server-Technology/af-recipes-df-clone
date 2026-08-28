@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=kaneo
+      - POSTGRES_USER=kaneo
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/kaneo/postgres:/var/lib/postgresql/data
+    networks:
+      - kaneo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kaneo -d kaneo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  kaneo:
+    image: ghcr.io/usekaneo/kaneo:2.13.0
+    restart: unless-stopped
+    environment:
+      - KANEO_CLIENT_URL=https://${AF_APP_DOMAIN}
+      - POSTGRES_DB=kaneo
+      - POSTGRES_USER=kaneo
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AUTH_SECRET=${AUTH_SECRET}
+    ports:
+      - "5173:5173"
+    volumes:
+      - /opt/kaneo/data:/app/apps/api/data
+    networks:
+      - kaneo-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5173/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  kaneo-network:
+    driver: bridge

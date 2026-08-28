@@ -1,0 +1,49 @@
+id: kaneo
+enabled: false
+display_name: Kaneo
+description: Open-source kanban project management with GitHub integration and AI agent support.
+short_description:
+  en: "Manage projects with kanban boards, workspaces, and GitHub integration — self-hosted and fully under your control."
+  de: "Projekte mit Kanban-Boards, Workspaces und GitHub-Integration verwalten — selbst gehostet und vollständig unter Ihrer Kontrolle."
+  es: "Gestiona proyectos con tableros kanban, espacios de trabajo e integración con GitHub — autoalojado y bajo tu control."
+  fr: "Gérez vos projets avec des tableaux kanban, des espaces de travail et l'intégration GitHub — hébergé chez vous, entièrement sous votre contrôle."
+  it: "Gestisci progetti con bacheche kanban, workspace e integrazione GitHub — self-hosted e completamente sotto il tuo controllo."
+  nl: "Beheer projecten met kanban-borden, werkruimtes en GitHub-integratie — zelf gehost en volledig onder jouw beheer."
+  pl: "Zarządzaj projektami z tablicami kanban, przestrzeniami roboczymi i integracją GitHub — self-hosted i w pełni pod Twoją kontrolą."
+categories:
+  - productivity
+  - developer-tools
+app_version: "2.13.0"
+recipe_version: "0.2.1"
+recipe_type: docker-compose
+upstream_url: https://github.com/usekaneo/kaneo
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/kaneo/0.2.1/logo.svg
+logo_source: https://kaneo.app/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 4d4509e2cefa47d97c208718c70dbee386cb63e8ea03f666bf2dc6ef1c598c6d
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth closes the self-registration race: any visitor who reaches the Kaneo
+# URL before the owner can register the first (owner) workspace account. Kaneo has
+# no conflicting Basic-auth-over-HTTP flow (unlike Git-over-HTTP tools), so the
+# Traefik basic-auth gate cleanly prevents that. The customer disables it once
+# their account is created: /root/auth.sh off kaneo
+ports:
+  - port: 5173
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Kaneo Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password for the Kaneo backend.
+
+  - name: AUTH_SECRET
+    display_name: Auth Secret
+    type: password
+    description: JWT signing secret used by Kaneo to sign authentication tokens.
