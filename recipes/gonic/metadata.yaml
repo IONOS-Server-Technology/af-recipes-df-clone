@@ -1,0 +1,39 @@
+id: gonic
+enabled: false
+display_name: Gonic
+description: Lightweight self-hosted Subsonic music streaming server written in Go.
+short_description:
+  en: "Stream your personal music library to any Subsonic-compatible client with a lightweight, self-hosted server."
+  de: "Streamen Sie Ihre persönliche Musikbibliothek mit einem leichtgewichtigen, selbst gehosteten Server zu jedem Subsonic-kompatiblen Client."
+  es: "Transmite tu biblioteca de música personal a cualquier cliente compatible con Subsonic con un servidor ligero y autoalojado."
+  fr: "Streamez votre bibliothèque musicale personnelle vers n'importe quel client compatible Subsonic avec un serveur léger et auto-hébergé."
+  it: "Trasmetti la tua libreria musicale personale a qualsiasi client compatibile con Subsonic con un server leggero e self-hosted."
+  nl: "Stream je persoonlijke muziekbibliotheek naar elke Subsonic-compatibele client met een lichtgewicht, zelf-gehoste server."
+  pl: "Streamuj swoją osobistą bibliotekę muzyczną do dowolnego klienta kompatybilnego z Subsonic za pomocą lekkiego, samodzielnie hostowanego serwera."
+categories:
+  - media
+app_version: "v0.22.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/sentriz/gonic
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/gonic/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/gonic.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 2f20611f398a1bbd2f4bd5bd9c2cbf79e890dde2b68788a13970801d5a1a49cd
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth gates the entire app at the Traefik layer because Gonic ships a
+# fixed admin/admin default that can only be changed post-login through its
+# own web UI — there is no env var or config-file channel to set the admin
+# password at container start. The gate covers both the web admin UI and the
+# Subsonic API path, so Subsonic clients must supply the basic-auth credential
+# as well (or the customer turns the gate off once their own password is set).
+ports:
+  - port: 4747
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: Gonic Web UI and Subsonic API

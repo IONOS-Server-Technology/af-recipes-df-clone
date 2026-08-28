@@ -1,0 +1,33 @@
+services:
+  gonic:
+    image: sentriz/gonic:v0.22.0
+    restart: unless-stopped
+    # Gonic ships with a fixed admin/admin default that can only be changed through
+    # the web UI after first login. The Traefik basic-auth gate (basic_auth: true in
+    # metadata.yaml) covers both the web UI and the Subsonic API path, so an unclaimed
+    # instance is unreachable from outside until the customer sets their own password.
+    environment:
+      - GONIC_DB_PATH=/data/gonic.db
+      - GONIC_MUSIC_PATH=/music
+      - GONIC_CACHE_PATH=/cache
+      - GONIC_PODCAST_PATH=/podcasts
+      - GONIC_LISTEN_ADDR=:4747
+    ports:
+      - "4747"
+    volumes:
+      - /opt/gonic/data:/data
+      - /opt/gonic/music:/music
+      - /opt/gonic/cache:/cache
+      - /opt/gonic/podcasts:/podcasts
+    networks:
+      - gonic-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:4747/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  gonic-network:
+    driver: bridge
