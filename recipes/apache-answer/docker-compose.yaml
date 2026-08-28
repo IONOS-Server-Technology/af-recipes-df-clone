@@ -1,0 +1,20 @@
+services:
+  apache-answer:
+    image: apache/answer:2.0.2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/apache-answer/data:/data
+    networks:
+      - apache-answer-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  apache-answer-network:
+    driver: bridge
