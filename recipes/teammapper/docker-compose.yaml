@@ -1,0 +1,51 @@
+services:
+  teammapper:
+    image: ghcr.io/b310-digital/teammapper:v0.2.9-3
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+    environment:
+      - POSTGRES_DATABASE=teammapper
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=teammapper
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_PORT=5432
+      - POSTGRES_SSL=false
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "3000:3000"
+    networks:
+      - teammapper-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=teammapper
+      - POSTGRES_USER=teammapper
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/teammapper/postgres:/var/lib/postgresql/data
+    networks:
+      - teammapper-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teammapper -d teammapper"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  teammapper-network:
+    driver: bridge
