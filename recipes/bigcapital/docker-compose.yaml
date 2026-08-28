@@ -1,0 +1,121 @@
+services:
+  proxy:
+    image: envoyproxy/envoy:v1.30.11
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/bigcapital/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on:
+      - server
+      - webapp
+    networks:
+      - bigcapital-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9901/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  webapp:
+    image: bigcapitalhq/webapp:v0.25.25
+    restart: unless-stopped
+    networks:
+      - bigcapital-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  server:
+    image: bigcapitalhq/server:v0.25.25
+    restart: unless-stopped
+    expose:
+      - "3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      database_migration:
+        condition: service_completed_successfully
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=bigcapital
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_CHARSET=utf8
+      - SYSTEM_DB_NAME=bigcapital_system
+      - TENANT_DB_NAME_PERFIX=bigcapital_tenant_
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_HOST=redis
+      - QUEUE_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - BASE_URL=https://${AF_APP_DOMAIN}
+    networks:
+      - bigcapital-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/ping > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  database_migration:
+    image: bigcapitalhq/server:v0.25.25
+    working_dir: /app/packages/server
+    command: sh -c "node dist/cli.js system:migrate:latest && node dist/cli.js tenants:migrate:latest"
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=bigcapital
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_CHARSET=utf8
+      - SYSTEM_DB_NAME=bigcapital_system
+      - TENANT_DB_NAME_PERFIX=bigcapital_tenant_
+    networks:
+      - bigcapital-network
+
+  mysql:
+    image: mariadb:10.6
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=bigcapital_system
+      - MYSQL_USER=bigcapital
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+      - /opt/bigcapital/mysql:/var/lib/mysql
+      - /opt/bigcapital/mariadb-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bigcapital-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:6.2
+    restart: unless-stopped
+    volumes:
+      - /opt/bigcapital/redis:/data
+    networks:
+      - bigcapital-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  bigcapital-network:
+    driver: bridge

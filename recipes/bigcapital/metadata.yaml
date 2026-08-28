@@ -1,0 +1,55 @@
+id: bigcapital
+enabled: false
+display_name: Bigcapital
+description: Open-source accounting software for SMBs with double-entry bookkeeping, invoicing, and multi-currency support.
+short_description:
+  en: "Manage your business finances with double-entry accounting, invoicing, and financial reporting — entirely on your own server."
+  de: "Unternehmensfinanzen mit doppelter Buchführung, Rechnungsstellung und Finanzberichten verwalten — vollständig auf Ihrem eigenen Server."
+  es: "Gestiona las finanzas de tu empresa con contabilidad por partida doble, facturación e informes financieros — en tu propio servidor."
+  fr: "Gérez vos finances d'entreprise avec la comptabilité en partie double, la facturation et les rapports financiers — entièrement sur votre serveur."
+  it: "Gestisci le finanze aziendali con contabilità a doppia partita, fatturazione e report finanziari — interamente sul tuo server."
+  nl: "Beheer uw bedrijfsfinanciën met dubbel boekhouden, facturering en financiële rapporten — volledig op uw eigen server."
+  pl: "Zarządzaj finansami firmy z podwójną księgowością, fakturowaniem i raportami finansowymi — w całości na własnym serwerze."
+categories:
+  - finance
+app_version: "v0.25.25"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/bigcapitalhq/bigcapital
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/bigcapital/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/abouolia/blog/main/public/bigcapital.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: a36a17cc3d2e24059ffe1ca3295b32f17ff494a17a352936f89db2fd6f83999b
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth: Bigcapital has no admin credential at first boot — whoever reaches the
+# sign-up wizard first becomes the org owner. SIGNUP_DISABLED's interaction with the
+# very first uninvited signup is undocumented and may block bootstrapping. Fronting
+# with Traefik basic auth closes the takeover window before the customer's first visit,
+# consistent with the same treatment applied to n8n (IF-1312). Customers must turn it
+# off to receive inbound webhooks: /root/auth.sh off bigcapital
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Bigcapital Web UI (via Envoy proxy)
+
+parameters:
+  - name: DB_PASSWORD
+    display_name: Database Password
+    type: password
+    description: MariaDB user password for the Bigcapital database.
+
+  - name: DB_ROOT_PASSWORD
+    display_name: Database Root Password
+    type: password
+    description: MariaDB root password.
+
+  - name: JWT_SECRET
+    display_name: JWT Secret
+    type: password
+    description: Secret key used to sign authentication tokens.
