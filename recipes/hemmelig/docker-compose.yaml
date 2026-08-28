@@ -1,0 +1,24 @@
+services:
+  hemmelig:
+    image: hemmeligapp/hemmelig:v7
+    restart: unless-stopped
+    environment:
+      - SECRET_JWT_SECRET=${SECRET_JWT_SECRET}
+      - SECRET_ROOT_USER=${SECRET_ROOT_USER}
+      - SECRET_ROOT_PASSWORD=${SECRET_ROOT_PASSWORD}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/hemmelig/data:/home/node/hemmelig/data
+    networks:
+      - hemmelig-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  hemmelig-network:
+    driver: bridge
