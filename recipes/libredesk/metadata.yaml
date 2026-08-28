@@ -1,0 +1,56 @@
+id: libredesk
+enabled: false
+display_name: LibreDesk
+description: Open-source omnichannel helpdesk with shared inbox, live chat, and SLA management.
+short_description:
+  en: "Handle customer support tickets, live chat, and SLA rules from one self-hosted helpdesk — built for teams."
+  de: "Kundensupport-Tickets, Live-Chat und SLA-Regeln in einem selbstgehosteten Helpdesk verwalten — für Teams."
+  es: "Gestiona tickets de soporte, chat en vivo y reglas de SLA desde un helpdesk autoalojado para tu equipo."
+  fr: "Gérez tickets de support, chat en direct et règles SLA depuis un helpdesk auto-hébergé conçu pour les équipes."
+  it: "Gestisci ticket di supporto, live chat e regole SLA da un helpdesk self-hosted pensato per i team."
+  nl: "Beheer supporttickets, live chat en SLA-regels vanuit één zelfgehoste helpdesk voor teams."
+  pl: "Zarządzaj zgłoszeniami wsparcia, czatem na żywo i regułami SLA z jednego self-hosted helpdesku dla zespołów."
+categories:
+  - communication
+  - productivity
+app_version: "v2.6.1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/abhinavxd/libredesk
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/libredesk/0.2.0/logo.svg
+logo_source: https://libredesk.io/android-chrome-512x512-v2.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: d69833ea798a43f8d005f48e0257c213f6fd02e471958a882b0149bfa5d4aae1
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+ports:
+  - port: 9000
+    protocol: tcp
+    public: true
+    description: LibreDesk Web UI
+
+parameters:
+  # LIBREDESK_SYSTEM_USER_PASSWORD is the admin (system user) password set at first boot
+  # via --install. LibreDesk accepts an argon2id PHC string here and stores it directly,
+  # the same pattern as Vaultwarden's ADMIN_TOKEN — the customer logs in with their server
+  # password without needing to know or look up a separate generated secret.
+  - name: LIBREDESK_SYSTEM_USER_PASSWORD
+    display_name: System User Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Admin password for the LibreDesk system user. Derived from your server password — log in with that same password.
+
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL password for the LibreDesk database user. Generated automatically by install.sh.
+
+  # ENCRYPTION_KEY lives in config.toml under [app], not as an env var. install.sh writes
+  # the config.toml with a value from `openssl rand -hex 16` (must be exactly 32 chars).
+  # No safe upstream default exists — install.sh must always generate this.
+  - name: ENCRYPTION_KEY
+    display_name: Encryption Key
+    type: password
+    description: 32-character encryption key written to config.toml [app] by install.sh. Generated automatically via openssl rand -hex 16.

@@ -1,0 +1,70 @@
+services:
+  app:
+    image: libredesk/libredesk:v2.6.1
+    restart: unless-stopped
+    command: ["sh", "-c", "./libredesk --install --idempotent && ./libredesk"]
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/libredesk/docker-compose.yml"
+    environment:
+      - LIBREDESK_SYSTEM_USER_PASSWORD=${LIBREDESK_SYSTEM_USER_PASSWORD}
+    ports:
+      - "9000:9000"
+    volumes:
+      - /opt/libredesk/config.toml:/app/config.toml:ro
+      - /opt/libredesk/uploads:/app/uploads
+    networks:
+      - libredesk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=libredesk
+      - POSTGRES_USER=libredesk
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/libredesk/postgres:/var/lib/postgresql/data
+    networks:
+      - libredesk-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libredesk -d libredesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      # Cache/session store — never auto-update alongside the app.
+      - "wud.watch=false"
+    volumes:
+      - /opt/libredesk/redis:/data
+    networks:
+      - libredesk-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  libredesk-network:
+    driver: bridge
