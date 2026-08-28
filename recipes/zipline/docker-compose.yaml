@@ -1,0 +1,50 @@
+services:
+  zipline:
+    image: ghcr.io/diced/zipline:4.6.5
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/zipline/docker-compose.yaml"
+    environment:
+      - CORE_SECRET=${CORE_SECRET}
+      - CORE_DATABASE_URL=postgresql://zipline:${POSTGRES_PASSWORD}@postgres:5432/zipline
+      - CORE_PORT=3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/zipline/data:/app/uploads
+    networks:
+      - zipline-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=zipline
+      - POSTGRES_USER=zipline
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/zipline/postgres:/var/lib/postgresql/data
+    networks:
+      - zipline-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zipline -d zipline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  zipline-network:
+    driver: bridge
