@@ -1,0 +1,259 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/dify/nginx:/etc/nginx/conf.d:ro
+    networks:
+      - dify-network
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  api:
+    image: langgenius/dify-api:1.16.1
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/dify/docker-compose.yml"
+    environment:
+      - MODE=api
+      - DEPLOY_ENV=PRODUCTION
+      - MIGRATION_ENABLED=true
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=dify
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/api/storage
+      - VECTOR_STORE=pgvector
+      - PGVECTOR_HOST=postgres
+      - PGVECTOR_PORT=5432
+      - PGVECTOR_USER=postgres
+      - PGVECTOR_PASSWORD=${POSTGRES_PASSWORD}
+      - PGVECTOR_DATABASE=dify
+      - CODE_EXECUTION_ENDPOINT=http://sandbox:8194
+      - CODE_EXECUTION_API_KEY=${SANDBOX_API_KEY}
+      - INNER_API_KEY_FOR_PLUGIN=${INNER_API_KEY_FOR_PLUGIN}
+      - PLUGIN_DAEMON_URL=http://plugin_daemon:5002
+      - PLUGIN_DAEMON_KEY=${PLUGIN_DAEMON_KEY}
+      - CONSOLE_WEB_URL=https://${AF_APP_DOMAIN}
+      - APP_WEB_URL=https://${AF_APP_DOMAIN}
+      - CONSOLE_API_URL=https://${AF_APP_DOMAIN}
+      - SERVICE_API_URL=https://${AF_APP_DOMAIN}
+    volumes:
+      - /opt/dify/api/storage:/app/api/storage
+    networks:
+      - dify-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  worker:
+    image: langgenius/dify-api:1.16.1
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/dify/docker-compose.yml"
+    environment:
+      - MODE=worker
+      - DEPLOY_ENV=PRODUCTION
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=dify
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/api/storage
+      - VECTOR_STORE=pgvector
+      - PGVECTOR_HOST=postgres
+      - PGVECTOR_PORT=5432
+      - PGVECTOR_USER=postgres
+      - PGVECTOR_PASSWORD=${POSTGRES_PASSWORD}
+      - PGVECTOR_DATABASE=dify
+      - CODE_EXECUTION_ENDPOINT=http://sandbox:8194
+      - CODE_EXECUTION_API_KEY=${SANDBOX_API_KEY}
+      - INNER_API_KEY_FOR_PLUGIN=${INNER_API_KEY_FOR_PLUGIN}
+      - PLUGIN_DAEMON_URL=http://plugin_daemon:5002
+      - PLUGIN_DAEMON_KEY=${PLUGIN_DAEMON_KEY}
+    volumes:
+      - /opt/dify/api/storage:/app/api/storage
+    networks:
+      - dify-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker_beat:
+    image: langgenius/dify-api:1.16.1
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/dify/docker-compose.yml"
+    environment:
+      - MODE=beat
+      - DEPLOY_ENV=PRODUCTION
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=dify
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - INNER_API_KEY_FOR_PLUGIN=${INNER_API_KEY_FOR_PLUGIN}
+    networks:
+      - dify-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: langgenius/dify-web:1.16.1
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/dify/docker-compose.yml"
+    networks:
+      - dify-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: pgvector/pgvector:0.8.0-pg15
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=dify
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/dify/postgres:/var/lib/postgresql/data
+    networks:
+      - dify-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dify"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:6-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - /opt/dify/redis:/data
+    networks:
+      - dify-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  sandbox:
+    image: langgenius/dify-sandbox:0.2.15
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - API_KEY=${SANDBOX_API_KEY}
+      - GIN_MODE=release
+      - WORKER_TIMEOUT=15
+      - ENABLE_NETWORK=true
+      - HTTP_PROXY=http://ssrf_proxy:3128
+      - HTTPS_PROXY=http://ssrf_proxy:3128
+      - SANDBOX_PORT=8194
+    volumes:
+      - /opt/dify/sandbox/dependencies:/dependencies
+    networks:
+      - dify-network
+    depends_on:
+      - ssrf_proxy
+
+  ssrf_proxy:
+    image: ubuntu/squid:6.6-24.04_beta
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    networks:
+      - dify-network
+
+  plugin_daemon:
+    image: langgenius/dify-plugin-daemon:0.6.3-local
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_DATABASE=dify_plugin
+      - DB_SSL_MODE=disable
+      - SERVER_PORT=5002
+      - SERVER_KEY=${PLUGIN_DAEMON_KEY}
+      - DIFY_INNER_API_URL=http://api:5001
+      - DIFY_INNER_API_KEY=${INNER_API_KEY_FOR_PLUGIN}
+      - PLUGIN_STORAGE_TYPE=local
+      - PLUGIN_STORAGE_LOCAL_ROOT=/app/storage
+      - PLUGIN_INSTALLED_PATH=plugin
+      - PLUGIN_WORKING_PATH=/app/storage/cwd
+      - FORCE_VERIFYING_SIGNATURE=true
+    volumes:
+      - /opt/dify/plugin-daemon/storage:/app/storage
+    networks:
+      - dify-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  dify-network:
+    driver: bridge

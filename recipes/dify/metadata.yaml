@@ -1,0 +1,74 @@
+id: dify
+enabled: false
+display_name: Dify
+description: Open-source platform for building LLM applications with visual workflows, RAG pipelines, and AI agents.
+short_description:
+  en: "Build and deploy LLM applications visually — create RAG pipelines, multi-step agents, and AI workflows on your own server."
+  de: "LLM-Anwendungen visuell erstellen und betreiben — RAG-Pipelines, mehrstufige Agents und KI-Workflows auf dem eigenen Server."
+  es: "Crea y despliega aplicaciones LLM visualmente — pipelines RAG, agentes de varios pasos y flujos de trabajo IA en tu servidor."
+  fr: "Créez et déployez des applications LLM visuellement — pipelines RAG, agents multi-étapes et workflows IA sur votre serveur."
+  it: "Crea e distribuisci applicazioni LLM visualmente — pipeline RAG, agenti multistep e workflow AI sul tuo server."
+  nl: "Bouw en implementeer LLM-applicaties visueel — RAG-pipelines, multi-stap agents en AI-workflows op je eigen server."
+  pl: "Twórz i wdrażaj aplikacje LLM wizualnie — potoki RAG, wieloetapowe agenty i przepływy AI na własnym serwerze."
+categories:
+  - ai
+  - automation
+app_version: "1.16.1"
+recipe_version: "0.3.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/langgenius/dify
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/dify/0.3.0/logo.svg
+logo_source: https://raw.githubusercontent.com/langgenius/dify/main/packages/iconify-collections/assets/public/common/d.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: df1045ec898eca2f0b40c032086acbe2a4f559e130cb78482223d26df4ce65ee
+
+app_min_ram_mb: 4096
+app_min_disk_mb: 20480
+
+
+# basic_auth: Dify follows the same "first visitor completes the web setup wizard" pattern
+# as n8n and Open WebUI — an unclaimed instance hands the admin account to whoever reaches
+# the URL first. The basic-auth prompt closes that window; the customer turns it off once
+# their admin account exists: /root/auth.sh off dify
+#
+# What it costs: the full Dify router goes behind the prompt. Dify's own API endpoints
+# (used by external LLM integrations the customer configures post-login) will get a 401
+# until the customer disables it. Same trade-off as n8n webhooks — judged worthwhile
+# to prevent setup takeover.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Dify Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password.
+
+  - name: REDIS_PASSWORD
+    display_name: Redis Password
+    type: password
+    description: Redis instance password.
+
+  - name: SECRET_KEY
+    display_name: Secret Key
+    type: password
+    description: Secret key for signing session tokens and encrypting sensitive data.
+
+  - name: SANDBOX_API_KEY
+    display_name: Sandbox API Key
+    type: password
+    description: API key for the Dify sandbox service.
+
+  - name: PLUGIN_DAEMON_KEY
+    display_name: Plugin Daemon Key
+    type: password
+    description: Authentication key for the Dify plugin daemon service.
+
+  - name: INNER_API_KEY_FOR_PLUGIN
+    display_name: Inner API Key for Plugins
+    type: password
+    description: Internal API key used for plugin-to-core communication.
