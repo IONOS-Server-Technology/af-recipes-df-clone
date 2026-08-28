@@ -1,0 +1,69 @@
+id: patchmon
+enabled: false
+display_name: PatchMon
+description: Self-hosted Linux patch management and fleet monitoring platform for tracking OS updates and compliance across a server fleet.
+short_description:
+  en: "Monitor and enforce OS patch compliance across your Linux server fleet — centrally manage pending updates, patch policies, and audit reporting."
+  de: "OS-Patch-Compliance über Ihre Linux-Serverflotte überwachen und durchsetzen — ausstehende Updates, Patch-Policies und Audit-Berichte zentral verwalten."
+  es: "Supervisa el cumplimiento de parches OS en tu flota de servidores Linux — gestiona actualizaciones pendientes, políticas y auditorías centralmente."
+  fr: "Surveillez la conformité des correctifs OS de votre parc Linux — gérez centralement les mises à jour en attente, les politiques et les audits."
+  it: "Monitora e applica la conformità delle patch OS sulla tua flotta di server Linux — gestisci centralmente aggiornamenti in sospeso, policy e audit."
+  nl: "Bewaak en handhaaf OS-patchcompliance over uw Linux-servervloot — beheer centraal openstaande updates, patchbeleid en auditrapportages."
+  pl: "Monitoruj zgodność aktualizacji OS w swojej flocie serwerów Linux — centralnie zarządzaj oczekującymi aktualizacjami, politykami i raportami."
+categories:
+  - monitoring
+  - security
+  - infrastructure
+# app_version: upstream compose file (docker/docker-compose.yml) floats :latest — a
+# rolling alias banned by the app-version-pinned rule. Falling back to the current
+# latest stable release tag (2.0.2, 2026-04-28) from apps-gaps/patchmon.yaml.
+app_version: "2.0.2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/PatchMon/PatchMon
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/patchmon/0.2.0/logo.svg
+logo_source: https://patchmon.net/icon.svg?icon.18gce1vuyjqm_.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 7502781d3db51a4d359d4648d1587a80a28b62de081730aace11e764e39b8236
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+
+# basic_auth (same pattern as n8n): PatchMon has no pre-provisioned admin account —
+# the first visitor to the web UI creates an arbitrary admin username/password, which
+# means an unclaimed instance can be taken over by anyone who reaches the URL before
+# the customer's first visit. Traefik basic_auth closes that setup-takeover window.
+#
+# Trade-off for this app: PatchMon agents connect outbound-only back to the server
+# over a separate internal channel — they do not call the public HTTP router — so
+# basic_auth on port 3000 does not block agent enrollments or callbacks. The prompt
+# only affects human browser access to the setup wizard. The customer turns it off
+# once their admin account exists:
+#
+#     /root/auth.sh off patchmon
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: PatchMon Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: PostgreSQL password for the PatchMon database, derived from your server password at first boot.
+
+  - name: REDIS_PASSWORD
+    display_name: Redis Password
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: Redis authentication password for PatchMon, derived from your server password at first boot.
+
+  - name: JWT_SECRET
+    display_name: JWT Secret
+    type: password
+    generated_from: "argon2:ROOT_PASSWORD"
+    description: JWT signing secret for PatchMon session tokens, derived from your server password at first boot.
