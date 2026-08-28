@@ -1,0 +1,45 @@
+id: lowcoder
+enabled: false
+display_name: Lowcoder
+description: Open-source low-code platform for building internal apps, admin dashboards, and custom tools connected to any database or API.
+short_description:
+  en: "Build custom internal tools, admin dashboards, and workflows with a drag-and-drop low-code builder — connected to your databases and APIs."
+  de: "Interne Tools, Admin-Dashboards und Workflows per Drag-and-Drop erstellen — verbunden mit Datenbanken und APIs."
+  es: "Crea herramientas internas, paneles de administración y flujos de trabajo con un constructor low-code conectado a tus bases de datos y APIs."
+  fr: "Créez des outils internes, des tableaux de bord et des flux de travail avec un builder low-code connecté à vos bases de données et APIs."
+  it: "Crea strumenti interni, pannelli di amministrazione e flussi di lavoro con un builder low-code collegato a database e API."
+  nl: "Bouw interne tools, beheerdashboards en workflows met een drag-and-drop low-code builder verbonden met databases en API's."
+  pl: "Twórz wewnętrzne narzędzia, panele administracyjne i przepływy pracy z builderem low-code podłączonym do baz danych i API."
+categories:
+  - developer-tools
+  - productivity
+app_version: "2.7.6"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/lowcoder-org/lowcoder
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/lowcoder/0.2.0/logo.svg
+logo_source: https://framerusercontent.com/images/OZ4tIMY5ffjq9qpHXlrAiZ5qUE.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: a1f5ef3423f31f7d895bbd8754a2d440c12f2d582733febd279de411a32447fe
+
+# all-in-one image bundles MongoDB + Redis internally; no extra services needed.
+# RAM is sized to match appsmith (the closest structural template — same all-in-one
+# low-code builder pattern with embedded databases); disk follows the same baseline.
+app_min_ram_mb: 8192
+app_min_disk_mb: 20480
+
+# basic_auth closes the open-signup race: on a fresh Lowcoder install the first visitor
+# to reach the URL can claim the admin workspace before the customer does. Behind the
+# basic-auth prompt that signup screen is not reachable.
+#
+# Lowcoder's admin account is created via in-app first-run signup (no env-var secret
+# projection is needed — the customer sets their real password themselves in the UI).
+# The customer turns off basic auth once their account exists:
+#
+#     /root/auth.sh off lowcoder
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Lowcoder Web UI

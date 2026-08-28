@@ -1,0 +1,22 @@
+services:
+  lowcoder:
+    image: lowcoderorg/lowcoder-ce:2.7.6
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/lowcoder/stacks:/lowcoder-stacks
+    networks:
+      - lowcoder-network
+    # start_period is generous: the bundled MongoDB and Redis both initialise
+    # inside this single container before the HTTP listener becomes reachable.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  lowcoder-network:
+    driver: bridge
