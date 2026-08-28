@@ -1,0 +1,45 @@
+id: calibre-web
+enabled: false
+display_name: Calibre-Web
+description: Web-based ebook library browser and manager backed by a Calibre database.
+short_description:
+  en: "Browse, read, and manage your ebook library in the browser — with OPDS feed support and Kobo sync."
+  de: "E-Book-Bibliothek im Browser verwalten, lesen und durchsuchen — mit OPDS-Feed und Kobo-Synchronisation."
+  es: "Navega, lee y gestiona tu biblioteca de ebooks en el navegador, con soporte OPDS y sincronización Kobo."
+  fr: "Parcourez, lisez et gérez votre bibliothèque d'ebooks dans le navigateur, avec flux OPDS et synchronisation Kobo."
+  it: "Sfoglia, leggi e gestisci la tua libreria di ebook nel browser con supporto OPDS e sincronizzazione Kobo."
+  nl: "Blader door je ebook-bibliotheek, lees en beheer boeken in de browser — met OPDS-feed en Kobo-synchronisatie."
+  pl: "Przeglądaj, czytaj i zarządzaj biblioteką ebooków w przeglądarce — z obsługą OPDS i synchronizacją Kobo."
+categories:
+  - media
+app_version: "0.6.26"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/janeczku/calibre-web
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/calibre-web/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/calibre-web.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 18e8c3537597be52359687d84037d610acf8e6aefb248732a89a480926ebd1f0
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (traefik_basic_auth mechanism): Calibre-Web ships a hardcoded
+# admin/admin123 credential in its freshly-initialised SQLite DB with no
+# environment variable to override it at first boot. The app is therefore
+# gated behind Traefik HTTP basic auth (the customer's server password),
+# consistent with the pattern used for n8n and other apps whose own
+# first-boot login cannot be configured at deploy time.
+#
+# What this costs: while the prompt is on, OPDS clients and Kobo sync
+# (which hit /opds and /kobo respectively) will receive a 401. The
+# customer can turn it off once they have changed the built-in admin
+# password via the app's settings UI:
+#
+#     /root/auth.sh off calibre-web
+ports:
+  - port: 8083
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Calibre-Web UI
