@@ -1,0 +1,43 @@
+id: hister
+enabled: false
+display_name: Hister
+description: Local-first search engine that full-text indexes your browser history.
+short_description:
+  en: "Search your browsing history, local files, and docs with a private, self-hosted full-text search engine."
+  de: "Browserverlauf, lokale Dateien und Dokumente mit einer privaten, selbstgehosteten Volltextsuche durchsuchen."
+  es: "Busca en tu historial de navegación, archivos locales y documentos con un motor de búsqueda autoalojado."
+  fr: "Recherchez dans votre historique de navigation, vos fichiers locaux et vos docs avec un moteur auto-hébergé."
+  it: "Cerca nella cronologia di navigazione, file locali e documenti con un motore di ricerca self-hosted."
+  nl: "Doorzoek je browsegeschiedenis, lokale bestanden en documenten met een zelf-gehoste zoekmotor."
+  pl: "Przeszukuj historię przeglądania, lokalne pliki i dokumenty za pomocą prywatnego silnika wyszukiwania."
+categories:
+  - productivity
+app_version: "v0.17.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/asciimoo/hister
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/hister/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/hister.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 42f82a84d8a5c362eeb89c198722fc8b61e4916f8b0ae15ba0a7c95b8c76b806
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (traefik_basic_auth mechanism from apps-gaps/hister.yaml):
+# Hister has no built-in authentication by default — auth is opt-in via
+# app.access_token, app.user_handling, or OAuth/SSO, none of which map to
+# our current secret-injection channel. The Traefik basic-auth gate (admin /
+# server-password credential) is the mechanism that makes it installable today,
+# matching the same pattern used for n8n, WUD, Open WebUI, and Immich.
+#
+# Trade-off: the Hister HTTP API and browser-extension endpoints are also
+# behind the gate. Customers using the extension or CLI against this instance
+# must disable the gate after first login (/root/auth.sh off hister) and rely
+# on Hister's own token auth, or configure app.access_token in the app settings.
+ports:
+  - port: 4433
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Hister Web UI
