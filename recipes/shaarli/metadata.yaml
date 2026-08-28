@@ -1,0 +1,45 @@
+id: shaarli
+enabled: false
+display_name: Shaarli
+description: Personal, minimalist, flat-file bookmarking service that runs without any database server.
+short_description:
+  en: "Save, tag, and share bookmarks from a lightweight self-hosted app — no database needed, just a single container."
+  de: "Lesezeichen speichern, taggen und teilen — mit einer schlanken App ohne Datenbankserver, nur ein Container."
+  es: "Guarda, etiqueta y comparte marcadores desde una app autoalojada ligera — sin base de datos, solo un contenedor."
+  fr: "Enregistrez, étiquetez et partagez vos favoris avec une app auto-hébergée légère — sans base de données, juste un conteneur."
+  it: "Salva, etichetta e condividi segnalibri con un'app self-hosted leggera — nessun database, solo un contenitore."
+  nl: "Sla bladwijzers op, tag en deel ze vanuit een lichtgewicht zelf-gehoste app — geen database nodig, slechts één container."
+  pl: "Zapisuj, taguj i udostępniaj zakładki z lekkiej samodzielnie hostowanej aplikacji — bez bazy danych, tylko jeden kontener."
+categories:
+  - productivity
+app_version: "v0.16.5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/shaarli/Shaarli
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/shaarli/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/shaarli.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: be08bb61f07adef223baf7109790616f5bcaf3cb6c3246e0089dc29fb376a48f
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+
+# basic_auth gates the first-run install page: a fresh Shaarli instance exposes an
+# unauthenticated setup wizard where the first visitor claims the admin account (sets
+# login + password). The Traefik basic-auth gate (server root password) closes that
+# window — the customer removes it after completing setup:
+#
+#     /root/auth.sh off shaarli
+#
+# Same accepted trade-off as grav/n8n: inbound requests see 401 until the gate comes
+# down, but the setup-takeover window it closes is worse. The ghcr.io/shaarli/shaarli
+# image exposes no env var for seeding credentials (SHAARLI_VIRTUAL_HOST,
+# SHAARLI_LETSENCRYPT_EMAIL, and SHAARLI_DOCKER_TAG are the only documented SHAARLI_*
+# vars), so generated_from cannot substitute here — basic_auth is the only mechanism.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Shaarli Web UI

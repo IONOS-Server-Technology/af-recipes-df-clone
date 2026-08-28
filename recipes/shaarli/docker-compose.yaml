@@ -1,0 +1,31 @@
+services:
+  shaarli:
+    image: ghcr.io/shaarli/shaarli:v0.16.5
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/shaarli/data:/var/www/shaarli/data
+    networks:
+      - shaarli-network
+    healthcheck:
+      # ghcr.io/shaarli/shaarli (Alpine) ships BusyBox wget, not curl. Cannot
+      # probe "/" directly: on a freshly installed, not-yet-configured
+      # instance "/" 302s to "/install", which itself redirects to
+      # "/install/session-test" to verify cookie support - BusyBox wget has
+      # no cookie jar, so it loops between the two routes until it gives up
+      # with "too many redirections". "/api/v1/info" never redirects, so it
+      # dodges that loop - but its status code isn't stable pre-setup (a
+      # genuinely empty persistent data dir hits an uncaught PHP exception
+      # there, returning 200 with an error page, not 401), so this only
+      # checks that a response arrived at all; a refused/timed-out
+      # connection is the only thing that should fail it.
+      test: ["CMD-SHELL", "wget -S -O /dev/null http://127.0.0.1:80/api/v1/info 2>&1 | grep -q 'HTTP/1.1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  shaarli-network:
+    driver: bridge
