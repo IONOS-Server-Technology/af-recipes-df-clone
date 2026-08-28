@@ -1,0 +1,41 @@
+id: pairdrop
+enabled: false
+display_name: PairDrop
+description: Browser-based, serverless file sharing between devices on the same network or via a room code.
+short_description:
+  en: "Drop files instantly between your devices or share with nearby people — no account, no cloud, no setup."
+  de: "Dateien sofort zwischen Geräten übertragen oder mit Personen in der Nähe teilen — ohne Konto, ohne Cloud."
+  es: "Transfiere archivos al instante entre dispositivos o compártelos con personas cercanas — sin cuenta ni nube."
+  fr: "Transférez des fichiers instantanément entre vos appareils ou partagez avec des personnes proches — sans compte ni cloud."
+  it: "Trasferisci file istantaneamente tra dispositivi o condividili con persone vicine — senza account né cloud."
+  nl: "Deel bestanden direct tussen je apparaten of met mensen in de buurt — geen account, geen cloud, geen gedoe."
+  pl: "Przesyłaj pliki natychmiast między urządzeniami lub udostępniaj osobom w pobliżu — bez konta i chmury."
+categories:
+  - productivity
+  - utilities
+app_version: "1.11.2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/schlagmichdoch/PairDrop
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/pairdrop/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pairdrop.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: f19582bd95b8f10117e91287f2624a19f305ee4367bd16bb4e2fe3fad010c7c9
+
+app_min_ram_mb: 256
+app_min_disk_mb: 1024
+
+# basic_auth protects PairDrop's frontend, which has no built-in authentication.
+# Without it the service sits open to anyone who can reach the URL.
+# Trade-off: the Traefik basic-auth gate covers the entire router including the
+# WebSocket upgrade path — clients that cannot present credentials (e.g. scripted
+# callers) will be rejected with 401. For an interactive drag-and-drop tool used
+# only by the server owner, this is the correct trade-off. The customer can disable
+# it via /root/auth.sh off pairdrop once they have added network-level restrictions.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: PairDrop Web UI
