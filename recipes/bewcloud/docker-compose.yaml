@@ -1,0 +1,57 @@
+services:
+  bewcloud:
+    image: ghcr.io/bewcloud/bewcloud:v4.15.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/bewcloud/docker-compose.yaml"
+    environment:
+      - PORT=8000
+      - POSTGRESQL_HOST=db
+      - POSTGRESQL_USER=bewcloud
+      - POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD}
+      - POSTGRESQL_DBNAME=bewcloud
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_CAFILE=
+      - JWT_SECRET=${JWT_SECRET}
+      - PASSWORD_SALT=${PASSWORD_SALT}
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/bewcloud/data-files:/app/data-files
+      - /opt/bewcloud/bewcloud.config.ts:/app/bewcloud.config.ts:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - bewcloud-network
+
+  db:
+    image: postgres:18.4
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=bewcloud
+      - POSTGRES_USER=bewcloud
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASSWORD}
+    volumes:
+      - /opt/bewcloud/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bewcloud -d bewcloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bewcloud-network
+
+networks:
+  bewcloud-network:
+    driver: bridge
