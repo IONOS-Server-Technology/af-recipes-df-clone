@@ -1,0 +1,78 @@
+id: budibase
+enabled: false
+display_name: Budibase
+description: Low-code platform for building internal apps, admin panels, and automated workflows without coding.
+short_description:
+  en: "Build custom internal tools, admin panels, and workflows with a drag-and-drop low-code builder."
+  de: "Interne Tools, Admin-Panels und Workflows per Drag-and-Drop ohne Programmierkenntnisse erstellen."
+  es: "Crea herramientas internas, paneles de administración y flujos de trabajo con un constructor low-code."
+  fr: "Créez des outils internes, des panneaux d'administration et des flux de travail sans écrire de code."
+  it: "Crea strumenti interni, pannelli di amministrazione e flussi di lavoro con un builder low-code."
+  nl: "Bouw interne tools, beheerpanelen en workflows met een drag-and-drop low-code builder."
+  pl: "Twórz wewnętrzne narzędzia, panele administracyjne i przepływy pracy bez programowania."
+categories:
+  - developer-tools
+  - productivity
+app_version: "3.41.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/Budibase/budibase
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/budibase/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/budibase.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: fb7df48892f059c54f889c0a92ff51f19a2499636c8c8f3556664d85116ac8c5
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 10240
+
+# basic_auth: Budibase's all-in-one image has no admin credentials pre-set —
+# the first visitor claims the owner account via an in-app setup wizard (same
+# shape as n8n's owner-setup flow). Without basic_auth, anyone who reaches the
+# URL before the customer's first visit can become the owner. The prompt closes
+# that window; the customer turns it off once their account exists:
+#
+#     /root/auth.sh off budibase
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Budibase Web UI
+
+# All secrets are server-generated with zero customer input (install.sh fills
+# them in at boot). basic_auth_password is covered by basic_auth: true above.
+parameters:
+  - name: JWT_SECRET
+    display_name: JWT Secret
+    type: password
+    description: Secret used to sign JSON Web Tokens for internal service authentication.
+
+  - name: INTERNAL_API_KEY
+    display_name: Internal API Key
+    type: password
+    description: Secret key for internal service-to-service API calls.
+
+  - name: MINIO_ACCESS_KEY
+    display_name: MinIO Access Key
+    type: password
+    description: Access key for the embedded MinIO object storage service.
+
+  - name: MINIO_SECRET_KEY
+    display_name: MinIO Secret Key
+    type: password
+    description: Secret key for the embedded MinIO object storage service.
+
+  - name: REDIS_PASSWORD
+    display_name: Redis Password
+    type: password
+    description: Password for the embedded Redis cache.
+
+  - name: COUCHDB_USER
+    display_name: CouchDB Username
+    type: string
+    description: Username for the embedded CouchDB database.
+
+  - name: COUCHDB_PASSWORD
+    display_name: CouchDB Password
+    type: password
+    description: Password for the embedded CouchDB database.
