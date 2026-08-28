@@ -1,0 +1,24 @@
+services:
+  grocy:
+    image: lscr.io/linuxserver/grocy:4.6.0
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    ports:
+      - "80"
+    volumes:
+      - /opt/grocy/config:/config
+    networks:
+      - grocy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  grocy-network:
+    driver: bridge
