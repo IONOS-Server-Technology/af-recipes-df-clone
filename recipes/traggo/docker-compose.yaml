@@ -1,0 +1,23 @@
+services:
+  traggo:
+    image: traggo/server:0.8.3
+    restart: unless-stopped
+    environment:
+      - TRAGGO_DEFAULT_USER_NAME=${TRAGGO_DEFAULT_USER_NAME}
+      - TRAGGO_DEFAULT_USER_PASS=${TRAGGO_DEFAULT_USER_PASS}
+    ports:
+      - "3030:3030"
+    volumes:
+      - /opt/traggo/data:/opt/traggo
+    networks:
+      - traggo-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3030/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  traggo-network:
+    driver: bridge

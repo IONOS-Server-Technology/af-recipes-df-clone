@@ -1,0 +1,39 @@
+id: traggo
+enabled: false
+display_name: Traggo
+description: Self-hosted tag-based time tracker for freelancers and small teams.
+short_description:
+  en: "Track time with a flexible tag-based approach — no rigid project hierarchies, just spans annotated with key/value pairs."
+  de: "Zeit flexibel mit Tags erfassen — keine starren Projekthierarchien, nur Zeitspannen mit frei wählbaren Schlüssel-Wert-Paaren."
+  es: "Registra el tiempo con un enfoque flexible basado en etiquetas, sin jerarquías de proyectos rígidas."
+  fr: "Suivez votre temps avec une approche flexible par tags — pas de hiérarchies rigides, juste des plages annotées par paires clé/valeur."
+  it: "Traccia il tempo con un approccio flessibile basato su tag, senza gerarchie di progetto rigide."
+  nl: "Registreer tijd met een flexibele tag-aanpak — geen starre projecthiërarchieën, alleen tijdspannen met sleutel-waardeparen."
+  pl: "Śledź czas elastycznie za pomocą tagów — bez sztywnych hierarchii projektów, tylko zakresy opatrzone parami klucz-wartość."
+categories:
+  - productivity
+app_version: "0.8.3"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/traggo/server
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/traggo/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/traggo.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 3f32613500d835a01f40d7dabf39bccf3569f0303715f0ce190c4b9a8b4f2d3a
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# Traggo has its own login (TRAGGO_DEFAULT_USER_NAME / TRAGGO_DEFAULT_USER_PASS), but
+# those credentials are static values in .env shared identically across all installs —
+# generated_from cannot project the customer's root password into them because the app
+# accepts only plaintext at startup (hashed in-process, not via a PHC string that
+# af-api could pre-compute). basic_auth: true is therefore the real security gate,
+# the same trade-off n8n carries (IF-1312): the customer will face two prompts, but
+# the alternative is an instance reachable with a fleet-wide-identical password.
+ports:
+  - port: 3030
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Traggo Web UI
