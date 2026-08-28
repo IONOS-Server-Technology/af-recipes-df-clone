@@ -1,0 +1,57 @@
+id: yuvomi
+enabled: false
+display_name: Yuvomi
+description: Self-hosted family planner for tasks, calendars, meals, shopping, and budgets.
+short_description:
+  en: "Keep your household organized with a shared planner covering tasks, meals, shopping lists, and budgets."
+  de: "Haushalt organisieren mit einem gemeinsamen Planer für Aufgaben, Mahlzeiten, Einkaufslisten und Budgets."
+  es: "Mantén tu hogar organizado con un planificador compartido para tareas, comidas, listas de compras y presupuestos."
+  fr: "Organisez votre foyer avec un planificateur partagé pour les tâches, repas, courses et budgets."
+  it: "Organizza la tua casa con un pianificatore condiviso per attività, pasti, liste della spesa e budget."
+  nl: "Houd je huishouden georganiseerd met een gedeelde planner voor taken, maaltijden, boodschappenlijsten en budgetten."
+  pl: "Organizuj gospodarstwo domowe za pomocą wspólnego planera zadań, posiłków, list zakupów i budżetów."
+categories:
+  - productivity
+  - home
+# upstream's official docker-compose.yml uses :latest, which is prohibited (IF-1501).
+# Falling back to the current latest stable release tag from version_health.latest_version
+# in apps-gaps/yuvomi.yaml (no upstream-expressed version to adopt).
+app_version: "v1.87.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/ulsklyc/yuvomi
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/yuvomi/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/ulsklyc/yuvomi/main/icon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 76fadceabdc6f25827b673242fa4660c3b5be6da4cb4a852ec716494fee29b94
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# Yuvomi has its own login: the admin account is created interactively by the customer
+# on first visit to the web UI (same self-service pattern as Uptime Kuma).
+# basic_auth is therefore not set — the app provides its own authentication gate.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    description: Yuvomi Web UI
+
+# Both secrets are patternless server-generated strings that the customer never supplies
+# or reads (mechanism: server_generated_no_customer_input per apps-gaps/yuvomi.yaml).
+# generated_from is not applicable here — it only supports argon2/bcrypt hashes derived
+# from ROOT_PASSWORD, whereas SESSION_SECRET and DB_ENCRYPTION_KEY must be random
+# plaintext strings written directly into .env by install.sh.
+parameters:
+  - name: SESSION_SECRET
+    display_name: Session Secret
+    type: password
+    description: >
+      Random secret used to sign session cookies. Generated automatically at install time
+      by install.sh; the customer does not set or see this value.
+  - name: DB_ENCRYPTION_KEY
+    display_name: Database Encryption Key
+    type: password
+    description: >
+      Random key used to encrypt sensitive data stored in the SQLite database. Generated
+      automatically at install time by install.sh; the customer does not set or see this value.
