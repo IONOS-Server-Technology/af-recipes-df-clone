@@ -1,0 +1,48 @@
+id: atlas-cmms
+enabled: false
+display_name: Atlas CMMS
+description: Self-hosted CMMS for work orders, preventive maintenance, and asset tracking.
+short_description:
+  en: "Track work orders, schedule preventive maintenance, and manage physical assets — self-hosted CMMS for facilities and maintenance teams."
+  de: "Arbeitsaufträge verwalten, vorbeugende Wartung planen und Anlagen erfassen — selbst gehostetes CMMS für Facility- und Wartungsteams."
+  es: "Gestiona órdenes de trabajo, programa mantenimiento preventivo y controla activos físicos — CMMS autoalojado para equipos de mantenimiento."
+  fr: "Gérez les bons de travail, planifiez la maintenance préventive et suivez vos actifs — CMMS auto-hébergé pour les équipes de maintenance."
+  it: "Gestisci ordini di lavoro, pianifica la manutenzione preventiva e tieni traccia degli asset — CMMS self-hosted per team di manutenzione."
+  nl: "Beheer werkorders, plan preventief onderhoud en volg fysieke assets — zelf-gehoste CMMS voor facilitaire en onderhoudsteams."
+  pl: "Zarządzaj zleceniami, planuj konserwację zapobiegawczą i śledź zasoby — samodzielnie hostowany CMMS dla zespołów utrzymania ruchu."
+categories:
+  - productivity
+app_version: "v1.8.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/Grashjs/cmms
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/atlas-cmms/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/Grashjs/cmms/main/api/src/main/resources/static/images/logo.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: 2790cf057d340e18fd2ae003763de2bcc6307045f5ed8cc3e760e8a05cb5cc2b
+
+# 5 containers: postgres, Java/Spring backend, React frontend, MinIO, nginx.
+# RAM: Spring backend (~1 GB) + Postgres + MinIO + nginx + frontend = ~2 GB floor.
+# Disk: business records and file attachments (no bulk media); 10 GB is a safe floor.
+app_min_ram_mb: 2048
+app_min_disk_mb: 10240
+
+# basic_auth closes an open-signup race identical to the one documented for appsmith
+# and n8n: a fresh Atlas CMMS instance has no pre-seeded admin account — the first
+# visitor to complete the sign-up flow creates an organization and becomes its admin.
+# ALLOWED_ORGANIZATION_ADMINS can restrict sign-up to a list of email addresses, but
+# AF has no per-customer channel to populate that list at bootstrap time, so it cannot
+# close the race on its own. Traefik basic_auth gates the entire UI until the customer
+# has claimed their admin account, then the customer runs:
+#
+#     /root/auth.sh off atlas-cmms
+#
+# What it costs: all paths behind the Traefik router (including any API callbacks)
+# return 401 while the gate is active, which matters only if external integrations
+# are configured before the gate is removed.
+ports:
+  - port: 80
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Atlas CMMS Web UI (served by the bundled nginx reverse proxy)
