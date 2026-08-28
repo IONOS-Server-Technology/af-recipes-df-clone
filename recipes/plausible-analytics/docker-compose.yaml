@@ -1,0 +1,60 @@
+services:
+  plausible:
+    image: ghcr.io/plausible/community-edition:v3.2.1
+    restart: unless-stopped
+    environment:
+      - BASE_URL=https://${AF_APP_DOMAIN}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - DATABASE_URL=postgresql://plausible:${POSTGRES_PASSWORD}@postgres/plausible
+      - CLICKHOUSE_DATABASE_URL=http://clickhouse:8123/plausible_events_db
+    ports:
+      - "8000:8000"
+    networks:
+      - plausible-analytics-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=plausible
+      - POSTGRES_USER=plausible
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/plausible-analytics/postgres:/var/lib/postgresql/data
+    networks:
+      - plausible-analytics-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plausible -d plausible"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.12-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/plausible-analytics/clickhouse:/var/lib/clickhouse
+    networks:
+      - plausible-analytics-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  plausible-analytics-network:
+    driver: bridge
