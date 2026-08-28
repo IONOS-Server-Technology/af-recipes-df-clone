@@ -1,0 +1,51 @@
+id: teable
+enabled: false
+display_name: Teable
+description: Open-source Airtable alternative with a visual interface built on PostgreSQL.
+short_description:
+  en: "Build structured databases with grid, kanban, gallery, and calendar views — a self-hosted Airtable alternative powered by real Postgres tables."
+  de: "Strukturierte Datenbanken mit Grid-, Kanban-, Galerie- und Kalenderansichten — selbst gehostete Airtable-Alternative auf echten Postgres-Tabellen."
+  es: "Crea bases de datos estructuradas con vistas de cuadrícula, kanban, galería y calendario — una alternativa auto-alojada a Airtable sobre tablas Postgres reales."
+  fr: "Bases de données structurées avec vues grille, kanban, galerie et calendrier — une alternative Airtable auto-hébergée sur de vraies tables Postgres."
+  it: "Crea database strutturati con viste a griglia, kanban, galleria e calendario — un'alternativa self-hosted ad Airtable basata su vere tabelle Postgres."
+  nl: "Bouw gestructureerde databases met raster-, kanban-, galerij- en kalenderweergaven — een zelf-gehoste Airtable-alternatief op echte Postgres-tabellen."
+  pl: "Twórz bazy danych z widokami siatki, kanban, galerii i kalendarza — samodzielnie hostowana alternatywa Airtable na prawdziwych tabelach Postgres."
+categories:
+  - productivity
+  - developer-tools
+app_version: "release.2026-08-06T11-43-30Z.2519"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/teableio/teable
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/teable/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/teableio/teable/develop/apps/nextjs-app/public/images/favicon/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 6ea363dea04b87551c081ffe46c9f3e504c881182635012e9663d227e8d0c21f
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+ports:
+  # Teable has no admin env-var and no default credentials: the first person to reach
+  # the signup form becomes the instance administrator. Gate the frontend behind Traefik
+  # basic-auth (customer's server root password) so only the customer can claim that
+  # first account — same pattern as n8n (IF-1312) and tandoor-recipes. Teable has no
+  # inbound-webhook traffic concern for a database UI, so the basic-auth trade-off is
+  # clean.
+  - port: 3000
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: Teable Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password, generated randomly by install.sh.
+
+  - name: REDIS_PASSWORD
+    display_name: Redis Password
+    type: password
+    description: Redis cache password, generated randomly by install.sh.
