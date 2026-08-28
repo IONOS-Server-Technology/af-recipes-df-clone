@@ -1,0 +1,44 @@
+id: handbrake
+enabled: false
+display_name: HandBrake
+description: Browser-accessible open-source video transcoder with watch folder automation.
+short_description:
+  en: "Convert and transcode video files directly in your browser — HandBrake with watch-folder automation, no client install needed."
+  de: "Videodateien direkt im Browser konvertieren und transkodieren — HandBrake mit Watch-Folder-Automatisierung, ohne Client-Installation."
+  es: "Convierte y transcodifica archivos de vídeo directamente en el navegador — HandBrake con automatización de carpeta vigilada, sin instalar nada."
+  fr: "Convertissez et transcodez des fichiers vidéo directement dans le navigateur — HandBrake avec dossier de surveillance automatisé, sans client à installer."
+  it: "Converti e transcodifica file video direttamente nel browser — HandBrake con automazione watch folder, senza installare alcun client."
+  nl: "Converteer en transcodeer videobestanden direct in de browser — HandBrake met watch-folder-automatisering, zonder clientinstallatie."
+  pl: "Konwertuj i transkoduj pliki wideo bezpośrednio w przeglądarce — HandBrake z automatyzacją folderu obserwowanego, bez instalacji klienta."
+categories:
+  - media
+  - utilities
+app_version: "v26.07.2"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/jlesage/docker-handbrake
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/handbrake/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/handbrake.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: a007c4c6dd36cbc3b429c88840f54f0682af9a3cb36680d8b7a135869b1a3d4f
+
+app_min_ram_mb: 1024
+app_min_disk_mb: 20480
+
+# basic_auth: the jlesage/handbrake image ships an optional
+# WEB_AUTHENTICATION_USERNAME/WEB_AUTHENTICATION_PASSWORD pair, but it only accepts
+# a plaintext password via env var — no hash-based option that generated_from could
+# target. The recipe therefore leaves the built-in auth disabled and gates the whole
+# app behind Traefik basic_auth using the customer's server password, the same
+# pattern used by n8n and immich. The trade-off is that all inbound traffic to the
+# router gets a 401 until the customer disables it via /root/auth.sh off handbrake,
+# but for a video-transcoding GUI that has no external webhook/callback use cases
+# this is a clean trade: the setup-takeover window is closed and no legitimate
+# automated callers are blocked.
+ports:
+  - port: 5800
+    protocol: tcp
+    public: true
+    http: true
+    basic_auth: true
+    description: HandBrake Web UI (noVNC)
