@@ -1,0 +1,52 @@
+services:
+  mathesar:
+    image: mathesar/mathesar:0.12.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+      - "wud.compose.file=/opt/mathesar/docker-compose.yml"
+    environment:
+      - MATHESAR_DATABASES=(default|postgresql://mathesar:${DB_PASSWORD}@db:5432/mathesar)
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${AF_APP_DOMAIN}
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/mathesar/media:/code/media
+      - /opt/mathesar/static:/code/static
+    networks:
+      - mathesar-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)\" 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  db:
+    image: pgautoupgrade/pgautoupgrade:17-bookworm
+    restart: unless-stopped
+    labels:
+      # Database — never auto-update (schema migrations are not automatic).
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=mathesar
+      - POSTGRES_USER=mathesar
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/mathesar/postgres:/var/lib/postgresql/data
+    networks:
+      - mathesar-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mathesar -d mathesar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  mathesar-network:
+    driver: bridge
