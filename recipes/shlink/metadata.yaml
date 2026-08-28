@@ -1,0 +1,49 @@
+id: shlink
+enabled: false
+display_name: Shlink
+description: Self-hosted URL shortener with analytics, REST API, and branded short links.
+short_description:
+  en: "Create and track branded short links on your own server — with click analytics, REST API, and tag-based organisation."
+  de: "Eigene Kurzlinks auf dem Server erstellen und mit Klick-Analytik verfolgen — mit REST-API, Tags und eigener Domain."
+  es: "Crea y rastrea enlaces cortos en tu propio servidor — con analítica de clics, API REST y organización por etiquetas."
+  fr: "Créez et suivez des liens courts sur votre serveur — avec statistiques de clics, API REST et organisation par tags."
+  it: "Crea e monitora link brevi sul tuo server — con analisi dei clic, REST API e organizzazione tramite tag."
+  nl: "Maak en volg korte links op je eigen server — met klikanalyse, REST API en tag-gebaseerde organisatie."
+  pl: "Twórz i śledź krótkie linki na własnym serwerze — z analizą kliknięć, REST API i organizacją tagami."
+categories:
+  - productivity
+  - networking
+app_version: "5.1.5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/shlinkio/shlink
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/shlink/0.2.0/logo.svg
+logo_source: https://shlink.io/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 03f8c50e4335966f7f4a68f6962d15412d8e40e2d93eb844908ea13ce2c6f075
+
+app_min_ram_mb: 512
+app_min_disk_mb: 2048
+
+# Two-container stack: shlinkio/shlink (PHP/RoadRunner API, SQLite by default) on
+# port 8080 and shlinkio/shlink-web-client (nginx static SPA) for the management UI.
+# Neither container has a built-in login screen, so apps-gaps/shlink.yaml explicitly
+# called for a Traefik basic_auth gate over the whole stack (IF-1312 pattern) to
+# prevent setup-takeover during the unclaimed-admin window.
+#
+# Trade-off: basic_auth: true means Traefik will prompt for credentials on ALL
+# requests to this port, including public short-link redirects — breaking the core
+# URL-shortening flow for unauthenticated visitors. This is the established AF pattern
+# (same as Adminer, WUD, etc.) because the setup-takeover risk is judged worse than
+# temporarily blocking public access. Customers who want public redirects live must
+# run `/root/auth.sh off shlink` after claiming their account.
+#
+# The internal API key (INITIAL_API_KEY / SHLINK_SERVER_API_KEY) is a random token
+# generated server-side by install.sh with no customer input; it is injected into
+# both containers at boot and never needs to be typed by the customer.
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Shlink API and web client — short-link redirects and management UI

@@ -1,0 +1,25 @@
+services:
+  shlink:
+    image: shlinkio/shlink:5.1.5
+    restart: unless-stopped
+    environment:
+      - DEFAULT_DOMAIN=${AF_APP_DOMAIN}
+      - IS_HTTPS_ENABLED=true
+      - INITIAL_API_KEY=${SHLINK_INITIAL_API_KEY}
+      - DB_DRIVER=sqlite
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/shlink/data:/etc/shlink/data
+    networks:
+      - shlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/rest/v3/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  shlink-network:
+    driver: bridge
