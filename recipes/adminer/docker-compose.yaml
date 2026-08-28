@@ -1,0 +1,21 @@
+services:
+  adminer:
+    image: adminer:5.5.1
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - adminer-network
+    healthcheck:
+      # Adminer serves its login page on / — a 200 means the PHP runtime is up and
+      # accepting connections. Using 127.0.0.1 (not localhost) because Docker's
+      # default resolver may return ::1 while the process binds only to 0.0.0.0.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  adminer-network:
+    driver: bridge
