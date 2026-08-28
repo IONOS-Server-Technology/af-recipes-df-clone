@@ -1,0 +1,21 @@
+services:
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    restart: unless-stopped
+    ports:
+      - "4873:4873"
+    volumes:
+      - /opt/verdaccio/conf:/verdaccio/conf
+      - /opt/verdaccio/storage:/verdaccio/storage
+    networks:
+      - verdaccio-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4873/-/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  verdaccio-network:
+    driver: bridge

@@ -1,0 +1,46 @@
+id: verdaccio
+enabled: false
+display_name: Verdaccio
+description: Lightweight private npm proxy registry for JavaScript packages.
+short_description:
+  en: "Host your own private npm registry to cache public packages and publish internal JavaScript libraries."
+  de: "Eigene private npm-Registry betreiben, um öffentliche Pakete zu cachen und interne JavaScript-Bibliotheken zu veröffentlichen."
+  es: "Aloja tu propio registro npm privado para cachear paquetes públicos y publicar bibliotecas JavaScript internas."
+  fr: "Hébergez votre propre registre npm privé pour mettre en cache des paquets publics et publier des bibliothèques JavaScript internes."
+  it: "Ospita il tuo registro npm privato per memorizzare pacchetti pubblici nella cache e pubblicare librerie JavaScript interne."
+  nl: "Host je eigen privé npm-registry om publieke pakketten te cachen en interne JavaScript-bibliotheken te publiceren."
+  pl: "Uruchom własne prywatne repozytorium npm do cachowania publicznych pakietów i publikowania wewnętrznych bibliotek JavaScript."
+categories:
+  - developer-tools
+  - infrastructure
+app_version: "6"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/verdaccio/verdaccio
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/verdaccio/0.2.0/logo.svg
+logo_source: https://verdaccio.org/img/logo/uk/verdaccio-tiny-uk-no-bg.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 9574be745e0bd643cd640cdde00e4cdc2b4427f60d85a5c78436143c336264b0
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+ports:
+  - port: 4873
+    protocol: tcp
+    public: true
+    description: Verdaccio Web UI and npm registry endpoint
+
+parameters:
+  # generated_from (IF-1420): VERDACCIO_ADMIN_PASSWORD_HASH is a bcrypt hash of
+  # the customer's server password. install.sh seeds it into the mounted htpasswd
+  # file as "admin:<hash>", giving the customer admin login with the password they
+  # already have — same pattern as Vaultwarden's ADMIN_TOKEN, projected into an
+  # htpasswd line rather than a direct env var. Self-registration is disabled in
+  # the shipped config.yaml (max_users: -1) so this pre-seeded account is the
+  # only entry point.
+  - name: VERDACCIO_ADMIN_PASSWORD_HASH
+    display_name: Admin Password Hash
+    type: password
+    generated_from: "bcrypt:ROOT_PASSWORD"
+    description: Bcrypt hash of the admin account password, derived from your server password. Log in to the Verdaccio UI with username "admin" and your server password.
