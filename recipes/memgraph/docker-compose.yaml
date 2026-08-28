@@ -1,0 +1,41 @@
+services:
+  memgraph:
+    image: memgraph/memgraph:3.12.0
+    restart: unless-stopped
+    volumes:
+      - /opt/memgraph/data:/var/lib/memgraph
+    networks:
+      - memgraph-network
+    healthcheck:
+      # Bolt (7687) opens once the engine is ready to accept connections.
+      # bash /dev/tcp is reliable here since the image has no curl/wget in its
+      # minimal layer and adding a network dependency just for health is wasteful.
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/7687' 2>/dev/null && echo ok || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  lab:
+    image: memgraph/lab:3.12.0
+    restart: unless-stopped
+    environment:
+      - QUICK_CONNECT_MG_HOST=memgraph
+      - QUICK_CONNECT_MG_PORT=7687
+    ports:
+      - "3000:3000"
+    networks:
+      - memgraph-network
+    depends_on:
+      memgraph:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  memgraph-network:
+    driver: bridge
