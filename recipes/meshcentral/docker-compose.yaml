@@ -1,0 +1,30 @@
+services:
+  meshcentral:
+    image: ghcr.io/ylianst/meshcentral:1.2.4
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - HOSTNAME=${AF_APP_DOMAIN}
+      - ALLOW_NEW_ACCOUNTS=false
+      - WEBPORT=443
+      - REVERSE_PROXY=${AF_APP_DOMAIN}
+      - REVERSE_PROXY_TLS_PORT=443
+    ports:
+      - "443:443"
+    volumes:
+      - /opt/meshcentral/data:/opt/meshcentral/meshcentral-data
+      - /opt/meshcentral/files:/opt/meshcentral/meshcentral-files
+      - /opt/meshcentral/web:/opt/meshcentral/meshcentral-web
+      - /opt/meshcentral/backups:/opt/meshcentral/meshcentral-backups
+    networks:
+      - meshcentral-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:443/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  meshcentral-network:
+    driver: bridge
