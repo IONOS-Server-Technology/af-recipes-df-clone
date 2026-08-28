@@ -1,0 +1,54 @@
+id: new-api
+enabled: false
+display_name: New API
+description: LLM gateway and AI asset management system that centralizes multiple AI-provider API keys behind one compatible endpoint.
+short_description:
+  en: "Centralize and meter access to OpenAI, Anthropic, Gemini, and other AI providers — one endpoint, per-key quotas, usage billing."
+  de: "Zugriff auf OpenAI, Anthropic, Gemini und andere KI-Anbieter zentralisieren und steuern — ein Endpunkt, Schlüssel-Kontingente, Abrechnung."
+  es: "Centraliza y controla el acceso a OpenAI, Anthropic, Gemini y otros proveedores de IA — un endpoint, cuotas por clave, facturación."
+  fr: "Centralisez et mesurez l'accès à OpenAI, Anthropic, Gemini et d'autres fournisseurs d'IA — un point d'entrée, quotas par clé, facturation."
+  it: "Centralizza e misura l'accesso a OpenAI, Anthropic, Gemini e altri provider IA — un endpoint, quote per chiave, fatturazione."
+  nl: "Centraliseer en beheer toegang tot OpenAI, Anthropic, Gemini en andere AI-aanbieders — één endpoint, quota per sleutel, gebruik bijhouden."
+  pl: "Scentralizuj i ogranicz dostęp do OpenAI, Anthropic, Gemini i innych dostawców AI — jeden endpoint, limity na klucz, rozliczenia użycia."
+categories:
+  - ai
+  - developer-tools
+# app_version: upstream docker-compose.yml pins to calciumion/new-api:latest — a
+# rolling alias that RFC-002 app-version-pinned forbids. Per IF-1501, since the
+# upstream file provides no usable non-latest version expression, the current latest
+# stable release tag is used from apps-gaps/new-api.yaml version_health.latest_version.
+app_version: "v1.0.0-rc.23"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/QuantumNous/new-api
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/new-api/0.2.0/logo.svg
+logo_source: https://newapi.pro/assets/newapi.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: e7ae8927ff476ce94f983c7747ee4b566a77deed10f6ff564f259faea696465c
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth (IF-1312): New API ships no customer-settable admin-password env var.
+# First boot hardcodes username root / password 123456 with no override mechanism
+# (confirmed in apps-gaps/new-api.yaml summary: model/main.go::createRootAccountIfNeed).
+# Traefik basic_auth is the real auth boundary that protects the instance until the
+# customer changes the built-in password via the UI. Without it, any visitor who
+# reaches the URL before the customer's first login can access the admin panel.
+ports:
+  - port: 3000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: New API Web UI
+
+parameters:
+  - name: SESSION_SECRET
+    display_name: Session Secret
+    type: password
+    description: Secret key for signing session cookies. Server-generated at first boot; required for correct session handling.
+
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password. Server-generated at first boot.

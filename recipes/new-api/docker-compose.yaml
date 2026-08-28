@@ -1,0 +1,67 @@
+services:
+  new-api:
+    image: calciumion/new-api:v1.0.0-rc.23
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+    environment:
+      - SQL_DSN=postgres://newapi:${POSTGRES_PASSWORD}@postgres:5432/newapi
+      - SESSION_SECRET=${SESSION_SECRET}
+      - REDIS_CONN_STRING=redis://redis:6379
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/new-api/data:/data
+    networks:
+      - new-api-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=newapi
+      - POSTGRES_USER=newapi
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/new-api/postgres:/var/lib/postgresql/data
+    networks:
+      - new-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newapi -d newapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    volumes:
+      - /opt/new-api/redis:/data
+    networks:
+      - new-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  new-api-network:
+    driver: bridge
