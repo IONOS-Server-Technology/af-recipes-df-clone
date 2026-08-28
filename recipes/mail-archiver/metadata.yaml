@@ -1,0 +1,52 @@
+id: mail-archiver
+enabled: false
+display_name: Mail-Archiver
+description: Self-hosted email archiving with IMAP sync, full-text search, and export.
+short_description:
+  en: "Archive and search your mailboxes on your own server — connect IMAP, M365, or Gmail accounts and keep a full-text searchable, exportable copy."
+  de: "E-Mails auf dem eigenen Server archivieren und durchsuchen — IMAP-, M365- und Gmail-Konten verbinden und als durchsuchbares, exportierbares Archiv behalten."
+  es: "Archiva y busca tus buzones en tu propio servidor — conecta cuentas IMAP, M365 o Gmail y conserva una copia exportable con búsqueda de texto completo."
+  fr: "Archivez et recherchez vos boîtes mail sur votre serveur — connectez IMAP, M365 ou Gmail pour une copie indexée et exportable."
+  it: "Archivia e cerca le caselle di posta sul tuo server — collega account IMAP, M365 o Gmail e tieni una copia esportabile con ricerca full-text."
+  nl: "Archiveer en doorzoek je mailboxen op je eigen server — koppel IMAP-, M365- of Gmail-accounts voor een doorzoekbare, exporteerbare kopie."
+  pl: "Archiwizuj i przeszukuj skrzynki pocztowe na własnym serwerze — połącz IMAP, M365 lub Gmail i przechowuj eksportowalną, przeszukiwalną kopię."
+categories:
+  - productivity
+  - communication
+app_version: "2607.5"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/s1t5/mail-archiver
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/mail-archiver/0.2.0/logo.svg
+logo_source: https://mail-archiver.org/favicon.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: f4ae440ce03a22ee895712d11e9fdb3880f7556097c363b4f65eaab5bb8cf900
+
+app_min_ram_mb: 2048
+app_min_disk_mb: 20480
+
+# basic_auth: Mail-Archiver's Authentication__Password env var accepts plaintext at boot
+# and is not compatible with generated_from (which only produces hashes, never plaintext).
+# The internal admin login is randomly generated server-side and never surfaced to the
+# customer — the Traefik basic_auth gate is the actual customer-facing auth boundary,
+# same pattern as Adminer and BugSink for apps with an unchangeable/hidden native login.
+ports:
+  - port: 5000
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Mail-Archiver Web UI
+
+parameters:
+  - name: POSTGRES_PASSWORD
+    display_name: Database Password
+    type: password
+    description: PostgreSQL database password embedded in the app connection string.
+
+  - name: APP_ADMIN_PASSWORD
+    display_name: Internal Admin Password
+    type: password
+    description: >
+      Plaintext password seeding the built-in admin account (Authentication__Password).
+      Randomly generated server-side and never surfaced to the customer — the Traefik
+      basic_auth gate is the actual access boundary.
