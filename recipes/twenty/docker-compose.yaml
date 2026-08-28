@@ -1,0 +1,87 @@
+services:
+  server:
+    image: twentycrm/twenty:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_PORT: 3000
+      PG_DATABASE_URL: postgres://twenty:${PG_DATABASE_PASSWORD}@db:5432/twenty
+      SERVER_URL: https://${AF_APP_DOMAIN}
+      REDIS_URL: redis://redis:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_SECRET: ${APP_SECRET}
+      STORAGE_TYPE: local
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/twenty/storage:/app/packages/twenty-server/.local-storage
+    networks:
+      - twenty-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:3000/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  worker:
+    image: twentycrm/twenty:${TAG:-latest}
+    restart: unless-stopped
+    command: ["yarn", "worker:prod"]
+    environment:
+      PG_DATABASE_URL: postgres://twenty:${PG_DATABASE_PASSWORD}@db:5432/twenty
+      SERVER_URL: https://${AF_APP_DOMAIN}
+      REDIS_URL: redis://redis:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_SECRET: ${APP_SECRET}
+      STORAGE_TYPE: local
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+    volumes:
+      - /opt/twenty/storage:/app/packages/twenty-server/.local-storage
+    networks:
+      - twenty-network
+    depends_on:
+      db:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: twenty
+      POSTGRES_USER: twenty
+      POSTGRES_PASSWORD: ${PG_DATABASE_PASSWORD}
+    volumes:
+      - /opt/twenty/postgres:/var/lib/postgresql/data
+    networks:
+      - twenty-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twenty -d twenty"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["--maxmemory-policy", "noeviction"]
+    networks:
+      - twenty-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  twenty-network:
+    driver: bridge
