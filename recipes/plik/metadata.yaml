@@ -1,0 +1,41 @@
+id: plik
+enabled: false
+display_name: Plik
+description: Self-hosted temporary file sharing with shareable, expiring links and a clean web UI.
+short_description:
+  en: "Share files with expiring, shareable links — a self-hosted WeTransfer alternative with no external database and no account required for recipients."
+  de: "Dateien als ablaufende, teilbare Links weitergeben — eine selbstgehostete WeTransfer-Alternative ohne externe Datenbank."
+  es: "Comparte archivos como enlaces con expiración — una alternativa WeTransfer autoalojada sin base de datos externa."
+  fr: "Partagez des fichiers sous forme de liens temporaires — une alternative WeTransfer auto-hébergée sans base de données externe."
+  it: "Condividi file come link con scadenza — un'alternativa WeTransfer self-hosted senza database esterno."
+  nl: "Deel bestanden als verlopende links — een zelf-gehoste WeTransfer-alternatief zonder externe database."
+  pl: "Udostępniaj pliki jako wygasające linki — samodzielnie hostowana alternatywa WeTransfer bez zewnętrznej bazy danych."
+categories:
+  - storage
+  - productivity
+app_version: "1.4.2"
+recipe_version: "0.1.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/root-gg/plik
+
+app_min_ram_mb: 256
+app_min_disk_mb: 2048
+
+# basic_auth (RFC-001 §4.3.1): plik ships with FeatureAuthentication = "disabled" by
+# default, so a fresh instance accepts uploads from anyone who reaches the URL.
+# basic_auth gates the whole router with the server password until the customer is
+# ready to configure plik's own auth or open it up intentionally.
+#
+# Trade-off: Traefik basic_auth is router-wide, so external recipients of shared
+# download links also receive a 401 until the gate is lifted. The customer disables it
+# once the instance is configured:
+#
+#     /root/auth.sh off plik
+#
+# Matches the same pattern as n8n (IF-1312).
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: Plik Web UI
