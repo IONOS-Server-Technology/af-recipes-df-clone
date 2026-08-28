@@ -1,0 +1,69 @@
+services:
+  ghostfolio:
+    image: ghostfolio/ghostfolio:3.42.0
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.include=ntfy.notify,dockercompose.apply"
+    environment:
+      - DATABASE_URL=postgresql://ghostfolio:${POSTGRES_PASSWORD}@postgres:5432/ghostfolio
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - ACCESS_TOKEN_SALT=${ACCESS_TOKEN_SALT}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - NODE_ENV=production
+    ports:
+      - "3333:3333"
+    networks:
+      - ghostfolio-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3333/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    environment:
+      - POSTGRES_DB=ghostfolio
+      - POSTGRES_USER=ghostfolio
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/ghostfolio/postgres:/var/lib/postgresql/data
+    networks:
+      - ghostfolio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ghostfolio -d ghostfolio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - /opt/ghostfolio/redis:/data
+    networks:
+      - ghostfolio-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a ${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  ghostfolio-network:
+    driver: bridge
