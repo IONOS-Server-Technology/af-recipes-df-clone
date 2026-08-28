@@ -1,0 +1,71 @@
+services:
+  snapotter:
+    image: snapotter/snapotter:v2.2.0
+    restart: unless-stopped
+    ports:
+      - "1349:1349"
+    environment:
+      - AUTH_ENABLED=true
+      - DEFAULT_USERNAME=admin
+      - DEFAULT_PASSWORD=admin
+      - DATABASE_URL=postgres://snapotter:${POSTGRES_PASSWORD}@postgres:5432/snapotter
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - TRUST_PROXY=loopback,linklocal,uniquelocal
+    volumes:
+      - /opt/snapotter/data:/data
+      - /opt/snapotter/workspace:/tmp/workspace
+    networks:
+      - snapotter-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "--max-time", "5", "http://localhost:1349/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  postgres:
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: snapotter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: snapotter
+    volumes:
+      - /opt/snapotter/postgres:/var/lib/postgresql/data
+    networks:
+      - snapotter-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snapotter -d snapotter"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  redis:
+    image: redis:8-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+    restart: unless-stopped
+    command: >-
+      redis-server
+      --maxmemory-policy noeviction
+      --maxmemory 512mb
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - /opt/snapotter/redis:/data
+    networks:
+      - snapotter-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+networks:
+  snapotter-network:
+    driver: bridge
