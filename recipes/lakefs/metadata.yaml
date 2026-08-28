@@ -1,0 +1,43 @@
+id: lakefs
+enabled: false
+display_name: LakeFS
+description: Git-like version control for data lakes — branch, commit, and roll back object-storage datasets with an S3-compatible interface.
+short_description:
+  en: "Apply Git-like version control to your data lake: branch, commit, merge, and roll back datasets stored in any S3-compatible blockstore."
+  de: "Git-ähnliche Versionskontrolle für den Data Lake: Branches, Commits, Merges und Rollbacks für Datensätze in jedem S3-kompatiblen Blockspeicher."
+  es: "Control de versiones tipo Git para tu data lake: crea ramas, commits y revertir datasets almacenados en cualquier blockstore compatible con S3."
+  fr: "Contrôle de version façon Git pour votre data lake : branches, commits, fusions et retours arrière sur des jeux de données dans tout blockstore S3."
+  it: "Controllo versione stile Git per il data lake: branch, commit, merge e rollback su dataset in qualsiasi blockstore compatibile S3."
+  nl: "Git-achtig versiebeheer voor je data lake: branch, commit, merge en terugdraai datasets in elke S3-compatibele blockstore."
+  pl: "Kontrola wersji w stylu Git dla data lake: gałęzie, commity, scalanie i rollback zbiorów danych w dowolnym magazynie zgodnym z S3."
+categories:
+  - developer-tools
+  - storage
+app_version: "1"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/treeverse/lakeFS
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/lakefs/0.2.0/logo.svg
+logo_source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main/svg/lakefs.svg
+logo_license: trademark-nominative-fair-use
+logo_sha256: 31cf941e49fc16f30a145d9d4f62fb833ca78a3b9c3d961829bae171ee542b92
+
+app_min_ram_mb: 512
+app_min_disk_mb: 10240
+
+# basic_auth closes the open-setup race: on a fresh install LakeFS redirects to
+# /setup, which generates a one-time admin access-key-ID/secret pair visible only
+# to whoever completes the wizard. An anonymous visitor who reaches /setup before
+# the customer can claim that admin credential. Behind the basic-auth prompt the
+# setup screen is not reachable at all.
+#
+# What it costs: while the prompt is active any S3-gateway API call gets a 401.
+# The customer turns it off once their admin account exists:
+#
+#     /root/auth.sh off lakefs
+ports:
+  - port: 8080
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: LakeFS Web UI and API
