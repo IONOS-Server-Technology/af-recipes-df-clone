@@ -1,0 +1,43 @@
+services:
+  dvinyl:
+    image: ghcr.io/kyonew/dvinyl:3.1.0
+    restart: unless-stopped
+    environment:
+      - SESSION_SECRET=${SESSION_SECRET}
+      - PASSJWT=${PASSJWT}
+      - MONGODB_URI=mongodb://mongo:27017/dvinyl
+    ports:
+      - "3099:3099"
+    volumes:
+      - /opt/dvinyl/data:/app/data
+    networks:
+      - dvinyl-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3099/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    labels:
+      - "wud.watch=false"
+    volumes:
+      - /opt/dvinyl/mongo:/data/db
+    networks:
+      - dvinyl-network
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand({ping:1})' --quiet || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  dvinyl-network:
+    driver: bridge

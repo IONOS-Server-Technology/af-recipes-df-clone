@@ -1,0 +1,51 @@
+id: dvinyl
+enabled: false
+display_name: DVinyl
+description: Self-hosted collection manager for vinyl records, CDs, books, movies, and video games.
+short_description:
+  en: "Catalogue your vinyl records, CDs, books, movies, and video games — with barcode scanning, market-value lookups, and a built-in wishlist."
+  de: "Katalogisiere Schallplatten, CDs, Bücher, Filme und Videospiele — mit Barcode-Scan, Marktwertabfragen und integrierter Wunschliste."
+  es: "Cataloga tus discos de vinilo, CDs, libros, películas y videojuegos — con escaneo de código de barras, búsqueda de valor de mercado y lista de deseos."
+  fr: "Cataloguez vos vinyles, CD, livres, films et jeux vidéo — avec scan de codes-barres, recherche de valeur marchande et liste de souhaits."
+  it: "Catalogate vinili, CD, libri, film e videogiochi — con scansione codici a barre, ricerca del valore di mercato e lista desideri integrata."
+  nl: "Catalogiseer je platen, cd's, boeken, films en videogames — met barcodescan, marktwaardeopzoekingen en een ingebouwde verlanglijst."
+  pl: "Kataloguj płyty winylowe, CD, książki, filmy i gry wideo — ze skanowaniem kodów kreskowych, wyszukiwaniem wartości rynkowej i listą życzeń."
+categories:
+  - media
+  - productivity
+app_version: "3.1.0"
+recipe_version: "0.2.0"
+recipe_type: docker-compose
+upstream_url: https://github.com/Kyonew/DVinyl
+logo_url: https://appfactory.s3.eu-central-3.ionoscloud.com/recipes/dvinyl/0.2.0/logo.svg
+logo_source: https://raw.githubusercontent.com/Kyonew/DVinyl/main/public/ressources/logo.png
+logo_license: trademark-nominative-fair-use
+logo_sha256: d68ab62f2378d6dd2a366daac725e765f52b3b32b4a528b192a6d1647eb19992
+
+app_min_ram_mb: 512
+app_min_disk_mb: 5120
+
+# basic_auth closes the race-to-claim-admin window: DVinyl creates its admin
+# account through a first-run web wizard with no env-var injection point, so
+# gating the whole app behind Traefik basic_auth keeps the setup screen
+# unreachable until the customer is ready to complete it themselves — the same
+# pattern used for n8n. Turn it off once the account exists:
+#
+#     /root/auth.sh off dvinyl
+ports:
+  - port: 3099
+    protocol: tcp
+    public: true
+    basic_auth: true
+    description: DVinyl Web UI
+
+parameters:
+  - name: SESSION_SECRET
+    display_name: Session Secret
+    type: password
+    description: Secret key used to sign session cookies. Generated automatically at install time.
+
+  - name: PASSJWT
+    display_name: JWT Secret
+    type: password
+    description: Secret key used to sign JWT authentication tokens. Generated automatically at install time.
