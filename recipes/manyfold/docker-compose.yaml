@@ -1,0 +1,64 @@
+services:
+  manyfold:
+    image: ghcr.io/manyfold3d/manyfold:v0.147.1
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - REDIS_URL=redis://redis:6379/1
+      - DATABASE_ADAPTER=postgresql
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=manyfold
+      - DATABASE_PASSWORD=${DB_PASSWORD}
+      - DATABASE_NAME=manyfold
+    ports:
+      - "3214:3214"
+    volumes:
+      - /opt/manyfold/libraries:/libraries
+    networks:
+      - manyfold-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3214/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - manyfold-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=manyfold
+      - POSTGRES_USER=manyfold
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /opt/manyfold/postgres:/var/lib/postgresql/data
+    networks:
+      - manyfold-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manyfold -d manyfold"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  manyfold-network:
+    driver: bridge
