@@ -2,6 +2,8 @@
 
 Application Factory recipes — declarative application definitions consumed by the AF API.
 
+> **This is a dark-factory dev clone**, not the production [af-recipes](https://github.com/IONOS-Server-Technology/af-recipes) repo — GitHub Actions are disabled here. See [`dark-factory/`](dark-factory/) for the operator docs and [`scale-1k-roadmap/`](scale-1k-roadmap/) for the 1,000-app catalogue expansion this clone was built for. Team-wide context on running dark-factory itself: [Dark Factory on Confluence](https://confluence.ionos.org/spaces/STRSERVDEV/pages/801771795/Dark+Factory).
+
 ## Recipe Format
 
 Each recipe lives in `recipes/<app-name>/` and contains:
